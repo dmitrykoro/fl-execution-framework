@@ -20,7 +20,7 @@ disable_progress_bar()
 
 NUM_CLIENTS = 12
 BATCH_SIZE = 4
-ROOT_DIR = './CLIENTS DATA'
+ROOT_DIR = 'CLIENT_DATA'
 
 # Loading dataset based on number of clients and batch size
 data_loader = LoadDataset(ROOT_DIR, NUM_CLIENTS, BATCH_SIZE)
