@@ -23,10 +23,11 @@ BATCH_SIZE = 4
 ROOT_DIR = './CLIENTS DATA'
 
 # Loading dataset based on number of clients and batch size
-data_loader = LoadDataset(ROOT_DIR,NUM_CLIENTS, BATCH_SIZE)
+data_loader = LoadDataset(ROOT_DIR, NUM_CLIENTS, BATCH_SIZE)
 trainloaders, valloaders, testloaders = data_loader.load_datasets()
 
 data_loader.display_samples_from_loader(trainloaders[0], "Sample")
+
 
 def client_fn(cid: str) -> FlowerClient:
     """Create a Flower client representing a single organization."""
@@ -52,12 +53,14 @@ if DEVICE.type == "cuda":
     # Refer to our documentation for more details about Flower Simulations
     # and how to setup these `client_resources`.
 
+
 def weighted_average(metrics: List[Tuple[int, Metrics]]) -> Metrics:
     # Multiply accuracy of each client by number of examples used
     accuracies = [num_examples * m["accuracy"] for num_examples, m in metrics]
     examples = [num_examples for num_examples, _ in metrics]
     # Aggregate and return custom metric (weighted average)
     return {"accuracy": sum(accuracies) / sum(examples)}
+
 
 # Create FedAvg strategy
 # strategy = fl.server.strategy.FedAvg(
@@ -89,8 +92,8 @@ fl.simulation.start_simulation(
 
 data = plot_fn.process_client_data(strategy)
 plot_fn.plot_accuracy_history(data)
-plot_fn.plot_accuracy_for_round(data,1)
-plot_fn.plot_accuracy_for_round(data,5)
-plot_fn.plot_accuracy_for_round(data,10)
+plot_fn.plot_accuracy_for_round(data, 1)
+plot_fn.plot_accuracy_for_round(data, 5)
+plot_fn.plot_accuracy_for_round(data, 10)
 plot_fn.plot_trust_history(data)
 plot_fn.plot_reputation_history(data)

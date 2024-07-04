@@ -6,6 +6,7 @@ import torch
 
 DEVICE = torch.device("cpu")  # Try "cuda" to train on GPU
 
+
 class FlowerClient(fl.client.NumPyClient):
     def __init__(self, net, trainloader, valloader):
         self.net = net
@@ -22,7 +23,7 @@ class FlowerClient(fl.client.NumPyClient):
 
     def train(self, net, trainloader, epochs: int, verbose=False):
         """Train the network on the training set."""
-        #criterion = torch.nn.CrossEntropyLoss()
+        # criterion = torch.nn.CrossEntropyLoss()
         criterion = torch.nn.CrossEntropyLoss()
         optimizer = torch.optim.Adam(net.parameters())
         net.train()
@@ -42,12 +43,12 @@ class FlowerClient(fl.client.NumPyClient):
             epoch_loss /= len(trainloader.dataset)
             epoch_acc = correct / total
             if verbose:
-                print(f"Epoch {epoch+1}: train loss {epoch_loss}, accuracy {epoch_acc}")
+                print(f"Epoch {epoch + 1}: train loss {epoch_loss}, accuracy {epoch_acc}")
 
     def test(self, net, testloader):
         """Evaluate the network on the entire test set."""
         criterion = torch.nn.CrossEntropyLoss()
-        #criterion = torch.nn.BCELoss()
+        # criterion = torch.nn.BCELoss()
         correct, total, loss = 0, 0, 0.0
         net.eval()
         with torch.no_grad():
@@ -75,7 +76,7 @@ class FlowerClient(fl.client.NumPyClient):
             loss = criterion(outputs, labels)
             loss.backward()
         parameters = self.get_parameters(self.net)
-        
+
         return self.get_parameters(self.net), len(self.trainloader), {}
 
     def evaluate(self, parameters, config):

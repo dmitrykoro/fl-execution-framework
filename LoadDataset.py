@@ -21,7 +21,7 @@ class LoadDataset:
 
     def load_datasets(self):
         """
-        Function to partition and load the dataset for each clients.
+        Function to partition and load the dataset for each client.
         """
         # Change the transform function to add noise to the data
         transform = transforms.Compose([

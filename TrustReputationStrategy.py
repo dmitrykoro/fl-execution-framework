@@ -12,6 +12,7 @@ from flwr.common import EvaluateRes, Scalar
 from flwr.server.client_proxy import ClientProxy
 import math as m
 
+
 class TrustPermanentRemovalStrategy(fl.server.strategy.FedAvg):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -23,14 +24,15 @@ class TrustPermanentRemovalStrategy(fl.server.strategy.FedAvg):
         self.removed_clients = set()
         self.client_accuracy_history = {}
 
-    #HELPER FUNCTION
+    # HELPER FUNCTION
     def calculate_reputation(self, client_id, truth_value):
         if self.current_round == 1:
             return truth_value
         else:
             prev_reputation = self.client_reputations.get(client_id, 0)
             return self.update_reputation(prev_reputation, truth_value, self.current_round)
-    #HELPER FUNCTION
+
+    # HELPER FUNCTION
     def update_reputation(self, prev_reputation, truth_value, current_round):
         # Reputation update logic
         alpha = 0.75  # Can be adjusted as needed
@@ -48,7 +50,7 @@ class TrustPermanentRemovalStrategy(fl.server.strategy.FedAvg):
 
         return updated_reputation
 
-    #HELPER FUNCTION
+    # HELPER FUNCTION
     def calculate_trust(self, client_id, reputation, d):
         '''
         Function to get previous rounds trust value and calculate trust
@@ -57,7 +59,7 @@ class TrustPermanentRemovalStrategy(fl.server.strategy.FedAvg):
             prev_trust = 0
         else:
             prev_trust = self.client_trusts.get(client_id, 0)
-        return self.update_trust(prev_trust, reputation, d)    
+        return self.update_trust(prev_trust, reputation, d)
 
     def update_trust(self, prev_trust, reputation, d):
         """
@@ -74,7 +76,7 @@ class TrustPermanentRemovalStrategy(fl.server.strategy.FedAvg):
         return trust
 
     # Helper function to get Cosine Similarity between 2 Tensors:
-    def cosine_similarity(self,tensor1, tensor2):
+    def cosine_similarity(self, tensor1, tensor2):
         dot_product = torch.dot(tensor1, tensor2)
         norm1 = torch.norm(tensor1)
         norm2 = torch.norm(tensor2)
@@ -83,10 +85,10 @@ class TrustPermanentRemovalStrategy(fl.server.strategy.FedAvg):
     # FIT FUNCTION
 
     def aggregate_fit(
-        self,
-        server_round: int,
-        results: List[Tuple[fl.server.client_proxy.ClientProxy, fl.common.FitRes]],
-        failures: List[Union[Tuple[ClientProxy, FitRes], BaseException]],
+            self,
+            server_round: int,
+            results: List[Tuple[fl.server.client_proxy.ClientProxy, fl.common.FitRes]],
+            failures: List[Union[Tuple[ClientProxy, FitRes], BaseException]],
     ) -> Tuple[Optional[Parameters], Dict[str, Scalar]]:
         # Increment the round counter
         self.current_round += 1
@@ -95,13 +97,13 @@ class TrustPermanentRemovalStrategy(fl.server.strategy.FedAvg):
             client_id = result[0].cid
             if client_id not in self.removed_clients:
                 aggregate_clients.append(result)
-            
+
         # Call aggregate_fit from base class (FedAvg) to aggregate parameters and metrics
         aggregated_parameters, aggregated_metrics = super().aggregate_fit(server_round, aggregate_clients, failures)
 
         ##CLUSTERING
         # Extract data for clustering
-        clustering_param_data =[]
+        clustering_param_data = []
         for client_proxy, fit_res in results:
             client_params = fl.common.parameters_to_ndarrays(fit_res.parameters)
             params_tensor_list = [torch.Tensor(arr) for arr in client_params]
@@ -112,7 +114,7 @@ class TrustPermanentRemovalStrategy(fl.server.strategy.FedAvg):
         # Perform clustering
         X = np.array(clustering_param_data)
         kmeans = KMeans(n_clusters=1, init='k-means++').fit(X)
-        distances = kmeans.transform(X)**2
+        distances = kmeans.transform(X) ** 2
         normalized_distances = (distances - np.min(distances)) / (np.max(distances) - np.min(distances))
         print(normalized_distances)
 
@@ -126,14 +128,15 @@ class TrustPermanentRemovalStrategy(fl.server.strategy.FedAvg):
             self.client_reputations[client_id] = new_reputation
             # store trust for this client
             self.client_trusts[client_id] = new_trust
-            print(f"Client ID: {client_id}, Truth Value: {truth_value}, Reputation: {new_reputation}, Trust: {new_trust}, Normalized Distance: {normalized_distances[i]}")
+            print(
+                f"Client ID: {client_id}, Truth Value: {truth_value}, Reputation: {new_reputation}, Trust: {new_trust}, Normalized Distance: {normalized_distances[i]}")
 
-         # Update the history of reputations
+        # Update the history of reputations
         for client_id, reputation in self.client_reputations.items():
             if client_id not in self.client_reputations_history:
                 self.client_reputations_history[client_id] = []
             self.client_reputations_history[client_id].append(reputation)
-        
+
         # Update the history of trusts
         for client_id, trust in self.client_trusts.items():
             if client_id not in self.client_trust_history:
@@ -142,9 +145,8 @@ class TrustPermanentRemovalStrategy(fl.server.strategy.FedAvg):
 
         return aggregated_parameters, aggregated_metrics
 
-
     def configure_fit(self, server_round, parameters, client_manager):
-        #Trust Threshold
+        # Trust Threshold
         trust_threshold = 0.15
         # Fetch the available clients as a dictionary
         available_clients = client_manager.all()  # Dictionary with client IDs as keys and RayActorClientProxy objects as values
@@ -152,9 +154,9 @@ class TrustPermanentRemovalStrategy(fl.server.strategy.FedAvg):
         # In the Warmup rounds, select all clients
         if self.current_round <= 3:
             fit_ins = fl.common.FitIns(parameters, {})
-            return [(client, fit_ins) for client in available_clients.values()]         
+            return [(client, fit_ins) for client in available_clients.values()]
 
-        # Fetch the Trust and Reputation scores for all available clients
+            # Fetch the Trust and Reputation scores for all available clients
         client_trusts = {client_id: self.client_trusts.get(client_id, 0) for client_id in available_clients.keys()}
         # In the first round after warmup, remove the client with the lowest TRUST
         if self.current_round > 3 and self.current_round <= 4:
@@ -163,13 +165,12 @@ class TrustPermanentRemovalStrategy(fl.server.strategy.FedAvg):
             # Add this client to the removed_clients list
             self.removed_clients.add(lowest_reputation_client)
         else:
-        # remove clients with trust lower than threshold.
-            for client_id,trust in client_trusts.items():
+            # remove clients with trust lower than threshold.
+            for client_id, trust in client_trusts.items():
                 if trust < trust_threshold and client_id not in self.removed_clients:
                     print(f"Removing client with TRUST less than Threshold: {client_id}")
                     # Add this client to the removed_clients list
                     self.removed_clients.add(client_id)
-
 
         # Select clients based on updated TRUSTS and available clients
         sorted_client_ids = sorted(client_trusts, key=client_trusts.get, reverse=True)
@@ -179,8 +180,10 @@ class TrustPermanentRemovalStrategy(fl.server.strategy.FedAvg):
         # Create training configurations for selected clients
         fit_ins = fl.common.FitIns(parameters, {})
         return [(available_clients[cid], fit_ins) for cid in selected_client_ids if cid in available_clients]
-    
-    def aggregate_evaluate(self, server_round: int, results: List[Tuple[ClientProxy, EvaluateRes]], failures: List[Tuple[Union[ClientProxy, EvaluateRes], BaseException]]) -> Tuple[Optional[float], Dict[str, Scalar]]:
+
+    def aggregate_evaluate(self, server_round: int, results: List[Tuple[ClientProxy, EvaluateRes]],
+                           failures: List[Tuple[Union[ClientProxy, EvaluateRes], BaseException]]) -> Tuple[
+        Optional[float], Dict[str, Scalar]]:
         print("CURRENT ROUND ", server_round)
         self.client_accuracy_history[server_round] = []
         for client_result in results:
@@ -188,7 +191,7 @@ class TrustPermanentRemovalStrategy(fl.server.strategy.FedAvg):
             accuracy_matrix = client_result[1].metrics
             accuracy_matrix['cid'] = cid
             self.client_accuracy_history[server_round].append(accuracy_matrix)
-        
+
         if not results:
             return None, {}
 
@@ -202,5 +205,5 @@ class TrustPermanentRemovalStrategy(fl.server.strategy.FedAvg):
             print("cid:" + result[0].cid)
             print(result[1].metrics)
         metrics_aggregated = {}
-        
+
         return loss_aggregated, metrics_aggregated
