@@ -16,7 +16,6 @@ filelock==3.15.4
 flwr==1.9.0
 fonttools==4.53.0
 frozenlist==1.4.1
-fsspec==2024.6.1
 grpcio==1.64.1
 huggingface-hub==0.23.4
 idna==3.7

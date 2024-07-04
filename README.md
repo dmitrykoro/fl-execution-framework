@@ -1,12 +1,23 @@
 # HOW TO RUN
 
+
+## Run the code
+1. Execute the command:  
+```sh run_simulation.sh```
+2. In order to re-install venv dependencies, execute the command:  
+```sh reinstall_dependencies.sh```
+ 
+
+## Optional: adjust to dataset other than the default one
+
 1. Copy your client datasets in the `CLIENT_DATA` directory in respective client folders.
 2. Update `LoadDataset` file according to your dataset and load your dataset into `train_loaders` and `val_loaders`.
 3. Pre-process your data in `LoadDataset` by either creating a new function or while loading the dataset.
 4. Update the `Network` file based on your own machine learning network.
 5. Update the number of clients global variable in `Controller` file. Also, update parameters while calling `FedAvg` function based on the number of clients you are using currently.
 
-## Information regarding FedAvg Function parameters:
+
+### Information regarding FedAvg Function parameters:
 
 - **fraction_fit**: `float`, optional  
   Fraction of clients used during training. In case `min_fit_clients` is larger than `fraction_fit * available_clients`, `min_fit_clients` will still be sampled. Defaults to 1.0.
