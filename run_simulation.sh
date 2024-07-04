@@ -23,4 +23,4 @@ else
     echo "Activated the existing venv"
 fi
 
-$PYTHON Controller.py
+$PYTHON src/Controller.py

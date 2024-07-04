@@ -27,9 +27,8 @@ rm -rf $VENV_DIR
 
 echo "Creating new venv..."
 $PYTHON -m venv $VENV_DIR
-
 source $VENV_DIR/bin/activate
-echo "Installing requirements..."
 
+echo "Installing requirements..."
 $PIP install -r requirements.txt
 echo "Requirements installed."
