@@ -14,7 +14,12 @@ import math as m
 
 
 class TrustPermanentRemovalStrategy(fl.server.strategy.FedAvg):
-    def __init__(self, *args, **kwargs):
+    def __init__(
+            self,
+            remove_clients,
+            *args,
+            **kwargs
+    ):
         super().__init__(*args, **kwargs)
         self.client_reputations = {}  # Stores the reputation of each client
         self.current_round = 0  # Initialize a round counter
@@ -23,6 +28,9 @@ class TrustPermanentRemovalStrategy(fl.server.strategy.FedAvg):
         self.client_trusts = {}
         self.removed_clients = set()
         self.client_accuracy_history = {}
+        self.remove_clients = remove_clients
+
+        self.total_loss_history_record = {'remove_clients': self.remove_clients, 'rounds_history': {}}
 
     # HELPER FUNCTION
     def calculate_reputation(self, client_id, truth_value):
@@ -43,12 +51,13 @@ class TrustPermanentRemovalStrategy(fl.server.strategy.FedAvg):
             temp = -(1 - (truth_value * (prev_reputation / current_round)))
             updated_reputation = (prev_reputation + truth_value) - np.exp(temp)
         updated_reputation = alpha * updated_reputation + (1 - alpha) * prev_reputation
-        if updated_reputation > 1.0:
-            updated_reputation = 1.0
-        if updated_reputation < 0.0:
-            updated_reputation = 0.0
 
-        return updated_reputation
+        if updated_reputation > 1.0:
+            return 1.0
+        elif updated_reputation < 0.0:
+            return 0.0
+
+        return updated_reputation[0]
 
     # HELPER FUNCTION
     def calculate_trust(self, client_id, reputation, d):
@@ -116,7 +125,7 @@ class TrustPermanentRemovalStrategy(fl.server.strategy.FedAvg):
         kmeans = KMeans(n_clusters=1, init='k-means++').fit(X)
         distances = kmeans.transform(X) ** 2
         normalized_distances = (distances - np.min(distances)) / (np.max(distances) - np.min(distances))
-        print(normalized_distances)
+        # print(f'Aggregation round: {server_round}\nNormalized distances: {normalized_distances}')
 
         # Calculate reputation for each client
         for i, (client_proxy, _) in enumerate(results):
@@ -129,7 +138,7 @@ class TrustPermanentRemovalStrategy(fl.server.strategy.FedAvg):
             # store trust for this client
             self.client_trusts[client_id] = new_trust
             print(
-                f"Client ID: {client_id}, Truth Value: {truth_value}, Reputation: {new_reputation}, Trust: {new_trust}, Normalized Distance: {normalized_distances[i]}")
+                f"Aggregation round: {server_round}\nClient ID: {client_id}\nTruth Value: {truth_value}\nReputation: {new_reputation}\nTrust: {new_trust}\nNormalized Distance: {normalized_distances[i]}")
 
         # Update the history of reputations
         for client_id, reputation in self.client_reputations.items():
@@ -158,33 +167,40 @@ class TrustPermanentRemovalStrategy(fl.server.strategy.FedAvg):
 
             # Fetch the Trust and Reputation scores for all available clients
         client_trusts = {client_id: self.client_trusts.get(client_id, 0) for client_id in available_clients.keys()}
-        # In the first round after warmup, remove the client with the lowest TRUST
-        if self.current_round > 3 and self.current_round <= 4:
-            lowest_reputation_client = min(client_trusts, key=client_trusts.get)
-            print(f"Removing client with lowest TRUST: {lowest_reputation_client}")
-            # Add this client to the removed_clients list
-            self.removed_clients.add(lowest_reputation_client)
-        else:
-            # remove clients with trust lower than threshold.
-            for client_id, trust in client_trusts.items():
-                if trust < trust_threshold and client_id not in self.removed_clients:
-                    print(f"Removing client with TRUST less than Threshold: {client_id}")
-                    # Add this client to the removed_clients list
-                    self.removed_clients.add(client_id)
+
+        if self.remove_clients:
+            # In the first round after warmup, remove the client with the lowest TRUST
+            if self.current_round == 4:
+                lowest_reputation_client = min(client_trusts, key=client_trusts.get)
+                print(f"Removing client with lowest TRUST: {lowest_reputation_client}")
+                # Add this client to the removed_clients list
+                self.removed_clients.add(lowest_reputation_client)
+            else:
+                # remove clients with trust lower than threshold.
+                for client_id, trust in client_trusts.items():
+                    if trust < trust_threshold and client_id not in self.removed_clients:
+                        print(f"Removing client with TRUST less than Threshold: {client_id}")
+                        # Add this client to the removed_clients list
+                        self.removed_clients.add(client_id)
+
+            print(f"removed clients are : {self.removed_clients}")
 
         # Select clients based on updated TRUSTS and available clients
         sorted_client_ids = sorted(client_trusts, key=client_trusts.get, reverse=True)
         selected_client_ids = sorted_client_ids
-        print(f"removed clients are : {self.removed_clients}")
 
         # Create training configurations for selected clients
         fit_ins = fl.common.FitIns(parameters, {})
         return [(available_clients[cid], fit_ins) for cid in selected_client_ids if cid in available_clients]
 
-    def aggregate_evaluate(self, server_round: int, results: List[Tuple[ClientProxy, EvaluateRes]],
-                           failures: List[Tuple[Union[ClientProxy, EvaluateRes], BaseException]]) -> Tuple[
-        Optional[float], Dict[str, Scalar]]:
-        print("CURRENT ROUND ", server_round)
+    def aggregate_evaluate(
+            self,
+            server_round: int,
+            results: List[Tuple[ClientProxy, EvaluateRes]],
+            failures: List[Tuple[Union[ClientProxy, EvaluateRes], BaseException]]
+    ) -> Tuple[Optional[float], Dict[str, Scalar]]:
+
+        print(f'%%%%%%%%%% AGGREGATION ROUND {server_round} %%%%%%%%%%')
         self.client_accuracy_history[server_round] = []
         for client_result in results:
             cid = client_result[0].cid
@@ -195,15 +211,25 @@ class TrustPermanentRemovalStrategy(fl.server.strategy.FedAvg):
         if not results:
             return None, {}
 
-        loss_aggregated = weighted_loss_avg(
-            [
-                (evaluate_res.num_examples, evaluate_res.loss)
-                for _, evaluate_res in results
-            ]
-        )
+        aggregate_value = []
+        number_of_clients_in_loss_calc = 0
+
+        for client_metadata, evaluate_res in results:
+            if client_metadata.cid not in self.removed_clients:
+                aggregate_value.append((evaluate_res.num_examples, evaluate_res.loss))
+                number_of_clients_in_loss_calc += 1
+
+        loss_aggregated = weighted_loss_avg(aggregate_value)
+
         for result in results:
-            print("cid:" + result[0].cid)
-            print(result[1].metrics)
+            print(f'Client ID: {result[0].cid}')
+            print(f'Metrics: {result[1].metrics}')
+            print(f'Loss: {result[1].loss}')
+
         metrics_aggregated = {}
+
+        self.total_loss_history_record['rounds_history'][server_round] = loss_aggregated
+
+        print(f'Round: {server_round}; Number of aggregated clients: {number_of_clients_in_loss_calc}; Aggregated loss: {loss_aggregated}')
 
         return loss_aggregated, metrics_aggregated

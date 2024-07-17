@@ -12,6 +12,8 @@ from LoadDataset import LoadDataset
 from TrustReputationStrategy import TrustPermanentRemovalStrategy
 import Plots as plot_fn
 
+from csv_writer import CSVWriter
+
 DEVICE = torch.device("cpu")  # Try "cuda" to train on GPU
 print(
     f"Training on {DEVICE} using PyTorch {torch.__version__} and Flower {fl.__version__}"
@@ -72,13 +74,18 @@ def weighted_average(metrics: List[Tuple[int, Metrics]]) -> Metrics:
 #     evaluate_metrics_aggregation_fn=weighted_average,  # <-- pass the metric aggregation function
 # )
 
-strategy = TrustPermanentRemovalStrategy(
+
+# RUN WITH CLIENTS REMOVAL
+
+print('############# REMOVAL STRATEGY')
+removal_strategy = TrustPermanentRemovalStrategy(
     fraction_fit=1.0,  # Sample 100% of available clients for training
     fraction_evaluate=1.0,  # Sample 50% of available clients for evaluation
     min_fit_clients=4,  # Never sample less than 10 clients for training
     min_evaluate_clients=4,  # Never sample less than 5 clients for evaluation
     min_available_clients=4,  # Wait until all 10 clients are available
     evaluate_metrics_aggregation_fn=weighted_average,
+    remove_clients=True
 )
 
 # Start simulation
@@ -86,14 +93,57 @@ fl.simulation.start_simulation(
     client_fn=client_fn,
     num_clients=NUM_CLIENTS,
     config=fl.server.ServerConfig(num_rounds=10),
-    strategy=strategy,
+    strategy=removal_strategy,
     client_resources=client_resources,
 )
 
-data = plot_fn.process_client_data(strategy)
-plot_fn.plot_accuracy_history(data)
+accuracy_trust_reputation_data, loss_data = plot_fn.process_client_data(removal_strategy)
+
+writer = CSVWriter(
+    accuracy_trust_reputation_data=accuracy_trust_reputation_data,
+    loss_data=loss_data,
+    strategy_type='remove'
+)
+# writer.dump_to_file()
+writer.write_to_csv()
+writer.write_loss_to_csv()
+
+
+# RUN WITHOUT CLIENTS REMOVAL
+
+print('############# NO REMOVAL STRATEGY')
+non_removal_strategy = TrustPermanentRemovalStrategy(
+    fraction_fit=1.0,  # Sample 100% of available clients for training
+    fraction_evaluate=1.0,  # Sample 50% of available clients for evaluation
+    min_fit_clients=4,  # Never sample less than 10 clients for training
+    min_evaluate_clients=4,  # Never sample less than 5 clients for evaluation
+    min_available_clients=4,  # Wait until all 10 clients are available
+    evaluate_metrics_aggregation_fn=weighted_average,
+    remove_clients=False
+)
+
+# Start simulation
+fl.simulation.start_simulation(
+    client_fn=client_fn,
+    num_clients=NUM_CLIENTS,
+    config=fl.server.ServerConfig(num_rounds=10),
+    strategy=non_removal_strategy,
+    client_resources=client_resources,
+)
+
+accuracy_trust_reputation_data, loss_data = plot_fn.process_client_data(non_removal_strategy)
+
+writer = CSVWriter(
+    accuracy_trust_reputation_data=accuracy_trust_reputation_data,
+    loss_data=loss_data,
+    strategy_type='no_remove'
+)
+writer.write_to_csv()
+writer.write_loss_to_csv()
+
+'''plot_fn.plot_accuracy_history(data)
 plot_fn.plot_accuracy_for_round(data, 1)
 plot_fn.plot_accuracy_for_round(data, 5)
 plot_fn.plot_accuracy_for_round(data, 10)
 plot_fn.plot_trust_history(data)
-plot_fn.plot_reputation_history(data)
+plot_fn.plot_reputation_history(data)'''

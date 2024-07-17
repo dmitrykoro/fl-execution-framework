@@ -16,7 +16,8 @@ def process_client_data(strategy):
             #  print(round)
             client['reputation'] = strategy.client_reputations_history[client['cid']][round - 1]
             client['trust'] = strategy.client_trust_history[client['cid']][round - 1]
-    return data
+
+    return data, strategy.total_loss_history_record
 
 
 def plot_client_data_per_round(data, num_rounds):
