@@ -2,3 +2,5 @@
 .vscode
 .DS_store
 .venv
+ITS_USECASE/
+FLAIR_USECASE/
