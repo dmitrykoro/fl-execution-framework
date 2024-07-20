@@ -23,12 +23,14 @@ class FlowerClient(fl.client.NumPyClient):
 
     def train(self, net, trainloader, epochs: int, verbose=False):
         """Train the network on the training set."""
-        # criterion = torch.nn.CrossEntropyLoss()
+
         criterion = torch.nn.CrossEntropyLoss()
         optimizer = torch.optim.Adam(net.parameters())
         net.train()
+
         for epoch in range(epochs):
             correct, total, epoch_loss = 0, 0, 0.0
+
             for images, labels in trainloader:
                 images, labels = images.to(DEVICE), labels.to(DEVICE)
                 optimizer.zero_grad()
@@ -51,6 +53,7 @@ class FlowerClient(fl.client.NumPyClient):
         # criterion = torch.nn.BCELoss()
         correct, total, loss = 0, 0, 0.0
         net.eval()
+
         with torch.no_grad():
             for images, labels in testloader:
                 images, labels = images.to(DEVICE), labels.to(DEVICE)

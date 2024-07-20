@@ -22,13 +22,16 @@ disable_progress_bar()
 
 NUM_CLIENTS = 12
 BATCH_SIZE = 4
-ROOT_DIR = 'CLIENT_DATA'
+#ROOT_DIR = 'ITS_USECASE'
+ROOT_DIR = 'FLAIR_USECASE'
 
-# Loading dataset based on number of clients and batch size
-data_loader = LoadDataset(ROOT_DIR, NUM_CLIENTS, BATCH_SIZE)
-trainloaders, valloaders, testloaders = data_loader.load_datasets()
 
-# data_loader.display_samples_from_loader(trainloaders[0], "Sample")
+def weighted_average(metrics: List[Tuple[int, Metrics]]) -> Metrics:
+    # Multiply accuracy of each client by number of examples used
+    accuracies = [num_examples * m["accuracy"] for num_examples, m in metrics]
+    examples = [num_examples for num_examples, _ in metrics]
+    # Aggregate and return custom metric (weighted average)
+    return {"accuracy": sum(accuracies) / sum(examples)}
 
 
 def client_fn(cid: str) -> FlowerClient:
@@ -46,6 +49,13 @@ def client_fn(cid: str) -> FlowerClient:
     return FlowerClient(net, trainloader, valloader).to_client()
 
 
+# Loading dataset based on number of clients and batch size
+data_loader = LoadDataset(ROOT_DIR, NUM_CLIENTS, BATCH_SIZE)
+trainloaders, valloaders, testloaders = data_loader.load_datasets()
+
+# data_loader.display_samples_from_loader(trainloaders[0], "Sample")
+
+
 # Specify the resources each of your clients need. By default, each
 # client will be allocated 1x CPU and 0x GPUs
 client_resources = {"num_cpus": 1, "num_gpus": 0.0}
@@ -54,15 +64,6 @@ if DEVICE.type == "cuda":
     client_resources = {"num_cpus": 1, "num_gpus": 1.0}
     # Refer to our documentation for more details about Flower Simulations
     # and how to setup these `client_resources`.
-
-
-def weighted_average(metrics: List[Tuple[int, Metrics]]) -> Metrics:
-    # Multiply accuracy of each client by number of examples used
-    accuracies = [num_examples * m["accuracy"] for num_examples, m in metrics]
-    examples = [num_examples for num_examples, _ in metrics]
-    # Aggregate and return custom metric (weighted average)
-    return {"accuracy": sum(accuracies) / sum(examples)}
-
 
 # Create FedAvg strategy
 # strategy = fl.server.strategy.FedAvg(
@@ -102,12 +103,18 @@ accuracy_trust_reputation_data, loss_data = plot_fn.process_client_data(removal_
 writer = CSVWriter(
     accuracy_trust_reputation_data=accuracy_trust_reputation_data,
     loss_data=loss_data,
-    strategy_type='remove'
+    strategy_type='flair_remove'
 )
 # writer.dump_to_file()
 writer.write_to_csv()
 writer.write_loss_to_csv()
 
+plot_fn.plot_accuracy_history(accuracy_trust_reputation_data)
+plot_fn.plot_accuracy_for_round(accuracy_trust_reputation_data, 1)
+plot_fn.plot_accuracy_for_round(accuracy_trust_reputation_data, 5)
+plot_fn.plot_accuracy_for_round(accuracy_trust_reputation_data, 10)
+plot_fn.plot_trust_history(accuracy_trust_reputation_data)
+plot_fn.plot_reputation_history(accuracy_trust_reputation_data)
 
 # RUN WITHOUT CLIENTS REMOVAL
 
@@ -136,14 +143,7 @@ accuracy_trust_reputation_data, loss_data = plot_fn.process_client_data(non_remo
 writer = CSVWriter(
     accuracy_trust_reputation_data=accuracy_trust_reputation_data,
     loss_data=loss_data,
-    strategy_type='no_remove'
+    strategy_type='flair_no_remove'
 )
 writer.write_to_csv()
 writer.write_loss_to_csv()
-
-'''plot_fn.plot_accuracy_history(data)
-plot_fn.plot_accuracy_for_round(data, 1)
-plot_fn.plot_accuracy_for_round(data, 5)
-plot_fn.plot_accuracy_for_round(data, 10)
-plot_fn.plot_trust_history(data)
-plot_fn.plot_reputation_history(data)'''

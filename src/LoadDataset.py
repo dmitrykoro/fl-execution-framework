@@ -25,7 +25,7 @@ class LoadDataset:
         """
         # Change the transform function to add noise to the data
         transform = transforms.Compose([
-            transforms.RandomResizedCrop(224),
+            transforms.Resize((224, 224)),
             transforms.ToTensor()
         ])
         # Create train/val for each partition and wrap it into DataLoader

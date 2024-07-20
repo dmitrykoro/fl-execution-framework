@@ -28,8 +28,8 @@ class TrustPermanentRemovalStrategy(fl.server.strategy.FedAvg):
         self.client_trusts = {}
         self.removed_clients = set()
         self.client_accuracy_history = {}
-        self.remove_clients = remove_clients
 
+        self.remove_clients = remove_clients
         self.total_loss_history_record = {'remove_clients': self.remove_clients, 'rounds_history': {}}
 
     # HELPER FUNCTION
@@ -78,6 +78,7 @@ class TrustPermanentRemovalStrategy(fl.server.strategy.FedAvg):
         alpha = 0.85
         trust = m.sqrt(m.pow(reputation, 2) + m.pow(d, 2)) - m.sqrt(m.pow(1 - reputation, 2) + m.pow(1 - d, 2))
         trust = alpha * trust + (1 - alpha) * prev_trust
+
         if trust > 1.0:
             trust = 1.0
         if trust < 0.0:
@@ -138,7 +139,13 @@ class TrustPermanentRemovalStrategy(fl.server.strategy.FedAvg):
             # store trust for this client
             self.client_trusts[client_id] = new_trust
             print(
-                f"Aggregation round: {server_round}\nClient ID: {client_id}\nTruth Value: {truth_value}\nReputation: {new_reputation}\nTrust: {new_trust}\nNormalized Distance: {normalized_distances[i]}")
+                f'Aggregation round: {server_round}'
+                f'Client ID: {client_id}'
+                f'Truth Value: {truth_value}'
+                f'Reputation: {new_reputation}'
+                f'Trust: {new_trust}'
+                f'Normalized Distance: {normalized_distances[i]}'
+            )
 
         # Update the history of reputations
         for client_id, reputation in self.client_reputations.items():
@@ -230,6 +237,10 @@ class TrustPermanentRemovalStrategy(fl.server.strategy.FedAvg):
 
         self.total_loss_history_record['rounds_history'][server_round] = loss_aggregated
 
-        print(f'Round: {server_round}; Number of aggregated clients: {number_of_clients_in_loss_calc}; Aggregated loss: {loss_aggregated}')
+        print(
+            f'Round: {server_round}'
+            f'Number of aggregated clients:{number_of_clients_in_loss_calc}'
+            f'Aggregated loss: {loss_aggregated}'
+        )
 
         return loss_aggregated, metrics_aggregated
