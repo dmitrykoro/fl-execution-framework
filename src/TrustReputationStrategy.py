@@ -126,7 +126,6 @@ class TrustPermanentRemovalStrategy(fl.server.strategy.FedAvg):
         X = np.array(clustering_param_data)
 
         plt.scatter(X[:, 0], X[:, 1], s=50)
-        plt.show()
 
         kmeans = KMeans(n_clusters=1, init='k-means++').fit(X)
 
@@ -134,6 +133,7 @@ class TrustPermanentRemovalStrategy(fl.server.strategy.FedAvg):
         plt.scatter(X[:, 0], X[:, 1], c=y_kmeans, cmap='viridis')
         centers = kmeans.cluster_centers_
         plt.scatter(centers[:, 0], centers[:, 1], c='black', s=200, alpha=0.5)
+        plt.title(f'Round {self.current_round}')
         plt.show()
 
         distances = kmeans.transform(X) ** 2
