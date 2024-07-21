@@ -12,6 +12,8 @@ from LoadDataset import LoadDataset
 from TrustReputationStrategy import TrustPermanentRemovalStrategy
 import Plots as plot_fn
 
+from plot_loss import plot_loss
+
 from csv_writer import CSVWriter
 
 DEVICE = torch.device("cpu")  # Try "cuda" to train on GPU
@@ -22,7 +24,6 @@ disable_progress_bar()
 
 NUM_CLIENTS = 12
 BATCH_SIZE = 4
-#ROOT_DIR = 'ITS_USECASE'
 ROOT_DIR = 'FLAIR_USECASE'
 
 
@@ -65,85 +66,50 @@ if DEVICE.type == "cuda":
     # Refer to our documentation for more details about Flower Simulations
     # and how to setup these `client_resources`.
 
-# Create FedAvg strategy
-# strategy = fl.server.strategy.FedAvg(
-#     fraction_fit=1.0,
-#     fraction_evaluate=1.0,
-#     min_fit_clients=4,
-#     min_evaluate_clients=4,
-#     min_available_clients=4,
-#     evaluate_metrics_aggregation_fn=weighted_average,  # <-- pass the metric aggregation function
-# )
+csv_loss_history_filenames = []
+
+for remove_clients, strategy_type in zip((True, False), ('flair_remove', 'flair_no_remove')):
+    print('-' * 50 + f' REMOVE MALICIOUS CLIENTS: {remove_clients} ' + '-' * 50)
+
+    removal_strategy = TrustPermanentRemovalStrategy(
+        fraction_fit=1.0,  # Sample 100% of available clients for training
+        fraction_evaluate=1.0,  # Sample 50% of available clients for evaluation
+        min_fit_clients=4,  # Never sample less than 10 clients for training
+        min_evaluate_clients=4,  # Never sample less than 5 clients for evaluation
+        min_available_clients=4,  # Wait until all 10 clients are available
+        evaluate_metrics_aggregation_fn=weighted_average,
+        remove_clients=remove_clients
+    )
+
+    # Start simulation
+    fl.simulation.start_simulation(
+        client_fn=client_fn,
+        num_clients=NUM_CLIENTS,
+        config=fl.server.ServerConfig(num_rounds=10),
+        strategy=removal_strategy,
+        client_resources=client_resources,
+    )
+
+    accuracy_trust_reputation_data, loss_data = plot_fn.process_client_data(removal_strategy)
+
+    csv_writer = CSVWriter(
+        accuracy_trust_reputation_data=accuracy_trust_reputation_data,
+        loss_data=loss_data,
+        strategy_type=strategy_type
+    )
+
+    # writer.dump_to_file()
+    csv_writer.write_to_csv()
+    loss_filename = csv_writer.write_loss_to_csv()
+
+    csv_loss_history_filenames.append(loss_filename)
+
+    plot_fn.plot_accuracy_history(accuracy_trust_reputation_data)
+    # plot_fn.plot_accuracy_for_round(accuracy_trust_reputation_data, 1)
+    # plot_fn.plot_accuracy_for_round(accuracy_trust_reputation_data, 5)
+    # plot_fn.plot_accuracy_for_round(accuracy_trust_reputation_data, 10)
+    plot_fn.plot_trust_history(accuracy_trust_reputation_data)
+    plot_fn.plot_reputation_history(accuracy_trust_reputation_data)
 
 
-# RUN WITH CLIENTS REMOVAL
-
-print('############# REMOVAL STRATEGY')
-removal_strategy = TrustPermanentRemovalStrategy(
-    fraction_fit=1.0,  # Sample 100% of available clients for training
-    fraction_evaluate=1.0,  # Sample 50% of available clients for evaluation
-    min_fit_clients=4,  # Never sample less than 10 clients for training
-    min_evaluate_clients=4,  # Never sample less than 5 clients for evaluation
-    min_available_clients=4,  # Wait until all 10 clients are available
-    evaluate_metrics_aggregation_fn=weighted_average,
-    remove_clients=True
-)
-
-# Start simulation
-fl.simulation.start_simulation(
-    client_fn=client_fn,
-    num_clients=NUM_CLIENTS,
-    config=fl.server.ServerConfig(num_rounds=10),
-    strategy=removal_strategy,
-    client_resources=client_resources,
-)
-
-accuracy_trust_reputation_data, loss_data = plot_fn.process_client_data(removal_strategy)
-
-writer = CSVWriter(
-    accuracy_trust_reputation_data=accuracy_trust_reputation_data,
-    loss_data=loss_data,
-    strategy_type='flair_remove'
-)
-# writer.dump_to_file()
-writer.write_to_csv()
-writer.write_loss_to_csv()
-
-plot_fn.plot_accuracy_history(accuracy_trust_reputation_data)
-plot_fn.plot_accuracy_for_round(accuracy_trust_reputation_data, 1)
-plot_fn.plot_accuracy_for_round(accuracy_trust_reputation_data, 5)
-plot_fn.plot_accuracy_for_round(accuracy_trust_reputation_data, 10)
-plot_fn.plot_trust_history(accuracy_trust_reputation_data)
-plot_fn.plot_reputation_history(accuracy_trust_reputation_data)
-
-# RUN WITHOUT CLIENTS REMOVAL
-
-print('############# NO REMOVAL STRATEGY')
-non_removal_strategy = TrustPermanentRemovalStrategy(
-    fraction_fit=1.0,  # Sample 100% of available clients for training
-    fraction_evaluate=1.0,  # Sample 50% of available clients for evaluation
-    min_fit_clients=4,  # Never sample less than 10 clients for training
-    min_evaluate_clients=4,  # Never sample less than 5 clients for evaluation
-    min_available_clients=4,  # Wait until all 10 clients are available
-    evaluate_metrics_aggregation_fn=weighted_average,
-    remove_clients=False
-)
-
-# Start simulation
-fl.simulation.start_simulation(
-    client_fn=client_fn,
-    num_clients=NUM_CLIENTS,
-    config=fl.server.ServerConfig(num_rounds=10),
-    strategy=non_removal_strategy,
-    client_resources=client_resources,
-)
-
-accuracy_trust_reputation_data, loss_data = plot_fn.process_client_data(non_removal_strategy)
-
-writer = CSVWriter(
-    accuracy_trust_reputation_data=accuracy_trust_reputation_data,
-    loss_data=loss_data,
-    strategy_type='flair_no_remove'
-)
-writer.write_to_csv()
-writer.write_loss_to_csv()
+plot_loss(csv_loss_history_filenames)

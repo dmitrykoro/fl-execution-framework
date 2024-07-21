@@ -28,11 +28,13 @@ class CSVWriter:
             self.filename = (
                 f'{self.strategy_type}_'
                 f'{data_type}_'
-                f'{len(self.data_to_process)}_clients_'
-                f'{len(self.data_to_process.get(1))}_rounds_{str(datetime.datetime.now())}.csv'
+                f'{len(self.data_to_process.get(1))}_clients_'
+                f'{len(self.data_to_process)}_rounds_{str(datetime.datetime.now().strftime("%m-%d-%Y_%H:%M:%S"))}.csv'
             )
         except:
             raise
+
+        return self.filename
 
     def dump_to_file(self) -> None:
         """
@@ -100,14 +102,14 @@ class CSVWriter:
 
                 writer.writerow(row)
 
-    def write_loss_to_csv(self) -> None:
+    def write_loss_to_csv(self) -> str:
         """
         Write loss history to CSV
 
             round_1 | ... | round_n
              2.34   | ... |  0.34
 
-        :return: None
+        :return: filename of the CSV with the data
         """
         self._set_filename('loss')
         fieldnames = []
@@ -124,6 +126,8 @@ class CSVWriter:
                 row[f'round_{round_number}'] = round(loss, 3)
 
             writer.writerow(row)
+
+        return self.working_dir + self.filename
 
 
 
