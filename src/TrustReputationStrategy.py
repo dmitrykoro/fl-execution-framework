@@ -127,20 +127,19 @@ class TrustPermanentRemovalStrategy(fl.server.strategy.FedAvg):
         # Perform clustering
         X = np.array(clustering_param_data)
 
-        plt.scatter(X[:, 0], X[:, 1], s=50)
+        # plt.scatter(X[:, 0], X[:, 1], s=50)
 
         kmeans = KMeans(n_clusters=1, init='k-means++').fit(X)
 
-        y_kmeans = kmeans.predict(X)
+        '''y_kmeans = kmeans.predict(X)
         plt.scatter(X[:, 0], X[:, 1], c=y_kmeans, cmap='viridis')
         centers = kmeans.cluster_centers_
         plt.scatter(centers[:, 0], centers[:, 1], c='black', s=200, alpha=0.5)
         plt.title(f'Round {self.current_round}')
-        plt.show()
+        plt.show()'''
 
         distances = kmeans.transform(X)
         normalized_distances = (distances - np.min(distances)) / (np.max(distances) - np.min(distances))
-        # print(f'Aggregation round: {server_round}\nNormalized distances: {normalized_distances}')
 
         # Calculate reputation for each client
         for i, (client_proxy, _) in enumerate(results):
