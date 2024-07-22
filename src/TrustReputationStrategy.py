@@ -138,7 +138,7 @@ class TrustPermanentRemovalStrategy(fl.server.strategy.FedAvg):
         plt.title(f'Round {self.current_round}')
         plt.show()
 
-        distances = kmeans.transform(X) ** 2
+        distances = kmeans.transform(X)
         normalized_distances = (distances - np.min(distances)) / (np.max(distances) - np.min(distances))
         # print(f'Aggregation round: {server_round}\nNormalized distances: {normalized_distances}')
 
