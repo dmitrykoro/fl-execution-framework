@@ -16,15 +16,25 @@ from plot_loss import plot_loss
 
 from csv_writer import CSVWriter
 
+usecase = 'its'
+
+
 DEVICE = torch.device("cpu")  # Try "cuda" to train on GPU
 print(
     f"Training on {DEVICE} using PyTorch {torch.__version__} and Flower {fl.__version__}"
 )
 disable_progress_bar()
 
+
+if usecase == 'flair':
+    strategy_types = ('flair_remove', 'flair_no_remove')
+    DATASET_DIR = 'FLAIR_USECASE'
+elif usecase == 'its':
+    strategy_types = ('its_remove', 'its_no_remove')
+    DATASET_DIR = 'ITS_USECASE'
+
 NUM_CLIENTS = 12
 BATCH_SIZE = 4
-ROOT_DIR = 'FLAIR_USECASE'
 
 
 def weighted_average(metrics: List[Tuple[int, Metrics]]) -> Metrics:
@@ -51,7 +61,7 @@ def client_fn(cid: str) -> FlowerClient:
 
 
 # Loading dataset based on number of clients and batch size
-data_loader = LoadDataset(ROOT_DIR, NUM_CLIENTS, BATCH_SIZE)
+data_loader = LoadDataset(DATASET_DIR, NUM_CLIENTS, BATCH_SIZE)
 trainloaders, valloaders, testloaders = data_loader.load_datasets()
 
 # data_loader.display_samples_from_loader(trainloaders[0], "Sample")
@@ -68,7 +78,7 @@ if DEVICE.type == "cuda":
 
 csv_loss_history_filenames = []
 
-for remove_clients, strategy_type in zip((True, False), ('flair_remove', 'flair_no_remove')):
+for remove_clients, strategy_type in zip((True, False), strategy_types):
     print('-' * 50 + f' REMOVE MALICIOUS CLIENTS: {remove_clients} ' + '-' * 50)
 
     removal_strategy = TrustPermanentRemovalStrategy(
@@ -90,10 +100,10 @@ for remove_clients, strategy_type in zip((True, False), ('flair_remove', 'flair_
         client_resources=client_resources,
     )
 
-    accuracy_trust_reputation_data, loss_data = plot_fn.process_client_data(removal_strategy)
+    accuracy_trust_reputation_distance_data, loss_data = plot_fn.process_client_data(removal_strategy)
 
     csv_writer = CSVWriter(
-        accuracy_trust_reputation_data=accuracy_trust_reputation_data,
+        accuracy_trust_reputation_data=accuracy_trust_reputation_distance_data,
         loss_data=loss_data,
         strategy_type=strategy_type
     )
@@ -104,12 +114,13 @@ for remove_clients, strategy_type in zip((True, False), ('flair_remove', 'flair_
 
     csv_loss_history_filenames.append(loss_filename)
 
-    plot_fn.plot_accuracy_history(accuracy_trust_reputation_data)
+    plot_fn.plot_accuracy_history(accuracy_trust_reputation_distance_data)
     # plot_fn.plot_accuracy_for_round(accuracy_trust_reputation_data, 1)
     # plot_fn.plot_accuracy_for_round(accuracy_trust_reputation_data, 5)
     # plot_fn.plot_accuracy_for_round(accuracy_trust_reputation_data, 10)
-    plot_fn.plot_trust_history(accuracy_trust_reputation_data)
-    plot_fn.plot_reputation_history(accuracy_trust_reputation_data)
+    plot_fn.plot_trust_history(accuracy_trust_reputation_distance_data)
+    plot_fn.plot_reputation_history(accuracy_trust_reputation_distance_data)
+    plot_fn.plot_distance_history(accuracy_trust_reputation_distance_data)
 
 
 plot_loss(csv_loss_history_filenames)

@@ -33,6 +33,8 @@ class TrustPermanentRemovalStrategy(fl.server.strategy.FedAvg):
         self.remove_clients = remove_clients
         self.total_loss_history_record = {'remove_clients': self.remove_clients, 'rounds_history': {}}
 
+        self.client_cluster_distance_history = {}
+
     # HELPER FUNCTION
     def calculate_reputation(self, client_id, truth_value):
         if self.current_round == 1:
@@ -159,6 +161,11 @@ class TrustPermanentRemovalStrategy(fl.server.strategy.FedAvg):
                 f'Normalized Distance: {normalized_distances[i]}'
             )
 
+            if client_id not in self.client_cluster_distance_history:
+                self.client_cluster_distance_history[client_id] = []
+
+            self.client_cluster_distance_history[client_id].append(normalized_distances[i][0])
+
         # Update the history of reputations
         for client_id, reputation in self.client_reputations.items():
             if client_id not in self.client_reputations_history:
@@ -190,10 +197,10 @@ class TrustPermanentRemovalStrategy(fl.server.strategy.FedAvg):
         if self.remove_clients:
             # In the first round after warmup, remove the client with the lowest TRUST
             if self.current_round == 4:
-                lowest_reputation_client = min(client_trusts, key=client_trusts.get)
-                print(f"Removing client with lowest TRUST: {lowest_reputation_client}")
+                lowest_trust_client = min(client_trusts, key=client_trusts.get)
+                print(f"Removing client with lowest TRUST: {lowest_trust_client}")
                 # Add this client to the removed_clients list
-                self.removed_clients.add(lowest_reputation_client)
+                self.removed_clients.add(lowest_trust_client)
             else:
                 # remove clients with trust lower than threshold.
                 for client_id, trust in client_trusts.items():
@@ -250,9 +257,9 @@ class TrustPermanentRemovalStrategy(fl.server.strategy.FedAvg):
         self.total_loss_history_record['rounds_history'][server_round] = loss_aggregated
 
         print(
-            f'Round: {server_round}'
-            f'Number of aggregated clients:{number_of_clients_in_loss_calc}'
-            f'Aggregated loss: {loss_aggregated}'
+            f'Round: {server_round} '
+            f'Number of aggregated clients:{number_of_clients_in_loss_calc} '
+            f'Aggregated loss: {loss_aggregated} '
         )
 
         return loss_aggregated, metrics_aggregated

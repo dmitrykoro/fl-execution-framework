@@ -15,7 +15,7 @@ class CSVWriter:
         self.loss_data = loss_data
         self.strategy_type = strategy_type
         self.filename = ''
-        self.metric_names = ('accuracy', 'reputation', 'trust')
+        self.metric_names = ('accuracy', 'reputation', 'trust', 'distance')
         self.number_of_rounds = len(self.data_to_process.items())
 
     def _set_filename(self, data_type: str):
@@ -85,7 +85,7 @@ class CSVWriter:
 
                 clients_data[client_id] = row
 
-        self._set_filename('accuracy_reputation_trust')
+        self._set_filename('accuracy_reputation_trust_distance')
 
         with (open(self.working_dir + self.filename, 'w', newline='') as csvfile):
             writer = csv.DictWriter(csvfile, fieldnames=fieldnames)

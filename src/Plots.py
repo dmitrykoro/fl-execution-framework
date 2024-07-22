@@ -16,6 +16,7 @@ def process_client_data(strategy):
             #  print(round)
             client['reputation'] = strategy.client_reputations_history[client['cid']][round - 1]
             client['trust'] = strategy.client_trust_history[client['cid']][round - 1]
+            client['distance'] = strategy.client_cluster_distance_history[client['cid']][round - 1]
 
     return data, strategy.total_loss_history_record
 
@@ -153,6 +154,33 @@ def plot_trust_history(data):
     plt.xlabel('Round Number')
     plt.ylabel('Trust')
     plt.title('Trust of Each Client Across Different Rounds')
+    plt.legend()
+    plt.show()
+
+
+def plot_distance_history(data):
+    client_distances = {}
+    for round_number, clients in data.items():
+        for client in clients:
+            cid = client['cid']
+            trust = client['distance']
+            if cid not in client_distances:
+                client_distances[cid] = []
+            client_distances[cid].append((round_number, trust))
+
+    # Sorting client IDs to maintain consistent color mapping
+    sorted_cids = sorted(client_distances.keys())
+
+    # Plotting
+    plt.figure(figsize=(12, 7))
+    colors = plt.cm.get_cmap('tab10').colors
+    for index, cid in enumerate(sorted_cids):
+        rounds, distances = zip(*client_distances[cid])
+        plt.plot(rounds, distances, marker='o', color=colors[index % len(colors)], label=f'Client {cid}')
+
+    plt.xlabel('Round #')
+    plt.ylabel('Normalized distance')
+    plt.title('Normalized distance of each client from the cluster center')
     plt.legend()
     plt.show()
 

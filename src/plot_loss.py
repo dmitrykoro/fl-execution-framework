@@ -1,9 +1,6 @@
 import pandas as pd
 import matplotlib.pyplot as plt
 
-# List of CSV filenames
-# csv_files = ['file1.csv', 'file2.csv', 'file3.csv']  # replace with your filenames
-
 
 def plot_loss(csv_files):
     plt.figure(figsize=(10, 6))
@@ -20,9 +17,6 @@ def plot_loss(csv_files):
     plt.title('Loss history over rounds')
     plt.legend()
     plt.grid(True)
-
-    plt.savefig('plot.png')
-
     plt.show()
 
 
