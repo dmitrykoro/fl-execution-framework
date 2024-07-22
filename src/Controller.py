@@ -16,7 +16,7 @@ from plot_loss import plot_loss
 
 from csv_writer import CSVWriter
 
-usecase = 'its'
+usecase = 'flair'
 
 
 DEVICE = torch.device("cpu")  # Try "cuda" to train on GPU

@@ -4,7 +4,7 @@ import shutil
 
 
 class SubsetCreator:
-    MIN_PICS_PER_CLASS = 200
+    MIN_PICS_PER_CLASS = 60
 
     def __init__(self):
         with open(os.path.join('labels_and_metadata.json')) as f:
@@ -12,10 +12,10 @@ class SubsetCreator:
 
         self.images_src = 'small_images'
 
-        self.label_1 = 'equipment'
-        self.label_2 = 'outdoor'
+        self.label_1 = 'animal'
+        self.label_2 = 'liquid'
 
-        self.desired_labels = 'labels'  # for coarse-grained labels, for fine-grained use 'fine_grained_labels'
+        self.desired_labels = 'labels'  # for coarse-grained use 'labels', for fine-grained use 'fine_grained_labels'
 
         self.subset_dirname = 'subsets'
         self.client_dirname = 'client'
