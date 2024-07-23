@@ -16,7 +16,7 @@ from plot_loss import plot_loss
 
 from csv_writer import CSVWriter
 
-usecase = 'its'
+usecase = 'flair'
 
 
 DEVICE = torch.device("cpu")  # Try "cuda" to train on GPU
@@ -95,7 +95,7 @@ for remove_clients, strategy_type in zip((True, False), strategy_types):
     fl.simulation.start_simulation(
         client_fn=client_fn,
         num_clients=NUM_CLIENTS,
-        config=fl.server.ServerConfig(num_rounds=10),
+        config=fl.server.ServerConfig(num_rounds=40),
         strategy=removal_strategy,
         client_resources=client_resources,
     )
