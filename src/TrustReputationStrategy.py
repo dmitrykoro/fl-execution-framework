@@ -14,6 +14,7 @@ import math as m
 
 import matplotlib.pyplot as plt
 
+
 class TrustPermanentRemovalStrategy(fl.server.strategy.FedAvg):
     def __init__(
             self,
@@ -34,6 +35,7 @@ class TrustPermanentRemovalStrategy(fl.server.strategy.FedAvg):
         self.total_loss_history_record = {'remove_clients': self.remove_clients, 'rounds_history': {}}
 
         self.client_cluster_distance_history = {}
+        self.client_cluster_normalised_distance_history = {}
 
     # HELPER FUNCTION
     def calculate_reputation(self, client_id, truth_value):
@@ -46,14 +48,14 @@ class TrustPermanentRemovalStrategy(fl.server.strategy.FedAvg):
     # HELPER FUNCTION
     def update_reputation(self, prev_reputation, truth_value, current_round):
         # Reputation update logic
-        alpha = 0.75  # Can be adjusted as needed
+        beta = 0.75  # Can be adjusted as needed
         if truth_value >= 0.5:
             updated_reputation = (prev_reputation + truth_value) - (prev_reputation / current_round)
         else:
             # Adjust reputation for truth values less than 0.5
             temp = -(1 - (truth_value * (prev_reputation / current_round)))
             updated_reputation = (prev_reputation + truth_value) - np.exp(temp)
-        updated_reputation = alpha * updated_reputation + (1 - alpha) * prev_reputation
+        updated_reputation = beta * updated_reputation + (1 - beta) * prev_reputation
 
         if updated_reputation > 1.0:
             return 1.0
@@ -64,9 +66,9 @@ class TrustPermanentRemovalStrategy(fl.server.strategy.FedAvg):
 
     # HELPER FUNCTION
     def calculate_trust(self, client_id, reputation, d):
-        '''
+        """
         Function to get previous rounds trust value and calculate trust
-        '''
+        """
         if self.current_round == 1:
             prev_trust = 0
         else:
@@ -78,9 +80,9 @@ class TrustPermanentRemovalStrategy(fl.server.strategy.FedAvg):
             Helper method that calculates trust
             Based on reputation value of a client
         """
-        alpha = 0.85
+        beta = 0.75
         trust = m.sqrt(m.pow(reputation, 2) + m.pow(d, 2)) - m.sqrt(m.pow(1 - reputation, 2) + m.pow(1 - d, 2))
-        trust = alpha * trust + (1 - alpha) * prev_trust
+        trust = beta * trust + (1 - beta) * prev_trust
 
         if trust > 1.0:
             trust = 1.0
@@ -152,18 +154,20 @@ class TrustPermanentRemovalStrategy(fl.server.strategy.FedAvg):
             # store trust for this client
             self.client_trusts[client_id] = new_trust
             print(
-                f'Aggregation round: {server_round}'
-                f'Client ID: {client_id}'
-                f'Truth Value: {truth_value}'
-                f'Reputation: {new_reputation}'
-                f'Trust: {new_trust}'
-                f'Normalized Distance: {normalized_distances[i]}'
+                f'Aggregation round: {server_round} '
+                f'Client ID: {client_id} '
+                f'Reputation: {new_reputation} '
+                f'Trust: {new_trust} '
+                f'Normalized Distance: {normalized_distances[i][0]} '
             )
 
             if client_id not in self.client_cluster_distance_history:
                 self.client_cluster_distance_history[client_id] = []
+            self.client_cluster_distance_history[client_id].append(distances[i][0])
 
-            self.client_cluster_distance_history[client_id].append(normalized_distances[i][0])
+            if client_id not in self.client_cluster_normalised_distance_history:
+                self.client_cluster_normalised_distance_history[client_id] = []
+            self.client_cluster_normalised_distance_history[client_id].append(normalized_distances[i][0])
 
         # Update the history of reputations
         for client_id, reputation in self.client_reputations.items():
@@ -257,7 +261,7 @@ class TrustPermanentRemovalStrategy(fl.server.strategy.FedAvg):
 
         print(
             f'Round: {server_round} '
-            f'Number of aggregated clients:{number_of_clients_in_loss_calc} '
+            f'Number of aggregated clients: {number_of_clients_in_loss_calc} '
             f'Aggregated loss: {loss_aggregated} '
         )
 

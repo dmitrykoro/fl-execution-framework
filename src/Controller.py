@@ -16,7 +16,7 @@ from plot_loss import plot_loss
 
 from csv_writer import CSVWriter
 
-usecase = 'flair'
+usecase = 'its'
 
 
 DEVICE = torch.device("cpu")  # Try "cuda" to train on GPU
@@ -120,7 +120,8 @@ for remove_clients, strategy_type in zip((True, False), strategy_types):
     # plot_fn.plot_accuracy_for_round(accuracy_trust_reputation_data, 10)
     plot_fn.plot_trust_history(accuracy_trust_reputation_distance_data)
     plot_fn.plot_reputation_history(accuracy_trust_reputation_distance_data)
-    plot_fn.plot_distance_history(accuracy_trust_reputation_distance_data)
+    plot_fn.plot_distance_history(accuracy_trust_reputation_distance_data, 'distance')
+    plot_fn.plot_distance_history(accuracy_trust_reputation_distance_data, 'normalised_distance')
 
 
 plot_loss(csv_loss_history_filenames)

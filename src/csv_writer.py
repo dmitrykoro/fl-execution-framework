@@ -15,7 +15,7 @@ class CSVWriter:
         self.loss_data = loss_data
         self.strategy_type = strategy_type
         self.filename = ''
-        self.metric_names = ('accuracy', 'reputation', 'trust', 'distance')
+        self.metric_names = ('accuracy', 'reputation', 'trust', 'distance', 'normalised_distance')
         self.number_of_rounds = len(self.data_to_process.items())
 
     def _set_filename(self, data_type: str):
