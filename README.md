@@ -2,19 +2,23 @@
 
 
 ## Run the code
-1. Execute the command:  
+1. If you want to test ITS use case, copy desired dataset from `its_subsets` directory into `ITS_USECASE` directory.
+
+   If you want to test FLAIR use case, copy desired dataset from `flair_subsets` directory into `FLAIR_USECASE` directory.
+2. Execute the command:  
 ```sh run_simulation.sh```
-2. In order to re-install venv dependencies, execute the command:  
+3. In order to re-install venv dependencies, execute the command:  
 ```sh reinstall_dependencies.sh```
+4. The graphs will be shown in runtime for convenience, so you may save them for future reference. 
+5. After the simulation, CSV files with the results will be saved to `out/` directory. 
  
 
 ## Optional: adjust to dataset other than the default one
-
-1. Copy your client datasets in the `CLIENT_DATA` directory in respective client folders.
-2. Update `LoadDataset` file according to your dataset and load your dataset into `train_loaders` and `val_loaders`.
-3. Pre-process your data in `LoadDataset` by either creating a new function or while loading the dataset.
-4. Update the `Network` file based on your own machine learning network.
-5. Update the number of clients global variable in `Controller` file. Also, update parameters while calling `FedAvg` function based on the number of clients you are using currently.
+    
+1. Update `LoadDataset` file according to your dataset and load your dataset into `train_loaders` and `val_loaders`.
+2. Pre-process your data in `LoadDataset` by either creating a new function or while loading the dataset.
+3. Update the `Network` file based on your own machine learning network.
+4. Update the number of clients global variable in `Controller` file. Also, update parameters while calling `FedAvg` function based on the number of clients you are using currently.
 
 
 ### Information regarding FedAvg Function parameters:
