@@ -16,7 +16,7 @@ from plot_loss import plot_loss
 
 from csv_writer import CSVWriter
 
-usecase = 'flair'
+usecase = 'femnist'
 
 
 DEVICE = torch.device("cpu")  # Try "cuda" to train on GPU
@@ -32,6 +32,10 @@ if usecase == 'flair':
 elif usecase == 'its':
     strategy_types = ('its_remove', 'its_no_remove')
     DATASET_DIR = 'ITS_USECASE'
+elif usecase == 'femnist':
+    strategy_types = ('femnist_remove', 'femnist_no_remove')
+    DATASET_DIR = 'FEMNIST_USECASE'
+
 
 NUM_CLIENTS = 12
 BATCH_SIZE = 4
@@ -43,6 +47,11 @@ def weighted_average(metrics: List[Tuple[int, Metrics]]) -> Metrics:
     examples = [num_examples for num_examples, _ in metrics]
     # Aggregate and return custom metric (weighted average)
     return {"accuracy": sum(accuracies) / sum(examples)}
+
+
+# Loading dataset based on number of clients and batch size
+data_loader = LoadDataset(DATASET_DIR, NUM_CLIENTS, BATCH_SIZE)
+trainloaders, valloaders, testloaders = data_loader.load_datasets()
 
 
 def client_fn(cid: str) -> FlowerClient:
@@ -60,13 +69,6 @@ def client_fn(cid: str) -> FlowerClient:
     return FlowerClient(net, trainloader, valloader).to_client()
 
 
-# Loading dataset based on number of clients and batch size
-data_loader = LoadDataset(DATASET_DIR, NUM_CLIENTS, BATCH_SIZE)
-trainloaders, valloaders, testloaders = data_loader.load_datasets()
-
-# data_loader.display_samples_from_loader(trainloaders[0], "Sample")
-
-
 # Specify the resources each of your clients need. By default, each
 # client will be allocated 1x CPU and 0x GPUs
 client_resources = {"num_cpus": 1, "num_gpus": 0.0}
@@ -81,7 +83,7 @@ csv_loss_history_filenames = []
 for remove_clients, strategy_type in zip((True, False), strategy_types):
     print('-' * 50 + f' REMOVE MALICIOUS CLIENTS: {remove_clients} ' + '-' * 50)
 
-    removal_strategy = TrustPermanentRemovalStrategy(
+    strategy = TrustPermanentRemovalStrategy(
         fraction_fit=1.0,  # Sample 100% of available clients for training
         fraction_evaluate=1.0,  # Sample 50% of available clients for evaluation
         min_fit_clients=4,  # Never sample less than 10 clients for training
@@ -95,12 +97,12 @@ for remove_clients, strategy_type in zip((True, False), strategy_types):
     fl.simulation.start_simulation(
         client_fn=client_fn,
         num_clients=NUM_CLIENTS,
-        config=fl.server.ServerConfig(num_rounds=40),
-        strategy=removal_strategy,
+        config=fl.server.ServerConfig(num_rounds=10),
+        strategy=strategy,
         client_resources=client_resources,
     )
 
-    accuracy_trust_reputation_distance_data, loss_data = plot_fn.process_client_data(removal_strategy)
+    accuracy_trust_reputation_distance_data, loss_data = plot_fn.process_client_data(strategy)
 
     csv_writer = CSVWriter(
         accuracy_trust_reputation_data=accuracy_trust_reputation_distance_data,
@@ -108,16 +110,12 @@ for remove_clients, strategy_type in zip((True, False), strategy_types):
         strategy_type=strategy_type
     )
 
-    # writer.dump_to_file()
     csv_writer.write_to_csv()
     loss_filename = csv_writer.write_loss_to_csv()
 
     csv_loss_history_filenames.append(loss_filename)
 
     plot_fn.plot_accuracy_history(accuracy_trust_reputation_distance_data)
-    # plot_fn.plot_accuracy_for_round(accuracy_trust_reputation_data, 1)
-    # plot_fn.plot_accuracy_for_round(accuracy_trust_reputation_data, 5)
-    # plot_fn.plot_accuracy_for_round(accuracy_trust_reputation_data, 10)
     plot_fn.plot_trust_history(accuracy_trust_reputation_distance_data)
     plot_fn.plot_reputation_history(accuracy_trust_reputation_distance_data)
     plot_fn.plot_distance_history(accuracy_trust_reputation_distance_data, 'distance')

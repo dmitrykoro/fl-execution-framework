@@ -37,8 +37,8 @@ def add_noise_to_images_in_folder(input_folder, output_folder, noise_level=0.1):
 
 
 # Example usage
-input_folder = '../../flair_subsets/animal_liquid_pure/client_10/liquid'
-output_folder = '../../flair_subsets/animal_liquid_noise_noise/client_10/liquid'
+input_folder = '../../femnist_subsets/pure/client_10/1'
+output_folder = '../../femnist_subsets/noise_noise/client_10/1'
 noise_level = 0.5  # Adjust noise level as needed
 
 add_noise_to_images_in_folder(input_folder, output_folder, noise_level)

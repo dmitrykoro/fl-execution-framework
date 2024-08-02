@@ -16,7 +16,7 @@ import math as m
 import matplotlib.pyplot as plt
 
 
-class TrustPermanentRemovalStrategy(fl.server.strategy.FedAvg):
+class TrustBasedRemovalStrategy(fl.server.strategy.FedAvg):
     def __init__(
             self,
             remove_clients,

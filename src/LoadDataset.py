@@ -23,11 +23,14 @@ class LoadDataset:
         """
         Function to partition and load the dataset for each client.
         """
-        # Change the transform function to add noise to the data
+
         transform = transforms.Compose([
-            transforms.Resize((224, 224)),
-            transforms.ToTensor()
+            transforms.Grayscale(num_output_channels=1),  # Ensure grayscale images
+            transforms.Resize((28, 28)),                  # Ensure the images are 28x28
+            transforms.ToTensor(),                        # Convert images to tensors
+            transforms.Normalize((0.5,), (0.5,))          # Normalize the images
         ])
+
         # Create train/val for each partition and wrap it into DataLoader
         trainloaders = []
         valloaders = []
@@ -41,42 +44,13 @@ class LoadDataset:
             client_dataset = datasets.ImageFolder(root=client_folder, transform=transform)
 
             # Split into training and validation sets
-            len_val = len(client_dataset) // 10  # 10% validation set
-            len_train = len(client_dataset) - len_val
-            ds_train, ds_val = random_split(client_dataset, [len_train, len_val], torch.Generator().manual_seed(42))
+            val_set_len = len(client_dataset) // 10  # 10% validation set
+            train_set_len = len(client_dataset) - val_set_len
+
+            train_dataset, validation_dataset = random_split(client_dataset, [train_set_len, val_set_len], torch.Generator().manual_seed(42))
 
             # Create DataLoaders
-            trainloaders.append(DataLoader(ds_train, batch_size=self.BATCH_SIZE, shuffle=True))
-            valloaders.append(DataLoader(ds_val, batch_size=self.BATCH_SIZE))
+            trainloaders.append(DataLoader(train_dataset, batch_size=self.BATCH_SIZE, shuffle=True))
+            valloaders.append(DataLoader(validation_dataset, batch_size=self.BATCH_SIZE))
+
         return trainloaders, valloaders, testloaders
-
-    def display_samples_from_loader(self, loader, title, num_images=5):
-        dataiter = iter(loader)
-        images, labels = next(dataiter)
-        self.show_images(images, labels, title=title)
-
-    def show_images(self, images, labels, title=""):
-        num_images = len(images)  # Use the actual number of images in the batch
-        plt.figure(figsize=(10, 2))
-        plt.suptitle(title)
-        for i in range(num_images):
-            plt.subplot(1, num_images, i + 1)
-            plt.xticks([])
-            plt.yticks([])
-            plt.grid(False)
-            plt.imshow(torchvision.transforms.ToPILImage()(images[i]))
-            plt.xlabel(f"Label: {labels[i]}")
-        plt.show()
-
-# '''
-# Uncomment the below code and run the file to test LoadDataset functionality
-# '''
-# NUM_CLIENTS = 12
-# BATCH_SIZE = 4
-# ROOT_DIR = './CLIENTS DATA'
-
-# # Loading dataset based on number of clients and batch size
-# data_loader = LoadDataset(ROOT_DIR, NUM_CLIENTS, BATCH_SIZE)
-# trainloaders, valloaders, testloader = data_loader.load_datasets()
-
-# data_loader.display_samples_from_loader(trainloaders[11], "Sample Images")
