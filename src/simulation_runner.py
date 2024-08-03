@@ -13,6 +13,10 @@ from network_models.femnist_network_definition import FemnistNetwork
 from client_models.flower_client import FlowerClient
 from simulation_strategies.trust_based_removal_srategy import TrustBasedRemovalStrategy
 
+from utils import old_plots
+from utils.old_csv_writer import OldCSVWriter
+from utils.old_plot_loss import plot_loss
+
 
 class SimulationRunner:
 
@@ -20,7 +24,15 @@ class SimulationRunner:
             self,
             config_filename: str
     ) -> None:
-        logging.basicConfig(level=logging.DEBUG)
+        self.testloaders = None
+        self.valloaders = None
+        self.trainloaders = None
+        self.network = None
+        self.training_device = None
+
+        self.csv_loss_history_filenames = []
+
+        logging.basicConfig(level=logging.INFO)
 
         self.config_loader = ConfigLoader(
             usecase_config_path=f"../config/simulation_strategies/{config_filename}",
@@ -73,20 +85,18 @@ class SimulationRunner:
                     num_of_clients=num_of_clients,
                     batch_size=batch_size
                 )
-                network = ITSNetwork()
+                self.network = ITSNetwork()
 
-            if dataset_keyword == "femnist":
+            elif dataset_keyword == "femnist_iid":
                 dataset_loader = ImageDatasetLoader(
                     transformer=femnist_image_transformer,
                     dataset_dir=self.config_loader.get_dataset_folder_name(dataset_keyword),
                     num_of_clients=num_of_clients,
                     batch_size=batch_size
                 )
-                network = FemnistNetwork()
+                self.network = FemnistNetwork()
 
-            trainloaders, valloaders, testloaders = dataset_loader.load_datasets()
-
-            flower_client = FlowerClient(network, )
+            self.trainloaders, self.valloaders, self.testloaders = dataset_loader.load_datasets()
 
             strategy = TrustBasedRemovalStrategy(
                 fraction_fit=fraction_fit,
@@ -95,16 +105,40 @@ class SimulationRunner:
                 min_evaluate_clients=min_evaluate_clients,
                 min_available_clients=min_available_clients,
                 evaluate_metrics_aggregation_fn=evaluate_metrics_aggregation_fn,
-                remove_clients=remove_clients
+                remove_clients=remove_clients,
+                beta_value=beta_value,
+                trust_threshold=trust_threshold,
+                begin_removing_from_round=begin_removing_from_round
             )
 
             flwr.simulation.start_simulation(
-                client_fn=flower_client,
+                client_fn=self.client_fn,
                 num_clients=num_of_clients,
                 config=flwr.server.ServerConfig(num_rounds=num_of_rounds),
                 strategy=strategy,
                 client_resources={"num_cpus": cpus_per_client, "num_gpus": gpus_per_client},
             )
+
+            accuracy_trust_reputation_distance_data, loss_data = old_plots.process_client_data(strategy)
+
+            old_csv_writer = OldCSVWriter(
+                accuracy_trust_reputation_data=accuracy_trust_reputation_distance_data,
+                loss_data=loss_data,
+                strategy_type=dataset_keyword + "_remove" if remove_clients == True else dataset_keyword + "_no_remove"
+            )
+
+            old_csv_writer.write_to_csv()
+            loss_filename = old_csv_writer.write_loss_to_csv()
+
+            self.csv_loss_history_filenames.append(loss_filename)
+
+            old_plots.plot_accuracy_history(accuracy_trust_reputation_distance_data)
+            old_plots.plot_trust_history(accuracy_trust_reputation_distance_data)
+            old_plots.plot_reputation_history(accuracy_trust_reputation_distance_data)
+            old_plots.plot_distance_history(accuracy_trust_reputation_distance_data, "distance")
+            old_plots.plot_distance_history(accuracy_trust_reputation_distance_data, "normalised_distance")
+
+        plot_loss(self.csv_loss_history_filenames)
 
     @staticmethod
     def _parse_strategy(strategy: dict) -> tuple:
@@ -139,21 +173,23 @@ class SimulationRunner:
         except Exception as e:
             logging.error(f"Error while parsing the strategy. Error: {e}")
 
-    @staticmethod
-    def client_fn(cid: str) -> FlowerClient:
+
+    def client_fn(self, cid: str) -> FlowerClient:
         """Create a Flower client."""
 
         # Load model
-        net = Net().to(DEVICE)
+        net = self.network.to(self.training_device)
 
         # Note: each client gets a different trainloader/valloader, so each client
         # will train and evaluate on their own unique data
-        trainloader = trainloaders[int(cid)]
-        valloader = valloaders[int(cid)]
+        trainloader = self.trainloaders[int(cid)]
+        valloader = self.valloaders[int(cid)]
 
         # Create a  single Flower client representing a single organization
-        return FlowerClient(net, trainloader, valloader).to_client()
+        return FlowerClient(net, trainloader, valloader, self.training_device).to_client()
 
 
-simulation_runner = SimulationRunner("its_usecase_config.json")
+
+
+simulation_runner = SimulationRunner("femnist_iid.json")
 simulation_runner.run()

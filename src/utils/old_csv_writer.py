@@ -3,14 +3,14 @@ import datetime
 import pickle
 
 
-class CSVWriter:
+class OldCSVWriter:
     def __init__(
             self,
             accuracy_trust_reputation_data,
             loss_data,
             strategy_type
     ) -> None:
-        self.working_dir = 'out/'
+        self.working_dir = '../out/'
         self.data_to_process = accuracy_trust_reputation_data
         self.loss_data = loss_data
         self.strategy_type = strategy_type

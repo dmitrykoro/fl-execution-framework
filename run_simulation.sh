@@ -23,4 +23,4 @@ else
     echo "Activated the existing venv"
 fi
 
-$PYTHON src/Controller.py
+$PYTHON src/simulation_runner.py

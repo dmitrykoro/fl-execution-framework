@@ -11,12 +11,12 @@ class FlowerClient(fl.client.NumPyClient):
             net,
             trainloader,
             valloader,
-            device
+            training_device
     ):
         self.net = net
         self.trainloader = trainloader
         self.valloader = valloader
-        self.device = device
+        self.training_device = training_device
 
     def set_parameters(self, net, parameters: List[np.ndarray]):
         params_dict = zip(net.state_dict().keys(), parameters)
@@ -37,7 +37,7 @@ class FlowerClient(fl.client.NumPyClient):
             correct, total, epoch_loss = 0, 0, 0.0
 
             for images, labels in trainloader:
-                images, labels = images.to(self.device), labels.to(self.device)
+                images, labels = images.to(self.training_device), labels.to(self.training_device)
                 optimizer.zero_grad()
                 outputs = net(images)
                 loss = criterion(outputs, labels)
@@ -61,7 +61,7 @@ class FlowerClient(fl.client.NumPyClient):
 
         with torch.no_grad():
             for images, labels in testloader:
-                images, labels = images.to(self.device), labels.to(self.device)
+                images, labels = images.to(self.training_device), labels.to(self.training_device)
                 outputs = net(images)
                 loss += criterion(outputs, labels).item()
                 _, predicted = torch.max(outputs.data, 1)
@@ -79,7 +79,7 @@ class FlowerClient(fl.client.NumPyClient):
         optimizer.zero_grad()
         criterion = torch.nn.CrossEntropyLoss()
         for images, labels in self.trainloader:
-            images, labels = images.to(self.device), labels.to(self.device)
+            images, labels = images.to(self.training_device), labels.to(self.training_device)
             outputs = self.net(images)
             loss = criterion(outputs, labels)
             loss.backward()
@@ -91,3 +91,6 @@ class FlowerClient(fl.client.NumPyClient):
         self.set_parameters(self.net, parameters)
         loss, accuracy = self.test(self.net, self.valloader)
         return float(loss), len(self.valloader), {"accuracy": float(accuracy)}
+
+
+

@@ -19,7 +19,10 @@ import matplotlib.pyplot as plt
 class TrustBasedRemovalStrategy(fl.server.strategy.FedAvg):
     def __init__(
             self,
-            remove_clients,
+            remove_clients: bool,
+            beta_value: float,
+            trust_threshold: float,
+            begin_removing_from_round: int,
             *args,
             **kwargs
     ):
@@ -29,10 +32,14 @@ class TrustBasedRemovalStrategy(fl.server.strategy.FedAvg):
         self.client_reputations_history = {}
         self.client_trust_history = {}
         self.client_trusts = {}
-        self.removed_clients = set()
+        self.removed_client_ids = set()
         self.client_accuracy_history = {}
 
         self.remove_clients = remove_clients
+        self.beta_value = beta_value
+        self.trust_threshold = trust_threshold
+        self.begin_removing_from_round = begin_removing_from_round
+
         self.total_loss_history_record = {'remove_clients': self.remove_clients, 'rounds_history': {}}
 
         self.client_cluster_distance_history = {}
@@ -49,14 +56,13 @@ class TrustBasedRemovalStrategy(fl.server.strategy.FedAvg):
     # HELPER FUNCTION
     def update_reputation(self, prev_reputation, truth_value, current_round):
         # Reputation update logic
-        beta = 0.75  # Can be adjusted as needed
         if truth_value >= 0.5:
             updated_reputation = (prev_reputation + truth_value) - (prev_reputation / current_round)
         else:
             # Adjust reputation for truth values less than 0.5
             temp = -(1 - (truth_value * (prev_reputation / current_round)))
             updated_reputation = (prev_reputation + truth_value) - np.exp(temp)
-        updated_reputation = beta * updated_reputation + (1 - beta) * prev_reputation
+        updated_reputation = self.beta_value * updated_reputation + (1 - self.beta_value) * prev_reputation
 
         if updated_reputation > 1.0:
             return 1.0
@@ -81,9 +87,8 @@ class TrustBasedRemovalStrategy(fl.server.strategy.FedAvg):
             Helper method that calculates trust
             Based on reputation value of a client
         """
-        beta = 0.75
         trust = m.sqrt(m.pow(reputation, 2) + m.pow(d, 2)) - m.sqrt(m.pow(1 - reputation, 2) + m.pow(1 - d, 2))
-        trust = beta * trust + (1 - beta) * prev_trust
+        trust = self.beta_value * trust + (1 - self.beta_value) * prev_trust
 
         if trust > 1.0:
             trust = 1.0
@@ -111,7 +116,7 @@ class TrustBasedRemovalStrategy(fl.server.strategy.FedAvg):
         aggregate_clients = []
         for result in results:
             client_id = result[0].cid
-            if client_id not in self.removed_clients:
+            if client_id not in self.removed_client_ids:
                 aggregate_clients.append(result)
 
         # Call aggregate_fit from base class (FedAvg) to aggregate parameters and metrics
@@ -181,13 +186,11 @@ class TrustBasedRemovalStrategy(fl.server.strategy.FedAvg):
         return aggregated_parameters, aggregated_metrics
 
     def configure_fit(self, server_round, parameters, client_manager):
-        # Trust Threshold
-        trust_threshold = 0.15
         # Fetch the available clients as a dictionary
         available_clients = client_manager.all()  # Dictionary with client IDs as keys and RayActorClientProxy objects as values
 
         # In the Warmup rounds, select all clients
-        if self.current_round <= 3:
+        if self.current_round <= self.begin_removing_from_round - 1:
             fit_ins = fl.common.FitIns(parameters, {})
             return [(client, fit_ins) for client in available_clients.values()]
 
@@ -196,20 +199,20 @@ class TrustBasedRemovalStrategy(fl.server.strategy.FedAvg):
 
         if self.remove_clients:
             # In the first round after warmup, remove the client with the lowest TRUST
-            if self.current_round == 4:
+            if self.current_round == self.begin_removing_from_round:
                 lowest_trust_client = min(client_trusts, key=client_trusts.get)
                 print(f"Removing client with lowest TRUST: {lowest_trust_client}")
                 # Add this client to the removed_clients list
-                self.removed_clients.add(lowest_trust_client)
+                self.removed_client_ids.add(lowest_trust_client)
             else:
                 # remove clients with trust lower than threshold.
                 for client_id, trust in client_trusts.items():
-                    if trust < trust_threshold and client_id not in self.removed_clients:
+                    if trust < self.trust_threshold and client_id not in self.removed_client_ids:
                         print(f"Removing client with TRUST less than Threshold: {client_id}")
                         # Add this client to the removed_clients list
-                        self.removed_clients.add(client_id)
+                        self.removed_client_ids.add(client_id)
 
-            print(f"removed clients are : {self.removed_clients}")
+            print(f"removed clients are : {self.removed_client_ids}")
 
         # Select clients based on updated TRUSTS and available clients
         sorted_client_ids = sorted(client_trusts, key=client_trusts.get, reverse=True)
@@ -241,7 +244,7 @@ class TrustBasedRemovalStrategy(fl.server.strategy.FedAvg):
         number_of_clients_in_loss_calc = 0
 
         for client_metadata, evaluate_res in results:
-            if client_metadata.cid not in self.removed_clients:
+            if client_metadata.cid not in self.removed_client_ids:
                 aggregate_value.append((evaluate_res.num_examples, evaluate_res.loss))
                 number_of_clients_in_loss_calc += 1
 
