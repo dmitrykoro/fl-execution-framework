@@ -2,9 +2,9 @@
 
 
 ## Run the code
-1. If you want to test ITS use case, copy desired dataset from `its_subsets` directory into `ITS_USECASE` directory.
+1. If you want to test ITS use case, copy desired dataset from `its_subsets` directory into `dataset/its` directory.
 
-   If you want to test FLAIR use case, copy desired dataset from `flair_subsets` directory into `FLAIR_USECASE` directory.
+   If you want to test FLAIR use case, copy desired dataset from `flair_subsets` directory into `datasets/flair` directory.
 2. Execute the command:  
 ```sh run_simulation.sh```
 3. In order to re-install venv dependencies, execute the command:  

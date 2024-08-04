@@ -1,7 +1,7 @@
 import os
 import random
 
-client_directory = os.path.join('../../femnist_subsets/flipping_100_100/client_11')
+client_directory = os.path.join('../../femnist_subsets/flippind_100_100_niid/client_f0169_09')
 
 label_dirs = os.listdir(client_directory)
 

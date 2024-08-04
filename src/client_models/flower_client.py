@@ -11,12 +11,15 @@ class FlowerClient(fl.client.NumPyClient):
             net,
             trainloader,
             valloader,
-            training_device
+            training_device,
+            num_of_client_epochs
     ):
         self.net = net
         self.trainloader = trainloader
         self.valloader = valloader
         self.training_device = training_device
+
+        self.num_of_client_epochs = num_of_client_epochs
 
     def set_parameters(self, net, parameters: List[np.ndarray]):
         params_dict = zip(net.state_dict().keys(), parameters)
@@ -73,7 +76,7 @@ class FlowerClient(fl.client.NumPyClient):
 
     def fit(self, parameters, config):
         self.set_parameters(self.net, parameters)
-        self.train(self.net, self.trainloader, epochs=1)
+        self.train(self.net, self.trainloader, epochs=self.num_of_client_epochs)
         # Calculate gradients
         optimizer = torch.optim.Adam(self.net.parameters())
         optimizer.zero_grad()

@@ -128,8 +128,3 @@ class OldCSVWriter:
             writer.writerow(row)
 
         return self.working_dir + self.filename
-
-
-
-
-

@@ -1,6 +1,7 @@
 import json
 import logging
 import os
+import sys
 
 import flwr
 
@@ -10,12 +11,15 @@ from dataset_loaders.image_transformers.its_image_transformer import its_image_t
 from dataset_loaders.image_transformers.femnist_image_transformer import femnist_image_transformer
 from network_models.its_network_definition import ITSNetwork
 from network_models.femnist_network_definition import FemnistNetwork
+from network_models.femnist_network_by_authors import FemnistNetworkByAuthors
 from client_models.flower_client import FlowerClient
 from simulation_strategies.trust_based_removal_srategy import TrustBasedRemovalStrategy
 
 from utils import old_plots
 from utils.old_csv_writer import OldCSVWriter
 from utils.old_plot_loss import plot_loss
+from utils.calculate_distances_relation import calculate_distances_relation
+
 
 
 class SimulationRunner:
@@ -29,6 +33,7 @@ class SimulationRunner:
         self.trainloaders = None
         self.network = None
         self.training_device = None
+        self.num_of_client_epochs = None
 
         self.csv_loss_history_filenames = []
 
@@ -36,10 +41,14 @@ class SimulationRunner:
 
         self.config_loader = ConfigLoader(
             usecase_config_path=f"../config/simulation_strategies/{config_filename}",
-            dataset_config_path=f"../config/usecase_name_to_dataset_dir.json"
+            dataset_config_path=f"../config/dataset_keyword_to_dataset_dir.json"
         )
         self.simulation_strategies = self.config_loader.get_usecase_config_list()
         self.datasets_folder = os.path.join("../datasets")
+
+        script_dir = os.path.dirname(os.path.abspath(__file__))
+        sys.path.append(os.path.join(script_dir))
+
 
     def run(self):
         """Run simulations according to the specified usecase config"""
@@ -87,7 +96,7 @@ class SimulationRunner:
                 )
                 self.network = ITSNetwork()
 
-            elif dataset_keyword == "femnist_iid":
+            elif dataset_keyword == "femnist_niid":
                 dataset_loader = ImageDatasetLoader(
                     transformer=femnist_image_transformer,
                     dataset_dir=self.config_loader.get_dataset_folder_name(dataset_keyword),
@@ -95,6 +104,13 @@ class SimulationRunner:
                     batch_size=batch_size
                 )
                 self.network = FemnistNetwork()
+            else:
+                logging.error(
+                    f"Non-existing dataset_keyword: {dataset_keyword}. Please check {self.config_loader.dataset_config_path}"
+                )
+                sys.exit(-1)
+
+            self.num_of_client_epochs = num_of_client_epochs
 
             self.trainloaders, self.valloaders, self.testloaders = dataset_loader.load_datasets()
 
@@ -120,6 +136,8 @@ class SimulationRunner:
             )
 
             accuracy_trust_reputation_distance_data, loss_data = old_plots.process_client_data(strategy)
+
+            # calculate_distances_relation(accuracy_trust_reputation_distance_data)
 
             old_csv_writer = OldCSVWriter(
                 accuracy_trust_reputation_data=accuracy_trust_reputation_distance_data,
@@ -186,10 +204,10 @@ class SimulationRunner:
         valloader = self.valloaders[int(cid)]
 
         # Create a  single Flower client representing a single organization
-        return FlowerClient(net, trainloader, valloader, self.training_device).to_client()
+        return FlowerClient(net, trainloader, valloader, self.training_device, self.num_of_client_epochs).to_client()
 
 
 
 
-simulation_runner = SimulationRunner("femnist_iid.json")
+simulation_runner = SimulationRunner("femnist_niid.json")
 simulation_runner.run()

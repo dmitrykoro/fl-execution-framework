@@ -197,7 +197,7 @@ class TrustBasedRemovalStrategy(fl.server.strategy.FedAvg):
             # Fetch the Trust and Reputation scores for all available clients
         client_trusts = {client_id: self.client_trusts.get(client_id, 0) for client_id in available_clients.keys()}
 
-        if self.remove_clients:
+        if self.remove_clients: # and len(self.removed_client_ids) < 2:
             # In the first round after warmup, remove the client with the lowest TRUST
             if self.current_round == self.begin_removing_from_round:
                 lowest_trust_client = min(client_trusts, key=client_trusts.get)
