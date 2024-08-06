@@ -21,7 +21,6 @@ from utils.old_plot_loss import plot_loss
 from utils.calculate_distances_relation import calculate_distances_relation
 
 
-
 class SimulationRunner:
 
     def __init__(
@@ -48,7 +47,6 @@ class SimulationRunner:
 
         script_dir = os.path.dirname(os.path.abspath(__file__))
         sys.path.append(os.path.join(script_dir))
-
 
     def run(self):
         """Run simulations according to the specified usecase config"""
@@ -96,7 +94,7 @@ class SimulationRunner:
                 )
                 self.network = ITSNetwork()
 
-            elif dataset_keyword == "femnist_niid":
+            elif dataset_keyword in ("femnist_niid", "femnist_iid"):
                 dataset_loader = ImageDatasetLoader(
                     transformer=femnist_image_transformer,
                     dataset_dir=self.config_loader.get_dataset_folder_name(dataset_keyword),
@@ -191,7 +189,6 @@ class SimulationRunner:
         except Exception as e:
             logging.error(f"Error while parsing the strategy. Error: {e}")
 
-
     def client_fn(self, cid: str) -> FlowerClient:
         """Create a Flower client."""
 
@@ -207,7 +204,5 @@ class SimulationRunner:
         return FlowerClient(net, trainloader, valloader, self.training_device, self.num_of_client_epochs).to_client()
 
 
-
-
-simulation_runner = SimulationRunner("femnist_niid.json")
+simulation_runner = SimulationRunner("femnist_iid.json")
 simulation_runner.run()
