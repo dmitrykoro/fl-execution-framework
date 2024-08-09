@@ -1,6 +1,6 @@
 {
-  "its": "../datasets/its",
-  "flair": "../datasets/flair",
-  "femnist_iid": "../datasets/femnist_iid",
-  "femnist_niid": "../datasets/femnist_niid"
+  "its": "datasets/its",
+  "flair": "datasets/flair",
+  "femnist_iid": "datasets/femnist_iid",
+  "femnist_niid": "datasets/femnist_niid"
 }

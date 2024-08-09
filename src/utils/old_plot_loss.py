@@ -11,7 +11,7 @@ def plot_loss(csv_files):
 
         rounds = df.columns.tolist()
         values = df.iloc[0].tolist()
-        plt.plot(rounds, values, marker='o', label=filepath.split('/')[2])
+        plt.plot(rounds, values, marker='o', label=filepath.split('/')[1])
 
     plt.xlabel('Round #')
     plt.ylabel('Loss')

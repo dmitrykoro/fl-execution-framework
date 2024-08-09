@@ -10,7 +10,7 @@ class OldCSVWriter:
             loss_data,
             strategy_type
     ) -> None:
-        self.working_dir = '../out/'
+        self.working_dir = 'out/'
         self.data_to_process = accuracy_trust_reputation_data
         self.loss_data = loss_data
         self.strategy_type = strategy_type
