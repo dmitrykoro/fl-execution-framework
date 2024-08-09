@@ -1,60 +1,44 @@
-# HOW TO RUN
+# Framework for Federated Learning Metacognitive Trust and Reputation evaluation 
 
+## General information
 
-## Run the code
-1. If you want to test ITS use case, copy desired dataset from `its_subsets` directory into `dataset/its` directory.
+This is the repository for the evaluation of the proposed malicious client removal strategy. This repository includes both the 
+code and the datasets that were used for producing the described results. 
 
-   If you want to test FLAIR use case, copy desired dataset from `flair_subsets` directory into `datasets/flair` directory.
-2. Execute the command:  
-```sh run_simulation.sh```
-3. In order to re-install venv dependencies, execute the command:  
-```sh reinstall_dependencies.sh```
-4. The graphs will be shown in runtime for convenience, so you may save them for future reference. 
-5. After the simulation, CSV files with the results will be saved to `out/` directory. 
- 
+## Datasets description
 
-## Optional: adjust to dataset other than the default one
-    
-1. Update `LoadDataset` file according to your dataset and load your dataset into `train_loaders` and `val_loaders`.
-2. Pre-process your data in `LoadDataset` by either creating a new function or while loading the dataset.
-3. Update the `Network` file based on your own machine learning network.
-4. Update the number of clients global variable in `Controller` file. Also, update parameters while calling `FedAvg` function based on the number of clients you are using currently.
+We used two distinct use cases, namely, ITS and FEMNIST. We used ITS for the problem of classification of the 
+traffic signs between two distinct classes: `stop sign` and `other traffic sign`. this dataset is located at the 
+`datasets/its/` folder. 
 
+We used subset of the FEMNIST dataset for the second use case. In this use case, we solve the problem of classification 
+among 10 classes: handwritten numbers from 0 to 9. This subset is located at the `datasets/femnist_iid` folder. In order 
+to generate this subset from the original FEMNIST dataset in which the data is represented as JSON arrays, 
+we implemented the script which is located at the folder `src/utils/process_femnist_iid_data`. The script 
+creates PNG images for handwritten digits provided by desired number of clients, and then distributes resulting images 
+across the folder structure (similar to its, can be found at `datasets/femnist_iid`).
 
-### Information regarding FedAvg Function parameters:
+## Reproducing the experiment results
 
-- **fraction_fit**: `float`, optional  
-  Fraction of clients used during training. In case `min_fit_clients` is larger than `fraction_fit * available_clients`, `min_fit_clients` will still be sampled. Defaults to 1.0.
-  
-- **fraction_evaluate**: `float`, optional  
-  Fraction of clients used during validation. In case `min_evaluate_clients` is larger than `fraction_evaluate * available_clients`, `min_evaluate_clients` will still be sampled. Defaults to 1.0.
-  
-- **min_fit_clients**: `int`, optional  
-  Minimum number of clients used during training. Defaults to 2.
-  
-- **min_evaluate_clients**: `int`, optional  
-  Minimum number of clients used during validation. Defaults to 2.
-  
-- **min_available_clients**: `int`, optional  
-  Minimum number of total clients in the system. Defaults to 2.
-  
-- **evaluate_fn**: `Optional[Callable[[int, NDArrays, Dict[str, Scalar]],Optional[Tuple[float, Dict[str, Scalar]]]]]`  
-  Optional function used for validation. Defaults to None.
-  
-- **on_fit_config_fn**: `Callable[[int], Dict[str, Scalar]]`, optional  
-  Function used to configure training. Defaults to None.
-  
-- **on_evaluate_config_fn**: `Callable[[int], Dict[str, Scalar]]`, optional  
-  Function used to configure validation. Defaults to None.
-  
-- **accept_failures**: `bool`, optional  
-  Whether or not accept rounds containing failures. Defaults to True.
-  
-- **initial_parameters**: `Parameters`, optional  
-  Initial global model parameters.
-  
-- **fit_metrics_aggregation_fn**: `Optional[MetricsAggregationFn]`  
-  Metrics aggregation function, optional.
-  
-- **evaluate_metrics_aggregation_fn**: `Optional[MetricsAggregationFn]`  
-  Metrics aggregation function, optional.
+0. In order to reproduce the experiment results, the code needs to be executed. Python 3.10.14 is used to implement the algorithms. Before attempting to run the code, make sure the Python 3.10.14 is installed in the system.
+1. Configuration for each simulation strategy is located at the `config/simulation_strategies` folder. In our experiments, we used two configuration files: `its.json`, which will be executed by default, and `femnist_iid.json`, which specifies configuration for the simulation for the FEMNIST use case.
+2. If you want to test the FEMNIST use case, the configuration file name needs to be changed at the line 202 in `src/simulation_runner.py`. 
+3. Simulation configuration may be adjusted as needed in the JSON files. In our setup, we primarily worked with two parameters: `num_of_rounds` and `begin_removing_from_round`. The first specifies the total number of aggregation rounds in the simulation, the second one specifies the round at which the removal of malicious clients should begin. Please note that we did not implement the parsing of all parameters from JSON as of yet, so not all changes may have effect on the simulation. We suggest to adjust only two described parameters. Pleas note that each JSON contains an array of simulation descriptions. The array may be of any length, and after all simulations in the array are executed, their loss results will be put on a single graph.
+4. For those who use UNIX-based operating system, we implemented shell script to facilitate the code execution. Being in the repository root, execute the command `sh run_simulation.sh`. It will automatically create the Python virtual environment, activate it and then execute the code with the default dataset. Default dataset is ITS.
+5. If the operating system is Windows, the requirements for used libraries are located at requirements.txt file. These requirements need to be installed prior the code execution.
+6. During the simulation, the graphs will be shown in the runtime for the convenience. In order to allow the simulation to proceed further, please, close the currently showing graph.
+5. After the simulation ends, CSV files with the metrics collected during the simulation will be saved to `out/` directory.
+
+## Collected metrics
+
+During the simulation, we collect the following metrics for each client during each aggregation round: 
+* Loss - provided by the Flower framework;
+* Accuracy during the evaluation phase - provided bo the Flower framework;
+* Trust - calculated using our algorithm;
+* Reputation - calculated using our algorithm;
+* Distance from the cluster center - calculated using KMeans and the weight updates provided by the Flower framework;
+* Normalized distance from the cluster center - calculated using distances and the MinMaxScaler from sklearn.
+
+## Computing infrastructure used for running experiments
+
+Apple MacBook Pro with M1 Pro CPU, 16gb memory, macOS Sonoma 14.5, Python 3.10.14, bash

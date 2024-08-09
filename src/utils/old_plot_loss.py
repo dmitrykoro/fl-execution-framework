@@ -3,6 +3,7 @@ import matplotlib.pyplot as plt
 
 
 def plot_loss(csv_files):
+    """Plot loss over strategies."""
     plt.figure(figsize=(10, 6))
 
     for filepath in csv_files:

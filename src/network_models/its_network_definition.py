@@ -9,7 +9,7 @@ class ITSNetwork(nn.Module):
         self.conv1 = nn.Conv2d(3, 6, 5)
         self.pool = nn.MaxPool2d(2, 2)
         self.conv2 = nn.Conv2d(6, 16, 5)
-        self.fc1 = nn.Linear(16 * 53 * 53, 64)  # Adjusted for 224x224 images
+        self.fc1 = nn.Linear(16 * 53 * 53, 64)
         self.dropout1 = nn.Dropout(0.3)
         self.fc2 = nn.Linear(64, 32)
         self.dropout2 = nn.Dropout(0.2)

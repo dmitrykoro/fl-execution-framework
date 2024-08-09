@@ -11,7 +11,6 @@ from dataset_loaders.image_transformers.its_image_transformer import its_image_t
 from dataset_loaders.image_transformers.femnist_image_transformer import femnist_image_transformer
 from network_models.its_network_definition import ITSNetwork
 from network_models.femnist_network_definition import FemnistNetwork
-from network_models.femnist_network_by_authors import FemnistNetworkByAuthors
 from client_models.flower_client import FlowerClient
 from simulation_strategies.trust_based_removal_srategy import TrustBasedRemovalStrategy
 
@@ -27,7 +26,6 @@ class SimulationRunner:
             self,
             config_filename: str
     ) -> None:
-        self.testloaders = None
         self.valloaders = None
         self.trainloaders = None
         self.network = None
@@ -39,11 +37,11 @@ class SimulationRunner:
         logging.basicConfig(level=logging.INFO)
 
         self.config_loader = ConfigLoader(
-            usecase_config_path=f"../config/simulation_strategies/{config_filename}",
-            dataset_config_path=f"../config/dataset_keyword_to_dataset_dir.json"
+            usecase_config_path=f"config/simulation_strategies/{config_filename}",
+            dataset_config_path=f"config/dataset_keyword_to_dataset_dir.json"
         )
         self.simulation_strategies = self.config_loader.get_usecase_config_list()
-        self.datasets_folder = os.path.join("../datasets")
+        self.datasets_folder = os.path.join("datasets")
 
         script_dir = os.path.dirname(os.path.abspath(__file__))
         sys.path.append(os.path.join(script_dir))
@@ -110,7 +108,7 @@ class SimulationRunner:
 
             self.num_of_client_epochs = num_of_client_epochs
 
-            self.trainloaders, self.valloaders, self.testloaders = dataset_loader.load_datasets()
+            self.trainloaders, self.valloaders = dataset_loader.load_datasets()
 
             strategy = TrustBasedRemovalStrategy(
                 fraction_fit=fraction_fit,
@@ -192,17 +190,14 @@ class SimulationRunner:
     def client_fn(self, cid: str) -> FlowerClient:
         """Create a Flower client."""
 
-        # Load model
         net = self.network.to(self.training_device)
 
-        # Note: each client gets a different trainloader/valloader, so each client
-        # will train and evaluate on their own unique data
         trainloader = self.trainloaders[int(cid)]
         valloader = self.valloaders[int(cid)]
 
-        # Create a  single Flower client representing a single organization
         return FlowerClient(net, trainloader, valloader, self.training_device, self.num_of_client_epochs).to_client()
 
 
+"""Possible options: femnist_iid.json for testing on FEMNIST in IID manner, its.json for testing on ITS"""
 simulation_runner = SimulationRunner("femnist_iid.json")
 simulation_runner.run()

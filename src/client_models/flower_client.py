@@ -1,8 +1,9 @@
 import flwr as fl
 import numpy as np
+import torch
+
 from collections import OrderedDict
 from typing import List
-import torch
 
 
 class FlowerClient(fl.client.NumPyClient):
@@ -46,6 +47,7 @@ class FlowerClient(fl.client.NumPyClient):
                 loss = criterion(outputs, labels)
                 loss.backward()
                 optimizer.step()
+
                 # Metrics
                 epoch_loss += loss
                 total += labels.size(0)
@@ -58,7 +60,6 @@ class FlowerClient(fl.client.NumPyClient):
     def test(self, net, testloader):
         """Evaluate the network on the entire test set."""
         criterion = torch.nn.CrossEntropyLoss()
-        # criterion = torch.nn.BCELoss()
         correct, total, loss = 0, 0, 0.0
         net.eval()
 
@@ -77,7 +78,8 @@ class FlowerClient(fl.client.NumPyClient):
     def fit(self, parameters, config):
         self.set_parameters(self.net, parameters)
         self.train(self.net, self.trainloader, epochs=self.num_of_client_epochs)
-        # Calculate gradients
+
+        # calculate gradients
         optimizer = torch.optim.Adam(self.net.parameters())
         optimizer.zero_grad()
         criterion = torch.nn.CrossEntropyLoss()
@@ -86,7 +88,6 @@ class FlowerClient(fl.client.NumPyClient):
             outputs = self.net(images)
             loss = criterion(outputs, labels)
             loss.backward()
-        parameters = self.get_parameters(self.net)
 
         return self.get_parameters(self.net), len(self.trainloader), {}
 
@@ -94,6 +95,3 @@ class FlowerClient(fl.client.NumPyClient):
         self.set_parameters(self.net, parameters)
         loss, accuracy = self.test(self.net, self.valloader)
         return float(loss), len(self.valloader), {"accuracy": float(accuracy)}
-
-
-

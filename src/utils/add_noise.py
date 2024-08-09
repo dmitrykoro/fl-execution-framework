@@ -4,28 +4,18 @@ from PIL import Image
 
 
 def add_noise_to_image(image_path, output_path, noise_level=0.1):
-    # Open an image file
+    """Add noise to a single image."""
     with Image.open(image_path) as img:
-        # Convert image to numpy array
         img_array = np.array(img)
-
-        # Generate random noise
         noise = np.random.randn(*img_array.shape) * 255 * noise_level
-
-        # Add noise to the image
         noisy_img_array = img_array + noise
-
-        # Clip the values to be in the valid range [0, 255] and convert to uint8
         noisy_img_array = np.clip(noisy_img_array, 0, 255).astype(np.uint8)
-
-        # Convert numpy array back to image
         noisy_img = Image.fromarray(noisy_img_array)
-
-        # Save the noisy image
         noisy_img.save(output_path)
 
 
 def add_noise_to_images_in_folder(input_folder, output_folder, noise_level=0.1):
+    """Add noise to all images in the specified folder."""
     if not os.path.exists(output_folder):
         os.makedirs(output_folder)
 
@@ -36,9 +26,8 @@ def add_noise_to_images_in_folder(input_folder, output_folder, noise_level=0.1):
             add_noise_to_image(image_path, output_path, noise_level)
 
 
-# Example usage
 input_folder = '../../femnist_subsets/pure/client_10/1'
 output_folder = '../../femnist_subsets/noise_noise/client_10/1'
-noise_level = 0.5  # Adjust noise level as needed
+noise_level = 0.5
 
 add_noise_to_images_in_folder(input_folder, output_folder, noise_level)

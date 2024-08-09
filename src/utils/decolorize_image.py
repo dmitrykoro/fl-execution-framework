@@ -3,19 +3,15 @@ import os
 
 
 def decolorize_image(image_path, output_path):
-    # Open an image file
+    """Convert a single image to grayscale."""
     with Image.open(image_path) as img:
-        # Convert image to grayscale
         gray_img = img.convert('L')
-
-        # Convert grayscale image back to RGB (3 channels)
         rgb_gray_img = gray_img.convert('RGB')
-
-        # Save the decolorized image
         rgb_gray_img.save(output_path)
 
 
 def decolorize_images_in_folder(input_folder, output_folder):
+    """Convert all images in folder to grayscale"""
     if not os.path.exists(output_folder):
         os.makedirs(output_folder)
 

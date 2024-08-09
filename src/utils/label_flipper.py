@@ -1,3 +1,5 @@
+"""Flip all labels for specified clients."""
+
 import os
 import random
 
