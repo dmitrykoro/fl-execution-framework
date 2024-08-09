@@ -32,12 +32,12 @@ across the folder structure (similar to its, can be found at `datasets/femnist_i
 ## Collected metrics
 
 During the simulation, we collect the following metrics for each client during each aggregation round: 
-* Loss - provided by the Flower framework;
-* Accuracy during the evaluation phase - provided bo the Flower framework;
-* Trust - calculated using our algorithm;
-* Reputation - calculated using our algorithm;
-* Distance from the cluster center - calculated using KMeans and the weight updates provided by the Flower framework;
-* Normalized distance from the cluster center - calculated using distances and the MinMaxScaler from sklearn.
+* `Loss` - provided by the Flower framework;
+* `Accuracy` during the evaluation phase - provided bo the Flower framework;
+* `Trust` - calculated using our algorithm;
+* `Reputation` - calculated using our algorithm;
+* `Distance` from the cluster center - calculated using KMeans and the weight updates provided by the Flower framework;
+* `Normalized distance` from the cluster center - calculated using distances and the MinMaxScaler from sklearn.
 
 ## Computing infrastructure used for running experiments
 
