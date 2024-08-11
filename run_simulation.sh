@@ -17,6 +17,8 @@ fi
 if [ ! -d "$VENV_DIR" ]; then
     echo "Virtual environment not found. Creating a new one."
     sh reinstall_requirements.sh
+    source $VENV_DIR/bin/activate
+    echo "Activated the newly created venv"
 else
     echo "Found existing venv, switching to it..."
     source $VENV_DIR/bin/activate
