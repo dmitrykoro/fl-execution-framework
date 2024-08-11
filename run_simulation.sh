@@ -25,4 +25,5 @@ else
     echo "Activated the existing venv"
 fi
 
+echo "Initializing simulation..."
 $PYTHON src/simulation_runner.py
