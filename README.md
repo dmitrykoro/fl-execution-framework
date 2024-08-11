@@ -4,7 +4,8 @@
 ## General information
 
 This is the code and dataset repository for the evaluation of the proposed malicious client removal strategy. 
-This repository includes both the code and the datasets that were used for producing the results described in paper. 
+This repository includes both the code and the datasets that were used for producing the results described in paper.
+Federated Learning setup is based on Flower framework.
 
 ## Datasets description
 
