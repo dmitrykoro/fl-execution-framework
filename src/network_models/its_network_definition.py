@@ -16,8 +16,8 @@ class ITSNetwork(nn.Module):
         self.fc3 = nn.Linear(32, 10)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        x = self.pool(F.relu(self.conv1(x)))
-        x = self.pool(F.relu(self.conv2(x)))
+        x = self.pool(functional.relu(self.conv1(x)))
+        x = self.pool(functional.relu(self.conv2(x)))
         x = x.view(-1, 16 * 53 * 53)
         x = functional.relu(self.fc1(x))
         x = self.dropout1(x)
