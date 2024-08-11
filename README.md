@@ -1,17 +1,25 @@
-# Framework for Federated Learning Metacognitive Trust and Reputation evaluation 
+# Exploring Metacognitive Features in Federated Learning
+### A Framework for Federated Learning Metacognitive Trust and Reputation Evaluation 
 
 ## General information
 
-This is the repository for the evaluation of the proposed malicious client removal strategy. This repository includes both the 
-code and the datasets that were used for producing the described results. 
+This is the code and dataset repository for the evaluation of the proposed malicious client removal strategy. 
+This repository includes both the code and the datasets that were used for producing the results described in paper. 
 
 ## Datasets description
 
-We used two distinct use cases, namely, ITS and FEMNIST. We used ITS for the problem of classification of the 
-traffic signs between two distinct classes: `stop sign` and `other traffic sign`. this dataset is located at the 
-`datasets/its/` folder. 
+We used two distinct use cases, namely, ITS and FEMNIST. In this archive, the number of clients in each dataset is reduced to 
+7 in order to meet the requirements for the zip archive with the code. The reduction of number of clients does not affect the essence 
+of our approach and is more suitable for the demonstration.
 
-We used subset of the FEMNIST dataset for the second use case. In this use case, we solve the problem of classification 
+In ITS use case, we challenge the problem of classification of the 
+traffic signs between two distinct classes: `stop sign` and `other traffic sign`. This dataset is located at the 
+`datasets/its/` folder. We pre-processed the data from Open Images V6 dataset that was originally released by Google[^1] 
+to crop out the bounded portion of the original image that contains  either stop or traffic sign and saves these extracted 
+sections to their target locations. Then we divide the data into two distinct labels: 0 for 
+`stop sign` and 1 for `other traffic sign`, each with dimensions of 224x224 pixels.
+
+We used subset of the FEMNIST dataset for the second FEMNIST use case. In this use case, we solve the problem of classification 
 among 10 classes: handwritten numbers from 0 to 9. This subset is located at the `datasets/femnist_iid` folder. In order 
 to generate this subset from the original FEMNIST dataset in which the data is represented as JSON arrays, 
 we implemented the script which is located at the folder `src/utils/process_femnist_iid_data`. The script 
@@ -42,3 +50,11 @@ During the simulation, we collect the following metrics for each client during e
 ## Computing infrastructure used for running experiments
 
 Apple MacBook Pro with M1 Pro CPU, 16gb memory, macOS Sonoma 14.5, Python 3.10.14, bash
+
+## Algorithm randomness
+
+We do not use randomness as a part of our algorithm implementation. However, randomness is used for model training and evaluation 
+during the initialization of dataset loaders. We use the constant random seed to split each client's dataset into training and 
+validation subsets. The usage of the constant seed ensures the reproducibility of the results.
+
+[^1]: https://storage.googleapis.com/openimages/web/download.html
