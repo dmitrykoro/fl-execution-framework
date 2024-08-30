@@ -2,7 +2,6 @@ import numpy as np
 import flwr as fl
 import torch
 import math as m
-import matplotlib.pyplot as plt
 import logging
 
 from typing import Dict, List, Optional, Tuple, Union
@@ -44,6 +43,8 @@ class TrustBasedRemovalStrategy(fl.server.strategy.FedAvg):
 
         self.client_cluster_distance_history = {}
         self.client_cluster_normalised_distance_history = {}
+
+        self.rounds_data = {}
 
     def calculate_reputation(self, client_id, truth_value):
         """Calculate initial reputation."""
@@ -108,6 +109,7 @@ class TrustBasedRemovalStrategy(fl.server.strategy.FedAvg):
             failures: List[Union[Tuple[ClientProxy, FitRes], BaseException]],
     ) -> Tuple[Optional[Parameters], Dict[str, Scalar]]:
         self.current_round += 1
+        self.rounds_data[f'{self.current_round}'] = {}
         aggregate_clients = []
 
         for result in results:
@@ -147,6 +149,14 @@ class TrustBasedRemovalStrategy(fl.server.strategy.FedAvg):
             self.client_reputations[client_id] = new_reputation
             self.client_trusts[client_id] = new_trust
 
+            ##
+            self.rounds_data[f'{self.current_round}'][f'client_{client_id}'] = {}
+            self.rounds_data[f'{self.current_round}'][f'client_{client_id}']['reputation'] = float(new_reputation[0]) if isinstance(new_reputation, np.ndarray) else new_reputation
+            self.rounds_data[f'{self.current_round}'][f'client_{client_id}']['trust'] = float(new_trust)
+            self.rounds_data[f'{self.current_round}'][f'client_{client_id}']['absolute_distance'] = float(distances[i][0])
+            self.rounds_data[f'{self.current_round}'][f'client_{client_id}']['normalized_distance'] = float(normalized_distances[i][0])
+            ##
+
             logging.info(
                 f'Aggregation round: {server_round} '
                 f'Client ID: {client_id} '
@@ -179,7 +189,7 @@ class TrustBasedRemovalStrategy(fl.server.strategy.FedAvg):
 
     def configure_fit(self, server_round, parameters, client_manager):
         # fetch the available clients as a dictionary
-        available_clients = client_manager.all()  # fictionary with client IDs as keys and RayActorClientProxy objects as values
+        available_clients = client_manager.all()  # dictionary with client IDs as keys and RayActorClientProxy objects as values
 
         # in the warmup rounds, select all clients
         if self.current_round <= self.begin_removing_from_round - 1:
@@ -189,13 +199,17 @@ class TrustBasedRemovalStrategy(fl.server.strategy.FedAvg):
         # fetch the Trust and Reputation scores for all available clients
         client_trusts = {client_id: self.client_trusts.get(client_id, 0) for client_id in available_clients.keys()}
 
-        if self.remove_clients and len(self.removed_client_ids) < 2:
+        if self.remove_clients: # and len(self.removed_client_ids) < 2:
+            ##
+            self.rounds_data[f'{self.current_round}']['removed_clients'] = set()
+            ##
+
             # in the first round after warmup, remove the client with the lowest TRUST
             if self.current_round == self.begin_removing_from_round:
-                lowest_trust_client = min(client_trusts, key=client_trusts.get)
-                logging.info(f"Removing client with lowest TRUST: {lowest_trust_client}")
+                lowest_trust_client_id = min(client_trusts, key=client_trusts.get)
+                logging.info(f"Removing client with lowest TRUST: {lowest_trust_client_id}")
                 # add this client to the removed_clients list
-                self.removed_client_ids.add(lowest_trust_client)
+                self.removed_client_ids.add(lowest_trust_client_id)
             else:
                 # remove clients with trust lower than threshold.
                 for client_id, trust in client_trusts.items():
@@ -209,6 +223,10 @@ class TrustBasedRemovalStrategy(fl.server.strategy.FedAvg):
         # select clients based on updated TRUSTS and available clients
         sorted_client_ids = sorted(client_trusts, key=client_trusts.get, reverse=True)
         selected_client_ids = sorted_client_ids
+
+        ##
+        self.rounds_data[f'{self.current_round}']['removed_clients'] = self.removed_client_ids
+        ##
 
         # create training configurations for selected clients
         fit_ins = fl.common.FitIns(parameters, {})
@@ -228,6 +246,9 @@ class TrustBasedRemovalStrategy(fl.server.strategy.FedAvg):
             accuracy_matrix = client_result[1].metrics
             accuracy_matrix['cid'] = cid
             self.client_accuracy_history[server_round].append(accuracy_matrix)
+            self.rounds_data[f'{self.current_round}'][f'client_{cid}']['accuracy'] = accuracy_matrix['accuracy']
+
+
 
         if not results:
             return None, {}
@@ -236,6 +257,9 @@ class TrustBasedRemovalStrategy(fl.server.strategy.FedAvg):
         number_of_clients_in_loss_calc = 0
 
         for client_metadata, evaluate_res in results:
+            ##
+            self.rounds_data[f'{self.current_round}'][f'client_{client_metadata.cid}']['loss'] = evaluate_res.loss
+            ##
             if client_metadata.cid not in self.removed_client_ids:
                 aggregate_value.append((evaluate_res.num_examples, evaluate_res.loss))
                 number_of_clients_in_loss_calc += 1
@@ -250,6 +274,8 @@ class TrustBasedRemovalStrategy(fl.server.strategy.FedAvg):
         metrics_aggregated = {}
 
         self.total_loss_history_record['rounds_history'][server_round] = loss_aggregated
+
+
 
         logging.info(
             f'Round: {server_round} '

@@ -74,8 +74,7 @@ class SimulationRunner:
                 num_of_client_epochs,
                 num_of_clients,
                 batch_size,
-                fraction_fit,
-                fraction_evaluate,
+                training_subset_fraction,
                 min_fit_clients,
                 min_evaluate_clients,
                 min_available_clients,
@@ -88,7 +87,8 @@ class SimulationRunner:
                     transformer=its_image_transformer,
                     dataset_dir=self.config_loader.get_dataset_folder_name(dataset_keyword),
                     num_of_clients=num_of_clients,
-                    batch_size=batch_size
+                    batch_size=batch_size,
+                    training_subset_fraction=training_subset_fraction
                 )
                 self.network = ITSNetwork()
 
@@ -97,7 +97,8 @@ class SimulationRunner:
                     transformer=femnist_image_transformer,
                     dataset_dir=self.config_loader.get_dataset_folder_name(dataset_keyword),
                     num_of_clients=num_of_clients,
-                    batch_size=batch_size
+                    batch_size=batch_size,
+                    training_subset_fraction=training_subset_fraction
                 )
                 self.network = FemnistNetwork()
             else:
@@ -111,8 +112,6 @@ class SimulationRunner:
             self.trainloaders, self.valloaders = dataset_loader.load_datasets()
 
             strategy = TrustBasedRemovalStrategy(
-                fraction_fit=fraction_fit,
-                fraction_evaluate=fraction_evaluate,
                 min_fit_clients=min_fit_clients,
                 min_evaluate_clients=min_evaluate_clients,
                 min_available_clients=min_available_clients,
@@ -132,6 +131,8 @@ class SimulationRunner:
             )
 
             accuracy_trust_reputation_distance_data, loss_data = old_plots.process_client_data(strategy)
+
+            print(json.dumps(strategy.rounds_data))
 
             # calculate_distances_relation(accuracy_trust_reputation_distance_data)
 
@@ -176,8 +177,7 @@ class SimulationRunner:
                 strategy["num_of_client_epochs"],
                 strategy["num_of_clients"],
                 strategy["batch_size"],
-                strategy["fraction_fit"],
-                strategy["fraction_evaluate"],
+                strategy["training_subset_fraction"],
                 strategy["min_fit_clients"],
                 strategy["min_evaluate_clients"],
                 strategy["min_available_clients"],
