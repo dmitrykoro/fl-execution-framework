@@ -4,6 +4,7 @@ import os
 import sys
 
 import flwr
+from flwr.client import Client, ClientApp, NumPyClient
 
 from config_loaders.config_loader import ConfigLoader
 from dataset_loaders.image_dataset_loader import ImageDatasetLoader
@@ -14,10 +15,8 @@ from network_models.femnist_network_definition import FemnistNetwork
 from client_models.flower_client import FlowerClient
 from simulation_strategies.trust_based_removal_srategy import TrustBasedRemovalStrategy
 
-from utils import old_plots
-from utils.old_csv_writer import OldCSVWriter
-from utils.old_plot_loss import plot_loss
-from utils.calculate_distances_relation import calculate_distances_relation
+from output_handlers.plot_handler import PlotHandler
+from utils.additional_data_calculator import AdditionalDataCalculator
 
 
 class SimulationRunner:
@@ -45,6 +44,11 @@ class SimulationRunner:
 
         script_dir = os.path.dirname(os.path.abspath(__file__))
         sys.path.append(os.path.join(script_dir))
+
+        self.additional_data_calculator = AdditionalDataCalculator()
+        self.plot_handler = None
+
+        self.strategy_history = []
 
     def run(self):
         """Run simulations according to the specified usecase config"""
@@ -81,6 +85,12 @@ class SimulationRunner:
                 evaluate_metrics_aggregation_fn
             ) = self._parse_strategy(strategy)
             logging.info(f"Successfully parsed config for strategy: {dataset_keyword}")
+
+            self.plot_handler = PlotHandler(
+                show_plots=show_plots,
+                save_plots=save_plots,
+                num_of_rounds=num_of_rounds
+            )
 
             if dataset_keyword == "its":
                 dataset_loader = ImageDatasetLoader(
@@ -130,30 +140,27 @@ class SimulationRunner:
                 client_resources={"num_cpus": cpus_per_client, "num_gpus": gpus_per_client},
             )
 
-            accuracy_trust_reputation_distance_data, loss_data = old_plots.process_client_data(strategy)
-
-            print(json.dumps(strategy.rounds_data))
-
             # calculate_distances_relation(accuracy_trust_reputation_distance_data)
 
-            old_csv_writer = OldCSVWriter(
-                accuracy_trust_reputation_data=accuracy_trust_reputation_distance_data,
-                loss_data=loss_data,
-                strategy_type=dataset_keyword + "_remove" if remove_clients == True else dataset_keyword + "_no_remove"
+            full_strategy_data = self.additional_data_calculator.calculate_data(strategy.rounds_history)
+
+            self.plot_handler.show_plots_per_strategy(full_strategy_data)
+
+            self.strategy_history.append(
+                {
+                    'strategy_id': f'{dataset_keyword}_'
+                                   f'remove:{remove_clients}_'
+                                   f'clients:{num_of_clients}_'
+                                   f'rounds:{num_of_rounds}_'
+                                   f'remove_from:{begin_removing_from_round}',
+                    'rounds_history': {
+                        f'{round_number}': round_data['round_info']
+                        for round_number, round_data in full_strategy_data.items()
+                    }
+                }
             )
 
-            old_csv_writer.write_to_csv()
-            loss_filename = old_csv_writer.write_loss_to_csv()
-
-            self.csv_loss_history_filenames.append(loss_filename)
-
-            old_plots.plot_accuracy_history(accuracy_trust_reputation_distance_data)
-            old_plots.plot_trust_history(accuracy_trust_reputation_distance_data)
-            old_plots.plot_reputation_history(accuracy_trust_reputation_distance_data)
-            old_plots.plot_distance_history(accuracy_trust_reputation_distance_data, "distance")
-            old_plots.plot_distance_history(accuracy_trust_reputation_distance_data, "normalised_distance")
-
-        plot_loss(self.csv_loss_history_filenames)
+        self.plot_handler.show_plots_among_strategies(self.strategy_history)
 
     @staticmethod
     def _parse_strategy(strategy: dict) -> tuple:
@@ -187,7 +194,7 @@ class SimulationRunner:
         except Exception as e:
             logging.error(f"Error while parsing the strategy. Error: {e}")
 
-    def client_fn(self, cid: str) -> FlowerClient:
+    def client_fn(self, cid: str) -> Client:
         """Create a Flower client."""
 
         net = self.network.to(self.training_device)
