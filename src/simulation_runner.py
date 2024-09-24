@@ -16,6 +16,7 @@ from client_models.flower_client import FlowerClient
 from simulation_strategies.trust_based_removal_srategy import TrustBasedRemovalStrategy
 
 from output_handlers.plot_handler import PlotHandler
+from output_handlers.directory_handler import DirectoryHandler
 from utils.additional_data_calculator import AdditionalDataCalculator
 
 
@@ -47,6 +48,7 @@ class SimulationRunner:
 
         self.additional_data_calculator = AdditionalDataCalculator()
         self.plot_handler = None
+        self.directory_handler = DirectoryHandler()
 
         self.strategy_history = []
 
@@ -89,7 +91,8 @@ class SimulationRunner:
             self.plot_handler = PlotHandler(
                 show_plots=show_plots,
                 save_plots=save_plots,
-                num_of_rounds=num_of_rounds
+                num_of_rounds=num_of_rounds,
+                directory_handler=self.directory_handler
             )
 
             if dataset_keyword == "its":
@@ -144,15 +147,21 @@ class SimulationRunner:
 
             full_strategy_data = self.additional_data_calculator.calculate_data(strategy.rounds_history)
 
-            self.plot_handler.show_plots_per_strategy(full_strategy_data)
+            strategy_id = (
+                f'{dataset_keyword}, '
+                f'remove: {remove_clients}, '
+                f'clients: {num_of_clients}, '
+                f'rounds: {num_of_rounds}, '
+                f'remove_from: {begin_removing_from_round if remove_clients else "n/a"}'
+                f', min_fit_clients: {min_fit_clients}'
+                f', min_available_clients: {min_available_clients}'
+            )
+            self.plot_handler.show_plots_per_strategy(full_strategy_data, strategy_id)
 
+            # to compare data among strategies
             self.strategy_history.append(
                 {
-                    'strategy_id': f'{dataset_keyword}_'
-                                   f'remove:{remove_clients}_'
-                                   f'clients:{num_of_clients}_'
-                                   f'rounds:{num_of_rounds}_'
-                                   f'remove_from:{begin_removing_from_round}',
+                    'strategy_id': strategy_id,
                     'rounds_history': {
                         f'{round_number}': round_data['round_info']
                         for round_number, round_data in full_strategy_data.items()
