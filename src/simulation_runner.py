@@ -10,8 +10,10 @@ from config_loaders.config_loader import ConfigLoader
 from dataset_loaders.image_dataset_loader import ImageDatasetLoader
 from dataset_loaders.image_transformers.its_image_transformer import its_image_transformer
 from dataset_loaders.image_transformers.femnist_image_transformer import femnist_image_transformer
+from dataset_loaders.image_transformers.flair_image_transformer import flair_image_transformer
 from network_models.its_network_definition import ITSNetwork
 from network_models.femnist_network_definition import FemnistNetwork
+from network_models.flair_network_definition import FlairNetwork
 from client_models.flower_client import FlowerClient
 from simulation_strategies.trust_based_removal_srategy import TrustBasedRemovalStrategy
 
@@ -114,9 +116,19 @@ class SimulationRunner:
                     training_subset_fraction=training_subset_fraction
                 )
                 self.network = FemnistNetwork()
+            elif dataset_keyword == "flair":
+                dataset_loader = ImageDatasetLoader(
+                    transformer=flair_image_transformer,
+                    dataset_dir=self.config_loader.get_dataset_folder_name(dataset_keyword),
+                    num_of_clients=num_of_clients,
+                    batch_size=batch_size,
+                    training_subset_fraction=training_subset_fraction
+                )
+                self.network = FlairNetwork()
             else:
                 logging.error(
-                    f"Non-existing dataset_keyword: {dataset_keyword}. Please check {self.config_loader.dataset_config_path}"
+                    f"You are parsing a strategy for dataset: {dataset_keyword}. "
+                    f"Check that you assign a correct dataset_loader at the code above."
                 )
                 sys.exit(-1)
 
@@ -215,5 +227,5 @@ class SimulationRunner:
 
 
 """Possible options: femnist_iid.json for testing on FEMNIST in IID manner, its.json for testing on ITS"""
-simulation_runner = SimulationRunner("femnist_iid.json")
+simulation_runner = SimulationRunner("flair.json")
 simulation_runner.run()

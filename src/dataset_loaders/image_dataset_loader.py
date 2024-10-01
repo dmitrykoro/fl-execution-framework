@@ -26,9 +26,11 @@ class ImageDatasetLoader:
         trainloaders = []
         valloaders = []
 
-        for i in range(self.num_of_clients):
-            client_folder = os.path.join(self.dataset_dir, f'client_{i}')
-            client_dataset = datasets.ImageFolder(root=client_folder, transform=self.transformer)
+        for client_folder in os.listdir(self.dataset_dir):
+            if client_folder.startswith("."):  # .DS_store
+                continue
+
+            client_dataset = datasets.ImageFolder(root=self.dataset_dir + f"/{client_folder}", transform=self.transformer)
 
             train_subset_len = int(len(client_dataset) * self.training_subset_fraction)
             val_subset_len = int(len(client_dataset) - train_subset_len)
