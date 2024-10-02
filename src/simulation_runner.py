@@ -7,18 +7,24 @@ import flwr
 from flwr.client import Client, ClientApp, NumPyClient
 
 from config_loaders.config_loader import ConfigLoader
+
 from dataset_loaders.image_dataset_loader import ImageDatasetLoader
 from dataset_loaders.image_transformers.its_image_transformer import its_image_transformer
 from dataset_loaders.image_transformers.femnist_image_transformer import femnist_image_transformer
 from dataset_loaders.image_transformers.flair_image_transformer import flair_image_transformer
+from dataset_loaders.image_transformers.pneumoniamnist_image_transformer import pneumoniamnist_image_transformer
+
 from network_models.its_network_definition import ITSNetwork
 from network_models.femnist_network_definition import FemnistNetwork
 from network_models.flair_network_definition import FlairNetwork
+from network_models.pneumoniamnist_network_definition import PneumoniamnistNetwork
+
 from client_models.flower_client import FlowerClient
 from simulation_strategies.trust_based_removal_srategy import TrustBasedRemovalStrategy
 
 from output_handlers.plot_handler import PlotHandler
 from output_handlers.directory_handler import DirectoryHandler
+
 from utils.additional_data_calculator import AdditionalDataCalculator
 
 
@@ -28,6 +34,7 @@ class SimulationRunner:
             self,
             config_filename: str
     ) -> None:
+        self.strategy_dict = None
         self.valloaders = None
         self.trainloaders = None
         self.network = None
@@ -54,6 +61,8 @@ class SimulationRunner:
 
         self.strategy_history = []
 
+        self.current_strategy_number = 1
+
     def run(self):
         """Run simulations according to the specified usecase config"""
 
@@ -64,7 +73,31 @@ class SimulationRunner:
                 json.dumps(strategy, indent=4)
             )
 
+            self.strategy_dict = {'strategy_number': self.current_strategy_number}
             (
+                self.strategy_dict['dataset_keyword'],
+                self.strategy_dict['show_plots'],
+                self.strategy_dict['save_plots'],
+                self.strategy_dict['save_csv'],
+                self.strategy_dict['training_device'],
+                self.strategy_dict['cpus_per_client'],
+                self.strategy_dict['gpus_per_client'],
+                self.strategy_dict['num_of_rounds'],
+                self.strategy_dict['remove_clients'],
+                self.strategy_dict['begin_removing_from_round'],
+                self.strategy_dict['num_of_clusters'],
+                self.strategy_dict['trust_threshold'],
+                self.strategy_dict['reputation_threshold'],
+                self.strategy_dict['beta_value'],
+                self.strategy_dict['num_of_client_epochs'],
+                self.strategy_dict['num_of_clients'],
+                self.strategy_dict['batch_size'],
+                self.strategy_dict['training_subset_fraction'],
+                self.strategy_dict['min_fit_clients'],
+                self.strategy_dict['min_evaluate_clients'],
+                self.strategy_dict['min_available_clients'],
+                self.strategy_dict['evaluate_metrics_aggregation_fn']
+             ) = (
                 dataset_keyword,
                 show_plots,
                 save_plots,
@@ -125,6 +158,15 @@ class SimulationRunner:
                     training_subset_fraction=training_subset_fraction
                 )
                 self.network = FlairNetwork()
+            elif dataset_keyword == "pneumoniamnist":
+                dataset_loader = ImageDatasetLoader(
+                    transformer=pneumoniamnist_image_transformer,
+                    dataset_dir=self.config_loader.get_dataset_folder_name(dataset_keyword),
+                    num_of_clients=num_of_clients,
+                    batch_size=batch_size,
+                    training_subset_fraction=training_subset_fraction
+                )
+                self.network = PneumoniamnistNetwork()
             else:
                 logging.error(
                     f"You are parsing a strategy for dataset: {dataset_keyword}. "
@@ -158,22 +200,12 @@ class SimulationRunner:
             # calculate_distances_relation(accuracy_trust_reputation_distance_data)
 
             full_strategy_data = self.additional_data_calculator.calculate_data(strategy.rounds_history)
-
-            strategy_id = (
-                f'{dataset_keyword}, '
-                f'remove: {remove_clients}, '
-                f'clients: {num_of_clients}, '
-                f'rounds: {num_of_rounds}, '
-                f'remove_from: {begin_removing_from_round if remove_clients else "n/a"}'
-                f', min_fit_clients: {min_fit_clients}'
-                f', min_available_clients: {min_available_clients}'
-            )
-            self.plot_handler.show_plots_per_strategy(full_strategy_data, strategy_id)
+            self.plot_handler.show_plots_within_strategy(full_strategy_data, self.strategy_dict)
 
             # to compare data among strategies
             self.strategy_history.append(
                 {
-                    'strategy_id': strategy_id,
+                    'strategy_dict': self.strategy_dict,
                     'rounds_history': {
                         f'{round_number}': round_data['round_info']
                         for round_number, round_data in full_strategy_data.items()
@@ -181,7 +213,9 @@ class SimulationRunner:
                 }
             )
 
-        self.plot_handler.show_plots_among_strategies(self.strategy_history)
+            self.current_strategy_number += 1
+
+        self.plot_handler.show_comparing_plots_among_strategies(self.strategy_history)
 
     @staticmethod
     def _parse_strategy(strategy: dict) -> tuple:
@@ -227,5 +261,5 @@ class SimulationRunner:
 
 
 """Possible options: femnist_iid.json for testing on FEMNIST in IID manner, its.json for testing on ITS"""
-simulation_runner = SimulationRunner("flair.json")
+simulation_runner = SimulationRunner("pneumoniamnist.json")
 simulation_runner.run()
