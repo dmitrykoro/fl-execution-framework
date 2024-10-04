@@ -1,108 +1,117 @@
 import matplotlib.pyplot as plt
-import uuid
+from matplotlib.ticker import MaxNLocator
 
 
-class PlotHandler:
-    def __init__(
-            self,
-            show_plots: bool = False,
-            save_plots: bool = False,
-            num_of_rounds: int = None,
-            directory_handler=None
-    ) -> None:
-        self.show_plots = show_plots
-        self.save_plots = save_plots
+plot_size = (11, 7)
 
-        self.num_of_rounds = num_of_rounds
 
-        self.plot_size = (11, 7)
+def _generate_strategy_label(strategy_config: dict) -> str:
+    """Generate plot label for strategy"""
 
-        self.directory_handler = directory_handler
+    return (
+        f"dataset: {strategy_config.dataset_keyword}, "
+        f"remove: {strategy_config.remove_clients}, "
+        f"remove_from: {strategy_config.begin_removing_from_round if strategy_config.remove_clients else 'n/a'}, "
+        f"client_epochs: {strategy_config.num_of_client_epochs}, "
+        f"batch_size: {strategy_config.batch_size}"
+    )
 
-    @staticmethod
-    def _generate_strategy_label(strategy_dict: dict) -> str:
-        """Generate plot label for strategy"""
 
-        return (
-            f"dataset: {strategy_dict['dataset_keyword']}, "
-            f"remove: {strategy_dict['remove_clients']}, "
-            f"remove_from: {strategy_dict['begin_removing_from_round'] if strategy_dict['remove_clients'] else 'n/a'}, "
-            f"client_epochs: {strategy_dict['num_of_client_epochs']}, "
-            f"batch_size: {strategy_dict['batch_size']}"
+def show_plots_within_strategy(simulation_strategy, directory_handler) -> None:
+    """Show all plots within the strategy"""
+
+    if not (
+            simulation_strategy.strategy_config.show_plots or
+            simulation_strategy.strategy_config.save_plots
+    ):
+        return
+
+    _plot_single_metric_for_all_clients(
+        simulation_strategy.rounds_history, 'removal_criterion', simulation_strategy.strategy_config, directory_handler
+    )
+    _plot_single_metric_for_all_clients(
+        simulation_strategy.rounds_history, 'absolute_distance', simulation_strategy.strategy_config, directory_handler
+    )
+    _plot_single_metric_for_all_clients(
+        simulation_strategy.rounds_history, 'normalized_distance', simulation_strategy.strategy_config, directory_handler
+    )
+    _plot_single_metric_for_all_clients(
+        simulation_strategy.rounds_history, 'accuracy', simulation_strategy.strategy_config, directory_handler
+    )
+    _plot_single_metric_for_all_clients(
+        simulation_strategy.rounds_history, 'loss', simulation_strategy.strategy_config, directory_handler
+    )
+
+
+def _plot_single_metric_for_all_clients(data, metric_name, strategy_config, directory_handler):
+    """Plot single metric history for every client"""
+
+    plt.figure(figsize=plot_size)
+
+    rounds = list(data.keys())
+    clients = list(data[rounds[0]]['client_info'].keys())
+
+    for client in sorted(clients):
+        metric = [data[curr_round]['client_info'][client][metric_name] for curr_round in rounds]
+        plt.plot(rounds, metric, label=client)
+
+    plt.xlabel('round #')
+    plt.ylabel(metric_name)
+    plot_strategy_title = _generate_strategy_label(strategy_config).replace(', ', '\n')
+    plt.title(
+        f"{metric_name} of each client across rounds for strategy:\n{plot_strategy_title}"
+    )
+    plt.legend(title='clients', bbox_to_anchor=(1.05, 1), loc='upper left')
+    ax = plt.gca()
+    ax.xaxis.set_major_locator(MaxNLocator(integer=True, prune='both'))  # Prune unused ticks
+    plt.tight_layout()
+
+    if strategy_config.save_plots:
+        plt.savefig(
+            f"{directory_handler.dirname}/{metric_name}_{strategy_config.strategy_number}.pdf"
         )
 
-    def show_plots_within_strategy(self, data: dict, strategy_dict: dict) -> None:
-        """Show all plots within the strategy"""
+    if strategy_config.show_plots:
+        plt.show()
 
-        if not (self.show_plots or self.save_plots):
-            return
 
-        self.plot_single_metric_for_all_clients(data, 'removal_criterion', strategy_dict)
-        self.plot_single_metric_for_all_clients(data, 'absolute_distance', strategy_dict)
-        self.plot_single_metric_for_all_clients(data, 'normalized_distance', strategy_dict)
-        self.plot_single_metric_for_all_clients(data, 'accuracy', strategy_dict)
-        self.plot_single_metric_for_all_clients(data, 'loss', strategy_dict)
+def show_comparing_plots_among_strategies(executed_simulation_strategies: list, directory_handler) -> None:
+    """Show comparing data from all strategies"""
 
-    def plot_single_metric_for_all_clients(self, data, metric_name, strategy_dict):
-        """Plot single metric"""
+    if not (
+            executed_simulation_strategies[0].strategy_config.show_plots or
+            executed_simulation_strategies[0].strategy_config.save_plots
+    ):
+        return
 
-        plt.figure(figsize=self.plot_size)
+    _plot_single_metric_for_all_strategies(executed_simulation_strategies, 'average_loss', directory_handler)
+    _plot_single_metric_for_all_strategies(executed_simulation_strategies, 'average_accuracy', directory_handler)
+    # self.plot_single_metric_for_all_strategies(data, 'average_distance')
 
-        rounds = list(data.keys())
-        clients = list(data[rounds[0]]['client_info'].keys())
 
-        for client in sorted(clients):
-            metric = [data[curr_round]['client_info'][client][metric_name] for curr_round in rounds]
-            plt.plot(rounds, metric, label=client)
+def _plot_single_metric_for_all_strategies(executed_simulation_strategies, metric_name, directory_handler):
+    """Plot single metric history for every strategy"""
 
-        plt.xlabel('round #')
-        plt.ylabel(metric_name)
-        plot_strategy_title = self._generate_strategy_label(strategy_dict).replace(', ', '\n')
-        plt.title(
-            f"{metric_name} of each client across rounds for strategy:\n{plot_strategy_title}"
-        )
-        plt.legend(title='clients', bbox_to_anchor=(1.05, 1), loc='upper left')
-        plt.tight_layout()
+    plt.figure(figsize=plot_size)
 
-        if self.save_plots:
-            plt.savefig(
-                f"{self.directory_handler.dirname}/{metric_name}_{strategy_dict['strategy_number']}.pdf"
-            )
+    for strategy in executed_simulation_strategies:
+        strategy_label = _generate_strategy_label(strategy.strategy_config)
 
-        if self.show_plots:
-            plt.show()
+        rounds = sorted(strategy.rounds_history.keys(), key=int)
+        metric_values = [strategy.rounds_history[curr_round]['round_info'][metric_name] for curr_round in rounds]
 
-    def show_comparing_plots_among_strategies(self, data: list) -> None:
-        """Show plots among strategies"""
+        plt.plot(rounds, metric_values, label=strategy_label)
 
-        if not (self.show_plots or self.save_plots):
-            return
+    plt.xlabel('round #')
+    plt.ylabel(metric_name)
+    plt.title(f'{metric_name} across strategies')
+    plt.legend(title='strategies', loc='upper center', bbox_to_anchor=(0.5, -0.1))
+    ax = plt.gca()
+    ax.xaxis.set_major_locator(MaxNLocator(integer=True))
+    plt.tight_layout()
 
-        self.plot_single_metric_for_all_strategies(data, 'average_loss')
-        self.plot_single_metric_for_all_strategies(data, 'average_accuracy')
-        # self.plot_single_metric_for_all_strategies(data, 'average_distance')
+    if executed_simulation_strategies[0].strategy_config.save_plots:
+        plt.savefig(f'{directory_handler.dirname}/{metric_name}.pdf')
 
-    def plot_single_metric_for_all_strategies(self, data, metric_name):
-        """Plot single metric among strategies"""
-
-        plt.figure(figsize=self.plot_size)
-
-        for strategy in data:
-            strategy_label = self._generate_strategy_label(strategy['strategy_dict'])
-
-            rounds = sorted(strategy['rounds_history'].keys(), key=int)
-            metric_values = [strategy['rounds_history'][curr_round][metric_name] for curr_round in rounds]
-
-            plt.plot(rounds, metric_values, label=strategy_label)
-
-        plt.xlabel('round #')
-        plt.ylabel(metric_name)
-        plt.title(f'{metric_name} across strategies')
-        plt.legend(title='strategies', loc='upper center', bbox_to_anchor=(0.5, -0.1))
-        plt.tight_layout()
-
-        if self.save_plots:
-            plt.savefig(f'{self.directory_handler.dirname}/{metric_name}.pdf')
-
-        if self.show_plots:
-            plt.show()
+    if executed_simulation_strategies[0].strategy_config.show_plots:
+        plt.show()
