@@ -59,7 +59,7 @@ def _plot_single_metric_for_all_clients(data, metric_name, strategy_config, dire
     plt.ylabel(metric_name)
     plot_strategy_title = _generate_strategy_label(strategy_config).replace(', ', '\n')
     plt.title(
-        f"{metric_name} of each client across rounds for strategy:\n{plot_strategy_title}"
+        f"{metric_name} of each client across rounds for strategy: {strategy_config.aggregation_strategy_keyword}\n{plot_strategy_title}"
     )
     plt.legend(title='clients', bbox_to_anchor=(1.05, 1), loc='upper left')
     ax = plt.gca()
@@ -95,7 +95,7 @@ def _plot_single_metric_for_all_strategies(executed_simulation_strategies, metri
     plt.figure(figsize=plot_size)
 
     for strategy in executed_simulation_strategies:
-        strategy_label = _generate_strategy_label(strategy.strategy_config)
+        strategy_label = strategy.strategy_config.aggregation_strategy_keyword + ' ' +_generate_strategy_label(strategy.strategy_config)
 
         rounds = sorted(strategy.rounds_history.keys(), key=int)
         metric_values = [strategy.rounds_history[curr_round]['round_info'][metric_name] for curr_round in rounds]
