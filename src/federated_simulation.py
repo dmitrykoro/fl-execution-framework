@@ -139,6 +139,17 @@ class FederatedSimulation:
                 trust_threshold=self.strategy_config.trust_threshold,
                 begin_removing_from_round=self.strategy_config.begin_removing_from_round
             )
+        elif aggregation_strategy_keyword == "pid":
+            self._aggregation_strategy = TrustBasedRemovalStrategy(
+                min_fit_clients=self.strategy_config.min_fit_clients,
+                min_evaluate_clients=self.strategy_config.min_evaluate_clients,
+                min_available_clients=self.strategy_config.min_available_clients,
+                evaluate_metrics_aggregation_fn=self.strategy_config.evaluate_metrics_aggregation_fn,
+                remove_clients=self.strategy_config.remove_clients,
+                beta_value=self.strategy_config.beta_value,
+                trust_threshold=self.strategy_config.trust_threshold,
+                begin_removing_from_round=self.strategy_config.begin_removing_from_round
+            )
         else:
             raise NotImplementedError(f"The strategy {aggregation_strategy_keyword} not implemented!")
 
