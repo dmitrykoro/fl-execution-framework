@@ -1,31 +1,14 @@
 import json
 import logging
-import os
-import sys
-
-import flwr
-from flwr.client import Client, ClientApp, NumPyClient
 
 from config_loaders.config_loader import ConfigLoader
 
-from dataset_loaders.image_dataset_loader import ImageDatasetLoader
-from dataset_loaders.image_transformers.its_image_transformer import its_image_transformer
-from dataset_loaders.image_transformers.femnist_image_transformer import femnist_image_transformer
-from dataset_loaders.image_transformers.flair_image_transformer import flair_image_transformer
-from dataset_loaders.image_transformers.pneumoniamnist_image_transformer import pneumoniamnist_image_transformer
-
-from network_models.its_network_definition import ITSNetwork
-from network_models.femnist_network_definition import FemnistNetwork
-from network_models.flair_network_definition import FlairNetwork
-from network_models.pneumoniamnist_network_definition import PneumoniamnistNetwork
-
-from client_models.flower_client import FlowerClient
-from simulation_strategies.trust_based_removal_srategy import TrustBasedRemovalStrategy
-
-from output_handlers.plot_handler import PlotHandler
+from output_handlers import plot_handler
 from output_handlers.directory_handler import DirectoryHandler
 
-from utils.additional_data_calculator import AdditionalDataCalculator
+from federated_simulation import FederatedSimulation
+
+from data_models.simulation_strategy_config import StrategyConfig
 
 
 class SimulationRunner:
@@ -34,232 +17,48 @@ class SimulationRunner:
             self,
             config_filename: str
     ) -> None:
-        self.strategy_dict = None
-        self.valloaders = None
-        self.trainloaders = None
-        self.network = None
-        self.training_device = None
-        self.num_of_client_epochs = None
-
-        self.csv_loss_history_filenames = []
 
         logging.basicConfig(level=logging.INFO)
 
-        self.config_loader = ConfigLoader(
+        self._config_loader = ConfigLoader(
             usecase_config_path=f"config/simulation_strategies/{config_filename}",
             dataset_config_path=f"config/dataset_keyword_to_dataset_dir.json"
         )
-        self.simulation_strategies = self.config_loader.get_usecase_config_list()
-        self.datasets_folder = os.path.join("datasets")
-
-        script_dir = os.path.dirname(os.path.abspath(__file__))
-        sys.path.append(os.path.join(script_dir))
-
-        self.additional_data_calculator = AdditionalDataCalculator()
-        self.plot_handler = None
-        self.directory_handler = DirectoryHandler()
-
-        self.strategy_history = []
-
-        self.current_strategy_number = 1
+        self._simulation_strategy_config_dicts = self._config_loader.get_usecase_config_list()
+        self._dataset_config_list = self._config_loader.get_dataset_config_list()
+        self._directory_handler = DirectoryHandler()
 
     def run(self):
         """Run simulations according to the specified usecase config"""
 
-        for strategy in self.simulation_strategies:
+        executed_simulation_strategies = []
+
+        for strategy_config_dict, i in zip(  # yes, it's bad
+                self._simulation_strategy_config_dicts,
+                range(len(self._simulation_strategy_config_dicts))
+        ):
             logging.info(
                 "\n" + "-" * 50 + f"Executing new strategy" + "-" * 50 + "\n" +
                 "Strategy config:\n" +
-                json.dumps(strategy, indent=4)
+                json.dumps(strategy_config_dict, indent=4)
             )
 
-            self.strategy_dict = {'strategy_number': self.current_strategy_number}
-            (
-                self.strategy_dict['dataset_keyword'],
-                self.strategy_dict['show_plots'],
-                self.strategy_dict['save_plots'],
-                self.strategy_dict['save_csv'],
-                self.strategy_dict['training_device'],
-                self.strategy_dict['cpus_per_client'],
-                self.strategy_dict['gpus_per_client'],
-                self.strategy_dict['num_of_rounds'],
-                self.strategy_dict['remove_clients'],
-                self.strategy_dict['begin_removing_from_round'],
-                self.strategy_dict['num_of_clusters'],
-                self.strategy_dict['trust_threshold'],
-                self.strategy_dict['reputation_threshold'],
-                self.strategy_dict['beta_value'],
-                self.strategy_dict['num_of_client_epochs'],
-                self.strategy_dict['num_of_clients'],
-                self.strategy_dict['batch_size'],
-                self.strategy_dict['training_subset_fraction'],
-                self.strategy_dict['min_fit_clients'],
-                self.strategy_dict['min_evaluate_clients'],
-                self.strategy_dict['min_available_clients'],
-                self.strategy_dict['evaluate_metrics_aggregation_fn']
-             ) = (
-                dataset_keyword,
-                show_plots,
-                save_plots,
-                save_csv,
-                training_device,
-                cpus_per_client,
-                gpus_per_client,
-                num_of_rounds,
-                remove_clients,
-                begin_removing_from_round,
-                num_of_clusters,
-                trust_threshold,
-                reputation_threshold,
-                beta_value,
-                num_of_client_epochs,
-                num_of_clients,
-                batch_size,
-                training_subset_fraction,
-                min_fit_clients,
-                min_evaluate_clients,
-                min_available_clients,
-                evaluate_metrics_aggregation_fn
-            ) = self._parse_strategy(strategy)
-            logging.info(f"Successfully parsed config for strategy: {dataset_keyword}")
+            strategy_config = StrategyConfig.from_dict(strategy_config_dict)
+            setattr(strategy_config, "strategy_number", i)
 
-            self.plot_handler = PlotHandler(
-                show_plots=show_plots,
-                save_plots=save_plots,
-                num_of_rounds=num_of_rounds,
-                directory_handler=self.directory_handler
-            )
+            simulation_strategy = FederatedSimulation(strategy_config, self._dataset_config_list)
+            simulation_strategy.run_simulation()
 
-            if dataset_keyword == "its":
-                dataset_loader = ImageDatasetLoader(
-                    transformer=its_image_transformer,
-                    dataset_dir=self.config_loader.get_dataset_folder_name(dataset_keyword),
-                    num_of_clients=num_of_clients,
-                    batch_size=batch_size,
-                    training_subset_fraction=training_subset_fraction
-                )
-                self.network = ITSNetwork()
+            executed_simulation_strategies.append(simulation_strategy)
 
-            elif dataset_keyword in ("femnist_niid", "femnist_iid"):
-                dataset_loader = ImageDatasetLoader(
-                    transformer=femnist_image_transformer,
-                    dataset_dir=self.config_loader.get_dataset_folder_name(dataset_keyword),
-                    num_of_clients=num_of_clients,
-                    batch_size=batch_size,
-                    training_subset_fraction=training_subset_fraction
-                )
-                self.network = FemnistNetwork()
-            elif dataset_keyword == "flair":
-                dataset_loader = ImageDatasetLoader(
-                    transformer=flair_image_transformer,
-                    dataset_dir=self.config_loader.get_dataset_folder_name(dataset_keyword),
-                    num_of_clients=num_of_clients,
-                    batch_size=batch_size,
-                    training_subset_fraction=training_subset_fraction
-                )
-                self.network = FlairNetwork()
-            elif dataset_keyword == "pneumoniamnist":
-                dataset_loader = ImageDatasetLoader(
-                    transformer=pneumoniamnist_image_transformer,
-                    dataset_dir=self.config_loader.get_dataset_folder_name(dataset_keyword),
-                    num_of_clients=num_of_clients,
-                    batch_size=batch_size,
-                    training_subset_fraction=training_subset_fraction
-                )
-                self.network = PneumoniamnistNetwork()
-            else:
-                logging.error(
-                    f"You are parsing a strategy for dataset: {dataset_keyword}. "
-                    f"Check that you assign a correct dataset_loader at the code above."
-                )
-                sys.exit(-1)
+            # after the execution of the strategy, show plots per client
+            plot_handler.show_plots_within_strategy(simulation_strategy, self._directory_handler)
+            self._directory_handler.save_all(simulation_strategy)
 
-            self.num_of_client_epochs = num_of_client_epochs
-
-            self.trainloaders, self.valloaders = dataset_loader.load_datasets()
-
-            strategy = TrustBasedRemovalStrategy(
-                min_fit_clients=min_fit_clients,
-                min_evaluate_clients=min_evaluate_clients,
-                min_available_clients=min_available_clients,
-                evaluate_metrics_aggregation_fn=evaluate_metrics_aggregation_fn,
-                remove_clients=remove_clients,
-                beta_value=beta_value,
-                trust_threshold=trust_threshold,
-                begin_removing_from_round=begin_removing_from_round
-            )
-
-            flwr.simulation.start_simulation(
-                client_fn=self.client_fn,
-                num_clients=num_of_clients,
-                config=flwr.server.ServerConfig(num_rounds=num_of_rounds),
-                strategy=strategy,
-                client_resources={"num_cpus": cpus_per_client, "num_gpus": gpus_per_client},
-            )
-
-            # calculate_distances_relation(accuracy_trust_reputation_distance_data)
-
-            full_strategy_data = self.additional_data_calculator.calculate_data(strategy.rounds_history)
-            self.plot_handler.show_plots_within_strategy(full_strategy_data, self.strategy_dict)
-
-            # to compare data among strategies
-            self.strategy_history.append(
-                {
-                    'strategy_dict': self.strategy_dict,
-                    'rounds_history': {
-                        f'{round_number}': round_data['round_info']
-                        for round_number, round_data in full_strategy_data.items()
-                    }
-                }
-            )
-
-            self.current_strategy_number += 1
-
-        self.plot_handler.show_comparing_plots_among_strategies(self.strategy_history)
-
-    @staticmethod
-    def _parse_strategy(strategy: dict) -> tuple:
-        """Parse the strategy from the provided dict"""
-        try:
-            return (
-                strategy["dataset_keyword"],
-                True if strategy["show_plots"] == "true" else False,
-                True if strategy["save_plots"] == "true" else False,
-                True if strategy["save_csv"] == "true" else False,
-                strategy["training_device"],
-                strategy["cpus_per_client"],
-                strategy["gpus_per_client"],
-                strategy["num_of_rounds"],
-                True if strategy["remove_clients"] == "true" else False,
-                strategy["begin_removing_from_round"],
-                strategy["num_of_clusters"],
-                strategy["trust_threshold"],
-                strategy["reputation_threshold"],
-                strategy["beta_value"],
-                strategy["num_of_client_epochs"],
-                strategy["num_of_clients"],
-                strategy["batch_size"],
-                strategy["training_subset_fraction"],
-                strategy["min_fit_clients"],
-                strategy["min_evaluate_clients"],
-                strategy["min_available_clients"],
-                strategy["evaluate_metrics_aggregation_fn"]
-            )
-
-        except Exception as e:
-            logging.error(f"Error while parsing the strategy. Error: {e}")
-
-    def client_fn(self, cid: str) -> Client:
-        """Create a Flower client."""
-
-        net = self.network.to(self.training_device)
-
-        trainloader = self.trainloaders[int(cid)]
-        valloader = self.valloaders[int(cid)]
-
-        return FlowerClient(net, trainloader, valloader, self.training_device, self.num_of_client_epochs).to_client()
+        # after all strategies are executed, show comparison averaging plots
+        plot_handler.show_comparing_plots_among_strategies(executed_simulation_strategies, self._directory_handler)
 
 
-"""Possible options: femnist_iid.json for testing on FEMNIST in IID manner, its.json for testing on ITS"""
+"""Put the filename of the json strategy from config/simulation_strategies here"""
 simulation_runner = SimulationRunner("pneumoniamnist.json")
 simulation_runner.run()

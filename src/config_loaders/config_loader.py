@@ -1,6 +1,7 @@
 import os
 import json
 import logging
+import sys
 
 
 class ConfigLoader:
@@ -13,18 +14,25 @@ class ConfigLoader:
         self.usecase_config_list = self._merge_usecase_configs(self.usecase_config_path)
 
         self.dataset_config_path = os.path.join(dataset_config_path)
-        self.dataset_config_dict = self._set_config(self.dataset_config_path)
+        self.dataset_config_list = self._set_config(self.dataset_config_path)
 
     def get_usecase_config_list(self) -> list:
         """Get config list"""
+
         return self.usecase_config_list
+
+    def get_dataset_config_list(self) -> list:
+        """Get config of dataset folders based on dataset keywords"""
+
+        return self.dataset_config_list
 
     def get_dataset_folder_name(self, key) -> str:
         """Get dataset folder name based on the JSON definition"""
         try:
-            return self.dataset_config_dict[key]
+            return self.dataset_config_list[key]
         except KeyError:
-            print(f"Error with the provided dataset key: {key}. Please specify it in {self.dataset_config_path}.")
+            logging.error(f"Error with the provided dataset key: {key}. Please specify it in {self.dataset_config_path}.")
+            sys.exit(-1)
 
     @staticmethod
     def _merge_usecase_configs(config_path: str) -> list:
@@ -43,6 +51,7 @@ class ConfigLoader:
 
         except Exception as e:
             logging.error(f"Error while loading config from JSON: {e}")
+            sys.exit(-1)
 
     @staticmethod
     def _set_config(config_path: str) -> list:
@@ -56,3 +65,4 @@ class ConfigLoader:
 
         except Exception as e:
             logging.error(f"Error while loading config from JSON: {e}")
+            sys.exit(-1)

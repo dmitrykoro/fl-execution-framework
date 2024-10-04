@@ -1,5 +1,6 @@
 {
   "shared_settings": {
+    "aggregation_strategy_keyword": "trust",
     "dataset_keyword": "pneumoniamnist",
     "num_of_rounds": 10,
     "num_of_clients": 10,
@@ -9,10 +10,10 @@
     "training_device": "cpu",
     "cpus_per_client": 1,
     "gpus_per_client": 0.0,
-    "num_of_clusters": 1,
     "trust_threshold": 0.15,
     "reputation_threshold": 0.15,
     "beta_value": 0.75,
+    "num_of_clusters": 1,
     "training_subset_fraction": 0.9,
     "min_fit_clients": 10,
     "min_evaluate_clients": 4,
@@ -23,28 +24,12 @@
   },
   "simulation_strategies": [
     {
-      "remove_clients": "false",
-      "begin_removing_from_round": 4
-    },
-    {
       "remove_clients": "true",
       "begin_removing_from_round": 4
     },
     {
       "remove_clients": "true",
-      "begin_removing_from_round": 10
-    },
-    {
-      "remove_clients": "true",
-      "begin_removing_from_round": 20
-    },
-    {
-      "remove_clients": "true",
-      "begin_removing_from_round": 40
-    },
-    {
-      "remove_clients": "true",
-      "begin_removing_from_round": 80
+      "begin_removing_from_round": 8
     }
   ]
 }

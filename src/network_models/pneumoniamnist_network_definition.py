@@ -13,7 +13,7 @@ class PneumoniamnistNetwork(nn.Module):
         self.dropout1 = nn.Dropout(0.3)
         self.fc2 = nn.Linear(64, 32)
         self.dropout2 = nn.Dropout(0.2)
-        self.fc3 = nn.Linear(32, 10)
+        self.fc3 = nn.Linear(32, 2)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         x = self.pool(functional.relu(self.conv1(x)))
