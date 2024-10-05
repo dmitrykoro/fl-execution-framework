@@ -1,8 +1,8 @@
 {
   "shared_settings": {
-    "num_of_rounds": 10,
+    "num_of_rounds": 100,
     "begin_removing_from_round": 4,
-    "num_of_clients": 12,
+    "num_of_clients": 10,
     "show_plots": "false",
     "save_plots": "true",
     "save_csv": "true"
@@ -17,23 +17,6 @@
       "num_of_clusters": 1,
       "trust_threshold": 0.15,
       "reputation_threshold": 0.15,
-      "beta_value": 0.75,
-      "num_of_client_epochs": 1,
-      "batch_size": 4,
-      "training_subset_fraction": 0.9,
-      "min_fit_clients": 7,
-      "min_evaluate_clients": 4,
-      "min_available_clients": 7,
-      "evaluate_metrics_aggregation_fn": "weighted_average",
-      "aggregation_strategy_keyword": "trust"
-    },
-    {
-      "dataset_keyword": "femnist_iid",
-      "training_device": "cpu",
-      "cpus_per_client": 1,
-      "gpus_per_client": 0.0,
-      "remove_clients": "false",
-      "num_of_clusters": 1,
       "beta_value": 0.75,
       "num_of_client_epochs": 1,
       "batch_size": 4,
