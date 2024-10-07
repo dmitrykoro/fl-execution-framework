@@ -1,8 +1,8 @@
 {
   "shared_settings": {
-    "num_of_rounds": 100,
+    "num_of_rounds": 31,
     "begin_removing_from_round": 4,
-    "num_of_clients": 10,
+    "num_of_clients": 100,
     "show_plots": "false",
     "save_plots": "true",
     "save_csv": "true"
@@ -13,7 +13,7 @@
       "training_device": "cpu",
       "cpus_per_client": 1,
       "gpus_per_client": 0.0,
-      "remove_clients": "false",
+      "remove_clients": "true",
       "num_of_clusters": 1,
       "trust_threshold": 0.15,
       "reputation_threshold": 0.15,
@@ -28,8 +28,8 @@
       "aggregation_strategy_keyword": "pid",
       "pid_threshold": 1,
       "Kp": 1,
-      "Ki": 0.05,
-      "Kd": 0.5
+      "Ki": 0,
+      "Kd": 0
     }
   ]
 }
