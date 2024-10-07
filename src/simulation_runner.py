@@ -60,5 +60,5 @@ class SimulationRunner:
 
 
 """Put the filename of the json strategy from config/simulation_strategies here"""
-simulation_runner = SimulationRunner("pneumoniamnist.json")
+simulation_runner = SimulationRunner("femnist_iid.json")
 simulation_runner.run()

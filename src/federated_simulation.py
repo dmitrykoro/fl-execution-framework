@@ -18,6 +18,8 @@ from network_models.pneumoniamnist_network_definition import PneumoniamnistNetwo
 
 from client_models.flower_client import FlowerClient
 from simulation_strategies.trust_based_removal_srategy import TrustBasedRemovalStrategy
+from simulation_strategies.pid_based_removal_strategy import PIDBasedRemovalStrategy
+
 
 from utils.additional_data_calculator import AdditionalDataCalculator
 
@@ -138,6 +140,19 @@ class FederatedSimulation:
                 beta_value=self.strategy_config.beta_value,
                 trust_threshold=self.strategy_config.trust_threshold,
                 begin_removing_from_round=self.strategy_config.begin_removing_from_round
+            )
+        elif aggregation_strategy_keyword == "pid":
+            self._aggregation_strategy = PIDBasedRemovalStrategy(
+                min_fit_clients=self.strategy_config.min_fit_clients,
+                min_evaluate_clients=self.strategy_config.min_evaluate_clients,
+                min_available_clients=self.strategy_config.min_available_clients,
+                evaluate_metrics_aggregation_fn=self.strategy_config.evaluate_metrics_aggregation_fn,
+                remove_clients=self.strategy_config.remove_clients,
+                begin_removing_from_round=self.strategy_config.begin_removing_from_round,
+                ki=self.strategy_config.Ki,
+                kp=self.strategy_config.Kp,
+                kd=self.strategy_config.Kd,
+                pid_threshold=self.strategy_config.pid_threshold
             )
         else:
             raise NotImplementedError(f"The strategy {aggregation_strategy_keyword} not implemented!")
