@@ -7,6 +7,11 @@ import csv
 class DirectoryHandler:
     def __init__(self):
         self.dirname = f'out/{str(datetime.datetime.now().strftime("%m-%d-%Y_%H:%M:%S"))}'
+        
+        if os.name == 'nt':
+            # Naming for windows os
+            self.dirname = f'out/{str(datetime.datetime.now().strftime("%m-%d-%Y_%H-%M-%S"))}'
+            
         os.makedirs(self.dirname)
         os.makedirs(self.dirname + "/csv")
 

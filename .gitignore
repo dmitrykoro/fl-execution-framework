@@ -4,3 +4,7 @@
 .venv
 ITS_USECASE/
 FLAIR_USECASE/
+__pycache__
+local_run_simulation.sh
+venv
+out
