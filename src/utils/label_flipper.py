@@ -3,7 +3,7 @@
 import os
 import random
 
-client_directory = os.path.join('../../femnist_subsets/flippind_100_100_niid/client_f0169_09')
+client_directory = os.path.join('..\..\datasets\\femnist_iid\client_100')
 
 label_dirs = os.listdir(client_directory)
 
