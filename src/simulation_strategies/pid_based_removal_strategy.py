@@ -147,7 +147,7 @@ class PIDBasedRemovalStrategy(fl.server.strategy.FedAvg):
         pid_std = np.std(pids)
         self.rounds_history[f'{self.current_round}']['average'] = pid_avg
         self.rounds_history[f'{self.current_round}']['standard_deviation'] = pid_std
-        self.current_threshold = pid_avg + (3*pid_std)
+        self.current_threshold = pid_avg + (2*pid_std)
         print(self.current_threshold, flush=True)
 
         return aggregated_parameters, aggregated_metrics
