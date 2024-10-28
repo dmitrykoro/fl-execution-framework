@@ -44,9 +44,10 @@ def show_plots_within_strategy(simulation_strategy, directory_handler) -> None:
 
     if simulation_strategy.strategy_config.aggregation_strategy_keyword == 'pid':
         _plot_single_metric_and_aggregation_data(
-            simulation_strategy.rounds_history, 'removal_criterion', ['standard_deviation','average'], 
+            simulation_strategy.rounds_history, 'removal_criterion', ['standard_deviation', 'average'],
             simulation_strategy.strategy_config, directory_handler
         )
+
 
 def _plot_single_metric_and_aggregation_data(data, metric_name, aggregation_name_array, strategy_config, directory_handler):
     """Plots a single metric history for every client alongside some aggregated data like average"""
@@ -106,7 +107,8 @@ def _plot_single_metric_for_all_clients(data, metric_name, strategy_config, dire
     plt.ylabel(metric_name)
     plot_strategy_title = _generate_strategy_label(strategy_config).replace(', ', '\n')
     plt.title(
-        f"{metric_name} of each client across rounds for strategy: {strategy_config.aggregation_strategy_keyword}\n{plot_strategy_title}"
+        f"{metric_name} of each client across rounds for strategy: "
+        f"{strategy_config.aggregation_strategy_keyword}\n{plot_strategy_title}"
     )
     plt.legend(title='clients', bbox_to_anchor=(1.05, 1), loc='upper left')
     ax = plt.gca()
@@ -133,6 +135,8 @@ def show_comparing_plots_among_strategies(executed_simulation_strategies: list, 
 
     _plot_single_metric_for_all_strategies(executed_simulation_strategies, 'average_loss', directory_handler)
     _plot_single_metric_for_all_strategies(executed_simulation_strategies, 'average_accuracy', directory_handler)
+    _plot_single_metric_for_all_strategies(executed_simulation_strategies, 'server_loss', directory_handler)
+    _plot_single_metric_for_all_strategies(executed_simulation_strategies, 'server_accuracy', directory_handler)
     # self.plot_single_metric_for_all_strategies(data, 'average_distance')
 
 

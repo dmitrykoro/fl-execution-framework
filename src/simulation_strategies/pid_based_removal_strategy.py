@@ -46,7 +46,6 @@ class PIDBasedRemovalStrategy(fl.server.strategy.FedAvg):
         self.current_threshold = pid_threshold
         self.rounds_history = {}
 
-
     def calculate_pid(self, client_id, distance):
         """Calculate pid."""
 
@@ -61,8 +60,6 @@ class PIDBasedRemovalStrategy(fl.server.strategy.FedAvg):
             d = self.kd * (distance-prev_distance) 
             
             return p + i + d
-
-
 
     @staticmethod
     def cosine_similarity(tensor1, tensor2):

@@ -15,6 +15,8 @@ class PneumoniamnistNetwork(nn.Module):
         self.dropout2 = nn.Dropout(0.2)
         self.fc3 = nn.Linear(32, 2)
 
+        self._initialize_weights()
+
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         x = self.pool(functional.relu(self.conv1(x)))
         x = self.pool(functional.relu(self.conv2(x)))
@@ -26,3 +28,19 @@ class PneumoniamnistNetwork(nn.Module):
         x = self.fc3(x)
 
         return x
+
+    def _initialize_weights(self):
+        """Random weight initialization"""
+
+        nn.init.kaiming_uniform_(self.conv1.weight, nonlinearity='relu')
+        nn.init.kaiming_uniform_(self.conv2.weight, nonlinearity='relu')
+
+        nn.init.xavier_uniform_(self.fc1.weight)
+        nn.init.xavier_uniform_(self.fc2.weight)
+        nn.init.xavier_uniform_(self.fc3.weight)
+
+        nn.init.zeros_(self.conv1.bias)
+        nn.init.zeros_(self.conv2.bias)
+        nn.init.zeros_(self.fc1.bias)
+        nn.init.zeros_(self.fc2.bias)
+        nn.init.zeros_(self.fc3.bias)

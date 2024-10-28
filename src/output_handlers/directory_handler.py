@@ -43,63 +43,54 @@ class DirectoryHandler:
     def _save_client_metrics(self, metric_key):
         """Save client metrics to CSV"""
 
-        fieldnames = ['client_id']
-        for round_number in range(len(self.rounds_history)):
-            fieldnames.extend([f'{metric_key}_round_{round_number + 1}'])
+        # Prepare a dictionary to hold the metrics for each round
+        rounds_data = {}
 
-        clients_data = {}
+        # Iterate over each round and its client data
         for current_round, round_clients_data in self.rounds_history.items():
-            for client_id, client_data in round_clients_data['client_info'].items():
+            # Prepare a row for the current round
+            round_row = {"round": current_round}
 
-                if clients_data.get(client_id):
-                    row = clients_data.get(client_id)
-                else:
-                    row = {'client_id': client_id}
+            for client_id, client_data in round_clients_data["client_info"].items():
+                # Get the current metric for the client
+                current_metric = client_data[f"{metric_key}"]
+                # Add the metric to the round_row under the appropriate client key
+                round_row[f"{client_id}_{metric_key}"] = current_metric
 
-                current_metric = client_data[f'{metric_key}']
-                row[f'{metric_key}_{current_round}'] = current_metric
+            # Store the row in rounds_data
+            rounds_data[current_round] = round_row
 
-                clients_data[client_id] = row
+        # Get all round rows and sort them by round
+        sorted_rounds_data = dict(rounds_data.items())
 
-        with (open(
+        # Extract fieldnames for CSV
+        fieldnames = ["round"] + [f"{client_id}_{metric_key}" for client_id in round_clients_data["client_info"].keys()]
+
+        # Write the data to a CSV file
+        with open(
                 f"{self.dirname}/csv/{metric_key}_{self.strategy_config.strategy_number}.csv",
-                'w',
-                newline=''
-        ) as csvfile):
+                "w",
+                newline=""
+        ) as csvfile:
             writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
             writer.writeheader()
 
-            clients_data = dict(sorted(clients_data.items()))
-
-            for client_id, client_metrics in clients_data.items():
-                row = {'client_id': client_id}
-
-                for i in range(len(self.rounds_history)):
-                    row[f'{metric_key}_round_{i + 1}'] = client_metrics[f'{metric_key}_{i + 1}']
-
-                writer.writerow(row)
+            for round_row in sorted_rounds_data.values():
+                writer.writerow(round_row)
 
     def _save_round_metrics(self, metric_key):
         """Save round metrics to CSV"""
 
-        fieldnames = []
-        for round_number in range(len(self.rounds_history)):
-            fieldnames.extend([f'{metric_key}_round_{round_number + 1}'])
-
-        with (open(
+        with open(
                 f"{self.dirname}/csv/{metric_key}_{self.strategy_config.strategy_number}.csv",
-                'w',
-                newline=''
-        ) as csvfile):
-            writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
-            writer.writeheader()
-
-            row = {}
+                "w",
+                newline=""
+        ) as csvfile:
+            writer = csv.writer(csvfile)
+            writer.writerow(["round", metric_key])
 
             for i, round_metrics in self.rounds_history.items():
-                row[f'{metric_key}_round_{i}'] = round_metrics['round_info'][metric_key]
-
-            writer.writerow(row)
+                writer.writerow([int(i), round_metrics["round_info"][metric_key]])
 
     def _save_all_csv(self):
         """Save CSV to current directory"""
