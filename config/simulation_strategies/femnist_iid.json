@@ -1,8 +1,8 @@
 {
   "shared_settings": {
-    "num_of_rounds": 31,
+    "num_of_rounds": 10,
     "begin_removing_from_round": 4,
-    "num_of_clients": 100,
+    "num_of_clients": 10,
     "show_plots": "false",
     "save_plots": "true",
     "save_csv": "true"
@@ -25,7 +25,8 @@
       "min_evaluate_clients": 4,
       "min_available_clients": 7,
       "evaluate_metrics_aggregation_fn": "weighted_average",
-      "aggregation_strategy_keyword": "pid",
+      "aggregation_strategy_keyword": "krum",
+      "num_malicious_clients": 2,
       "pid_threshold": 1,
       "Kp": 1,
       "Ki": 0,

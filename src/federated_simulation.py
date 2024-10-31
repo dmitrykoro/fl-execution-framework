@@ -19,6 +19,7 @@ from network_models.pneumoniamnist_network_definition import PneumoniamnistNetwo
 from client_models.flower_client import FlowerClient
 from simulation_strategies.trust_based_removal_srategy import TrustBasedRemovalStrategy
 from simulation_strategies.pid_based_removal_strategy import PIDBasedRemovalStrategy
+from simulation_strategies.krum_based_removal_strategy import KrumBasedRemovalStrategy
 
 
 from utils.additional_data_calculator import AdditionalDataCalculator
@@ -154,6 +155,16 @@ class FederatedSimulation:
                 kd=self.strategy_config.Kd,
                 pid_threshold=self.strategy_config.pid_threshold
             )
+        elif aggregation_strategy_keyword == "krum":
+           self._aggregation_strategy = KrumBasedRemovalStrategy(
+               min_fit_clients=self.strategy_config.min_fit_clients,
+               min_evaluate_clients=self.strategy_config.min_evaluate_clients,
+               min_available_clients=self.strategy_config.min_available_clients,
+               evaluate_metrics_aggregation_fn=self.strategy_config.evaluate_metrics_aggregation_fn,
+               remove_clients=self.strategy_config.remove_clients,
+               begin_removing_from_round=self.strategy_config.begin_removing_from_round,
+               num_malicious_clients = self.strategy_config.num_malicious_clients
+           )   
         else:
             raise NotImplementedError(f"The strategy {aggregation_strategy_keyword} not implemented!")
 
