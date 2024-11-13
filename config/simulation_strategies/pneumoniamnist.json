@@ -20,7 +20,8 @@
     "min_available_clients": 10,
     "evaluate_metrics_aggregation_fn": "weighted_average",
     "num_of_client_epochs": 1,
-    "batch_size": 20
+    "batch_size": 20,
+    "preserve_dataset": "true"
   },
   "simulation_strategies": [
     {
