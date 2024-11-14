@@ -6,12 +6,10 @@ import csv
 
 class DirectoryHandler:
     def __init__(self):
-        self.dirname = f'out/{str(datetime.datetime.now().strftime("%m-%d-%Y_%H:%M:%S"))}'
-        
-        if os.name == 'nt':
-            # Naming for windows os
-            self.dirname = f'out/{str(datetime.datetime.now().strftime("%m-%d-%Y_%H-%M-%S"))}'
-            
+
+        self.dirname = f'out/{str(datetime.datetime.now().strftime("%m-%d-%Y_%H-%M-%S"))}'
+        self.dataset_dir = None
+
         os.makedirs(self.dirname)
         os.makedirs(self.dirname + "/csv")
 
@@ -30,6 +28,12 @@ class DirectoryHandler:
             'average_accuracy',
             # 'average_distance',
         )
+
+    def assign_dataset_dir(self, strategy_number):
+        """Create and set dataset directory for the strategy"""
+
+        self.dataset_dir = self.dirname + "/dataset_" + str(strategy_number)
+        os.makedirs(self.dataset_dir)
 
     def save_all(self, simulation_strategy):
         """Save all data"""

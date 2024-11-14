@@ -38,5 +38,3 @@ for label_dir in label_dirs:
     os.rename(old_dir, new_dir)
 
     available_labels.remove(new_label)
-
-

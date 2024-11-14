@@ -9,9 +9,12 @@ def _generate_strategy_label(strategy_config: dict) -> str:
     """Generate plot label for strategy"""
 
     return (
+        f"strategy: {strategy_config.aggregation_strategy_keyword}, "
         f"dataset: {strategy_config.dataset_keyword}, "
         f"remove: {strategy_config.remove_clients}, "
         f"remove_from: {strategy_config.begin_removing_from_round if strategy_config.remove_clients else 'n/a'}, "
+        f"total clients: {strategy_config.num_of_clients}, "
+        f"bad_clients: {strategy_config.num_of_malicious_clients}, "
         f"client_epochs: {strategy_config.num_of_client_epochs}, "
         f"batch_size: {strategy_config.batch_size}"
     )
@@ -146,7 +149,7 @@ def _plot_single_metric_for_all_strategies(executed_simulation_strategies, metri
     plt.figure(figsize=plot_size)
 
     for strategy in executed_simulation_strategies:
-        strategy_label = strategy.strategy_config.aggregation_strategy_keyword + ' ' +_generate_strategy_label(strategy.strategy_config)
+        strategy_label = _generate_strategy_label(strategy.strategy_config)
 
         rounds = sorted(strategy.rounds_history.keys(), key=int)
         metric_values = [strategy.rounds_history[curr_round]['round_info'][metric_name] for curr_round in rounds]
