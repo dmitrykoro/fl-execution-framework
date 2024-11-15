@@ -39,6 +39,8 @@ class StrategyConfig:
     batch_size: int = None
     preserve_dataset: bool = None
 
+    strategy_number: int = None
+
     def __init__(self, **kwargs):
         for key, value in kwargs.items():
             if value in ("true", "false"):

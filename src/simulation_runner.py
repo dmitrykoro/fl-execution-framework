@@ -34,7 +34,7 @@ class SimulationRunner:
 
         executed_simulation_strategies = []
 
-        for strategy_config_dict, strategy_number in zip(  # yes, it's bad
+        for strategy_config_dict, strategy_number in zip(
                 self._simulation_strategy_config_dicts,
                 range(len(self._simulation_strategy_config_dicts))
         ):

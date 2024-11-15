@@ -157,7 +157,7 @@ class FederatedSimulation:
                 pid_threshold=self.strategy_config.pid_threshold
             )
         elif aggregation_strategy_keyword == "krum":
-           self._aggregation_strategy = KrumBasedRemovalStrategy(
+            self._aggregation_strategy = KrumBasedRemovalStrategy(
                min_fit_clients=self.strategy_config.min_fit_clients,
                min_evaluate_clients=self.strategy_config.min_evaluate_clients,
                min_available_clients=self.strategy_config.min_available_clients,
@@ -165,7 +165,7 @@ class FederatedSimulation:
                remove_clients=self.strategy_config.remove_clients,
                begin_removing_from_round=self.strategy_config.begin_removing_from_round,
                num_malicious_clients=self.strategy_config.num_of_malicious_clients
-           )   
+            )
         else:
             raise NotImplementedError(f"The strategy {aggregation_strategy_keyword} not implemented!")
 
