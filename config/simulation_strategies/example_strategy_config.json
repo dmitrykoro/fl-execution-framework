@@ -1,11 +1,11 @@
 {
   "shared_settings": {
     "aggregation_strategy_keyword": "trust",
-    "remove_clients": "true",
+    "remove_clients": "false",
     "dataset_keyword": "femnist_iid",
-    "num_of_rounds": 3,
-    "num_of_clients": 10,
-    "num_of_malicious_clients": 3,
+    "num_of_rounds": 4,
+    "num_of_clients": 5,
+    "num_of_malicious_clients": 1,
     "attack_type": "label_flipping",
     "show_plots": "false",
     "save_plots": "true",
@@ -32,13 +32,10 @@
   },
   "simulation_strategies": [
     {
-      "begin_removing_from_round": 5
+      "begin_removing_from_round": 2
     },
     {
-      "begin_removing_from_round": 10
-    },
-    {
-      "begin_removing_from_round": 15
+      "begin_removing_from_round": 3
     }
   ]
 }
