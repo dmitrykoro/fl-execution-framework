@@ -14,7 +14,6 @@ from dataset_handlers.dataset_handler import DatasetHandler
 
 
 class SimulationRunner:
-
     def __init__(
             self,
             config_filename: str
@@ -61,7 +60,6 @@ class SimulationRunner:
                 strategy_config=strategy_config,
                 dataset_dir=self._directory_handler.dataset_dir
             )
-
             simulation_strategy.run_simulation()
 
             executed_simulation_strategies.append(simulation_strategy)
@@ -77,5 +75,5 @@ class SimulationRunner:
 
 
 """Put the filename of the json strategy from config/simulation_strategies here"""
-simulation_runner = SimulationRunner("pneumoniamnist.json")
+simulation_runner = SimulationRunner("example_strategy_config.json")
 simulation_runner.run()

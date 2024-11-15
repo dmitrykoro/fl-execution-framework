@@ -164,7 +164,7 @@ class FederatedSimulation:
                evaluate_metrics_aggregation_fn=self.strategy_config.evaluate_metrics_aggregation_fn,
                remove_clients=self.strategy_config.remove_clients,
                begin_removing_from_round=self.strategy_config.begin_removing_from_round,
-               num_malicious_clients = self.strategy_config.num_malicious_clients
+               num_malicious_clients=self.strategy_config.num_of_malicious_clients
            )   
         else:
             raise NotImplementedError(f"The strategy {aggregation_strategy_keyword} not implemented!")
