@@ -1,3 +1,4 @@
+import time
 import numpy as np
 import flwr as fl
 import torch
@@ -85,7 +86,11 @@ class KrumBasedRemovalStrategy(Krum):
         scaler.fit(distances)
         normalized_distances = scaler.transform(distances)
 
+        time_start_calc = time.time_ns()
         krum_scores = self._calculate_krum_scores(results)
+        time_end_calc = time.time_ns()
+        self.rounds_history[f'{self.current_round}']['round_info'] = {}
+        self.rounds_history[f'{self.current_round}']['round_info']['score_calculation_time_nanos'] = time_end_calc - time_start_calc
 
         self.rounds_history[f'{self.current_round}']['client_info'] = {}
 
@@ -101,7 +106,8 @@ class KrumBasedRemovalStrategy(Krum):
             if self.current_round == 1:
                 self.rounds_history[f'{self.current_round}']['client_info'][f'client_{client_id}']['is_removed'] = False
             else:
-                self.rounds_history[f'{self.current_round}']['client_info'][f'client_{client_id}']['is_removed'] = self.rounds_history[f'{self.current_round - 1}']['client_info'][f'client_{client_id}']['is_removed']
+                self.rounds_history[f'{self.current_round}']['client_info'][f'client_{client_id}']['is_removed'] = (
+                    self.rounds_history)[f'{self.current_round - 1}']['client_info'][f'client_{client_id}']['is_removed']
 
             logging.info(f'Aggregation round: {server_round} Client ID: {client_id} Krum Score: {score} Normalized Distance: {normalized_distances[i][0]}')
 
@@ -111,7 +117,7 @@ class KrumBasedRemovalStrategy(Krum):
         # fetch the available clients as a dictionary
         available_clients = client_manager.all() # dictionary with client IDs as keys and RayActorClientProxy objects as values
 
-         # in the warmup rounds, select all clients
+        # in the warmup rounds, select all clients
         if self.current_round <= self.begin_removing_from_round:
             fit_ins = fl.common.FitIns(parameters, {})
             return [(client, fit_ins) for client in available_clients.values()]
@@ -132,8 +138,14 @@ class KrumBasedRemovalStrategy(Krum):
         fit_ins = fl.common.FitIns(parameters, {})
         return [(available_clients[cid], fit_ins) for cid in selected_client_ids if cid in available_clients]
 
-    def aggregate_evaluate(self, server_round: int, results: List[Tuple[ClientProxy, EvaluateRes]], failures: List[Tuple[Union[ClientProxy, EvaluateRes], BaseException]]) -> Tuple[Optional[float], Dict[str, Scalar]]:
+    def aggregate_evaluate(
+            self,
+            server_round: int,
+            results: List[Tuple[ClientProxy, EvaluateRes]],
+            failures: List[Tuple[Union[ClientProxy, EvaluateRes], BaseException]]
+    ) -> Tuple[Optional[float], Dict[str, Scalar]]:
         logging.info('\n' + '-' * 50 + f'AGGREGATION ROUND {server_round}' + '-' * 50)
+
         for client_result in results:
             cid = client_result[0].cid
             accuracy_matrix = client_result[1].metrics
@@ -147,7 +159,7 @@ class KrumBasedRemovalStrategy(Krum):
         number_of_clients_in_loss_calc = 0
 
         for client_metadata, evaluate_res in results:
-             # update history
+            # update history
             self.rounds_history[f'{self.current_round}']['client_info'][f'client_{client_metadata.cid}']['loss'] = evaluate_res.loss
 
             if client_metadata.cid not in self.removed_client_ids:

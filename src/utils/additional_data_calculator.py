@@ -39,7 +39,11 @@ class AdditionalDataCalculator:
 
                 num_of_round_clients += 1
 
-            data[round_num]['round_info'] = {}
+            try:
+                data[round_num]['round_info']
+            except KeyError:
+                data[round_num]['round_info'] = {}
+
             data[round_num]['round_info']['average_loss'] = total_round_loss / num_of_round_clients
             data[round_num]['round_info']['average_accuracy'] = total_round_accuracy / num_of_round_clients
             data[round_num]['round_info']['average_distance'] = total_round_distance / num_of_round_clients

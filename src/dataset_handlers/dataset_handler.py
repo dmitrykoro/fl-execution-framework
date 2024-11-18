@@ -35,6 +35,8 @@ class DatasetHandler:
             client_folder for client_folder in sorted(os.listdir(self.src_dataset))
             if (os.path.isdir(os.path.join(self.src_dataset, client_folder)) and not client_folder.startswith("."))
         ]
+        all_client_folders_list = sorted(all_client_folders_list, key=lambda string: int(string.split("_")[1]))
+
         client_folders_list = all_client_folders_list[:num_to_copy]
 
         for client_folder in client_folders_list:
