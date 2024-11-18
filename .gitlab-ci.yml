@@ -16,25 +16,25 @@
 # This specific template is located at:
 # https://gitlab.com/gitlab-org/gitlab/-/blob/master/lib/gitlab/ci/templates/Getting-Started.gitlab-ci.yml
 
-#stages:          # List of stages for jobs, and their order of execution
-#  - test
-#  - cleanup
+stages:          # List of stages for jobs, and their order of execution
+  - test
+  - cleanup
 
-#test-simulation:
-#  stage: test
-#  image: python:3.10-slim
-#  script:
-#    - echo "Upgrading pip..."
-#    - pip install --upgrade pip
-#    - echo "pip upgraded."
-#    - echo "Installing requirements..."
-#    - pip install -r requirements.txt
-#    - echo "Requirements successfully installed."
-#    - python src/simulation_runner.py
+.test-simulation:
+  stage: test
+  image: python:3.10-slim
+  script:
+    - echo "Upgrading pip..."
+    - pip install --upgrade pip
+    - echo "pip upgraded."
+    - echo "Installing requirements..."
+    - pip install -r requirements.txt
+    - echo "Requirements successfully installed."
+    - python src/simulation_runner.py
 
-#cleanup-output:
-#    stage: cleanup
-#    script:
-#        - cd out/
-#       - rf -rf *20*
+.cleanup-output:
+    stage: cleanup
+    script:
+        - cd out/
+        - rf -rf *20*
         
