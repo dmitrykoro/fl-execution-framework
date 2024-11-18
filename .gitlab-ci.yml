@@ -20,6 +20,11 @@ stages:          # List of stages for jobs, and their order of execution
   - test
   - cleanup
 
+test-pipeline:
+  stage: test
+  script:
+    - echo "Test"
+
 .test-simulation:
   stage: test
   image: python:3.10-slim
