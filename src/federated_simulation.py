@@ -1,5 +1,6 @@
 import logging
 import sys
+import os
 
 import flwr
 from flwr.client import Client, ClientApp, NumPyClient
@@ -31,12 +32,12 @@ class FederatedSimulation:
     def __init__(
             self,
             strategy_config: StrategyConfig,
-            dataset_config_list: list
+            dataset_dir: os.path
     ):
         self.strategy_config = strategy_config
         self.rounds_history = None
 
-        self._dataset_config_list = dataset_config_list
+        self._dataset_dir = dataset_dir
 
         self._additional_data_calculator = AdditionalDataCalculator()
 
@@ -80,7 +81,7 @@ class FederatedSimulation:
         if dataset_keyword == "its":
             dataset_loader = ImageDatasetLoader(
                 transformer=its_image_transformer,
-                dataset_dir=self._dataset_config_list[dataset_keyword],
+                dataset_dir=self._dataset_dir,
                 num_of_clients=num_of_clients,
                 batch_size=batch_size,
                 training_subset_fraction=training_subset_fraction
@@ -90,7 +91,7 @@ class FederatedSimulation:
         elif dataset_keyword == "femnist_iid":
             dataset_loader = ImageDatasetLoader(
                 transformer=femnist_image_transformer,
-                dataset_dir=self._dataset_config_list[dataset_keyword],
+                dataset_dir=self._dataset_dir,
                 num_of_clients=num_of_clients,
                 batch_size=batch_size,
                 training_subset_fraction=training_subset_fraction
@@ -100,7 +101,7 @@ class FederatedSimulation:
         elif dataset_keyword == "flair":
             dataset_loader = ImageDatasetLoader(
                 transformer=flair_image_transformer,
-                dataset_dir=self._dataset_config_list[dataset_keyword],
+                dataset_dir=self._dataset_dir,
                 num_of_clients=num_of_clients,
                 batch_size=batch_size,
                 training_subset_fraction=training_subset_fraction
@@ -110,7 +111,7 @@ class FederatedSimulation:
         elif dataset_keyword == "pneumoniamnist":
             dataset_loader = ImageDatasetLoader(
                 transformer=pneumoniamnist_image_transformer,
-                dataset_dir=self._dataset_config_list[dataset_keyword],
+                dataset_dir=self._dataset_dir,
                 num_of_clients=num_of_clients,
                 batch_size=batch_size,
                 training_subset_fraction=training_subset_fraction
@@ -156,15 +157,15 @@ class FederatedSimulation:
                 pid_threshold=self.strategy_config.pid_threshold
             )
         elif aggregation_strategy_keyword == "krum":
-           self._aggregation_strategy = KrumBasedRemovalStrategy(
+            self._aggregation_strategy = KrumBasedRemovalStrategy(
                min_fit_clients=self.strategy_config.min_fit_clients,
                min_evaluate_clients=self.strategy_config.min_evaluate_clients,
                min_available_clients=self.strategy_config.min_available_clients,
                evaluate_metrics_aggregation_fn=self.strategy_config.evaluate_metrics_aggregation_fn,
                remove_clients=self.strategy_config.remove_clients,
                begin_removing_from_round=self.strategy_config.begin_removing_from_round,
-               num_malicious_clients = self.strategy_config.num_malicious_clients
-           )   
+               num_malicious_clients=self.strategy_config.num_of_malicious_clients
+            )
         else:
             raise NotImplementedError(f"The strategy {aggregation_strategy_keyword} not implemented!")
 

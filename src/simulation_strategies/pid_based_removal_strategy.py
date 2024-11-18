@@ -147,14 +147,15 @@ class PIDBasedRemovalStrategy(fl.server.strategy.FedAvg):
         pid_std = np.std(pids)
         self.rounds_history[f'{self.current_round}']['average'] = pid_avg
         self.rounds_history[f'{self.current_round}']['standard_deviation'] = pid_std
-        self.current_threshold = pid_avg + (2*pid_std)
-        print(self.current_threshold, flush=True)
+        self.current_threshold = pid_avg + (2 * pid_std)
+
+        logging.debug(self.current_threshold)
 
         return aggregated_parameters, aggregated_metrics
 
     def configure_fit(self, server_round, parameters, client_manager):
         # fetch the available clients as a dictionary
-        available_clients = client_manager.all()  # fictionary with client IDs as keys and RayActorClientProxy objects as values
+        available_clients = client_manager.all()  # dictionary with client IDs as keys and RayActorClientProxy objects as values
 
         # in the warmup rounds, select all clients
         if self.current_round <= self.begin_removing_from_round - 1:

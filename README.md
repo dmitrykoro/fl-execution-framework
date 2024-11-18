@@ -1,61 +1,268 @@
-# Exploring Metacognitive Features in Federated Learning
-### A Framework for Federated Learning Metacognitive Trust and Reputation Evaluation 
+# Knowledge Management Framework for Federated Learning
+### A framework for Federated Learning simulation configuration and execution
+
+---
 
 ## General information
 
-This is the code and dataset repository for the evaluation of the proposed malicious client removal strategy. 
-This repository includes both the code and the datasets that were used for producing the results described in paper.
-Federated Learning setup is based on Flower framework.
+This is the framework for the configuration and management of federated learning simulation strategies.
+Federated Learning setup is based on Flower. The framework provides functionality to configure simulation execution
+and collect metrics in an uniformed way. It also allows to vary any number of simulation parameters and compare the
+effects of these parameters on the collected metrics, as well as plug-and-play integration of custom aggregation strategies.
 
-## Datasets description
+---
 
-We used two distinct use cases, namely, ITS and FEMNIST. In this archive, the number of clients in each dataset is reduced to 
-7 in order to meet the requirements for the zip archive with the code. The reduction of number of clients does not affect the essence 
-of our approach and is more suitable for the demonstration.
+## Configuring the Simulation Parameters
 
-In ITS use case, we challenge the problem of classification of the 
-traffic signs between two distinct classes: `stop sign` and `other traffic sign`. This dataset is located at the 
-`datasets/its/` folder. We pre-processed the data from Open Images V6 dataset that was originally released by Google[^1] 
-to crop out the bounded portion of the original image that contains  either stop or traffic sign and saves these extracted 
-sections to their target locations. Then we divide the data into two distinct labels: 0 for 
-`stop sign` and 1 for `other traffic sign`, each with dimensions of 224x224 pixels.
+- **Sample configuration**: located at `config/simulation_strategies/example_strategy_config.json`.
+- **Usage**: pass the configuration file as a parameter when initializing `SimulationRunner` in `src/simulation_runner.py`.
 
-We used subset of the FEMNIST dataset for the second FEMNIST use case. In this use case, we solve the problem of classification 
-among 10 classes: handwritten numbers from 0 to 9. This subset is located at the `datasets/femnist_iid` folder. In order 
-to generate this subset from the original FEMNIST dataset in which the data is represented as JSON arrays, 
-we implemented the script which is located at the folder `src/utils/process_femnist_iid_data`. The script 
-creates PNG images for handwritten digits provided by desired number of clients, and then distributes resulting images 
-across the folder structure (similar to its, can be found at `datasets/femnist_iid`).
+### Description of Simulation Parameters
 
-## Reproducing the experiment results
+#### Common parameters (applicable to all strategies)
 
-0. In order to reproduce the experiment results, the code needs to be executed. Python 3.10.14 is used to implement the algorithms. Before attempting to run the code, make sure the Python 3.10.14 is installed in the system.
-1. Configuration for each simulation strategy is located at the `config/simulation_strategies` folder. In our experiments, we used two configuration files: `its.json`, which will be executed by default, and `femnist_iid.json`, which specifies configuration for the simulation for the FEMNIST use case.
-2. If you want to test the FEMNIST use case, the configuration file name needs to be changed at the line 202 in `src/simulation_runner.py`. 
-3. Simulation configuration may be adjusted as needed in the JSON files. In our setup, we primarily worked with two parameters: `num_of_rounds` and `begin_removing_from_round`. The first specifies the total number of aggregation rounds in the simulation, the second one specifies the round at which the removal of malicious clients should begin. Please note that we did not implement the parsing of all parameters from JSON as of yet, so not all changes may have effect on the simulation. We suggest to adjust only two described parameters. Pleas note that each JSON contains an array of simulation descriptions. The array may be of any length, and after all simulations in the array are executed, their loss results will be put on a single graph.
-4. For those who use UNIX-based operating system, we implemented shell script to facilitate the code execution. Being in the repository root, execute the command `sh run_simulation.sh`. It will automatically create the Python virtual environment, activate it and then execute the code with the default dataset. Default dataset is ITS.
-5. If the operating system is Windows, the requirements for used libraries are located at requirements.txt file. These requirements need to be installed prior the code execution.
-6. During the simulation, the graphs will be shown in the runtime for the convenience. In order to allow the simulation to proceed further, please, close the currently showing graph.
-5. After the simulation ends, CSV files with the metrics collected during the simulation will be saved to `out/` directory.
+- **`aggregation_strategy_keyword`**  
+Defines the aggregation strategy. Options:
+  - `trust`: Trust & Reputation-based aggregation.
+  - `pid`: PiD-based aggregation.
+  - `krum`: Krum-based aggregation.
 
-## Collected metrics
 
-During the simulation, we collect the following metrics for each client during each aggregation round: 
-* `Loss` - provided by the Flower framework;
-* `Accuracy` during the evaluation phase - provided bo the Flower framework;
-* `Trust` - calculated using our algorithm;
-* `Reputation` - calculated using our algorithm;
-* `Distance` from the cluster center - calculated using KMeans and the weight updates provided by the Flower framework;
-* `Normalized distance` from the cluster center - calculated using distances and the MinMaxScaler from sklearn.
+- **`remove_clients`**: attempt to remove malicious clients using strategy-specific mechanisms.
 
-## Computing infrastructure used for running experiments
 
-Apple MacBook Pro with M1 Pro CPU, 16gb memory, macOS Sonoma 14.5, Python 3.10.14, bash
+- **`dataset_keyword`**  
+  Dataset used for execution. Options:
+  - `femnist_iid`: handwritten digit subset (0-9), 10 classes, IID distribution, 100 clients.
+  - `its`: intelligent Transportation Systems domain, binary classification (traffic sign vs stop sign), 12 clients.
+  - `pneumoniamnist`: medical imaging (pneumonia diagnosis), binary classification, IID distribution, 10 clients.
+  - `flair`: non-IID distribution (FLAIR dataset, unsupported in current version), 20 clients. 
 
-## Algorithm randomness
 
-We do not use randomness as a part of our algorithm implementation. However, randomness is used for model training and evaluation 
-during the initialization of dataset loaders. We use the constant random seed to split each client's dataset into training and 
-validation subsets. The usage of the constant seed ensures the reproducibility of the results.
+- `num_of_rounds`: total aggregation rounds.
+- `num_of_clients`: number of clients (limited to available dataset clients).
+- `num_of_malicious_clients`: number of malicious clients (malicious throughout simulation).
+- `attack_type`: type of adversarial attack (`label_flipping`).
+- `show_plots`: show plots during runtime (`true`/`false`).
+- `save_plots`: save plots to `out/` directory (`true`/`false`).
+- `save_csv`: Save metrics as `.csv` files in `out/` directory (`true`/`false`).
+- `preserve_dataset`: save poisoned dataset for verification (`true`/`false`).
+- `training_subset_fraction`: fraction of each client's dataset for training (e.g., `0.9` for 90% training, 10% evaluation).
 
-[^1]: https://storage.googleapis.com/openimages/web/download.html
+
+- **Flower settings**:
+  - `training_device`: `cpu`, `gpu`, or `cuda`.
+  - `cpus_per_client`: processors per client. 
+  - `gpus_per_client`: GPUs per client (if `cuda` is set as the `training_device`). 
+  - `min_fit_clients`, `min_evaluate_clients`, `min_available_clients`: client quotas for each round.
+  - `evaluate_metrics_aggregation_fn`: not used.
+  - `num_of_client_epochs`: local client training epochs per round.
+  - `batch_size`: batch size for training.
+
+#### Strategy-specific parameters
+
+**For `trust` strategy**:
+- `begin_removing_from_round`: start round for removing malicious clients.
+- `trust_threshold`: threshold for client removal (typically, in the range `0-1`).
+- `beta_value`: constant for Trust & Reputation calculus.
+- `num_of_clusters`: number of clusters (must be `1`).
+
+**For `pid` strategy**:
+- `pid_threshold`: threshold for client removal.
+- `Kp`, `Ki`, `Kd`: PID controller parameters.
+
+---
+
+## How to Run
+
+1. **Python Environment**: Python 3.10.14 is used in the framework. Before attempting to run the code, make sure the Python 3.10.14 is
+   installed in the system.
+2. **Configuration**: place configurations in `config/simulation_strategies/`.
+3. **Specify Configuration**: update `src/simulation_runner.py` with the desired configuration file.
+4. **Execution**:
+  - On UNIX: run `sh run_simulation.sh` (automated virtual environment setup and execution).
+  - On Windows: install dependencies from `requirements.txt` and execute manually.
+5. **Output**: plots and `.csv` files (if enabled) saved in `out/` directory.
+
+---
+
+## Description of Collected Metrics
+
+- **Client-Level Metrics**:
+  - `Loss`: Provided by Flower.
+  - `Accuracy`: Evaluation accuracy (provided by Flower).
+  - `Removal criteria`: Used for client removal by the strategy.
+  - `Distance`: From cluster center (via KMeans).
+  - `Normalized distance`: Scaled distance (MinMaxScaler).
+
+- **Round-Level Metrics**:
+  - `Average loss`: Across participating clients.
+  - `Average accuracy`: Across participating clients.
+
+---
+
+## Examples on strategies comparison
+
+The framework allows to execute multiple aggregation strategies one after another and then compare metrics
+between these strategies. The metrics such as `Average loss` and `Average accuracy` will be plotted on one graph for all
+executed strategies to allow the analysis of the effect that changed parameters had on the training process.
+
+The configuration file is the `JSON` that has the following format:
+
+```json
+{
+  "shared_settings": {
+    // settings that are not changed between strategies 
+  },
+  "simulation_strategies": [
+    {
+      // settings that are changed between strategies to compare their effects
+    },
+    {
+      ...
+    }
+  ]
+}
+```
+
+* `shared_settings` is the section where you can put settings that you do not wish to change for each strategy.
+  It can be number of clients or any other settings.
+* `simulation_strategies` is the json array of strategy settings that you wish to alter for each strategy if you believe
+  they may have effects on the learning or attack mitigation process.
+
+
+---
+
+### Examples
+
+
+
+1. We want to see how the number of local epochs will affect metrics. In that case, the `num_of_client_epochs` should
+   be put into each entry in the `simulation_strategies` array:
+
+```json
+{
+  "shared_settings": {
+    "num_of_rounds": 100,
+    "begin_removing_from_round": 4,
+    "num_of_clients": 10,
+    
+    // all other settings according to specification
+  },
+  "simulation_strategies": [
+    {
+      "num_of_client_epochs": 1
+    },
+    {
+      "num_of_client_epochs": 2
+    },
+    {
+      "num_of_client_epochs": 3
+    }
+  ]
+}
+```
+
+This configuration will result in the execution of 3 aggregation strategies in total, with the number of each client's
+local epochs varied starting form 1 to 3 for each execution. Then, the history of each strategy's loss and accuracy
+will be displayed within one plot, making it easy to draw conclusions on the efficiency of increasing the number of
+local client epochs.
+
+---
+
+2. We want to see how the `trust`-based mitigation works when we have the different number of malicious clients,
+   and determine if it has any effects on the resulting loss or accuracy. Similarly, `num_of_malicious_clients` is now
+   a variable between strategies:
+
+```json
+{
+  "shared_settings": {
+    "aggregation_strategy_keyword": "trust",
+    "num_of_clients": 20,
+    
+    // all other settings according to specification
+  },
+  "simulation_strategies": [
+    {
+      "num_of_malicious_clients": 2
+    },
+    {
+      "num_of_malicious_clients": 4
+    },
+    {
+      "num_of_malicious_clients": 6
+    }
+  ]
+}
+```
+
+---
+
+3. We want to compare `trust` with `pid`:
+
+```json
+{
+  "shared_settings": {
+    "num_of_clients": 20,
+    "num_of_malicious_clients": 2,
+    
+    // all other settings according to specification
+  },
+  "simulation_strategies": [
+    {
+      "aggregation_strategy_keyword": "trust",
+      // the following parameters are specific for trust strategy
+      "trust_threshold": 0.15,
+      "beta_value": 0.75,
+      "num_of_clusters": 1
+    },
+    {
+      "aggregation_strategy_keyword": "pid",
+      // the following parameters are specific for pid strategy
+      "pid_threshold": 1,
+      "Kp": 1,
+      "Ki": 0,
+      "Kd": 0
+    }
+  ]
+}
+```
+
+Since the strategy-specific parameters are not altered between strategies, they can also be put to `shared_settigns`:
+```json
+{
+  "shared_settings": {
+    "num_of_clients": 20,
+    "num_of_malicious_clients": 2,
+    // the following parameters are specific for trust strategy
+    "trust_threshold": 0.15,
+    "beta_value": 0.75,
+    "num_of_clusters": 1,
+    // the following parameters are specific for pid strategy
+    "pid_threshold": 1,
+    "Kp": 1,
+    "Ki": 0,
+    "Kd": 0,
+    
+    // all other settings according to specification
+  },
+  "simulation_strategies": [
+    {
+      "aggregation_strategy_keyword": "trust"
+    },
+    {
+      "aggregation_strategy_keyword": "pid"
+    }
+  ]
+}
+```
+-- the execution results of these two will be identical.
+
+---
+
+This design of the configuration file provides the flexibility to put any number of parameters as variables to the array,
+and compare how they affect the simulation outcome.
+
+One limitation is that as of now it is impossible to vary the number of aggregation rounds, so the parameter
+`num_of_rounds` must always be in the `shared_settings` section. 
+
