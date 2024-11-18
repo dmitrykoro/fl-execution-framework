@@ -27,6 +27,7 @@ class DirectoryHandler:
             'average_loss',
             'average_accuracy',
             # 'average_distance',
+            'score_calculation_time_nanos',
         )
 
     def assign_dataset_dir(self, strategy_number):
@@ -94,7 +95,12 @@ class DirectoryHandler:
             writer.writerow(["round", metric_key])
 
             for i, round_metrics in self.rounds_history.items():
-                writer.writerow([int(i), round_metrics["round_info"][metric_key]])
+                try:
+                    metric = round_metrics["round_info"][metric_key]
+                except KeyError:
+                    metric = "-"
+
+                writer.writerow([int(i), metric])
 
     def _save_all_csv(self):
         """Save CSV to current directory"""

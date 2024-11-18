@@ -26,7 +26,7 @@ class ImageDatasetLoader:
         trainloaders = []
         valloaders = []
 
-        for client_folder in sorted(os.listdir(self.dataset_dir)):
+        for client_folder in sorted(os.listdir(self.dataset_dir), key=lambda string: int(string.split("_")[1])):
             if client_folder.startswith("."):  # .DS_store
                 continue
 

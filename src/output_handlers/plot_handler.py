@@ -102,7 +102,7 @@ def _plot_single_metric_for_all_clients(data, metric_name, strategy_config, dire
     rounds = list(data.keys())
     clients = list(data[rounds[0]]['client_info'].keys())
 
-    for client in sorted(clients):
+    for client in sorted(clients, key=lambda string: int(string.split("_")[1])):
         metric = [data[curr_round]['client_info'][client][metric_name] for curr_round in rounds]
         plt.plot(rounds, metric, label=client)
 
@@ -138,6 +138,7 @@ def show_comparing_plots_among_strategies(executed_simulation_strategies: list, 
 
     _plot_single_metric_for_all_strategies(executed_simulation_strategies, 'average_loss', directory_handler)
     _plot_single_metric_for_all_strategies(executed_simulation_strategies, 'average_accuracy', directory_handler)
+    _plot_single_metric_for_all_strategies(executed_simulation_strategies, 'score_calculation_time_nanos', directory_handler)
     # _plot_single_metric_for_all_strategies(executed_simulation_strategies, 'server_loss', directory_handler)
     # _plot_single_metric_for_all_strategies(executed_simulation_strategies, 'server_accuracy', directory_handler)
     # self.plot_single_metric_for_all_strategies(data, 'average_distance')
@@ -152,7 +153,11 @@ def _plot_single_metric_for_all_strategies(executed_simulation_strategies, metri
         strategy_label = _generate_strategy_label(strategy.strategy_config)
 
         rounds = sorted(strategy.rounds_history.keys(), key=int)
-        metric_values = [strategy.rounds_history[curr_round]['round_info'][metric_name] for curr_round in rounds]
+
+        try:
+            metric_values = [strategy.rounds_history[curr_round]['round_info'][metric_name] for curr_round in rounds]
+        except KeyError:
+            return
 
         plt.plot(rounds, metric_values, label=strategy_label)
 
