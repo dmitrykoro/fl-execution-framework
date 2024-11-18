@@ -60,6 +60,18 @@ class PIDBasedRemovalStrategy(fl.server.strategy.FedAvg):
             d = self.kd * (distance-prev_distance) 
             
             return p + i + d
+        
+    
+    def calculate_pid_scores(self, results, normalized_distances) -> List[float]:
+        pid_scores = []
+        for i, (client_proxy, _) in enumerate(results):
+            client_id = client_proxy.cid
+            curr_dist = normalized_distances[i][0]
+
+            new_PID = self.calculate_pid(client_id, curr_dist)
+            self.client_pids[client_id] = new_PID
+            pid_scores.append(new_PID)
+        return pid_scores
 
     @staticmethod
     def cosine_similarity(tensor1, tensor2):
@@ -109,16 +121,17 @@ class PIDBasedRemovalStrategy(fl.server.strategy.FedAvg):
 
         self.rounds_history[f'{self.current_round}']['client_info'] = {}
 
-        pids = []   
+        pids = self.calculate_pid_scores(results, normalized_distances)  
+        counted_pids = []
         for i, (client_proxy, _) in enumerate(results):
             client_id = client_proxy.cid
             curr_dist = normalized_distances[i][0]
 
-            new_PID = self.calculate_pid(client_id, curr_dist)
+            new_PID = pids[i]
             self.client_pids[client_id] = new_PID
 
             if not client_id in self.removed_client_ids:
-                pids.append(new_PID)
+                counted_pids.append(new_PID)
 
             self.client_distances[client_id] = curr_dist
             curr_sum = self.client_distance_sums.get(client_id, 0)
@@ -143,8 +156,8 @@ class PIDBasedRemovalStrategy(fl.server.strategy.FedAvg):
                 f'Normalized Distance: {normalized_distances[i][0]} '
             )
 
-        pid_avg = np.mean(pids)
-        pid_std = np.std(pids)
+        pid_avg = np.mean(counted_pids)
+        pid_std = np.std(counted_pids)
         self.rounds_history[f'{self.current_round}']['average'] = pid_avg
         self.rounds_history[f'{self.current_round}']['standard_deviation'] = pid_std
         self.current_threshold = pid_avg + (2 * pid_std)
