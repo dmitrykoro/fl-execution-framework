@@ -20,12 +20,12 @@ stages:          # List of stages for jobs, and their order of execution
   - test
   - cleanup
 
-test-pipeline:
+.test-pipeline:
   stage: test
   script:
     - echo "Test"
 
-.test-simulation:
+test-simulation:
   stage: test
   image: python:3.10-slim
   script:
@@ -37,7 +37,7 @@ test-pipeline:
     - echo "Requirements successfully installed."
     - python src/simulation_runner.py
 
-.cleanup-output:
+cleanup-output:
     stage: cleanup
     script:
         - cd out/

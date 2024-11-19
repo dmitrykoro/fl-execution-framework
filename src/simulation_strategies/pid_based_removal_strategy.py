@@ -4,6 +4,7 @@ import torch
 import math as m
 import matplotlib.pyplot as plt
 import logging
+import time
 
 from typing import Dict, List, Optional, Tuple, Union
 
@@ -121,7 +122,14 @@ class PIDBasedRemovalStrategy(fl.server.strategy.FedAvg):
 
         self.rounds_history[f'{self.current_round}']['client_info'] = {}
 
-        pids = self.calculate_pid_scores(results, normalized_distances)  
+        time_start_calc = time.time_ns()
+        pids = self.calculate_pid_scores(results, normalized_distances)
+        time_end_calc = time.time_ns()
+        self.rounds_history[f'{self.current_round}']['round_info'] = {}
+        self.rounds_history[f'{self.current_round}']['round_info']['score_calculation_time_nanos'] = time_end_calc - time_start_calc
+
+        self.rounds_history[f'{self.current_round}']['client_info'] = {}
+
         counted_pids = []
         for i, (client_proxy, _) in enumerate(results):
             client_id = client_proxy.cid
