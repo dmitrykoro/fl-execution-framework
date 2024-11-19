@@ -41,5 +41,5 @@ cleanup-output:
     stage: cleanup
     script:
         - cd out/
-        - rf -rf *20*
+        - rm -rf *20*
         
