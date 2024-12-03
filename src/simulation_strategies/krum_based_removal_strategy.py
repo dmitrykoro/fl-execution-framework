@@ -23,12 +23,13 @@ class KrumBasedRemovalStrategy(Krum):
         self.current_round = 0
         self.rounds_history = {}
 
-    def _calculate_krum_scores(self, results: List[Tuple[ClientProxy, FitRes]]) -> List[float]:
+    def _calculate_krum_scores(self, results: List[Tuple[ClientProxy, FitRes]], distances) -> List[float]:
         """
         Calculate Krum scores based on the parameter differences between clients.
 
         Args:
             results (List[Tuple[ClientProxy, FitRes]]): List of client proxies and their fit results.
+            distances: empty array to store distances
 
         Returns:
             List[float]: Krum scores for each client.
@@ -38,7 +39,6 @@ class KrumBasedRemovalStrategy(Krum):
         param_data = flat_param_data
         num_malicious_clients = self.num_malicious_clients
         num_clients = len(param_data)
-        distances = np.zeros((num_clients, num_clients))
 
         # Compute pairwise distances between clients' model updates
         for i in range(num_clients):
@@ -86,8 +86,11 @@ class KrumBasedRemovalStrategy(Krum):
         scaler.fit(distances)
         normalized_distances = scaler.transform(distances)
 
+        distances = np.zeros((len(results), len(results)))
+
         time_start_calc = time.time_ns()
-        krum_scores = self._calculate_krum_scores(results)
+
+        krum_scores = self._calculate_krum_scores(results, distances)
         time_end_calc = time.time_ns()
         self.rounds_history[f'{self.current_round}']['round_info'] = {}
         self.rounds_history[f'{self.current_round}']['round_info']['score_calculation_time_nanos'] = time_end_calc - time_start_calc
