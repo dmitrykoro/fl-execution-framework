@@ -38,9 +38,10 @@ class BulyanBasedRemovalStrategy(Bulyan):
             logging.warning("No clients available for aggregation after filtering removed clients.")
             return None, {}
 
+        distances = np.zeros((len(results), len(results)))
         time_start_calc = time.time_ns()
         # Calculate removal criteria scores for each client
-        scores = self._calculate_removal_criteria(aggregate_clients)
+        scores = self._calculate_removal_criteria(aggregate_clients, distances)
 
         # Select the top clients based on scores
         num_clients = len(aggregate_clients)
@@ -79,7 +80,8 @@ class BulyanBasedRemovalStrategy(Bulyan):
 
         return aggregated_parameters, {}
 
-    def _calculate_removal_criteria(self, results: List[Tuple[ClientProxy, FitRes]]) -> List[float]:
+    def _calculate_removal_criteria(self, results: List[Tuple[ClientProxy, FitRes]],
+                                    distances: List[float]) -> List[float]:
         """
         Calculate removal criteria scores for each client based on pairwise distances.
 
@@ -92,7 +94,6 @@ class BulyanBasedRemovalStrategy(Bulyan):
         param_data = [fl.common.parameters_to_ndarrays(fit_res.parameters) for _, fit_res in results]
         stacked_params = np.stack([np.concatenate([p.flatten() for p in params]) for params in param_data])
         num_clients = len(stacked_params)
-        distances = np.zeros((num_clients, num_clients))
         for i in range(num_clients):
             for j in range(i + 1, num_clients):
                 distances[i, j] = np.linalg.norm(stacked_params[i] - stacked_params[j])

@@ -24,7 +24,8 @@ class MultiKrumBasedRemovalStrategy(Krum):
         self.current_round = 0
         self.rounds_history = {}
 
-    def _calculate_multi_krum_scores(self, results: List[Tuple[ClientProxy, FitRes]]) -> List[float]:
+    def _calculate_multi_krum_scores(self, results: List[Tuple[ClientProxy, FitRes]],
+                                     distances: List[float]) -> List[float]:
         """
         Calculate Multi-Krum scores based on the parameter differences between clients.
 
@@ -38,7 +39,6 @@ class MultiKrumBasedRemovalStrategy(Krum):
         flat_param_data = [np.concatenate([p.flatten() for p in params]) for params in param_data]
         param_data = flat_param_data
         num_clients = len(param_data)
-        distances = np.zeros((num_clients, num_clients))
 
         # Compute pairwise distances between clients' model updates
         for i in range(num_clients):
@@ -86,9 +86,10 @@ class MultiKrumBasedRemovalStrategy(Krum):
         scaler.fit(distances)
         normalized_distances = scaler.transform(distances)
 
+        distances = np.zeros((len(results), len(results)))
         time_start_calc = time.time_ns()
         
-        multi_krum_scores = self._calculate_multi_krum_scores(results)
+        multi_krum_scores = self._calculate_multi_krum_scores(results, distances)
         self.rounds_history[f'{self.current_round}']['client_info'] = {}
 
         # Select the top `num_krum_selections` clients based on Multi-Krum scores

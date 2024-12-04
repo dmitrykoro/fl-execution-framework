@@ -23,7 +23,7 @@ class KrumBasedRemovalStrategy(Krum):
         self.current_round = 0
         self.rounds_history = {}
 
-    def _calculate_krum_scores(self, results: List[Tuple[ClientProxy, FitRes]], distances) -> List[float]:
+    def _calculate_krum_scores(self, results: List[Tuple[ClientProxy, FitRes]], distances: List[float]) -> List[float]:
         """
         Calculate Krum scores based on the parameter differences between clients.
 
