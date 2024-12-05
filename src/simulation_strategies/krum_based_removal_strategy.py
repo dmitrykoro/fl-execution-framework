@@ -86,9 +86,9 @@ class KrumBasedRemovalStrategy(Krum):
         scaler.fit(distances)
         normalized_distances = scaler.transform(distances)
 
-        time_start_calc = time.time_ns()
-
         distances = np.zeros((len(results), len(results)))
+
+        time_start_calc = time.time_ns()
 
         krum_scores = self._calculate_krum_scores(results, distances)
         time_end_calc = time.time_ns()
