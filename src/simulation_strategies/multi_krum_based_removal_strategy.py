@@ -58,14 +58,6 @@ class MultiKrumBasedRemovalStrategy(Krum):
     def aggregate_fit(self, server_round: int, results: List[Tuple[ClientProxy, FitRes]], failures: List[Union[Tuple[ClientProxy, FitRes], BaseException]]) -> Tuple[Optional[Parameters], Dict[str, Scalar]]:
         self.current_round += 1
         self.rounds_history[f'{self.current_round}'] = {}
-        aggregate_clients = []
-
-        for result in results:
-            client_id = result[0].cid
-            if client_id not in self.removed_client_ids:
-                aggregate_clients.append(result)
-
-        aggregated_parameters, aggregated_metrics = super().aggregate_fit(server_round, aggregate_clients, failures)
 
         # clustering
         clustering_param_data = []
@@ -131,13 +123,22 @@ class MultiKrumBasedRemovalStrategy(Krum):
         # fetch the multi-krum based scores for all available clients
         client_scores = {client_id: self.client_scores.get(client_id, 0) for client_id in available_clients.keys()}
 
-        if self.remove_clients:
-            # in the first round after warmup, remove the client with the highest Multi-Krum score
-            client_id = max(client_scores, key=client_scores.get)
-            logging.info(f"Removing client with highest Multi-Krum score: {client_id}")
-            self.removed_client_ids.add(client_id)
-            self.rounds_history[f'{self.current_round}']['client_info'][f'client_{client_id}']['is_removed'] = True
-        
+        # Remove clients until the desired count is reached
+        total_clients = len(client_scores)
+        if self.remove_clients and len(self.removed_client_ids) < total_clients - self.num_krum_selections:
+            # Remove clients with the highest scores not already removed
+            eligible_clients = {cid: score for cid, score in client_scores.items() if cid not in self.removed_client_ids}
+            if eligible_clients:
+                client_id_to_remove = max(eligible_clients, key=eligible_clients.get)
+                logging.info(f"Removing client with highest Multi-Krum score: {client_id_to_remove}")
+                self.removed_client_ids.add(client_id_to_remove)
+                self.rounds_history[f'{self.current_round}']['client_info'][f'client_{client_id_to_remove}']['is_removed'] = True
+
+        # Stop removing if the removal limit is reached
+        if len(self.removed_client_ids) >= total_clients - self.num_krum_selections:
+            logging.info(f"Removal limit reached: {total_clients - self.num_krum_selections} clients removed.")
+            self.remove_clients = False  # Stop further removal
+
         logging.info(f"removed clients are : {self.removed_client_ids}")
 
         selected_client_ids = sorted(client_scores, key=client_scores.get, reverse=True)

@@ -169,7 +169,8 @@ class FederatedSimulation:
                evaluate_metrics_aggregation_fn=self.strategy_config.evaluate_metrics_aggregation_fn,
                remove_clients=self.strategy_config.remove_clients,
                begin_removing_from_round=self.strategy_config.begin_removing_from_round,
-               num_malicious_clients=self.strategy_config.num_of_malicious_clients
+               num_malicious_clients=self.strategy_config.num_of_malicious_clients,
+               num_krum_selections=self.strategy_config.num_krum_selections # Use to simulate different Attack strategies
             )
         elif aggregation_strategy_keyword == "multi-krum":
             self._aggregation_strategy = MultiKrumBasedRemovalStrategy(

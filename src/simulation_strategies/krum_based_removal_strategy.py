@@ -13,7 +13,7 @@ from flwr.server.client_proxy import ClientProxy
 from flwr.server.strategy.krum import Krum
 
 class KrumBasedRemovalStrategy(Krum):
-    def __init__(self, remove_clients: bool, num_malicious_clients: int, begin_removing_from_round: int, *args, **kwargs):
+    def __init__(self, remove_clients: bool, num_malicious_clients: int, num_krum_selections: int, begin_removing_from_round: int, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.client_scores = {}
         self.removed_client_ids = set() 
@@ -22,6 +22,7 @@ class KrumBasedRemovalStrategy(Krum):
         self.begin_removing_from_round = begin_removing_from_round
         self.current_round = 0
         self.rounds_history = {}
+        self.num_krum_selections = num_krum_selections
 
     def _calculate_krum_scores(self, results: List[Tuple[ClientProxy, FitRes]], distances: List[float]) -> List[float]:
         """
@@ -37,7 +38,6 @@ class KrumBasedRemovalStrategy(Krum):
         param_data = [fl.common.parameters_to_ndarrays(fit_res.parameters) for _, fit_res in results]
         flat_param_data = [np.concatenate([p.flatten() for p in params]) for params in param_data]
         param_data = flat_param_data
-        num_malicious_clients = self.num_malicious_clients
         num_clients = len(param_data)
 
         # Compute pairwise distances between clients' model updates
@@ -50,22 +50,13 @@ class KrumBasedRemovalStrategy(Krum):
         scores = []
         for i in range(num_clients):
             sorted_distances = np.sort(distances[i])
-            score = np.sum(sorted_distances[:num_clients - num_malicious_clients - 2])
+            score = np.sum(sorted_distances[:num_clients - self.num_malicious_clients - 2])
             scores.append(score)
-
         return scores
     
     def aggregate_fit(self, server_round: int, results: List[Tuple[ClientProxy, FitRes]], failures: List[Union[Tuple[ClientProxy, FitRes], BaseException]]) -> Tuple[Optional[Parameters], Dict[str, Scalar]]:
         self.current_round += 1
         self.rounds_history[f'{self.current_round}'] = {}
-        aggregate_clients = []
-
-        for result in results:
-            client_id = result[0].cid
-            if client_id not in self.removed_client_ids:
-                aggregate_clients.append(result)
-
-        aggregated_parameters, aggregated_metrics = super().aggregate_fit(server_round, aggregate_clients, failures)
 
         # clustering
         clustering_param_data = []
@@ -113,6 +104,20 @@ class KrumBasedRemovalStrategy(Krum):
                     self.rounds_history)[f'{self.current_round - 1}']['client_info'][f'client_{client_id}']['is_removed']
 
             logging.info(f'Aggregation round: {server_round} Client ID: {client_id} Krum Score: {score} Normalized Distance: {normalized_distances[i][0]}')
+        
+        # Select the client with the minimum Krum score
+        min_krum_score_index = np.argmin(krum_scores)
+        min_krum_client = results[min_krum_score_index]
+
+        # Log the selected client for aggregation
+        selected_client_id = min_krum_client[0].cid
+        logging.info(f"Selected client for aggregation: {selected_client_id} with Krum Score: {krum_scores[min_krum_score_index]}")
+
+
+        # Aggregate only the selected client's parameters
+        selected_clients = [min_krum_client]  # Aggregate only the client with the minimum Krum score
+        aggregated_parameters, aggregated_metrics = super().aggregate_fit(server_round, selected_clients, failures)
+
 
         return aggregated_parameters, aggregated_metrics
 
