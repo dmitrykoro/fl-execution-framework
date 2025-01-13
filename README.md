@@ -34,6 +34,7 @@ Defines the aggregation strategy. Options:
 - **`dataset_keyword`**  
   Dataset used for execution. Options:
   - `femnist_iid`: handwritten digit subset (0-9), 10 classes, IID distribution, 100 clients.
+  - `femnist_niid`: same, but the data is distributed in non-iid manner, according to authors' description. 16 clients max. 
   - `its`: intelligent Transportation Systems domain, binary classification (traffic sign vs stop sign), 12 clients.
   - `pneumoniamnist`: medical imaging (pneumonia diagnosis), binary classification, IID distribution, 10 clients.
   - `flair`: non-IID distribution (FLAIR dataset, unsupported in current version), 20 clients. 
