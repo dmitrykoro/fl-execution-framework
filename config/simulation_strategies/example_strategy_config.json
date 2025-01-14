@@ -1,7 +1,7 @@
 {
   "shared_settings": {
     "remove_clients": "true",
-    "dataset_keyword": "femnist_iid",
+    "dataset_keyword": "femnist_niid",
     "num_of_rounds": 100,
     "begin_removing_from_round": 5,
     "num_of_malicious_clients": 4,
@@ -20,7 +20,7 @@
     "Kp": 1,
     "Ki": 0.6,
     "Kd": 0.4,
-    "num_krum_selections": 9,
+    "num_krum_selections": 8,
     "weighted_median_factor": 1,
     "trim_ratio": 0.1,
     "training_subset_fraction": 0.9,
@@ -29,10 +29,10 @@
     "aggregation_strategy_keyword": "pid",
     "batch_size": 10,
     "preserve_dataset": "true",
-      "num_of_clients": 18,
-      "min_fit_clients": 18,
-      "min_evaluate_clients": 18,
-      "min_available_clients": 18
+      "num_of_clients": 16,
+      "min_fit_clients": 16,
+      "min_evaluate_clients": 16,
+      "min_available_clients": 16
 
   },
   "simulation_strategies": [
