@@ -126,6 +126,8 @@ class MultiKrumStrategy(fl.server.strategy.FedAvg):
 
         # reset removed clients to empty set at the beginning of each round
         self.removed_client_ids = set()
+        for client_id in available_clients.keys():
+            self.rounds_history[f'{self.current_round}']['client_info'][f'client_{client_id}']['is_removed'] = False
         
         # Remove clients until the desired count is reached in this round
         while len(self.removed_client_ids) < len(self.client_scores) - self.num_krum_selections:
