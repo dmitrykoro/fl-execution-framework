@@ -50,7 +50,7 @@ class MultiKrumBasedRemovalStrategy(Krum):
         scores = []
         for i in range(num_clients):
             sorted_distances = np.sort(distances[i])
-            score = np.sum(sorted_distances[:num_clients - self.num_of_malicious_clients - 2])
+            score = np.sum(sorted_distances[:self.num_krum_selections - 2])
             scores.append(score)
 
         return scores

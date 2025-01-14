@@ -170,7 +170,7 @@ class PIDBasedRemovalStrategy(fl.server.strategy.FedAvg):
         self.rounds_history[f'{self.current_round}']['standard_deviation'] = pid_std
         self.current_threshold = pid_avg + (2 * pid_std)
 
-        logging.debug(self.current_threshold)
+        logging.info(f"REMOVAL THRESHOLD: {self.current_threshold}")
 
         return aggregated_parameters, aggregated_metrics
 
@@ -196,7 +196,7 @@ class PIDBasedRemovalStrategy(fl.server.strategy.FedAvg):
                 self.rounds_history[f'{self.current_round}']['client_info'][f'client_{highest_pid_client}']['is_removed'] = True
 
             else:
-                # remove clients with PID lower than threshold.
+                # remove clients with PID higher than threshold.
                 for client_id, pid in client_pids.items():
                     if pid > self.current_threshold and client_id not in self.removed_client_ids:
                         logging.info(f"Removing client with PID greater than Threshold: {client_id}")
