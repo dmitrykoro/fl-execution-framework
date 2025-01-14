@@ -25,7 +25,7 @@ from simulation_strategies.multi_krum_based_removal_strategy import MultiKrumBas
 from simulation_strategies.rfa_based_removal_strategy import RFABasedRemovalStrategy
 from simulation_strategies.trimmed_mean_based_removal_strategy import TrimmedMeanBasedRemovalStrategy
 from simulation_strategies.bulyan_based_removal_strategy import BulyanBasedRemovalStrategy
-
+from simulation_strategies.mutli_krum_strategy import MultiKrumStrategy
 
 
 from utils.additional_data_calculator import AdditionalDataCalculator
@@ -182,8 +182,19 @@ class FederatedSimulation:
                num_malicious_clients=self.strategy_config.num_of_malicious_clients,
                num_krum_selections=self.strategy_config.num_krum_selections # Use to simulate different Attack strategies
             )
-        elif aggregation_strategy_keyword == "multi-krum":
+        elif aggregation_strategy_keyword == "multi-krum-based":
             self._aggregation_strategy = MultiKrumBasedRemovalStrategy(
+                min_fit_clients=self.strategy_config.min_fit_clients,
+                min_evaluate_clients=self.strategy_config.min_evaluate_clients,
+                min_available_clients=self.strategy_config.min_available_clients,
+                evaluate_metrics_aggregation_fn=self.strategy_config.evaluate_metrics_aggregation_fn,
+                remove_clients=self.strategy_config.remove_clients,
+                begin_removing_from_round=self.strategy_config.begin_removing_from_round,
+                num_of_malicious_clients=self.strategy_config.num_of_malicious_clients,
+                num_krum_selections=self.strategy_config.num_krum_selections
+	        )
+        elif aggregation_strategy_keyword == "multi-krum":
+            self._aggregation_strategy = MultiKrumStrategy(
                 min_fit_clients=self.strategy_config.min_fit_clients,
                 min_evaluate_clients=self.strategy_config.min_evaluate_clients,
                 min_available_clients=self.strategy_config.min_available_clients,
