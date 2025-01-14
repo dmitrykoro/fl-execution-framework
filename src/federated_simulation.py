@@ -103,6 +103,16 @@ class FederatedSimulation:
             )
             self._network_model = FemnistNetwork()
 
+        elif dataset_keyword == "femnist_niid":
+            dataset_loader = ImageDatasetLoader(
+                transformer=femnist_image_transformer,
+                dataset_dir=self._dataset_dir,
+                num_of_clients=num_of_clients,
+                batch_size=batch_size,
+                training_subset_fraction=training_subset_fraction
+            )
+            self._network_model = FemnistNetwork()
+
         elif dataset_keyword == "flair":
             dataset_loader = ImageDatasetLoader(
                 transformer=flair_image_transformer,
