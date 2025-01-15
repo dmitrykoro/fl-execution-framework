@@ -186,23 +186,14 @@ class PIDBasedRemovalStrategy(fl.server.strategy.FedAvg):
         # fetch the Trust and Reputation scores for all available clients
         client_pids = {client_id: self.client_pids.get(client_id, 0) for client_id in available_clients.keys()}
 
-        if self.remove_clients: # and len(self.removed_client_ids) < 2:
-            # in the first round after warmup, remove the client with the highest PID
-            if self.current_round == self.begin_removing_from_round and False:
-                highest_pid_client = max(client_pids, key=client_pids.get)
-                logging.info(f"Removing client with highest PID: {highest_pid_client}")
-                # add this client to the removed_clients list
-                self.removed_client_ids.add(highest_pid_client)
-                self.rounds_history[f'{self.current_round}']['client_info'][f'client_{highest_pid_client}']['is_removed'] = True
-
-            else:
-                # remove clients with PID lower than threshold.
-                for client_id, pid in client_pids.items():
-                    if pid > self.current_threshold and client_id not in self.removed_client_ids:
-                        logging.info(f"Removing client with PID greater than Threshold: {client_id}")
-                        # add this client to the removed_clients list
-                        self.removed_client_ids.add(client_id)
-                        self.rounds_history[f'{self.current_round}']['client_info'][f'client_{client_id}']['is_removed'] = True
+        if self.remove_clients:
+            # remove clients with PID lower than threshold.
+            for client_id, pid in client_pids.items():
+                if pid > self.current_threshold and client_id not in self.removed_client_ids:
+                    logging.info(f"Removing client with PID greater than Threshold: {client_id}")
+                    # add this client to the removed_clients list
+                    self.removed_client_ids.add(client_id)
+                    self.rounds_history[f'{self.current_round}']['client_info'][f'client_{client_id}']['is_removed'] = True
 
 
         logging.info(f"removed clients are : {self.removed_client_ids}")

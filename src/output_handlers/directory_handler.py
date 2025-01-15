@@ -69,7 +69,7 @@ class DirectoryHandler:
         sorted_rounds_data = dict(rounds_data.items())
 
         # Extract fieldnames for CSV
-        fieldnames = ["round"] + [f"{client_id}_{metric_key}" for client_id in round_clients_data["client_info"].keys()]
+        fieldnames = ["round"] + [f"{client_id}_{metric_key}" for client_id in round_clients_data["client_info"].keys()] # noqa
 
         # Write the data to a CSV file
         with open(
