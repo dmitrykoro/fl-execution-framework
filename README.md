@@ -17,7 +17,8 @@ effects of these parameters on the collected metrics, as well as plug-and-play i
 - **Sample configuration**: located at `config/simulation_strategies/example_strategy_config.json`.
 - **Usage**: pass the configuration file as a parameter when initializing `SimulationRunner` in `src/simulation_runner.py`.
 
-### Description of Simulation Parameters
+### Description of Simulation Parameters 
+#### (found at `config/simulation_strategies/example_strategy_config.json`)
 
 #### Common parameters (applicable to all strategies)
 
@@ -25,7 +26,7 @@ effects of these parameters on the collected metrics, as well as plug-and-play i
 Defines the aggregation strategy. Options:
   - `trust`: Trust & Reputation-based aggregation.
   - `pid`: PiD-based aggregation.
-  - `krum`: Krum-based aggregation.
+  - `multi-krum`: Multi-Krum aggregation.
 
 
 - **`remove_clients`**: attempt to remove malicious clients using strategy-specific mechanisms.
