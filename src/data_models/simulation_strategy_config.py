@@ -39,6 +39,8 @@ class StrategyConfig:
     batch_size: int = None
     preserve_dataset: bool = None
 
+    num_krum_selections: int = None
+
     strategy_number: int = None
 
     def __init__(self, **kwargs):

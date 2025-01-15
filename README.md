@@ -72,6 +72,10 @@ Defines the aggregation strategy. Options:
 - `pid_threshold`: threshold for client removal.
 - `Kp`, `Ki`, `Kd`: PID controller parameters.
 
+
+**For `multi-krum` strategy**:
+- `num_krum_selections`: parameter that multi-krum algorithm needs for operation according to paper.
+
 ---
 
 ## How to Run

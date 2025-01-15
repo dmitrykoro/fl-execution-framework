@@ -12,8 +12,17 @@ from flwr.common import EvaluateRes, Scalar
 from flwr.server.client_proxy import ClientProxy
 from flwr.server.strategy.krum import Krum
 
+
 class MultiKrumStrategy(fl.server.strategy.FedAvg):
-    def __init__(self, remove_clients: bool, num_of_malicious_clients: int, num_krum_selections: int, begin_removing_from_round: int, *args, **kwargs):
+    def __init__(
+            self,
+            remove_clients: bool,
+            num_of_malicious_clients: int,
+            num_krum_selections: int,
+            begin_removing_from_round: int,
+            *args,
+            **kwargs
+    ):
         super().__init__(*args, **kwargs)
         self.client_scores = {}
         self.removed_client_ids = set() 

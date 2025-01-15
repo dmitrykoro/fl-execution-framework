@@ -21,6 +21,7 @@
     "Kp": 1,
     "Ki": 0.05,
     "Kd": 0.05,
+    "num_krum_selections": 3,
     "training_subset_fraction": 0.9,
     "min_fit_clients": 5,
     "min_evaluate_clients": 5,
