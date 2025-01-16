@@ -11,6 +11,7 @@ from flwr.server.strategy.aggregate import weighted_loss_avg
 from flwr.common import EvaluateRes, Scalar
 from flwr.server.client_proxy import ClientProxy
 from flwr.server.strategy.krum import Krum
+from output_handlers.directory_handler import DirectoryHandler
 
 class MultiKrumStrategy(fl.server.strategy.FedAvg):
     def __init__(self, remove_clients: bool, num_of_malicious_clients: int, num_krum_selections: int, begin_removing_from_round: int, *args, **kwargs):
@@ -23,6 +24,19 @@ class MultiKrumStrategy(fl.server.strategy.FedAvg):
         self.begin_removing_from_round = begin_removing_from_round
         self.current_round = 0
         self.rounds_history = {}
+
+        # Create a logger
+        self.logger = logging.getLogger("my_logger")
+        self.logger.setLevel(logging.INFO)  # Set the logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL)
+
+        # Create handlers
+        out_dir = DirectoryHandler.dirname
+        file_handler = logging.FileHandler(f"{out_dir}/output.log")
+        console_handler = logging.StreamHandler()
+
+        # Add the handlers to the logger
+        self.logger.addHandler(file_handler)
+        self.logger.addHandler(console_handler)
 
     def _calculate_multi_krum_scores(self, results: List[Tuple[ClientProxy, FitRes]],
                                      distances: List[float]) -> List[float]:
@@ -107,7 +121,7 @@ class MultiKrumStrategy(fl.server.strategy.FedAvg):
             else:
                 self.rounds_history[f'{self.current_round}']['client_info'][f'client_{client_id}']['is_removed'] = self.rounds_history[f'{self.current_round - 1}']['client_info'][f'client_{client_id}']['is_removed']
 
-            logging.info(f'Aggregation round: {server_round} Client ID: {client_id} Multi-Krum Score: {score} Normalized Distance: {normalized_distances[i][0]}')
+            self.logger.info(f'Aggregation round: {server_round} Client ID: {client_id} Multi-Krum Score: {score} Normalized Distance: {normalized_distances[i][0]}')
 
         return aggregated_parameters, aggregated_metrics
 
@@ -135,34 +149,16 @@ class MultiKrumStrategy(fl.server.strategy.FedAvg):
             eligible_clients = {cid: score for cid, score in client_scores.items() if cid not in self.removed_client_ids}
             if eligible_clients:
                 client_id_to_remove = max(eligible_clients, key=eligible_clients.get)
-                # logging.info(f"Removing client with highest Multi-Krum score: {client_id_to_remove}")
+
                 self.removed_client_ids.add(client_id_to_remove)
                 self.rounds_history[f'{self.current_round}']['client_info'][f'client_{client_id_to_remove}']['is_removed'] = True
-        logging.info(f"Removed clients at round {self.current_round} are : {self.removed_client_ids}")
-        # # Remove clients until the desired count is reached
-        # total_clients = len(client_scores)
-        # if self.remove_clients and len(self.removed_client_ids) < total_clients - self.num_krum_selections:
-        #     # Remove clients with the highest scores not already removed
-        #     eligible_clients = {cid: score for cid, score in client_scores.items() if cid not in self.removed_client_ids}
-        #     if eligible_clients:
-        #         client_id_to_remove = max(eligible_clients, key=eligible_clients.get)
-        #         logging.info(f"Removing client with highest Multi-Krum score: {client_id_to_remove}")
-        #         self.removed_client_ids.add(client_id_to_remove)
-        #         self.rounds_history[f'{self.current_round}']['client_info'][f'client_{client_id_to_remove}']['is_removed'] = True
-
-        # # Stop removing if the removal limit is reached
-        # if len(self.removed_client_ids) >= total_clients - self.num_krum_selections:
-        #     logging.info(f"Removal limit reached: {total_clients - self.num_krum_selections} clients removed.")
-        #     self.remove_clients = False  # Stop further removal
-
-        # logging.info(f"removed clients are : {self.removed_client_ids}")
-
+        self.logger.info(f"Removed clients at round {self.current_round} are : {self.removed_client_ids}")
         selected_client_ids = sorted(client_scores, key=client_scores.get, reverse=True)
         fit_ins = fl.common.FitIns(parameters, {})
         return [(available_clients[cid], fit_ins) for cid in selected_client_ids if cid in available_clients]
 
     def aggregate_evaluate(self, server_round: int, results: List[Tuple[ClientProxy, EvaluateRes]], failures: List[Tuple[Union[ClientProxy, EvaluateRes], BaseException]]) -> Tuple[Optional[float], Dict[str, Scalar]]:
-        logging.info('\n' + '-' * 50 + f'AGGREGATION ROUND {server_round}' + '-' * 50)
+        self.logger.info('\n' + '-' * 50 + f'AGGREGATION ROUND {server_round}' + '-' * 50)
         for client_result in results:
             cid = client_result[0].cid
             accuracy_matrix = client_result[1].metrics
@@ -192,5 +188,5 @@ class MultiKrumStrategy(fl.server.strategy.FedAvg):
 
         metrics_aggregated = {}
 
-        logging.info(f'Round: {server_round} Number of aggregated clients: {number_of_clients_in_loss_calc} Aggregated loss: {loss_aggregated}')
+        self.logger.info(f'Round: {server_round} Number of aggregated clients: {number_of_clients_in_loss_calc} Aggregated loss: {loss_aggregated}')
         return loss_aggregated, metrics_aggregated

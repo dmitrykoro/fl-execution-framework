@@ -1,7 +1,7 @@
 {
     "shared_settings": {
       "remove_clients": "true",
-      "dataset_keyword": "femnist_iid",
+      "dataset_keyword": "femnist_niid",
       "num_of_rounds": 100,
       "begin_removing_from_round": 5,
       "num_of_malicious_clients": 4,
@@ -26,7 +26,7 @@
       "training_subset_fraction": 0.9,
       "evaluate_metrics_aggregation_fn": "weighted_average",
       "num_of_client_epochs": 4,
-      "aggregation_strategy_keyword": "multi-krum-based",
+      "aggregation_strategy_keyword": "pid",
       "batch_size": 10,
       "preserve_dataset": "true",
         "num_of_clients": 18,
