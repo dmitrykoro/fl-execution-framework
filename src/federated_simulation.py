@@ -13,7 +13,8 @@ from dataset_loaders.image_transformers.flair_image_transformer import flair_ima
 from dataset_loaders.image_transformers.pneumoniamnist_image_transformer import pneumoniamnist_image_transformer
 
 from network_models.its_network_definition import ITSNetwork
-from network_models.femnist_network_definition import FemnistNetwork
+from network_models.femnist_reduced_iid_network_definition import FemnistReducedIIDNetwork
+from network_models.femnist_full_niid_network_definition import FemnistFullNIIDNetwork
 from network_models.flair_network_definition import FlairNetwork
 from network_models.pneumoniamnist_network_definition import PneumoniamnistNetwork
 
@@ -96,7 +97,7 @@ class FederatedSimulation:
                 batch_size=batch_size,
                 training_subset_fraction=training_subset_fraction
             )
-            self._network_model = FemnistNetwork()
+            self._network_model = FemnistReducedIIDNetwork()
 
         elif dataset_keyword == "femnist_niid":
             dataset_loader = ImageDatasetLoader(
@@ -106,7 +107,7 @@ class FederatedSimulation:
                 batch_size=batch_size,
                 training_subset_fraction=training_subset_fraction
             )
-            self._network_model = FemnistNetwork()
+            self._network_model = FemnistFullNIIDNetwork()
 
         elif dataset_keyword == "flair":
             dataset_loader = ImageDatasetLoader(
