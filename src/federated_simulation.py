@@ -169,7 +169,8 @@ class FederatedSimulation:
                 kp=self.strategy_config.Kp,
                 kd=self.strategy_config.Kd,
                 pid_threshold=self.strategy_config.pid_threshold,
-                strategy_history=self.strategy_history
+                strategy_history=self.strategy_history,
+                network_model=self._network_model
             )
         elif aggregation_strategy_keyword == "multi-krum":
             self._aggregation_strategy = MultiKrumStrategy(

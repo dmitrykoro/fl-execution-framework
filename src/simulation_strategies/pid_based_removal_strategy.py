@@ -13,7 +13,7 @@ from sklearn.preprocessing import StandardScaler, MinMaxScaler
 
 from flwr.common import FitRes, Parameters, Scalar
 from flwr.server.strategy.aggregate import weighted_loss_avg
-from flwr.common import EvaluateRes, Scalar
+from flwr.common import EvaluateRes, Scalar, ndarrays_to_parameters
 from flwr.server.client_proxy import ClientProxy
 
 from data_models.round_info import RoundsInfo
@@ -31,6 +31,7 @@ class PIDBasedRemovalStrategy(fl.server.strategy.FedAvg):
             kd: float,
             kp: float,
             strategy_history: SimulationStrategyHistory,
+            network_model,
             *args,
             **kwargs
     ):
