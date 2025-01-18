@@ -16,11 +16,12 @@ class SimulationStrategyHistory:
         self.rounds_history = RoundsInfo(simulation_strategy_config=self.strategy_config)
 
         for i in range(self.strategy_config.num_of_clients):
-            self._clients_dict[i] = ClientInfo(i)
+            self._clients_dict[i] = ClientInfo(client_id=i, num_of_rounds=self.strategy_config.num_of_rounds)
 
     def insert_single_client_history_entry(
             self,
             client_id: int,
+            current_round: int,
             removal_criterion: float = None,
             absolute_distance: float = None,
             loss: float = None,
@@ -30,6 +31,7 @@ class SimulationStrategyHistory:
         updating_client = self._clients_dict[client_id]
 
         updating_client.add_history_entry(
+            current_round,
             removal_criterion,
             absolute_distance,
             loss,
