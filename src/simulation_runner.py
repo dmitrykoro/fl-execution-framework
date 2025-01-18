@@ -9,6 +9,7 @@ from output_handlers.directory_handler import DirectoryHandler
 from federated_simulation import FederatedSimulation
 
 from data_models.simulation_strategy_config import StrategyConfig
+from data_models.simulation_strategy_history import SimulationStrategyHistory
 
 from dataset_handlers.dataset_handler import DatasetHandler
 

@@ -27,6 +27,7 @@ from simulation_strategies.mutli_krum_strategy import MultiKrumStrategy
 from utils.additional_data_calculator import AdditionalDataCalculator
 
 from data_models.simulation_strategy_config import StrategyConfig
+from data_models.simulation_strategy_history import SimulationStrategyHistory
 
 
 class FederatedSimulation:
@@ -37,6 +38,8 @@ class FederatedSimulation:
     ):
         self.strategy_config = strategy_config
         self.rounds_history = None
+
+        self.strategy_history = SimulationStrategyHistory(strategy_config=strategy_config)
 
         self._dataset_dir = dataset_dir
 
@@ -165,7 +168,8 @@ class FederatedSimulation:
                 ki=self.strategy_config.Ki,
                 kp=self.strategy_config.Kp,
                 kd=self.strategy_config.Kd,
-                pid_threshold=self.strategy_config.pid_threshold
+                pid_threshold=self.strategy_config.pid_threshold,
+                strategy_history=self.strategy_history
             )
         elif aggregation_strategy_keyword == "multi-krum":
             self._aggregation_strategy = MultiKrumStrategy(

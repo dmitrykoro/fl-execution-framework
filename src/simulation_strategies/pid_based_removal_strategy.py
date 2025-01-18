@@ -16,6 +16,10 @@ from flwr.server.strategy.aggregate import weighted_loss_avg
 from flwr.common import EvaluateRes, Scalar
 from flwr.server.client_proxy import ClientProxy
 
+from data_models.round_info import RoundsInfo
+from data_models.client_info import ClientInfo
+from data_models.simulation_strategy_history import SimulationStrategyHistory
+
 
 class PIDBasedRemovalStrategy(fl.server.strategy.FedAvg):
     def __init__(
@@ -26,6 +30,7 @@ class PIDBasedRemovalStrategy(fl.server.strategy.FedAvg):
             ki: float,
             kd: float,
             kp: float,
+            strategy_history: SimulationStrategyHistory,
             *args,
             **kwargs
     ):
@@ -47,6 +52,8 @@ class PIDBasedRemovalStrategy(fl.server.strategy.FedAvg):
         self.current_threshold = pid_threshold
         self.rounds_history = {}
 
+        self.strategy_history = strategy_history
+
     def calculate_pid(self, client_id, distance):
         """Calculate pid."""
 
@@ -62,7 +69,6 @@ class PIDBasedRemovalStrategy(fl.server.strategy.FedAvg):
             
             return p + i + d
         
-    
     def calculate_pid_scores(self, results, normalized_distances) -> List[float]:
         pid_scores = []
         for i, (client_proxy, _) in enumerate(results):
@@ -128,6 +134,8 @@ class PIDBasedRemovalStrategy(fl.server.strategy.FedAvg):
         self.rounds_history[f'{self.current_round}']['round_info'] = {}
         self.rounds_history[f'{self.current_round}']['round_info']['score_calculation_time_nanos'] = time_end_calc - time_start_calc
 
+        self.strategy_history.insert_round_history_entry(score_calculation_time_nanos=time_end_calc - time_start_calc)
+
         self.rounds_history[f'{self.current_round}']['client_info'] = {}
 
         counted_pids = []
@@ -150,6 +158,12 @@ class PIDBasedRemovalStrategy(fl.server.strategy.FedAvg):
             self.rounds_history[f'{self.current_round}']['client_info'][f'client_{client_id}']['absolute_distance'] = float(distances[i][0])
             self.rounds_history[f'{self.current_round}']['client_info'][f'client_{client_id}']['normalized_distance'] = float(normalized_distances[i][0])
 
+            self.strategy_history.insert_single_client_history_entry(
+                client_id=int(client_id),
+                removal_criterion=float(new_PID),
+                absolute_distance=float(distances[i][0])
+            )
+
             if self.current_round == 1:
                 self.rounds_history[f'{self.current_round}']['client_info'][f'client_{client_id}']['is_removed'] = False
             else:
@@ -169,6 +183,8 @@ class PIDBasedRemovalStrategy(fl.server.strategy.FedAvg):
         self.rounds_history[f'{self.current_round}']['average'] = pid_avg
         self.rounds_history[f'{self.current_round}']['standard_deviation'] = pid_std
         self.current_threshold = pid_avg + (2 * pid_std)
+
+        self.strategy_history.insert_round_history_entry(removal_threshold=self.current_threshold)
 
         logging.debug(self.current_threshold)
 
@@ -194,7 +210,14 @@ class PIDBasedRemovalStrategy(fl.server.strategy.FedAvg):
                     # add this client to the removed_clients list
                     self.removed_client_ids.add(client_id)
                     self.rounds_history[f'{self.current_round}']['client_info'][f'client_{client_id}']['is_removed'] = True
+                    self.strategy_history.insert_single_client_history_entry(
+                        client_id=int(client_id), aggregation_participation=0
+                    )
 
+                else:
+                    self.strategy_history.insert_single_client_history_entry(
+                        client_id=int(client_id), aggregation_participation=1
+                    )
 
         logging.info(f"removed clients are : {self.removed_client_ids}")
 
@@ -220,6 +243,7 @@ class PIDBasedRemovalStrategy(fl.server.strategy.FedAvg):
             accuracy_matrix['cid'] = cid
 
             self.rounds_history[f'{self.current_round}']['client_info'][f'client_{cid}']['accuracy'] = accuracy_matrix['accuracy']
+            self.strategy_history.insert_single_client_history_entry(client_id=int(cid), accuracy=accuracy_matrix['accuracy'])
 
         if not results:
             return None, {}
@@ -229,6 +253,10 @@ class PIDBasedRemovalStrategy(fl.server.strategy.FedAvg):
 
         for client_metadata, evaluate_res in results:
             self.rounds_history[f'{self.current_round}']['client_info'][f'client_{client_metadata.cid}']['loss'] = evaluate_res.loss
+
+            self.strategy_history.insert_single_client_history_entry(
+                client_id=int(client_metadata.cid), loss=evaluate_res.loss
+            )
 
             if client_metadata.cid not in self.removed_client_ids:
                 aggregate_value.append((evaluate_res.num_examples, evaluate_res.loss))
