@@ -1,8 +1,8 @@
 {
     "shared_settings": {
       "remove_clients": "true",
-      "dataset_keyword": "femnist_iid",
-      "num_of_rounds": 100,
+      "dataset_keyword": "its",
+      "num_of_rounds": 50,
       "begin_removing_from_round": 5,
       "num_of_malicious_clients": 2,
       "attack_type": "label_flipping",
@@ -20,19 +20,19 @@
       "Kp": 1,
       "Ki": 0.6,
       "Kd": 0.4,
-      "num_krum_selections": 9,
+      "num_krum_selections": 16,
       "weighted_median_factor": 1,
       "trim_ratio": 0.1,
       "training_subset_fraction": 0.9,
       "evaluate_metrics_aggregation_fn": "weighted_average",
       "num_of_client_epochs": 4,
-      "aggregation_strategy_keyword": "multi-krum",
+      "aggregation_strategy_keyword": "pid",
       "batch_size": 10,
       "preserve_dataset": "true",
-        "num_of_clients": 11,
-        "min_fit_clients": 11,
-        "min_evaluate_clients": 11,
-        "min_available_clients": 11
+        "num_of_clients": 8,
+        "min_fit_clients": 8,
+        "min_evaluate_clients": 8,
+        "min_available_clients": 8
   
     },
     "simulation_strategies": [
