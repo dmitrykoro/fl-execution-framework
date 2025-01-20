@@ -55,7 +55,13 @@ class PIDBasedRemovalStrategy(fl.server.strategy.FedAvg):
 
         self.strategy_history = strategy_history
 
-    def calculate_pid(self, client_id, distance):
+        self.network_model = network_model
+
+    def initialize_parameters(self, client_manager):
+        parameters = ndarrays_to_parameters([param.detach().numpy() for param in self.network_model.parameters()])
+        return parameters
+
+    def calculate_single_client_pid(self, client_id, distance):
         """Calculate pid."""
 
         p = distance * self.kp
