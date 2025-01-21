@@ -181,7 +181,7 @@ class FederatedSimulation:
                remove_clients=self.strategy_config.remove_clients,
                begin_removing_from_round=self.strategy_config.begin_removing_from_round,
                num_malicious_clients=self.strategy_config.num_of_malicious_clients,
-               num_krum_selections=self.strategy_config.num_krum_selections # Use to simulate different Attack strategies
+               num_krum_selections=self.strategy_config.num_krum_selections  # Use to simulate different Attack strategies
             )
         elif aggregation_strategy_keyword == "multi-krum-based":
             self._aggregation_strategy = MultiKrumBasedRemovalStrategy(
@@ -193,7 +193,7 @@ class FederatedSimulation:
                 begin_removing_from_round=self.strategy_config.begin_removing_from_round,
                 num_of_malicious_clients=self.strategy_config.num_of_malicious_clients,
                 num_krum_selections=self.strategy_config.num_krum_selections
-	        )
+            )
         elif aggregation_strategy_keyword == "multi-krum":
             self._aggregation_strategy = MultiKrumStrategy(
                 min_fit_clients=self.strategy_config.min_fit_clients,
@@ -204,7 +204,7 @@ class FederatedSimulation:
                 begin_removing_from_round=self.strategy_config.begin_removing_from_round,
                 num_of_malicious_clients=self.strategy_config.num_of_malicious_clients,
                 num_krum_selections=self.strategy_config.num_krum_selections
-	        )
+            )
         elif aggregation_strategy_keyword == "rfa":
             self._aggregation_strategy = RFABasedRemovalStrategy(
                 min_fit_clients=self.strategy_config.min_fit_clients,

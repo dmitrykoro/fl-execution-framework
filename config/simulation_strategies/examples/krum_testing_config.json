@@ -29,11 +29,10 @@
       "aggregation_strategy_keyword": "pid",
       "batch_size": 10,
       "preserve_dataset": "true",
-        "num_of_clients": 8,
-        "min_fit_clients": 8,
-        "min_evaluate_clients": 8,
-        "min_available_clients": 8
-  
+      "num_of_clients": 8,
+      "min_fit_clients": 8,
+      "min_evaluate_clients": 8,
+      "min_available_clients": 8
     },
     "simulation_strategies": [
       {
