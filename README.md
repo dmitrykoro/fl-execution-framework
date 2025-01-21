@@ -29,9 +29,7 @@ Defines the aggregation strategy. Options:
   - `multi-krum`: Multi-Krum aggregation.
   - `krum`:
   - `multi-krum-based`:
-  - `rfa`:
   - `trimmed_mean`:
-  - `bulyan`:
 
 
 - **`remove_clients`**: attempt to remove malicious clients using strategy-specific mechanisms.
@@ -78,12 +76,8 @@ Defines the aggregation strategy. Options:
 - `pid_threshold`: threshold for client removal.
 - `Kp`, `Ki`, `Kd`: PID controller parameters.
 
-
 **For `krum`, `multi-krum`, `multi-krum-based` strategies**:
 - `num_krum_selections`: 
-
-**For `rfa` strategy**:
-- `weighted_median_factor`:
 
 **For `trimmed_mean` strategy**:
 - `trim_ratio`:
