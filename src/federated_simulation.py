@@ -21,6 +21,11 @@ from network_models.pneumoniamnist_network_definition import PneumoniamnistNetwo
 from client_models.flower_client import FlowerClient
 from simulation_strategies.trust_based_removal_srategy import TrustBasedRemovalStrategy
 from simulation_strategies.pid_based_removal_strategy import PIDBasedRemovalStrategy
+from simulation_strategies.krum_based_removal_strategy import KrumBasedRemovalStrategy
+from simulation_strategies.multi_krum_based_removal_strategy import MultiKrumBasedRemovalStrategy
+from simulation_strategies.rfa_based_removal_strategy import RFABasedRemovalStrategy
+from simulation_strategies.trimmed_mean_based_removal_strategy import TrimmedMeanBasedRemovalStrategy
+from simulation_strategies.bulyan_based_removal_strategy import BulyanBasedRemovalStrategy
 from simulation_strategies.mutli_krum_strategy import MultiKrumStrategy
 
 
@@ -167,6 +172,28 @@ class FederatedSimulation:
                 kd=self.strategy_config.Kd,
                 pid_threshold=self.strategy_config.pid_threshold
             )
+        elif aggregation_strategy_keyword == "krum":
+            self._aggregation_strategy = KrumBasedRemovalStrategy(
+               min_fit_clients=self.strategy_config.min_fit_clients,
+               min_evaluate_clients=self.strategy_config.min_evaluate_clients,
+               min_available_clients=self.strategy_config.min_available_clients,
+               evaluate_metrics_aggregation_fn=self.strategy_config.evaluate_metrics_aggregation_fn,
+               remove_clients=self.strategy_config.remove_clients,
+               begin_removing_from_round=self.strategy_config.begin_removing_from_round,
+               num_malicious_clients=self.strategy_config.num_of_malicious_clients,
+               num_krum_selections=self.strategy_config.num_krum_selections # Use to simulate different Attack strategies
+            )
+        elif aggregation_strategy_keyword == "multi-krum-based":
+            self._aggregation_strategy = MultiKrumBasedRemovalStrategy(
+                min_fit_clients=self.strategy_config.min_fit_clients,
+                min_evaluate_clients=self.strategy_config.min_evaluate_clients,
+                min_available_clients=self.strategy_config.min_available_clients,
+                evaluate_metrics_aggregation_fn=self.strategy_config.evaluate_metrics_aggregation_fn,
+                remove_clients=self.strategy_config.remove_clients,
+                begin_removing_from_round=self.strategy_config.begin_removing_from_round,
+                num_of_malicious_clients=self.strategy_config.num_of_malicious_clients,
+                num_krum_selections=self.strategy_config.num_krum_selections
+	        )
         elif aggregation_strategy_keyword == "multi-krum":
             self._aggregation_strategy = MultiKrumStrategy(
                 min_fit_clients=self.strategy_config.min_fit_clients,
@@ -177,6 +204,36 @@ class FederatedSimulation:
                 begin_removing_from_round=self.strategy_config.begin_removing_from_round,
                 num_of_malicious_clients=self.strategy_config.num_of_malicious_clients,
                 num_krum_selections=self.strategy_config.num_krum_selections
+	        )
+        elif aggregation_strategy_keyword == "rfa":
+            self._aggregation_strategy = RFABasedRemovalStrategy(
+                min_fit_clients=self.strategy_config.min_fit_clients,
+                min_evaluate_clients=self.strategy_config.min_evaluate_clients,
+                min_available_clients=self.strategy_config.min_available_clients,
+                evaluate_metrics_aggregation_fn=self.strategy_config.evaluate_metrics_aggregation_fn,
+                remove_clients=self.strategy_config.remove_clients,
+                begin_removing_from_round=self.strategy_config.begin_removing_from_round,
+                weighted_median_factor=self.strategy_config.weighted_median_factor
+            )
+        elif aggregation_strategy_keyword == "trimmed_mean":
+            self._aggregation_strategy = TrimmedMeanBasedRemovalStrategy(
+                min_fit_clients=self.strategy_config.min_fit_clients,
+                min_evaluate_clients=self.strategy_config.min_evaluate_clients,
+                min_available_clients=self.strategy_config.min_available_clients,
+                evaluate_metrics_aggregation_fn=self.strategy_config.evaluate_metrics_aggregation_fn,
+                remove_clients=self.strategy_config.remove_clients,
+                begin_removing_from_round=self.strategy_config.begin_removing_from_round,
+                trim_ratio=self.strategy_config.trim_ratio
+            )
+        elif aggregation_strategy_keyword == "bulyan":
+            self._aggregation_strategy = BulyanBasedRemovalStrategy(
+                min_fit_clients=self.strategy_config.min_fit_clients,
+                min_evaluate_clients=self.strategy_config.min_evaluate_clients,
+                min_available_clients=self.strategy_config.min_available_clients,
+                evaluate_metrics_aggregation_fn=self.strategy_config.evaluate_metrics_aggregation_fn,
+                remove_clients=self.strategy_config.remove_clients,
+                begin_removing_from_round=self.strategy_config.begin_removing_from_round,
+                num_malicious_clients=self.strategy_config.num_of_malicious_clients
             )
 
         else:

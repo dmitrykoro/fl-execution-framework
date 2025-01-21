@@ -1,0 +1,131 @@
+{
+    "shared_settings": {
+      "remove_clients": "true",
+      "dataset_keyword": "femnist_iid",
+      "num_of_rounds": 100,
+      "begin_removing_from_round": 5,
+      "num_of_malicious_clients": 2,
+      "attack_type": "label_flipping",
+      "show_plots": "false",
+      "save_plots": "true",
+      "save_csv": "true",
+      "training_device": "cpu",
+      "cpus_per_client": 1,
+      "gpus_per_client": 0.25,
+      "trust_threshold": 0,
+      "reputation_threshold": 0.15,
+      "beta_value": 0.75,
+      "num_of_clusters": 1,
+      "pid_threshold": 1,
+      "Kp": 1,
+      "Ki": 0.6,
+      "Kd": 0.05,
+      "num_krum_selections": 18,
+      "weighted_median_factor": 1,
+      "trim_ratio": 0.1,
+      "training_subset_fraction": 0.9,
+      "evaluate_metrics_aggregation_fn": "weighted_average",
+      "num_of_client_epochs": 2,
+      "batch_size": 20,
+      "preserve_dataset": "true",
+      "aggregation_strategy_keyword": "pid"
+    },
+    "simulation_strategies": [
+      {
+        "num_of_clients": 5,
+        "min_fit_clients": 5,
+        "min_evaluate_clients": 5,
+        "min_available_clients": 5
+      },
+      {
+        "num_of_clients": 6,
+        "min_fit_clients": 6,
+        "min_evaluate_clients": 6,
+        "min_available_clients": 6
+      },
+      {
+        "num_of_clients": 7,
+        "min_fit_clients": 7,
+        "min_evaluate_clients": 7,
+        "min_available_clients": 7
+      },
+      {
+        "num_of_clients": 8,
+        "min_fit_clients": 8,
+        "min_evaluate_clients": 8,
+        "min_available_clients": 8
+      },
+      {
+        "num_of_clients": 9,
+        "min_fit_clients": 9,
+        "min_evaluate_clients": 9,
+        "min_available_clients": 9
+      },
+      {
+        "num_of_clients": 10,
+        "min_fit_clients": 10,
+        "min_evaluate_clients": 10,
+        "min_available_clients": 10
+      },
+      {
+        "num_of_clients": 11,
+        "min_fit_clients": 11,
+        "min_evaluate_clients": 11,
+        "min_available_clients": 11
+      },
+      {
+        "num_of_clients": 12,
+        "min_fit_clients": 12,
+        "min_evaluate_clients": 12,
+        "min_available_clients": 12
+      },
+      {
+        "num_of_clients": 13,
+        "min_fit_clients": 13,
+        "min_evaluate_clients": 13,
+        "min_available_clients": 13
+      },
+      {
+        "num_of_clients": 14,
+        "min_fit_clients": 14,
+        "min_evaluate_clients": 14,
+        "min_available_clients": 14
+      },
+      {
+        "num_of_clients": 15,
+        "min_fit_clients": 15,
+        "min_evaluate_clients": 15,
+        "min_available_clients": 15
+      },
+      {
+        "num_of_clients": 16,
+        "min_fit_clients": 16,
+        "min_evaluate_clients": 16,
+        "min_available_clients": 16
+      },
+      {
+        "num_of_clients": 17,
+        "min_fit_clients": 17,
+        "min_evaluate_clients": 17,
+        "min_available_clients": 17
+      },
+      {
+        "num_of_clients": 18,
+        "min_fit_clients": 18,
+        "min_evaluate_clients": 18,
+        "min_available_clients": 18
+      },
+      {
+        "num_of_clients": 19,
+        "min_fit_clients": 19,
+        "min_evaluate_clients": 19,
+        "min_available_clients": 19
+      },
+      {
+        "num_of_clients": 20,
+        "min_fit_clients": 20,
+        "min_evaluate_clients": 20,
+        "min_available_clients": 20
+      }
+    ]
+  }
