@@ -15,6 +15,7 @@ from flwr.common import FitRes, Parameters, Scalar
 from flwr.server.strategy.aggregate import weighted_loss_avg
 from flwr.common import EvaluateRes, Scalar, ndarrays_to_parameters
 from flwr.server.client_proxy import ClientProxy
+from output_handlers.directory_handler import DirectoryHandler
 
 from data_models.round_info import RoundsInfo
 from data_models.client_info import ClientInfo
@@ -56,6 +57,19 @@ class PIDBasedRemovalStrategy(fl.server.strategy.FedAvg):
         self.strategy_history = strategy_history
 
         self.network_model = network_model
+
+        # Create a logger
+        self.logger = logging.getLogger("my_logger")
+        self.logger.setLevel(logging.INFO)  # Set the logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL)
+
+        # Create handlers
+        out_dir = DirectoryHandler.dirname
+        file_handler = logging.FileHandler(f"{out_dir}/output.log")
+        console_handler = logging.StreamHandler()
+
+        # Add the handlers to the logger
+        self.logger.addHandler(file_handler)
+        self.logger.addHandler(console_handler)
 
     def initialize_parameters(self, client_manager):
         parameters = ndarrays_to_parameters([param.detach().numpy() for param in self.network_model.parameters()])
@@ -179,7 +193,7 @@ class PIDBasedRemovalStrategy(fl.server.strategy.FedAvg):
                     self.rounds_history[f'{self.current_round - 1}']['client_info'][f'client_{client_id}']['is_removed']
                 )
 
-            logging.info(
+            self.logger.info(
                 f'Aggregation round: {server_round} '
                 f'Client ID: {client_id} '
                 f'PID: {new_PID} '
@@ -194,7 +208,7 @@ class PIDBasedRemovalStrategy(fl.server.strategy.FedAvg):
 
         self.strategy_history.insert_round_history_entry(removal_threshold=self.current_threshold)
 
-        logging.debug(self.current_threshold)
+        self.logger.info(f"REMOVAL THRESHOLD: {self.current_threshold}")
 
         return aggregated_parameters, aggregated_metrics
 
@@ -227,7 +241,7 @@ class PIDBasedRemovalStrategy(fl.server.strategy.FedAvg):
                         current_round=self.current_round, client_id=int(client_id), aggregation_participation=1
                     )
 
-        logging.info(f"removed clients are : {self.removed_client_ids}")
+        self.logger.info(f"removed clients are : {self.removed_client_ids}")
 
         # select clients based on updated PID and available clients
         sorted_client_ids = sorted(client_pids, key=client_pids.get, reverse=True)
@@ -244,7 +258,7 @@ class PIDBasedRemovalStrategy(fl.server.strategy.FedAvg):
             failures: List[Tuple[Union[ClientProxy, EvaluateRes], BaseException]]
     ) -> Tuple[Optional[float], Dict[str, Scalar]]:
 
-        logging.info('\n' + '-' * 50 + f'AGGREGATION ROUND {server_round}' + '-' * 50)
+        self.logger.info('\n' + '-' * 50 + f'AGGREGATION ROUND {server_round}' + '-' * 50)
         for client_result in results:
             cid = client_result[0].cid
             accuracy_matrix = client_result[1].metrics
@@ -285,7 +299,7 @@ class PIDBasedRemovalStrategy(fl.server.strategy.FedAvg):
 
         metrics_aggregated = {}
 
-        logging.info(
+        self.logger.info(
             f'Round: {server_round} '
             f'Number of aggregated clients: {number_of_clients_in_loss_calc} '
             f'Aggregated loss: {loss_aggregated} '

@@ -41,6 +41,10 @@ class StrategyConfig:
 
     num_krum_selections: int = None
 
+    weighted_median_factor: float = None
+
+    trim_ratio: float = None
+
     strategy_number: int = None
 
     def __init__(self, **kwargs):

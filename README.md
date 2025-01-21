@@ -27,6 +27,11 @@ Defines the aggregation strategy. Options:
   - `trust`: Trust & Reputation-based aggregation.
   - `pid`: PiD-based aggregation.
   - `multi-krum`: Multi-Krum aggregation.
+  - `krum`:
+  - `multi-krum-based`:
+  - `rfa`:
+  - `trimmed_mean`:
+  - `bulyan`:
 
 
 - **`remove_clients`**: attempt to remove malicious clients using strategy-specific mechanisms.
@@ -74,8 +79,16 @@ Defines the aggregation strategy. Options:
 - `Kp`, `Ki`, `Kd`: PID controller parameters.
 
 
-**For `multi-krum` strategy**:
-- `num_krum_selections`: parameter that multi-krum algorithm needs for operation according to paper.
+**For `krum`, `multi-krum`, `multi-krum-based` strategies**:
+- `num_krum_selections`: 
+
+**For `rfa` strategy**:
+- `weighted_median_factor`:
+
+**For `trimmed_mean` strategy**:
+- `trim_ratio`:
+
+
 
 ---
 

@@ -13,7 +13,8 @@ from flwr.server.client_proxy import ClientProxy
 from flwr.server.strategy.krum import Krum
 from output_handlers.directory_handler import DirectoryHandler
 
-class MultiKrumStrategy(fl.server.strategy.FedAvg):
+
+class MultiKrumBasedRemovalStrategy(Krum):
     def __init__(self, remove_clients: bool, num_of_malicious_clients: int, num_krum_selections: int, begin_removing_from_round: int, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.client_scores = {}
@@ -137,22 +138,24 @@ class MultiKrumStrategy(fl.server.strategy.FedAvg):
         # fetch the multi-krum based scores for all available clients
         client_scores = {client_id: self.client_scores.get(client_id, 0) for client_id in available_clients.keys()}
 
-
-        # reset removed clients to empty set at the beginning of each round
-        self.removed_client_ids = set()
-        for client_id in available_clients.keys():
-            self.rounds_history[f'{self.current_round}']['client_info'][f'client_{client_id}']['is_removed'] = False
-        
-        # Remove clients until the desired count is reached in this round
-        while len(self.removed_client_ids) < len(self.client_scores) - self.num_krum_selections:
+        # Remove clients until the desired count is reached
+        total_clients = len(client_scores)
+        if self.remove_clients and len(self.removed_client_ids) < total_clients - self.num_krum_selections:
             # Remove clients with the highest scores not already removed
             eligible_clients = {cid: score for cid, score in client_scores.items() if cid not in self.removed_client_ids}
             if eligible_clients:
                 client_id_to_remove = max(eligible_clients, key=eligible_clients.get)
-
+                self.logger.info(f"Removing client with highest Multi-Krum score: {client_id_to_remove}")
                 self.removed_client_ids.add(client_id_to_remove)
                 self.rounds_history[f'{self.current_round}']['client_info'][f'client_{client_id_to_remove}']['is_removed'] = True
-        self.logger.info(f"Removed clients at round {self.current_round} are : {self.removed_client_ids}")
+
+        # Stop removing if the removal limit is reached
+        if len(self.removed_client_ids) >= total_clients - self.num_krum_selections:
+            self.logger.info(f"Removal limit reached: {total_clients - self.num_krum_selections} clients removed.")
+            self.remove_clients = False  # Stop further removal
+
+        self.logger.info(f"removed clients are : {self.removed_client_ids}")
+
         selected_client_ids = sorted(client_scores, key=client_scores.get, reverse=True)
         fit_ins = fl.common.FitIns(parameters, {})
         return [(available_clients[cid], fit_ins) for cid in selected_client_ids if cid in available_clients]

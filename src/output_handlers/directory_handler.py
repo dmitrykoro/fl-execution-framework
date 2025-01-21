@@ -5,9 +5,11 @@ import csv
 
 
 class DirectoryHandler:
+    dirname = f'out/{str(datetime.datetime.now().strftime("%m-%d-%Y_%H-%M-%S"))}'
+
     def __init__(self):
 
-        self.dirname = f'out/{str(datetime.datetime.now().strftime("%m-%d-%Y_%H-%M-%S"))}'
+        self.dirname = DirectoryHandler.dirname
         self.dataset_dir = None
 
         os.makedirs(self.dirname)
