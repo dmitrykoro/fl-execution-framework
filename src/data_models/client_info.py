@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import List
+from typing import List, Union
 
 
 @dataclass
@@ -8,21 +8,43 @@ class ClientInfo:
     client_id: int
     num_of_rounds: int
     is_malicious: bool = None
-    removal_criterion_history: List[float or None] = None
-    absolute_distance_history: List[float or None] = None
-    loss_history: List[float or None] = None
-    accuracy_history: List[float or None] = None
-    aggregation_participation_history: List[int or None] = None
+    rounds: List[int] = None
+
+    removal_criterion_history: List[Union[float, None]] = None
+    absolute_distance_history: List[Union[float, None]] = None
+    loss_history: List[Union[float, None]] = None
+    accuracy_history: List[Union[float, None]] = None
+    aggregation_participation_history: List[Union[int, None]] = None
+
+    plottable_metrics = [
+        "removal_criterion_history",
+        "absolute_distance_history",
+        "loss_history",
+        "accuracy_history",
+    ]
+
+    savable_metrics = [
+        "removal_criterion_history",
+        "absolute_distance_history",
+        "loss_history",
+        "accuracy_history",
+        "aggregation_participation_history",
+    ]
 
     def __post_init__(self):
-        def _init_list():
-            return [None] * self.num_of_rounds
+        def _init_list(value=None):
+            return [value] * self.num_of_rounds
 
         self.removal_criterion_history = _init_list()
         self.absolute_distance_history = _init_list()
         self.loss_history = _init_list()
         self.accuracy_history = _init_list()
-        self.aggregation_participation_history = _init_list()
+        self.aggregation_participation_history = _init_list(value=1)
+
+        self.rounds = []
+
+        for round_num in range(self.num_of_rounds):
+            self.rounds.append(round_num + 1)
 
     def add_history_entry(
             self,
@@ -44,13 +66,18 @@ class ClientInfo:
         :param aggregation_participation: 1 if client was aggregated, 0 if was not
         """
 
-        if removal_criterion:
+        if removal_criterion is not None:
             self.removal_criterion_history[current_round - 1] = removal_criterion
-        if absolute_distance:
+        if absolute_distance is not None:
             self.absolute_distance_history[current_round - 1] = absolute_distance
-        if loss:
+        if loss is not None:
             self.loss_history[current_round - 1] = loss
-        if accuracy:
+        if accuracy is not None:
             self.accuracy_history[current_round - 1] = accuracy
-        if aggregation_participation:
+        if aggregation_participation is not None:
             self.aggregation_participation_history[current_round - 1] = aggregation_participation
+
+    def get_metric_by_name(self, metric: str) -> List:
+        """Get single plottable or savable metric values by name"""
+
+        return getattr(self, metric)

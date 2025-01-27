@@ -4,19 +4,31 @@ from data_models.client_info import ClientInfo
 from data_models.round_info import RoundsInfo
 from data_models.simulation_strategy_config import StrategyConfig
 
+from dataset_handlers.dataset_handler import DatasetHandler
+
 
 @dataclass
 class SimulationStrategyHistory:
 
     strategy_config: StrategyConfig
+    dataset_handler: DatasetHandler
+    rounds_history: RoundsInfo
     _clients_dict: dict = field(default_factory=dict)
-    rounds_history: RoundsInfo = field(init=False)
 
     def __post_init__(self):
         self.rounds_history = RoundsInfo(simulation_strategy_config=self.strategy_config)
 
         for i in range(self.strategy_config.num_of_clients):
-            self._clients_dict[i] = ClientInfo(client_id=i, num_of_rounds=self.strategy_config.num_of_rounds)
+            self._clients_dict[i] = ClientInfo(
+                client_id=i,
+                num_of_rounds=self.strategy_config.num_of_rounds,
+                is_malicious=(i in self.dataset_handler.poisoned_client_ids)
+            )
+
+    def get_all_clients(self) -> list:
+        """Get list of all ClientInfo instances"""
+
+        return [client for client in self._clients_dict.values()]
 
     def insert_single_client_history_entry(
             self,
@@ -28,7 +40,7 @@ class SimulationStrategyHistory:
             accuracy: float = None,
             aggregation_participation: int = None
     ) -> None:
-        updating_client = self._clients_dict[client_id]
+        updating_client: ClientInfo = self._clients_dict[client_id]
 
         updating_client.add_history_entry(
             current_round,
@@ -42,10 +54,84 @@ class SimulationStrategyHistory:
     def insert_round_history_entry(
             self,
             score_calculation_time_nanos: int = None,
-            removal_threshold: float = None
+            removal_threshold: float = None,
+            loss_aggregated: float = None
     ) -> None:
 
         if score_calculation_time_nanos:
             self.rounds_history.score_calculation_time_nanos_history.append(score_calculation_time_nanos)
         if removal_threshold:
             self.rounds_history.removal_threshold_history.append(removal_threshold)
+        if loss_aggregated:
+            self.rounds_history.aggregated_loss_history.append(loss_aggregated)
+
+    def update_client_participation(
+            self,
+            current_round: int,
+            removed_client_ids: set
+    ) -> None:
+
+        for client_id in removed_client_ids:
+            self.insert_single_client_history_entry(
+                client_id=int(client_id), current_round=current_round, aggregation_participation=0
+            )
+
+    def calculate_additional_rounds_data(self) -> None:
+        """
+        The primary data that is collected during the simulation is as follows:
+
+        Per-client data ver rounds (stored in ClientInfo):
+            loss_history,
+            accuracy_history - achieved accuracy during the validation,
+            removal_criterion_history - the calculated value based on which the removal is performed,
+            absolute_distance_history (to cluster center) - the absolute distance to the center of the cluster of all models
+
+        Per-round data  over rounds (stored in RoundsInfo):
+            aggregated_loss_history - loss of all aggregated client models
+            score_calculation_time_nanos_history - time that was used to calculate removal_criterion
+            removal_threshold_history - removal threshold that was used for exclusion at each round
+
+        The following derivative data is calculated here (for each round):
+
+        average_accuracy_history - average accuracy of all benign clients that are not removed at a given round
+        <to be continued>
+
+        """
+
+        for round_num in range(self.strategy_config.num_of_rounds):
+
+            round_tp = 0
+            round_tn = 0
+            round_fp = 0
+            round_fn = 0
+
+            num_aggregated_clients = 0
+            sum_aggregated_accuracies = 0
+
+            for client_info in self.get_all_clients():
+
+                client_is_malicious = client_info.is_malicious
+                client_aggregated = client_info.aggregation_participation_history[round_num] == 1
+
+                # true positive: a good client aggregated
+                if not client_is_malicious and client_aggregated:
+                    round_tp += 1
+                # true negative: a malicious client not aggregated
+                if client_is_malicious and not client_aggregated:
+                    round_tn += 1
+                # false positive: a good client not aggregated
+                if not client_is_malicious and not client_aggregated:
+                    round_fp += 1
+                # false negative: a malicious client aggregated
+                if client_is_malicious and client_aggregated:
+                    round_fn += 1
+
+                # sum of accuracies of aggregated benign clients
+                if not client_is_malicious and client_aggregated:
+                    num_aggregated_clients += 1
+                    sum_aggregated_accuracies += client_info.accuracy_history[round_num]
+
+            self.rounds_history.append_tp_tn_fp_fn(round_tp, round_tn, round_fp, round_fn)
+            self.rounds_history.average_accuracy_history.append(sum_aggregated_accuracies / num_aggregated_clients)
+
+        self.rounds_history.calculate_additional_metrics()

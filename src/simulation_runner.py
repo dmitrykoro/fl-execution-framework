@@ -6,6 +6,8 @@ from config_loaders.config_loader import ConfigLoader
 from output_handlers import plot_handler
 from output_handlers.directory_handler import DirectoryHandler
 
+from output_handlers import new_plot_handler
+
 from federated_simulation import FederatedSimulation
 
 from data_models.simulation_strategy_config import StrategyConfig
@@ -59,7 +61,8 @@ class SimulationRunner:
 
             simulation_strategy = FederatedSimulation(
                 strategy_config=strategy_config,
-                dataset_dir=self._directory_handler.dataset_dir
+                dataset_dir=self._directory_handler.dataset_dir,
+                dataset_handler=dataset_handler
             )
             simulation_strategy.run_simulation()
 
@@ -69,10 +72,18 @@ class SimulationRunner:
             plot_handler.show_plots_within_strategy(simulation_strategy, self._directory_handler)
             self._directory_handler.save_all(simulation_strategy)
 
+            # new plot handler
+            new_plot_handler.show_plots_within_strategy(simulation_strategy, self._directory_handler)
+            simulation_strategy.strategy_history.calculate_additional_rounds_data()
+            self._directory_handler.save_new_metrics_to_csv(simulation_strategy.strategy_history)
+
             dataset_handler.teardown_dataset()
 
         # after all strategies are executed, show comparison averaging plots
         plot_handler.show_comparing_plots_among_strategies(executed_simulation_strategies, self._directory_handler)
+
+        # new plot handler
+        new_plot_handler.show_inter_strategy_plots(executed_simulation_strategies, self._directory_handler)
 
 
 """Put the filename of the json strategy from config/simulation_strategies here"""

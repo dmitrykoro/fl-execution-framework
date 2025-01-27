@@ -3,17 +3,27 @@ import datetime
 import json
 import csv
 
+from data_models.simulation_strategy_history import SimulationStrategyHistory
+from data_models.simulation_strategy_config import StrategyConfig
+
 
 class DirectoryHandler:
     dirname = f'out/{str(datetime.datetime.now().strftime("%m-%d-%Y_%H-%M-%S"))}'
+    new_plots_dirname = dirname + "/new_plots"
+    new_csv_dirname = dirname + "/new_csv"
 
     def __init__(self):
 
+        self.simulation_strategy_history = None
         self.dirname = DirectoryHandler.dirname
+        self.new_plots_dirname = DirectoryHandler.new_plots_dirname
         self.dataset_dir = None
 
         os.makedirs(self.dirname)
         os.makedirs(self.dirname + "/csv")
+
+        os.makedirs(self.new_plots_dirname)
+        os.makedirs(self.new_csv_dirname)
 
         self.rounds_history = None
         self.strategy_config = None
@@ -118,12 +128,61 @@ class DirectoryHandler:
         with open(f"{self.dirname}/strategy_config_{self.strategy_config.strategy_number}.json", "w") as file:
             json.dump(self.strategy_config.__dict__, file, indent=4)
 
-    def _save_latex_plots(self):
-        """Save plots in tikzpicture format to paste into latex paper"""
+    def save_new_metrics_to_csv(
+            self,
+            simulation_strategy_history: SimulationStrategyHistory
+    ) -> None:
+        """
+        Save per-client and per-round metrics to CSV files.
+        """
 
-        raise NotImplementedError
+        # Save per-client metrics
+        client_csv_path = f"{self.dirname}/new_csv/per_client_metrics_{self.strategy_config.strategy_number}.csv"
+        with open(client_csv_path, mode='w', newline='') as client_csv:
+            writer = csv.writer(client_csv)
 
-    def save_exclusion_history(self):
-        """Save the history of client exclusion over rounds"""
+            # Header row for client metrics
+            header = ["round"]
+            for client_id, client_info in simulation_strategy_history._clients_dict.items():
+                for metric in client_info.__annotations__.keys():
+                    if metric.endswith("_history"):
+                        header.append(f"{client_id}_{metric}")
+            writer.writerow(header)
 
-        raise NotImplementedError
+            # Data rows for client metrics
+            max_rounds = max(
+                len(getattr(client_info, metric)) for client_info in simulation_strategy_history._clients_dict.values()
+                for metric in client_info.__annotations__.keys() if metric.endswith("_history")
+            )
+            for round_num in range(max_rounds):
+                row = [round_num + 1]  # 1-based round indexing
+                for client_id, client_info in simulation_strategy_history._clients_dict.items():
+                    for metric in client_info.__annotations__.keys():
+                        if metric.endswith("_history"):
+                            history = getattr(client_info, metric)
+                            row.append(history[round_num] if round_num < len(history) else "")
+                writer.writerow(row)
+
+        # Save per-round metrics
+        round_csv_path = f"{self.dirname}/new_csv/round_metrics_{self.strategy_config.strategy_number}.csv"
+        with open(round_csv_path, mode='w', newline='') as round_csv:
+            writer = csv.writer(round_csv)
+
+            # Header row with all savable round metrics
+            header = ["round"] + [
+                metric_name for metric_name, metric_history in simulation_strategy_history.rounds_history.__dict__.items()
+                if isinstance(metric_history, list)
+            ]
+            writer.writerow(header)
+
+            # Data rows for all rounds
+            max_rounds = max(
+                len(metric_history) for metric_name, metric_history in simulation_strategy_history.rounds_history.__dict__.items()
+                if isinstance(metric_history, list)
+            )
+            for round_num in range(max_rounds):
+                row = [round_num + 1]  # 1-based round indexing
+                for metric_name, metric_history in simulation_strategy_history.rounds_history.__dict__.items():
+                    if isinstance(metric_history, list):
+                        row.append(metric_history[round_num] if round_num < len(metric_history) else "")
+                writer.writerow(row)
