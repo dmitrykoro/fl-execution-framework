@@ -69,8 +69,8 @@ class SimulationRunner:
             executed_simulation_strategies.append(simulation_strategy)
 
             # after the execution of the strategy, show plots per client
-            plot_handler.show_plots_within_strategy(simulation_strategy, self._directory_handler)
-            self._directory_handler.save_all(simulation_strategy)
+            # plot_handler.show_plots_within_strategy(simulation_strategy, self._directory_handler)
+            # self._directory_handler.save_all(simulation_strategy)
 
             # new plot handler
             new_plot_handler.show_plots_within_strategy(simulation_strategy, self._directory_handler)
@@ -80,7 +80,7 @@ class SimulationRunner:
             dataset_handler.teardown_dataset()
 
         # after all strategies are executed, show comparison averaging plots
-        plot_handler.show_comparing_plots_among_strategies(executed_simulation_strategies, self._directory_handler)
+        # plot_handler.show_comparing_plots_among_strategies(executed_simulation_strategies, self._directory_handler)
 
         # new plot handler
         new_plot_handler.show_inter_strategy_plots(executed_simulation_strategies, self._directory_handler)

@@ -81,7 +81,6 @@ class FederatedSimulation:
                 "num_gpus": self.strategy_config.gpus_per_client
             },
         )
-        self.rounds_history = self._additional_data_calculator.calculate_data(self._aggregation_strategy.rounds_history)
 
     def _assign_all_properties(self) -> None:
         """Assign simulation properties based on strategy_dict"""
