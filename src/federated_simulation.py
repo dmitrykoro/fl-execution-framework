@@ -19,6 +19,7 @@ from network_models.flair_network_definition import FlairNetwork
 from network_models.pneumoniamnist_network_definition import PneumoniamnistNetwork
 
 from client_models.flower_client import FlowerClient
+
 from simulation_strategies.trust_based_removal_srategy import TrustBasedRemovalStrategy
 from simulation_strategies.pid_based_removal_strategy import PIDBasedRemovalStrategy
 from simulation_strategies.krum_based_removal_strategy import KrumBasedRemovalStrategy
@@ -28,23 +29,32 @@ from simulation_strategies.trimmed_mean_based_removal_strategy import TrimmedMea
 from simulation_strategies.bulyan_based_removal_strategy import BulyanBasedRemovalStrategy
 from simulation_strategies.mutli_krum_strategy import MultiKrumStrategy
 
-
 from utils.additional_data_calculator import AdditionalDataCalculator
 
 from data_models.simulation_strategy_config import StrategyConfig
 from data_models.simulation_strategy_history import SimulationStrategyHistory
+from data_models.round_info import RoundsInfo
+
+from dataset_handlers.dataset_handler import DatasetHandler
 
 
 class FederatedSimulation:
     def __init__(
             self,
             strategy_config: StrategyConfig,
-            dataset_dir: os.path
+            dataset_dir: os.path,
+            dataset_handler: DatasetHandler
     ):
         self.strategy_config = strategy_config
         self.rounds_history = None
 
-        self.strategy_history = SimulationStrategyHistory(strategy_config=strategy_config)
+        self.dataset_handler = dataset_handler
+
+        self.strategy_history = SimulationStrategyHistory(
+            strategy_config=self.strategy_config,
+            dataset_handler=self.dataset_handler,
+            rounds_history=RoundsInfo(simulation_strategy_config=self.strategy_config)
+        )
 
         self._dataset_dir = dataset_dir
 
@@ -160,6 +170,7 @@ class FederatedSimulation:
                 remove_clients=self.strategy_config.remove_clients,
                 beta_value=self.strategy_config.beta_value,
                 trust_threshold=self.strategy_config.trust_threshold,
+                strategy_history=self.strategy_history,
                 begin_removing_from_round=self.strategy_config.begin_removing_from_round
             )
         elif aggregation_strategy_keyword == "pid":
@@ -186,6 +197,7 @@ class FederatedSimulation:
                remove_clients=self.strategy_config.remove_clients,
                begin_removing_from_round=self.strategy_config.begin_removing_from_round,
                num_malicious_clients=self.strategy_config.num_of_malicious_clients,
+               strategy_history=self.strategy_history,
                num_krum_selections=self.strategy_config.num_krum_selections  # Use to simulate different Attack strategies
             )
         elif aggregation_strategy_keyword == "multi-krum-based":
@@ -197,6 +209,7 @@ class FederatedSimulation:
                 remove_clients=self.strategy_config.remove_clients,
                 begin_removing_from_round=self.strategy_config.begin_removing_from_round,
                 num_of_malicious_clients=self.strategy_config.num_of_malicious_clients,
+                strategy_history=self.strategy_history,
                 num_krum_selections=self.strategy_config.num_krum_selections
             )
         elif aggregation_strategy_keyword == "multi-krum":
@@ -208,6 +221,7 @@ class FederatedSimulation:
                 remove_clients=self.strategy_config.remove_clients,
                 begin_removing_from_round=self.strategy_config.begin_removing_from_round,
                 num_of_malicious_clients=self.strategy_config.num_of_malicious_clients,
+                strategy_history=self.strategy_history,
                 num_krum_selections=self.strategy_config.num_krum_selections
             )
         elif aggregation_strategy_keyword == "rfa":
@@ -228,6 +242,7 @@ class FederatedSimulation:
                 evaluate_metrics_aggregation_fn=self.strategy_config.evaluate_metrics_aggregation_fn,
                 remove_clients=self.strategy_config.remove_clients,
                 begin_removing_from_round=self.strategy_config.begin_removing_from_round,
+                strategy_history=self.strategy_history,
                 trim_ratio=self.strategy_config.trim_ratio
             )
         elif aggregation_strategy_keyword == "bulyan":
