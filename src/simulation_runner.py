@@ -3,15 +3,12 @@ import logging
 
 from config_loaders.config_loader import ConfigLoader
 
-from output_handlers import plot_handler
 from output_handlers.directory_handler import DirectoryHandler
-
 from output_handlers import new_plot_handler
 
 from federated_simulation import FederatedSimulation
 
 from data_models.simulation_strategy_config import StrategyConfig
-from data_models.simulation_strategy_history import SimulationStrategyHistory
 
 from dataset_handlers.dataset_handler import DatasetHandler
 
@@ -68,21 +65,15 @@ class SimulationRunner:
 
             executed_simulation_strategies.append(simulation_strategy)
 
-            # after the execution of the strategy, show plots per client
-            # plot_handler.show_plots_within_strategy(simulation_strategy, self._directory_handler)
-            # self._directory_handler.save_all(simulation_strategy)
-
-            # new plot handler
+            # generate per-client plots
             new_plot_handler.show_plots_within_strategy(simulation_strategy, self._directory_handler)
+
             simulation_strategy.strategy_history.calculate_additional_rounds_data()
-            self._directory_handler.save_new_metrics_to_csv(simulation_strategy.strategy_history)
+            self._directory_handler.save_csv_and_config(simulation_strategy.strategy_history)
 
             dataset_handler.teardown_dataset()
 
         # after all strategies are executed, show comparison averaging plots
-        # plot_handler.show_comparing_plots_among_strategies(executed_simulation_strategies, self._directory_handler)
-
-        # new plot handler
         new_plot_handler.show_inter_strategy_plots(executed_simulation_strategies, self._directory_handler)
 
 

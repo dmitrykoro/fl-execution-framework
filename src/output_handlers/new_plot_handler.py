@@ -49,10 +49,12 @@ def show_plots_within_strategy(
     for metric_name in plottable_metrics:
         plt.figure(figsize=plot_size)
 
-        if metric_name == "removal_criterion_history":
+        removal_threshold_history = simulation_strategy.strategy_history.rounds_history.removal_threshold_history
+
+        if metric_name == "removal_criterion_history" and removal_threshold_history:  # if threshold was collected
             plt.plot(
                 list_of_client_histories[0].rounds,
-                simulation_strategy.strategy_history.rounds_history.removal_threshold_history,
+                removal_threshold_history,
                 label=f"removal threshold",
                 linestyle="--",
                 color="red"
@@ -122,11 +124,12 @@ def show_inter_strategy_plots(
 
             metric_values = round_info.get_metric_by_name(metric_name)
 
-            plt.plot(
-                rounds,
-                metric_values,
-                label=_generate_single_string_strategy_label(simulation_strategy.strategy_config)
-            )
+            if metric_values:  # plot only if metrics were actually collected
+                plt.plot(
+                    rounds,
+                    metric_values,
+                    label=_generate_single_string_strategy_label(simulation_strategy.strategy_config)
+                )
 
         plt.xlabel('round #')
         plt.ylabel(metric_name)

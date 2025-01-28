@@ -220,6 +220,12 @@ class MultiKrumStrategy(fl.server.strategy.FedAvg):
         number_of_clients_in_loss_calc = 0
 
         for client_metadata, evaluate_res in results:
+            self.strategy_history.insert_single_client_history_entry(
+                client_id=int(client_metadata.cid),
+                current_round=self.current_round,
+                loss=evaluate_res.loss
+            )
+
             if client_metadata.cid not in self.removed_client_ids:
                 aggregate_value.append((evaluate_res.num_examples, evaluate_res.loss))
                 number_of_clients_in_loss_calc += 1

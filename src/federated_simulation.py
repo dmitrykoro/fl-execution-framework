@@ -29,8 +29,6 @@ from simulation_strategies.trimmed_mean_based_removal_strategy import TrimmedMea
 from simulation_strategies.bulyan_based_removal_strategy import BulyanBasedRemovalStrategy
 from simulation_strategies.mutli_krum_strategy import MultiKrumStrategy
 
-from utils.additional_data_calculator import AdditionalDataCalculator
-
 from data_models.simulation_strategy_config import StrategyConfig
 from data_models.simulation_strategy_history import SimulationStrategyHistory
 from data_models.round_info import RoundsInfo
@@ -57,8 +55,6 @@ class FederatedSimulation:
         )
 
         self._dataset_dir = dataset_dir
-
-        self._additional_data_calculator = AdditionalDataCalculator()
 
         self._network_model = None
         self._aggregation_strategy = None

@@ -18,6 +18,7 @@ class RoundsInfo:
     tn_history: List[float] = field(default_factory=list)
     fp_history: List[float] = field(default_factory=list)
     fn_history: List[float] = field(default_factory=list)
+    total_fp_and_fn_history: List[float] = field(default_factory=list)
 
     removal_accuracy_history: List[float] = field(default_factory=list)
     removal_precision_history: List[float] = field(default_factory=list)
@@ -32,6 +33,7 @@ class RoundsInfo:
         "removal_precision_history",
         "removal_recall_history",
         "removal_f1_history",
+        "total_fp_and_fn_history",
     ]
 
     savable_metrics = [
@@ -109,3 +111,5 @@ class RoundsInfo:
             self.removal_f1_history.append(
                 2 * precision * recall / (precision + recall)
             )
+
+            self.total_fp_and_fn_history.append(round_fp + round_fn)

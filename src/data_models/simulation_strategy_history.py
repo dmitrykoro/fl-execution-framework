@@ -73,7 +73,9 @@ class SimulationStrategyHistory:
 
         for client_id in removed_client_ids:
             self.insert_single_client_history_entry(
-                client_id=int(client_id), current_round=current_round, aggregation_participation=0
+                client_id=int(client_id),
+                current_round=current_round,
+                aggregation_participation=0
             )
 
     def calculate_additional_rounds_data(self) -> None:
@@ -100,10 +102,10 @@ class SimulationStrategyHistory:
 
         for round_num in range(self.strategy_config.num_of_rounds):
 
-            round_tp = 0
-            round_tn = 0
-            round_fp = 0
-            round_fn = 0
+            round_tp_count = 0
+            round_tn_count = 0
+            round_fp_count = 0
+            round_fn_count = 0
 
             num_aggregated_clients = 0
             sum_aggregated_accuracies = 0
@@ -111,27 +113,27 @@ class SimulationStrategyHistory:
             for client_info in self.get_all_clients():
 
                 client_is_malicious = client_info.is_malicious
-                client_aggregated = client_info.aggregation_participation_history[round_num] == 1
+                client_was_aggregated = client_info.aggregation_participation_history[round_num] == 1
 
-                # true positive: a good client aggregated
-                if not client_is_malicious and client_aggregated:
-                    round_tp += 1
-                # true negative: a malicious client not aggregated
-                if client_is_malicious and not client_aggregated:
-                    round_tn += 1
-                # false positive: a good client not aggregated
-                if not client_is_malicious and not client_aggregated:
-                    round_fp += 1
-                # false negative: a malicious client aggregated
-                if client_is_malicious and client_aggregated:
-                    round_fn += 1
+                # true positive: a good client was aggregated
+                if not client_is_malicious and client_was_aggregated:
+                    round_tp_count += 1
+                # true negative: a malicious client was not aggregated
+                if client_is_malicious and not client_was_aggregated:
+                    round_tn_count += 1
+                # false positive: a good client was not aggregated
+                if not client_is_malicious and not client_was_aggregated:
+                    round_fp_count += 1
+                # false negative: a malicious client was aggregated
+                if client_is_malicious and client_was_aggregated:
+                    round_fn_count += 1
 
                 # sum of accuracies of aggregated benign clients
-                if not client_is_malicious and client_aggregated:
+                if not client_is_malicious and client_was_aggregated:
                     num_aggregated_clients += 1
                     sum_aggregated_accuracies += client_info.accuracy_history[round_num]
 
-            self.rounds_history.append_tp_tn_fp_fn(round_tp, round_tn, round_fp, round_fn)
+            self.rounds_history.append_tp_tn_fp_fn(round_tp_count, round_tn_count, round_fp_count, round_fn_count)
             self.rounds_history.average_accuracy_history.append(sum_aggregated_accuracies / num_aggregated_clients)
 
         self.rounds_history.calculate_additional_metrics()
