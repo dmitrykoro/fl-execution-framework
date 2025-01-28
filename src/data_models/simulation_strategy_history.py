@@ -40,6 +40,8 @@ class SimulationStrategyHistory:
             accuracy: float = None,
             aggregation_participation: int = None
     ) -> None:
+        """Insert history entry for a single client. Only those values provided will be updated."""
+
         updating_client: ClientInfo = self._clients_dict[client_id]
 
         updating_client.add_history_entry(
@@ -57,6 +59,7 @@ class SimulationStrategyHistory:
             removal_threshold: float = None,
             loss_aggregated: float = None
     ) -> None:
+        """Append the round history info to the history. Only those values provided will be updated."""
 
         if score_calculation_time_nanos:
             self.rounds_history.score_calculation_time_nanos_history.append(score_calculation_time_nanos)
@@ -70,6 +73,7 @@ class SimulationStrategyHistory:
             current_round: int,
             removed_client_ids: set
     ) -> None:
+        """Update history of client participation based on the IDs of removed clients at the given round."""
 
         for client_id in removed_client_ids:
             self.insert_single_client_history_entry(
@@ -96,6 +100,7 @@ class SimulationStrategyHistory:
         The following derivative data is calculated here (for each round):
 
         average_accuracy_history - average accuracy of all benign clients that are not removed at a given round
+
         <to be continued>
 
         """
