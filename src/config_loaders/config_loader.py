@@ -3,6 +3,8 @@ import json
 import logging
 import sys
 
+from config_loaders.validate_strategy_config import validate_strategy_config
+
 
 class ConfigLoader:
     def __init__(
@@ -46,6 +48,10 @@ class ConfigLoader:
 
             for strategy in raw_config['simulation_strategies']:
                 strategy.update(shared_settings)
+
+            for strategy in raw_config['simulation_strategies']:
+                validate_strategy_config(strategy)
+                logging.info(f"Successfully validated config from {config_path}.")
 
             return raw_config["simulation_strategies"]
 
