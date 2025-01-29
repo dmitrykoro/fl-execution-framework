@@ -3,34 +3,25 @@ import datetime
 import json
 import csv
 
+from data_models.simulation_strategy_history import SimulationStrategyHistory
+
 
 class DirectoryHandler:
     dirname = f'out/{str(datetime.datetime.now().strftime("%m-%d-%Y_%H-%M-%S"))}'
+    new_plots_dirname = dirname
+    new_csv_dirname = dirname + "/csv"
 
     def __init__(self):
 
+        self.simulation_strategy_history = None
         self.dirname = DirectoryHandler.dirname
+        self.new_plots_dirname = DirectoryHandler.new_plots_dirname
         self.dataset_dir = None
 
         os.makedirs(self.dirname)
-        os.makedirs(self.dirname + "/csv")
+        os.makedirs(self.new_csv_dirname)
 
-        self.rounds_history = None
-        self.strategy_config = None
-
-        self.client_info_metric_keys = (
-            'accuracy',
-            'loss',
-            'removal_criterion',
-            'absolute_distance',
-            'normalized_distance',
-        )
-        self.round_info_metric_keys = (
-            'average_loss',
-            'average_accuracy',
-            # 'average_distance',
-            'score_calculation_time_nanos',
-        )
+        self.simulation_strategy_history: SimulationStrategyHistory
 
     def assign_dataset_dir(self, strategy_number):
         """Create and set dataset directory for the strategy"""
@@ -38,92 +29,87 @@ class DirectoryHandler:
         self.dataset_dir = self.dirname + "/dataset_" + str(strategy_number)
         os.makedirs(self.dataset_dir)
 
-    def save_all(self, simulation_strategy):
-        """Save all data"""
+    def save_csv_and_config(
+            self,
+            simulation_strategy_history: SimulationStrategyHistory
+    ) -> None:
+        """
+        Save per-client and per-round metrics to CSV files, as well as simulation strategy config.
+        """
 
-        self.rounds_history = simulation_strategy.rounds_history
-        self.strategy_config = simulation_strategy.strategy_config
+        self.simulation_strategy_history = simulation_strategy_history
 
-        self._save_all_csv()
         self._save_simulation_config()
-
-    def _save_client_metrics(self, metric_key):
-        """Save client metrics to CSV"""
-
-        # Prepare a dictionary to hold the metrics for each round
-        rounds_data = {}
-
-        # Iterate over each round and its client data
-        for current_round, round_clients_data in self.rounds_history.items():
-            # Prepare a row for the current round
-            round_row = {"round": current_round}
-
-            for client_id, client_data in round_clients_data["client_info"].items():
-                # Get the current metric for the client
-                current_metric = client_data[f"{metric_key}"]
-                # Add the metric to the round_row under the appropriate client key
-                round_row[f"{client_id}_{metric_key}"] = current_metric
-
-            # Store the row in rounds_data
-            rounds_data[current_round] = round_row
-
-        # Get all round rows and sort them by round
-        sorted_rounds_data = dict(rounds_data.items())
-
-        # Extract fieldnames for CSV
-        fieldnames = ["round"] + [f"{client_id}_{metric_key}" for client_id in round_clients_data["client_info"].keys()]
-
-        # Write the data to a CSV file
-        with open(
-                f"{self.dirname}/csv/{metric_key}_{self.strategy_config.strategy_number}.csv",
-                "w",
-                newline=""
-        ) as csvfile:
-            writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
-            writer.writeheader()
-
-            for round_row in sorted_rounds_data.values():
-                writer.writerow(round_row)
-
-    def _save_round_metrics(self, metric_key):
-        """Save round metrics to CSV"""
-
-        with open(
-                f"{self.dirname}/csv/{metric_key}_{self.strategy_config.strategy_number}.csv",
-                "w",
-                newline=""
-        ) as csvfile:
-            writer = csv.writer(csvfile)
-            writer.writerow(["round", metric_key])
-
-            for i, round_metrics in self.rounds_history.items():
-                try:
-                    metric = round_metrics["round_info"][metric_key]
-                except KeyError:
-                    metric = "-"
-
-                writer.writerow([int(i), metric])
-
-    def _save_all_csv(self):
-        """Save CSV to current directory"""
-
-        for metric_key in self.round_info_metric_keys:
-            self._save_round_metrics(metric_key)
-        for metric_key in self.client_info_metric_keys:
-            self._save_client_metrics(metric_key)
+        self._save_per_client_to_csv()
+        self._save_per_round_to_csv()
 
     def _save_simulation_config(self):
         """Save simulation config to current directory"""
 
-        with open(f"{self.dirname}/strategy_config_{self.strategy_config.strategy_number}.json", "w") as file:
-            json.dump(self.strategy_config.__dict__, file, indent=4)
+        with open(
+                f"{self.dirname}/"
+                f"strategy_config_{self.simulation_strategy_history.strategy_config.strategy_number}.json",
+                "w"
+        ) as file:
+            json.dump(self.simulation_strategy_history.strategy_config.__dict__, file, indent=4)
 
-    def _save_latex_plots(self):
-        """Save plots in tikzpicture format to paste into latex paper"""
+    def _save_per_client_to_csv(self):
+        """Save per-client metrics to csv"""
 
-        raise NotImplementedError
+        csv_filepath = (
+            f"{self.new_csv_dirname}/"
+            f"per_client_metrics_{self.simulation_strategy_history.strategy_config.strategy_number}.csv"
+        )
+        with open(csv_filepath, mode="w", newline="") as client_csv:
+            writer = csv.writer(client_csv)
 
-    def save_exclusion_history(self):
-        """Save the history of client exclusion over rounds"""
+            csv_headers = ["round #"]
+            savable_metrics = self.simulation_strategy_history.get_all_clients()[0].savable_metrics
 
-        raise NotImplementedError
+            for metric_name in savable_metrics:
+                for client_info in self.simulation_strategy_history.get_all_clients():
+                    csv_headers.append(f"client_{client_info.client_id}_{metric_name}")
+
+            writer.writerow(csv_headers)
+
+            for round_num in range(1, self.simulation_strategy_history.strategy_config.num_of_rounds + 1):
+                row = [round_num]
+
+                for metric_name in savable_metrics:
+                    for client_info in self.simulation_strategy_history.get_all_clients():
+                        collected_history = client_info.get_metric_by_name(metric_name)
+
+                        if collected_history:
+                            row.append(client_info.get_metric_by_name(metric_name)[round_num - 1])
+                        else:
+                            row.append("not collected")
+
+                writer.writerow(row)
+
+    def _save_per_round_to_csv(self):
+        """Save per-round metrics to csv"""
+
+        csv_filepath = (
+            f"{self.new_csv_dirname}/"
+            f"round_metrics_{self.simulation_strategy_history.strategy_config.strategy_number}.csv"
+        )
+        with open(csv_filepath, mode="w", newline="") as round_csv:
+            writer = csv.writer(round_csv)
+
+            savable_metrics = self.simulation_strategy_history.rounds_history.savable_metrics
+
+            csv_headers = ["round #"] + [metric_name for metric_name in savable_metrics]
+            writer.writerow(csv_headers)
+
+            for round_num in range(1, self.simulation_strategy_history.strategy_config.num_of_rounds + 1):
+                row = [round_num]
+
+                for metric_name in savable_metrics:
+                    collected_history = self.simulation_strategy_history.rounds_history.get_metric_by_name(metric_name)
+
+                    if collected_history:
+                        row.append(collected_history[round_num - 1])
+                    else:
+                        row.append("not collected")
+
+                writer.writerow(row)

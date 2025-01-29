@@ -27,24 +27,32 @@ from simulation_strategies.multi_krum_based_removal_strategy import MultiKrumBas
 from simulation_strategies.trimmed_mean_based_removal_strategy import TrimmedMeanBasedRemovalStrategy
 from simulation_strategies.mutli_krum_strategy import MultiKrumStrategy
 
-
-from utils.additional_data_calculator import AdditionalDataCalculator
-
 from data_models.simulation_strategy_config import StrategyConfig
+from data_models.simulation_strategy_history import SimulationStrategyHistory
+from data_models.round_info import RoundsInfo
+
+from dataset_handlers.dataset_handler import DatasetHandler
 
 
 class FederatedSimulation:
     def __init__(
             self,
             strategy_config: StrategyConfig,
-            dataset_dir: os.path
+            dataset_dir: os.path,
+            dataset_handler: DatasetHandler
     ):
         self.strategy_config = strategy_config
         self.rounds_history = None
 
-        self._dataset_dir = dataset_dir
+        self.dataset_handler = dataset_handler
 
-        self._additional_data_calculator = AdditionalDataCalculator()
+        self.strategy_history = SimulationStrategyHistory(
+            strategy_config=self.strategy_config,
+            dataset_handler=self.dataset_handler,
+            rounds_history=RoundsInfo(simulation_strategy_config=self.strategy_config)
+        )
+
+        self._dataset_dir = dataset_dir
 
         self._network_model = None
         self._aggregation_strategy = None
@@ -67,7 +75,6 @@ class FederatedSimulation:
                 "num_gpus": self.strategy_config.gpus_per_client
             },
         )
-        self.rounds_history = self._additional_data_calculator.calculate_data(self._aggregation_strategy.rounds_history)
 
     def _assign_all_properties(self) -> None:
         """Assign simulation properties based on strategy_dict"""
@@ -156,6 +163,7 @@ class FederatedSimulation:
                 remove_clients=self.strategy_config.remove_clients,
                 beta_value=self.strategy_config.beta_value,
                 trust_threshold=self.strategy_config.trust_threshold,
+                strategy_history=self.strategy_history,
                 begin_removing_from_round=self.strategy_config.begin_removing_from_round
             )
         elif aggregation_strategy_keyword == "pid":
@@ -169,7 +177,9 @@ class FederatedSimulation:
                 ki=self.strategy_config.Ki,
                 kp=self.strategy_config.Kp,
                 kd=self.strategy_config.Kd,
-                pid_threshold=self.strategy_config.pid_threshold
+                pid_threshold=self.strategy_config.pid_threshold,
+                strategy_history=self.strategy_history,
+                network_model=self._network_model
             )
         elif aggregation_strategy_keyword == "krum":
             self._aggregation_strategy = KrumBasedRemovalStrategy(
@@ -180,6 +190,7 @@ class FederatedSimulation:
                remove_clients=self.strategy_config.remove_clients,
                begin_removing_from_round=self.strategy_config.begin_removing_from_round,
                num_malicious_clients=self.strategy_config.num_of_malicious_clients,
+               strategy_history=self.strategy_history,
                num_krum_selections=self.strategy_config.num_krum_selections  # Use to simulate different Attack strategies
             )
         elif aggregation_strategy_keyword == "multi-krum-based":
@@ -191,6 +202,7 @@ class FederatedSimulation:
                 remove_clients=self.strategy_config.remove_clients,
                 begin_removing_from_round=self.strategy_config.begin_removing_from_round,
                 num_of_malicious_clients=self.strategy_config.num_of_malicious_clients,
+                strategy_history=self.strategy_history,
                 num_krum_selections=self.strategy_config.num_krum_selections
             )
         elif aggregation_strategy_keyword == "multi-krum":
@@ -202,6 +214,7 @@ class FederatedSimulation:
                 remove_clients=self.strategy_config.remove_clients,
                 begin_removing_from_round=self.strategy_config.begin_removing_from_round,
                 num_of_malicious_clients=self.strategy_config.num_of_malicious_clients,
+                strategy_history=self.strategy_history,
                 num_krum_selections=self.strategy_config.num_krum_selections
             )
         elif aggregation_strategy_keyword == "trimmed_mean":
@@ -212,6 +225,7 @@ class FederatedSimulation:
                 evaluate_metrics_aggregation_fn=self.strategy_config.evaluate_metrics_aggregation_fn,
                 remove_clients=self.strategy_config.remove_clients,
                 begin_removing_from_round=self.strategy_config.begin_removing_from_round,
+                strategy_history=self.strategy_history,
                 trim_ratio=self.strategy_config.trim_ratio
             )
 

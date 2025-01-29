@@ -2,6 +2,7 @@ import shutil
 import os
 import logging
 import random
+import sys
 
 
 class DatasetHandler:
@@ -11,6 +12,8 @@ class DatasetHandler:
 
         self.dst_dataset = directory_handler.dataset_dir
         self.src_dataset = dataset_config_list[self._strategy_config.dataset_keyword]
+
+        self.poisoned_client_ids = set()
 
     def setup_dataset(self) -> None:
         """Copy the specified number of clients' subsets to runtime folder and perform poisoning"""
@@ -53,8 +56,13 @@ class DatasetHandler:
         """Poison data according to the specified parameters in the strategy config"""
 
         client_dirs_to_poison = [
-            client_dir for client_dir in sorted(os.listdir(self.dst_dataset)) if not client_dir.startswith(".")
+            client_dir for client_dir in sorted(
+                os.listdir(self.dst_dataset),
+                key=lambda string: int(string.split("_")[1])
+            ) if not client_dir.startswith(".")
         ][:num_to_poison]
+
+        self._assign_poisoned_client_ids(client_dirs_to_poison)
 
         for client_dir in client_dirs_to_poison:
             if attack_type == "label_flipping":
@@ -98,3 +106,16 @@ class DatasetHandler:
             available_labels.remove(new_label)
 
         os.rename(os.path.join(self.dst_dataset, client_dir), os.path.join(self.dst_dataset, client_dir + "_bad"))
+
+    def _assign_poisoned_client_ids(
+            self, bad_client_dirs: list
+    ) -> None:
+        """Assign ids of poisoned clients to class field"""
+
+        for bad_client_dir in bad_client_dirs:
+            try:
+                self.poisoned_client_ids.add(int(bad_client_dir.split("_")[1]))
+            except Exception as e:
+                logging.error(f"Error while parsing client dataset folder: client id must be a number: {e}")
+                sys.exit(-1)
+
