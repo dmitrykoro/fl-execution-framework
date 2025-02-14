@@ -1,5 +1,6 @@
 import matplotlib.pyplot as plt
 import numpy as np
+import math
 
 from matplotlib.ticker import MaxNLocator
 
@@ -89,7 +90,11 @@ def show_plots_within_strategy(
             f"{metric_name} of each client across rounds for strategy: "
             f"{simulation_strategy.strategy_config.aggregation_strategy_keyword}\n{plot_strategy_title}"
         )
-        plt.legend(title='clients', bbox_to_anchor=(1.05, 1), loc='upper left')
+        plt.legend(
+            title='clients', bbox_to_anchor=(1.05, 1),
+            loc='upper left',
+            ncol=math.ceil(simulation_strategy.strategy_config.num_of_clients / 20)
+        )
         ax = plt.gca()
         ax.xaxis.set_major_locator(MaxNLocator(integer=True, steps=[2, 5]))
         plt.tight_layout()
