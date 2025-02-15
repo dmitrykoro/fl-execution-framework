@@ -26,7 +26,7 @@ download-datasets:
   image: python:3.10-slim
   script:
     - cd datasets
-    - wget https://fl-dataset-storage.s3.us-east-1.amazonaws.com/datasets.tar
+    - curl -O https://fl-dataset-storage.s3.us-east-1.amazonaws.com/datasets.tar
     - tar -xf datasets.tar
 
 test-simulation:
