@@ -38,6 +38,10 @@ test-simulation:
     - pip install -r requirements.txt
     - echo "Starting simulation..."
     - python src/simulation_runner.py
+  artifacts:
+    paths:
+      - out/
+    expire_in: 1 week
 
 cleanup-output:
     stage: cleanup
