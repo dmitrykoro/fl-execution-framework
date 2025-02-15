@@ -120,18 +120,19 @@ class SimulationStrategyHistory:
                 client_is_malicious = client_info.is_malicious
                 client_was_aggregated = client_info.aggregation_participation_history[round_num] == 1
 
-                # true positive: a good client was aggregated
-                if not client_is_malicious and client_was_aggregated:
-                    round_tp_count += 1
-                # true negative: a malicious client was not aggregated
-                if client_is_malicious and not client_was_aggregated:
-                    round_tn_count += 1
-                # false positive: a good client was not aggregated
-                if not client_is_malicious and not client_was_aggregated:
-                    round_fp_count += 1
-                # false negative: a malicious client was aggregated
-                if client_is_malicious and client_was_aggregated:
-                    round_fn_count += 1
+                if self.strategy_config.remove_clients:
+                    # true positive: a good client was aggregated
+                    if not client_is_malicious and client_was_aggregated:
+                        round_tp_count += 1
+                    # true negative: a malicious client was not aggregated
+                    if client_is_malicious and not client_was_aggregated:
+                        round_tn_count += 1
+                    # false positive: a good client was not aggregated
+                    if not client_is_malicious and not client_was_aggregated:
+                        round_fp_count += 1
+                    # false negative: a malicious client was aggregated
+                    if client_is_malicious and client_was_aggregated:
+                        round_fn_count += 1
 
                 # sum of accuracies of aggregated benign clients
                 if not client_is_malicious and client_was_aggregated:
@@ -141,4 +142,5 @@ class SimulationStrategyHistory:
             self.rounds_history.append_tp_tn_fp_fn(round_tp_count, round_tn_count, round_fp_count, round_fn_count)
             self.rounds_history.average_accuracy_history.append(sum_aggregated_accuracies / num_aggregated_clients)
 
-        self.rounds_history.calculate_additional_metrics()
+        if self.strategy_config.remove_clients:
+            self.rounds_history.calculate_additional_metrics()

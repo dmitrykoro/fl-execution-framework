@@ -42,6 +42,7 @@ Defines the aggregation strategy. Options:
   - `its`: intelligent Transportation Systems domain, binary classification (traffic sign vs stop sign), 12 clients.
   - `pneumoniamnist`: medical imaging (pneumonia diagnosis), binary classification, IID distribution, 10 clients.
   - `flair`: non-IID distribution (FLAIR dataset, unsupported in current version), 20 clients. 
+  - `bloodmnist`: IID distribution, but non-equal number of samples per class, 40 clients. 
 
 
 - `num_of_rounds`: total aggregation rounds.

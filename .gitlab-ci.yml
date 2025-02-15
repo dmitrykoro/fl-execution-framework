@@ -17,25 +17,31 @@
 # https://gitlab.com/gitlab-org/gitlab/-/blob/master/lib/gitlab/ci/templates/Getting-Started.gitlab-ci.yml
 
 stages:          # List of stages for jobs, and their order of execution
-  - test
+  - execute_simulation
   - cleanup
 
-.test-pipeline:
-  stage: test
-  script:
-    - echo "Test"
-
 test-simulation:
-  stage: test
+  stage: execute_simulation
   image: python:3.10-slim
+  before_script:
+    - apt-get update && apt-get install -y wget
   script:
+    - echo "Downloading datasets..."
+    - cd datasets
+    - wget https://fl-dataset-storage.s3.us-east-1.amazonaws.com/datasets.tar
+    - tar -xf datasets.tar
+    - cd ..
     - echo "Upgrading pip..."
     - pip install --upgrade pip
     - echo "pip upgraded."
     - echo "Installing requirements..."
     - pip install -r requirements.txt
-    - echo "Requirements successfully installed."
+    - echo "Starting simulation..."
     - python src/simulation_runner.py
+  artifacts:
+    paths:
+      - out/
+    expire_in: 1 week
 
 cleanup-output:
     stage: cleanup

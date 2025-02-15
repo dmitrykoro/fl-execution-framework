@@ -11,12 +11,14 @@ from dataset_loaders.image_transformers.its_image_transformer import its_image_t
 from dataset_loaders.image_transformers.femnist_image_transformer import femnist_image_transformer
 from dataset_loaders.image_transformers.flair_image_transformer import flair_image_transformer
 from dataset_loaders.image_transformers.pneumoniamnist_image_transformer import pneumoniamnist_image_transformer
+from dataset_loaders.image_transformers.bloodmnist_image_transformer import bloodmnist_image_transformer
 
 from network_models.its_network_definition import ITSNetwork
 from network_models.femnist_reduced_iid_network_definition import FemnistReducedIIDNetwork
 from network_models.femnist_full_niid_network_definition import FemnistFullNIIDNetwork
 from network_models.flair_network_definition import FlairNetwork
 from network_models.pneumoniamnist_network_definition import PneumoniamnistNetwork
+from network_models.bloodmnist_network_definition import BloodmnistNetwork
 
 from client_models.flower_client import FlowerClient
 
@@ -139,6 +141,15 @@ class FederatedSimulation:
                 training_subset_fraction=training_subset_fraction
             )
             self._network_model = PneumoniamnistNetwork()
+        elif dataset_keyword == "bloodmnist":
+            dataset_loader = ImageDatasetLoader(
+                transformer=bloodmnist_image_transformer,
+                dataset_dir=self._dataset_dir,
+                num_of_clients=num_of_clients,
+                batch_size=batch_size,
+                training_subset_fraction=training_subset_fraction
+            )
+            self._network_model = BloodmnistNetwork()
 
         else:
             logging.error(

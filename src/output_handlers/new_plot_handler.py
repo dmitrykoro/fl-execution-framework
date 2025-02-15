@@ -1,4 +1,7 @@
 import matplotlib.pyplot as plt
+import numpy as np
+import math
+
 from matplotlib.ticker import MaxNLocator
 
 from data_models.simulation_strategy_config import StrategyConfig
@@ -7,6 +10,7 @@ from output_handlers.directory_handler import DirectoryHandler
 
 
 plot_size = (11, 7)
+bar_width = 0.2
 
 
 def _generate_single_string_strategy_label(strategy_config: StrategyConfig) -> str:
@@ -86,7 +90,11 @@ def show_plots_within_strategy(
             f"{metric_name} of each client across rounds for strategy: "
             f"{simulation_strategy.strategy_config.aggregation_strategy_keyword}\n{plot_strategy_title}"
         )
-        plt.legend(title='clients', bbox_to_anchor=(1.05, 1), loc='upper left')
+        plt.legend(
+            title='clients', bbox_to_anchor=(1.05, 1),
+            loc='upper left',
+            ncol=math.ceil(simulation_strategy.strategy_config.num_of_clients / 20)
+        )
         ax = plt.gca()
         ax.xaxis.set_major_locator(MaxNLocator(integer=True, steps=[2, 5]))
         plt.tight_layout()
@@ -113,8 +121,10 @@ def show_inter_strategy_plots(
     ):
         return
 
-    plottable_metrics = executed_simulation_strategies[0].strategy_history.rounds_history.plottable_metrics
     rounds = executed_simulation_strategies[0].strategy_history.get_all_clients()[0].rounds
+
+    # line plots
+    plottable_metrics = executed_simulation_strategies[0].strategy_history.rounds_history.plottable_metrics
 
     for metric_name in plottable_metrics:
         plt.figure(figsize=plot_size)
@@ -137,6 +147,44 @@ def show_inter_strategy_plots(
         plt.legend(title='strategies', loc='upper center', bbox_to_anchor=(0.5, -0.1))
         ax = plt.gca()
         ax.xaxis.set_major_locator(MaxNLocator(integer=True, steps=[2, 5]))
+        plt.tight_layout()
+
+        if executed_simulation_strategies[0].strategy_config.save_plots:
+            plt.savefig(f'{directory_handler.new_plots_dirname}/{metric_name}.pdf')
+
+        if executed_simulation_strategies[0].strategy_config.show_plots:
+            plt.show()
+
+    # bar plots
+    barable_metrics = executed_simulation_strategies[0].strategy_history.rounds_history.barable_metrics
+
+    for metric_name in barable_metrics:
+        plt.figure(figsize=plot_size)
+
+        rounds_array = np.arange(len(rounds))
+        num_strategies = len(executed_simulation_strategies)
+
+        for i, simulation_strategy in enumerate(executed_simulation_strategies):
+            round_info = simulation_strategy.strategy_history.rounds_history
+            metric_values = round_info.get_metric_by_name(metric_name)
+
+            if metric_values:  # Plot only if metrics were collected
+                plt.bar(
+                    rounds_array + i * bar_width,  # Offset bars to avoid overlap
+                    metric_values,
+                    width=bar_width,
+                    label=_generate_single_string_strategy_label(simulation_strategy.strategy_config),
+                    alpha=0.8
+                )
+
+        plt.xlabel('round #')
+        plt.ylabel(metric_name)
+        plt.title(f'{metric_name} across strategies')
+        plt.legend(title='strategies', loc='upper center', bbox_to_anchor=(0.5, -0.1))
+        ax = plt.gca()
+        ax.xaxis.set_major_locator(MaxNLocator(integer=True, steps=[2, 5]))
+        ax.set_xticks(rounds_array + (num_strategies - 1) * bar_width / 2)  # Adjust x-ticks to align
+        ax.set_xticklabels(rounds)
         plt.tight_layout()
 
         if executed_simulation_strategies[0].strategy_config.save_plots:
