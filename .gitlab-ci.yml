@@ -17,13 +17,17 @@
 # https://gitlab.com/gitlab-org/gitlab/-/blob/master/lib/gitlab/ci/templates/Getting-Started.gitlab-ci.yml
 
 stages:          # List of stages for jobs, and their order of execution
-  - test
+  - download_datasets
+  - execute_simulation
   - cleanup
 
-.test-pipeline:
-  stage: test
+download-datasets:
+  stage: download_datasets
+  image: python:3.10-slim
   script:
-    - echo "Test"
+    - cd datasets
+    - wget https://fl-dataset-storage.s3.us-east-1.amazonaws.com/datasets.tar
+    - tar -xf datasets.tar
 
 test-simulation:
   stage: test
