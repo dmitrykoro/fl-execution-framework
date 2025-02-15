@@ -30,7 +30,7 @@ download-datasets:
     - tar -xf datasets.tar
 
 test-simulation:
-  stage: test
+  stage: execute_simulation
   image: python:3.10-slim
   script:
     - echo "Upgrading pip..."
