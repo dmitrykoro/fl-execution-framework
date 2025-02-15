@@ -13,6 +13,14 @@ else
     exit 1
 fi
 
+if command_exists wget; then
+  echo "wget is installed"
+else
+  echo "wget command not found, exiting"
+  exit 1
+fi
+
+
 # If venv does not exist, create one and install requirements
 if [ ! -d "$VENV_DIR" ]; then
     echo "Virtual environment not found. Creating a new one."
@@ -23,6 +31,16 @@ else
     echo "Found existing venv, switching to it..."
     source $VENV_DIR/bin/activate
     echo "Activated the existing venv"
+fi
+
+
+if [ ! -d "datasets/bloodmnist" ]; then
+  echo "Datasets not found. Starting download..."
+  pushd datasets
+  wget https://fl-dataset-storage.s3.us-east-1.amazonaws.com/datasets.tar
+  tar -xf datasets.tar
+  rm datasets.tar
+  popd
 fi
 
 echo "Initializing simulation..."
