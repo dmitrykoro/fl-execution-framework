@@ -24,9 +24,11 @@ stages:          # List of stages for jobs, and their order of execution
 download-datasets:
   stage: download_datasets
   image: python:3.10-slim
+  before_script:
+    - apt-get update && apt-get install -y wget
   script:
     - cd datasets
-    - curl -O https://fl-dataset-storage.s3.us-east-1.amazonaws.com/datasets.tar
+    - wget https://fl-dataset-storage.s3.us-east-1.amazonaws.com/datasets.tar
     - tar -xf datasets.tar
 
 test-simulation:
