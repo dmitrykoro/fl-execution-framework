@@ -25,10 +25,10 @@ class StrategyConfig:
     beta_value: float = None
     num_of_clusters: int = None
 
-    pid_threshold: float = None
     Kp: float = None
     Ki: float = None
     Kd: float = None
+    num_std_dev: float = None
 
     training_subset_fraction: float = None
     min_fit_clients: int = None

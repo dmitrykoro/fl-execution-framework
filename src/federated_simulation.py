@@ -188,7 +188,7 @@ class FederatedSimulation:
                 ki=self.strategy_config.Ki,
                 kp=self.strategy_config.Kp,
                 kd=self.strategy_config.Kd,
-                pid_threshold=self.strategy_config.pid_threshold,
+                num_std_dev=self.strategy_config.num_std_dev,
                 strategy_history=self.strategy_history,
                 network_model=self._network_model
             )
