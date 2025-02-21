@@ -22,11 +22,11 @@ class PIDBasedRemovalStrategy(fl.server.strategy.FedAvg):
     def __init__(
             self,
             remove_clients: bool,
-            pid_threshold: float,
             begin_removing_from_round: int,
             ki: float,
             kd: float,
             kp: float,
+            num_std_dev: int,
             strategy_history: SimulationStrategyHistory,
             network_model,
             *args,
@@ -40,14 +40,14 @@ class PIDBasedRemovalStrategy(fl.server.strategy.FedAvg):
         self.removed_client_ids = set()
 
         self.remove_clients = remove_clients
-        self.pid_threshold = pid_threshold
         self.begin_removing_from_round = begin_removing_from_round
 
         self.ki = ki
         self.kd = kd
         self.kp = kp
+        self.num_std_dev = num_std_dev
 
-        self.current_threshold = pid_threshold
+        self.current_threshold = None
         self.rounds_history = {}
 
         self.strategy_history = strategy_history
@@ -88,13 +88,14 @@ class PIDBasedRemovalStrategy(fl.server.strategy.FedAvg):
 
     def calculate_all_pid_scores(self, results, normalized_distances) -> List[float]:
         pid_scores = []
+
         for i, (client_proxy, _) in enumerate(results):
             client_id = client_proxy.cid
             curr_dist = normalized_distances[i][0]
-
             new_PID = self.calculate_single_client_pid(client_id, curr_dist)
             self.client_pids[client_id] = new_PID
             pid_scores.append(new_PID)
+
         return pid_scores
 
     @staticmethod
@@ -104,6 +105,7 @@ class PIDBasedRemovalStrategy(fl.server.strategy.FedAvg):
         dot_product = torch.dot(tensor1, tensor2)
         norm1 = torch.norm(tensor1)
         norm2 = torch.norm(tensor2)
+
         return dot_product / (norm1 * norm2)
 
     def aggregate_fit(
@@ -181,7 +183,7 @@ class PIDBasedRemovalStrategy(fl.server.strategy.FedAvg):
 
         pid_avg = np.mean(counted_pids)
         pid_std = np.std(counted_pids)
-        self.current_threshold = pid_avg + (2 * pid_std)
+        self.current_threshold = pid_avg + (self.num_std_dev * pid_std)
 
         self.strategy_history.insert_round_history_entry(removal_threshold=self.current_threshold)
 

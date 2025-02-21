@@ -98,7 +98,7 @@ config_schema = {
         },
 
         # PID
-        "pid_threshold": {
+        "num_std_dev": {
             "type": "number"
         },
         "Kp": {
@@ -149,7 +149,7 @@ def check_strategy_specific_parameters(strategy_config: dict) -> None:
                 )
     elif strategy_config["aggregation_strategy_keyword"] == "pid":
         pid_specific_parameters = [
-            "pid_threshold", "Kp", "Ki", "Kd"
+            "num_std_dev", "Kp", "Ki", "Kd"
         ]
         for param in pid_specific_parameters:
             if param not in strategy_config:

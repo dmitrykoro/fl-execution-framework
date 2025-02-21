@@ -74,7 +74,7 @@ Defines the aggregation strategy. Options:
 - `num_of_clusters`: number of clusters (must be `1`).
 
 **For `pid` strategy**:
-- `pid_threshold`: threshold for client removal.
+- `num_std_dev`: number of standard deviations used int he calculation of PiD threshold at each round. 
 - `Kp`, `Ki`, `Kd`: PID controller parameters.
 
 **For `krum`, `multi-krum`, `multi-krum-based` strategies**:
