@@ -14,7 +14,7 @@ config_schema = {
         },
         "dataset_keyword": {
             "type": "string",
-            "enum": ["femnist_iid", "femnist_niid", "its", "pneumoniamnist", "flair", "bloodmnist"]
+            "enum": ["femnist_iid", "femnist_niid", "its", "pneumoniamnist", "flair", "bloodmnist","lung_photos"]
         },
         "num_of_rounds": {
             "type": "integer"
