@@ -14,7 +14,7 @@ config_schema = {
         },
         "dataset_keyword": {
             "type": "string",
-            "enum": ["femnist_iid", "femnist_niid", "its", "pneumoniamnist", "flair", "bloodmnist"]
+            "enum": ["femnist_iid", "femnist_niid", "its", "pneumoniamnist", "flair", "bloodmnist", "medquad"]
         },
         "num_of_rounds": {
             "type": "integer"
@@ -47,6 +47,35 @@ config_schema = {
         },
         "training_subset_fraction": {
             "type": "number"
+        },
+
+        # LLM settings
+        "use_llm": {
+            "type": "string",
+            "enum": ["true", "false"]
+        },
+        "llm_model": {
+            "type": "string",
+            "enum": ["microsoft/BiomedNLP-BiomedBERT-base-uncased-abstract-fulltext"]
+        },
+        "llm_finetuning": {
+            "type": "string",
+            "enum": ["full", "lora"]
+        },
+        "lora_rank": {
+            "type": "integer"
+        },
+        "lora_alpha": {
+            "type": "integer"
+        },
+        "lora_dropout": {
+            "type": "number"
+        },
+        "lora_target_modules": {
+            "type": "array",
+            "items": {
+                "type": "string",
+            }
         },
 
         # Flower settings
@@ -122,7 +151,7 @@ config_schema = {
         }
     },
     "required": [
-        "aggregation_strategy_keyword", "remove_clients", "dataset_keyword",
+        "aggregation_strategy_keyword", "remove_clients", "dataset_keyword", "use_llm",
         "num_of_rounds", "num_of_clients", "num_of_malicious_clients", "attack_type",
         "show_plots", "save_plots", "save_csv", "preserve_dataset",
         "training_subset_fraction", "training_device", "cpus_per_client",
@@ -131,6 +160,30 @@ config_schema = {
         "num_of_client_epochs", "batch_size"
     ]
 }
+
+
+def check_llm_specific_parameters(strategy_config: dict) -> None:
+    """Check if LLM specific parameters are valid"""
+
+    llm_specific_parameters = [
+        "llm_model", "llm_finetuning"
+    ]
+    for param in llm_specific_parameters:
+        if param not in strategy_config:
+            raise ValidationError(
+                f"Missing parameter {param} for LLM finetuning"
+            )
+
+    finetuning_keyword = strategy_config["llm_finetuning"]
+    if finetuning_keyword == "lora":
+        lora_specific_parameters = [
+            "lora_rank", "lora_alpha", "lora_dropout", "lora_target_modules"
+        ]
+        for param in lora_specific_parameters:
+            if param not in strategy_config:
+                raise ValidationError(
+                    f"Missing parameter {param} for LORA"
+                )
 
 
 def check_strategy_specific_parameters(strategy_config: dict) -> None:
@@ -168,11 +221,14 @@ def check_strategy_specific_parameters(strategy_config: dict) -> None:
             )
 
 
-
 def validate_strategy_config(config: dict) -> None:
     """Validate config based on the schema, will raise an exception if invalid"""
 
     # Validates any shared settings
     validate(instance=config, schema=config_schema)
+
+    use_llm_keyword = config["use_llm"]
+    if use_llm_keyword == "true":
+        check_llm_specific_parameters(config)
 
     check_strategy_specific_parameters(config)

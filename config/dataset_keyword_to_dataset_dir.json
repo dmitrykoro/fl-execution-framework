@@ -4,5 +4,6 @@
   "femnist_iid": "datasets/femnist_iid",
   "femnist_niid": "datasets/femnist_niid",
   "pneumoniamnist": "datasets/pneumoniamnist",
-  "bloodmnist": "datasets/bloodmnist"
+  "bloodmnist": "datasets/bloodmnist",
+  "medquad": "datasets/medquad"
 }
