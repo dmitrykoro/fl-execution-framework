@@ -16,6 +16,10 @@ config_schema = {
             "type": "string",
             "enum": ["femnist_iid", "femnist_niid", "its", "pneumoniamnist", "flair", "bloodmnist", "medquad"]
         },
+        "model_type": {
+            "type": "string",
+            "enum": ["cnn", "transformer"]
+        },
         "num_of_rounds": {
             "type": "integer"
         },
@@ -57,6 +61,16 @@ config_schema = {
         "llm_model": {
             "type": "string",
             "enum": ["microsoft/BiomedNLP-BiomedBERT-base-uncased-abstract-fulltext"]
+        },
+        "llm_task": {
+            "type": "string",
+            "enum": ["mlm"]
+        },
+        "mlm_probability": {
+            "type": "number"
+        },
+        "llm_chunk_size": {
+            "type": "integer"
         },
         "llm_finetuning": {
             "type": "string",
@@ -151,9 +165,9 @@ config_schema = {
         }
     },
     "required": [
-        "aggregation_strategy_keyword", "remove_clients", "dataset_keyword", "use_llm",
-        "num_of_rounds", "num_of_clients", "num_of_malicious_clients", "attack_type",
-        "show_plots", "save_plots", "save_csv", "preserve_dataset",
+        "aggregation_strategy_keyword", "remove_clients", "dataset_keyword", "model_type",
+        "use_llm", "num_of_rounds", "num_of_clients", "num_of_malicious_clients",
+        "attack_type", "show_plots", "save_plots", "save_csv", "preserve_dataset",
         "training_subset_fraction", "training_device", "cpus_per_client",
         "gpus_per_client", "min_fit_clients", "min_evaluate_clients",
         "min_available_clients", "evaluate_metrics_aggregation_fn",
@@ -165,13 +179,24 @@ config_schema = {
 def check_llm_specific_parameters(strategy_config: dict) -> None:
     """Check if LLM specific parameters are valid"""
 
+    if strategy_config["model_type"] != "transformer":
+        raise ValidationError(
+            "LLM finetuning is only supported for transformer models"
+        )
+
     llm_specific_parameters = [
-        "llm_model", "llm_finetuning", "llm_task", "mlm_probability", "llm_chunk_size"
+        "llm_model", "llm_finetuning", "llm_task", "llm_chunk_size"
     ]
     for param in llm_specific_parameters:
         if param not in strategy_config:
             raise ValidationError(
                 f"Missing parameter {param} for LLM finetuning"
+            )
+
+    if strategy_config["llm_task"] == "mlm":
+        if "mlm_probability" not in strategy_config:
+            raise ValidationError(
+                "Missing parameter mlm_probability for LLM task mlm"
             )
 
     finetuning_keyword = strategy_config["llm_finetuning"]
