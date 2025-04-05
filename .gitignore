@@ -8,3 +8,4 @@ __pycache__
 local_run_simulation.sh
 venv
 out
+datasets/

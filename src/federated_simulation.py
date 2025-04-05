@@ -12,6 +12,7 @@ from dataset_loaders.image_transformers.femnist_image_transformer import femnist
 from dataset_loaders.image_transformers.flair_image_transformer import flair_image_transformer
 from dataset_loaders.image_transformers.pneumoniamnist_image_transformer import pneumoniamnist_image_transformer
 from dataset_loaders.image_transformers.bloodmnist_image_transformer import bloodmnist_image_transformer
+from dataset_loaders.medquad_dataset_loader import MedQuADDatasetLoader
 
 from network_models.its_network_definition import ITSNetwork
 from network_models.femnist_reduced_iid_network_definition import FemnistReducedIIDNetwork
@@ -19,6 +20,7 @@ from network_models.femnist_full_niid_network_definition import FemnistFullNIIDN
 from network_models.flair_network_definition import FlairNetwork
 from network_models.pneumoniamnist_network_definition import PneumoniamnistNetwork
 from network_models.bloodmnist_network_definition import BloodmnistNetwork
+from network_models.bert_model_definition import load_model, load_model_with_lora
 
 from client_models.flower_client import FlowerClient
 
@@ -150,7 +152,19 @@ class FederatedSimulation:
                 training_subset_fraction=training_subset_fraction
             )
             self._network_model = BloodmnistNetwork()
-
+        elif dataset_keyword == "medquad":
+            dataset_loader = MedQuADDatasetLoader(
+                dataset_dir=self._dataset_dir,
+                num_of_clients=num_of_clients,
+                batch_size=batch_size,
+                training_subset_fraction=training_subset_fraction,
+                model_name=self.strategy_config.llm_model,
+                chunk_size=self.strategy_config.llm_chunk_size,
+                mlm_probability=self.strategy_config.mlm_probability,
+            )
+            self._network_model = load_model(
+                model_name=self.strategy_config.llm_model,
+            )
         else:
             logging.error(
                 f"You are parsing a strategy for dataset: {dataset_keyword}. "
@@ -256,5 +270,6 @@ class FederatedSimulation:
             trainloader,
             valloader,
             self.strategy_config.training_device,
-            self.strategy_config.num_of_client_epochs
+            self.strategy_config.num_of_client_epochs,
+            self.strategy_config.model_type,
         ).to_client()

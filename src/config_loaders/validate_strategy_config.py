@@ -166,7 +166,7 @@ def check_llm_specific_parameters(strategy_config: dict) -> None:
     """Check if LLM specific parameters are valid"""
 
     llm_specific_parameters = [
-        "llm_model", "llm_finetuning"
+        "llm_model", "llm_finetuning", "llm_task", "mlm_probability", "llm_chunk_size"
     ]
     for param in llm_specific_parameters:
         if param not in strategy_config:
