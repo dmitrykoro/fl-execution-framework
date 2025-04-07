@@ -156,12 +156,25 @@ class FlowerClient(fl.client.NumPyClient):
         # calculate gradients
         optimizer = torch.optim.Adam(self.net.parameters())
         optimizer.zero_grad()
-        criterion = torch.nn.CrossEntropyLoss()
-        for images, labels in self.trainloader:
-            images, labels = images.to(self.training_device), labels.to(self.training_device)
-            outputs = self.net(images)
-            loss = criterion(outputs, labels)
-            loss.backward()
+        
+        if self.model_type == "cnn":
+            criterion = torch.nn.CrossEntropyLoss()
+            for images, labels in self.trainloader:
+                images, labels = images.to(self.training_device), labels.to(self.training_device)
+                outputs = self.net(images)
+                loss = criterion(outputs, labels)
+                loss.backward()
+            
+        elif self.model_type == "transformer":
+            # In transformers, the model usually returns a namedtuple with a 'loss' field
+            for batch in self.trainloader:
+                batch = {k: v.to(self.training_device) for k, v in batch.items()}
+                outputs = self.net(**batch)
+                loss = outputs.loss
+                loss.backward()
+        
+        else:
+            raise ValueError(f"Unsupported model type: {self.model_type}. Supported types are 'cnn' and 'transformer'.")
 
         return self.get_parameters(self.net), len(self.trainloader), {}
 
