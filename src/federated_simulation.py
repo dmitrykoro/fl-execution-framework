@@ -162,9 +162,18 @@ class FederatedSimulation:
                 chunk_size=self.strategy_config.llm_chunk_size,
                 mlm_probability=self.strategy_config.mlm_probability,
             )
-            self._network_model = load_model(
-                model_name=self.strategy_config.llm_model,
-            )
+            if self.strategy_config.llm_finetuning == "lora":
+                self._network_model = load_model_with_lora(
+                    model_name=self.strategy_config.llm_model,
+                    lora_rank=self.strategy_config.lora_rank,
+                    lora_alpha=self.strategy_config.lora_alpha,
+                    lora_dropout=self.strategy_config.lora_dropout,
+                    lora_target_modules=["query", "value"],
+                )
+            else:
+                self._network_model = load_model(
+                    model_name=self.strategy_config.llm_model,
+                )
         else:
             logging.error(
                 f"You are parsing a strategy for dataset: {dataset_keyword}. "
@@ -262,6 +271,8 @@ class FederatedSimulation:
 
         net = self._network_model.to(self.strategy_config.training_device)
 
+        use_lora = True if self.strategy_config.llm_finetuning == "lora" else False
+
         trainloader = self._trainloaders[int(cid)]
         valloader = self._valloaders[int(cid)]
 
@@ -272,4 +283,5 @@ class FederatedSimulation:
             self.strategy_config.training_device,
             self.strategy_config.num_of_client_epochs,
             self.strategy_config.model_type,
+            use_lora=use_lora,
         ).to_client()

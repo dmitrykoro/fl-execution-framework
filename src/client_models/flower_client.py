@@ -5,6 +5,8 @@ import torch
 from collections import OrderedDict
 from typing import List
 
+from network_models.bert_model_definition import get_peft_model_state_dict, set_peft_model_state_dict
+
 
 class FlowerClient(fl.client.NumPyClient):
     def __init__(
@@ -14,7 +16,8 @@ class FlowerClient(fl.client.NumPyClient):
             valloader,
             training_device,
             num_of_client_epochs,
-            model_type="cnn"
+            model_type="cnn",
+            use_lora=False,
     ):
         self.net = net
         self.trainloader = trainloader
@@ -22,6 +25,7 @@ class FlowerClient(fl.client.NumPyClient):
         self.training_device = training_device
         self.model_type = model_type
         self.num_of_client_epochs = num_of_client_epochs
+        self.use_lora = use_lora
 
     # def set_parameters(self, net, state_list):
     #     """
@@ -32,12 +36,23 @@ class FlowerClient(fl.client.NumPyClient):
     #     self.net.load_state_dict(state_dict, strict=True)
 
     def set_parameters(self, net, parameters: List[np.ndarray]):
-        params_dict = zip(net.state_dict().keys(), parameters)
-        state_dict = OrderedDict({k: torch.Tensor(v) for k, v in params_dict})
-        self.net.load_state_dict(state_dict, strict=False)
+        if self.use_lora:
+            # Convert numpy arrays to torch tensors and create an OrderedDict
+            params_dict = zip(get_peft_model_state_dict(net).keys(), parameters)
+            state_dict = OrderedDict({k: torch.Tensor(v) for k, v in params_dict})
+            set_peft_model_state_dict(net, state_dict)
+        else:
+            params_dict = zip(net.state_dict().keys(), parameters)
+            state_dict = OrderedDict({k: torch.Tensor(v) for k, v in params_dict})
+            self.net.load_state_dict(state_dict, strict=False)
 
     def get_parameters(self, config):
-        return [val.cpu().numpy() for _, val in self.net.state_dict().items()]
+        if self.use_lora:
+            # Get LoRA adapter weights as a list of numpy arrays
+            state_dict = get_peft_model_state_dict(self.net)
+            return [val.cpu().numpy() for val in state_dict.values()]
+        else:
+            return [val.cpu().numpy() for _, val in self.net.state_dict().items()]
 
     def train(self, net, trainloader, epochs: int, verbose=False):
         """Train the network on the training set."""
@@ -105,7 +120,7 @@ class FlowerClient(fl.client.NumPyClient):
     def test(self, net, testloader):
         """Evaluate the network on the entire test set."""
 
-        if self.model_type == "transformer":
+        if self.model_type == "cnn":
             criterion = torch.nn.CrossEntropyLoss()
             correct, total, loss = 0, 0, 0.0
             net.eval()
@@ -121,8 +136,9 @@ class FlowerClient(fl.client.NumPyClient):
             loss /= len(testloader.dataset)
             accuracy = correct / total
             return loss, accuracy
-        
-        elif self.model_type == "mlm":
+
+        # add check for mlm as well
+        elif self.model_type == "transformer":
             net.eval()
             total_loss = 0
             correct, total = 0, 0
@@ -145,7 +161,7 @@ class FlowerClient(fl.client.NumPyClient):
             loss = total_loss / len(testloader)
             accuracy = correct / total if total > 0 else 0
             return loss, accuracy
-        
+
         else:
             raise ValueError(f"Unsupported model type: {self.model_type}. Supported types are 'cnn' and 'mlm'.")
 
@@ -156,7 +172,7 @@ class FlowerClient(fl.client.NumPyClient):
         # calculate gradients
         optimizer = torch.optim.Adam(self.net.parameters())
         optimizer.zero_grad()
-        
+
         if self.model_type == "cnn":
             criterion = torch.nn.CrossEntropyLoss()
             for images, labels in self.trainloader:
@@ -164,7 +180,7 @@ class FlowerClient(fl.client.NumPyClient):
                 outputs = self.net(images)
                 loss = criterion(outputs, labels)
                 loss.backward()
-            
+
         elif self.model_type == "transformer":
             # In transformers, the model usually returns a namedtuple with a 'loss' field
             for batch in self.trainloader:
@@ -172,7 +188,7 @@ class FlowerClient(fl.client.NumPyClient):
                 outputs = self.net(**batch)
                 loss = outputs.loss
                 loss.backward()
-        
+
         else:
             raise ValueError(f"Unsupported model type: {self.model_type}. Supported types are 'cnn' and 'transformer'.")
 

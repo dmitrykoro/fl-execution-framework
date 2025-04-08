@@ -257,3 +257,14 @@ def validate_strategy_config(config: dict) -> None:
         check_llm_specific_parameters(config)
 
     check_strategy_specific_parameters(config)
+
+    num_of_clients = config["num_of_clients"]
+    num_fit_clients = config["min_fit_clients"]
+    num_evaluate_clients = config["min_evaluate_clients"]
+    num_available_clients = config["min_available_clients"]
+
+    # Check if the number of clients is enough for the simulation parameters
+    if num_fit_clients > num_of_clients or num_evaluate_clients > num_of_clients or num_available_clients > num_of_clients:
+        raise ValidationError(
+            "Number of clients for fit, evaluate or available cannot be greater than total number of clients"
+        )
