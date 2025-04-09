@@ -37,7 +37,6 @@ class FlowerClient(fl.client.NumPyClient):
 
     def set_parameters(self, net, parameters: List[np.ndarray]):
         if self.use_lora:
-            # Convert numpy arrays to torch tensors and create an OrderedDict
             params_dict = zip(get_peft_model_state_dict(net).keys(), parameters)
             state_dict = OrderedDict({k: torch.Tensor(v) for k, v in params_dict})
             set_peft_model_state_dict(net, state_dict)
@@ -48,7 +47,6 @@ class FlowerClient(fl.client.NumPyClient):
 
     def get_parameters(self, config):
         if self.use_lora:
-            # Get LoRA adapter weights as a list of numpy arrays
             state_dict = get_peft_model_state_dict(self.net)
             return [val.cpu().numpy() for val in state_dict.values()]
         else:

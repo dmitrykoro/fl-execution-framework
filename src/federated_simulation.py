@@ -213,7 +213,8 @@ class FederatedSimulation:
                 kd=self.strategy_config.Kd,
                 num_std_dev=self.strategy_config.num_std_dev,
                 strategy_history=self.strategy_history,
-                network_model=self._network_model
+                network_model=self._network_model,
+                lora=True if self.strategy_config.llm_finetuning == "lora" else False,
             )
         elif aggregation_strategy_keyword == "krum":
             self._aggregation_strategy = KrumBasedRemovalStrategy(

@@ -17,6 +17,7 @@ from output_handlers.directory_handler import DirectoryHandler
 
 from data_models.simulation_strategy_history import SimulationStrategyHistory
 
+from network_models.bert_model_definition import get_peft_model_state_dict, set_peft_model_state_dict
 
 class PIDBasedRemovalStrategy(fl.server.strategy.FedAvg):
     def __init__(
@@ -29,6 +30,7 @@ class PIDBasedRemovalStrategy(fl.server.strategy.FedAvg):
             num_std_dev: int,
             strategy_history: SimulationStrategyHistory,
             network_model,
+            lora,
             *args,
             **kwargs
     ):
@@ -53,6 +55,7 @@ class PIDBasedRemovalStrategy(fl.server.strategy.FedAvg):
         self.strategy_history = strategy_history
 
         self.network_model = network_model
+        self.lora = lora
 
         # Create a logger
         self.logger = logging.getLogger("my_logger")
@@ -68,8 +71,13 @@ class PIDBasedRemovalStrategy(fl.server.strategy.FedAvg):
         self.logger.addHandler(console_handler)
 
     def initialize_parameters(self, client_manager):
-        parameters = ndarrays_to_parameters([param.detach().numpy() for param in self.network_model.parameters()])
-        return parameters
+        if self.lora:
+            state_dict = get_peft_model_state_dict(self.network_model)
+            parameters = ndarrays_to_parameters([val.detach().numpy() for val in state_dict.values()])
+            return parameters
+        else:
+            parameters = ndarrays_to_parameters([param.detach().numpy() for param in self.network_model.parameters()])
+            return parameters
 
     def calculate_single_client_pid(self, client_id, distance):
         """Calculate pid."""
