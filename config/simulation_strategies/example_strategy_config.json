@@ -2,8 +2,8 @@
   "shared_settings": {
     "aggregation_strategy_keyword": "pid",
     "remove_clients": "true",
-     "dataset_keyword": "lung_photos",
-    "num_of_rounds": 5,
+    "dataset_keyword": "femnist_iid",
+    "num_of_rounds": 4,
     "num_of_clients": 5,
     "num_of_malicious_clients": 1,
     "attack_type": "label_flipping",
