@@ -14,6 +14,7 @@ class MedQuADDatasetLoader:
             batch_size: int = 16,
             chunk_size: int = 256,
             mlm_probability: float = 0.15,
+            num_poisoned_clients: int = 0,
             tokenize_columns=["answer"],
             remove_columns=["answer", "token_type_ids", "question"],
         ):
@@ -24,6 +25,7 @@ class MedQuADDatasetLoader:
         self.batch_size = batch_size
         self.chunk_size = chunk_size
         self.mlm_probability = mlm_probability
+        self.num_poisoned_clients = num_poisoned_clients
         self.tokenize_columns = tokenize_columns
         self.remove_columns = remove_columns
     
@@ -36,11 +38,15 @@ class MedQuADDatasetLoader:
         valloaders = []
 
         tokenizer = AutoTokenizer.from_pretrained(self.model_name)
+        
+        poisoned_client_ids = []
+        if self.num_poisoned_clients > 0:
+            poisoned_client_ids.append(0)
 
         for client_folder in sorted(os.listdir(self.dataset_dir), key=lambda string: int(string.split("_")[1])):
             if client_folder.startswith("."):  # .DS_store
                 continue
-
+            
             json_files = glob.glob(os.path.join(self.dataset_dir, client_folder, "*.json"))
 
             client_dataset = load_dataset("json", data_files=json_files)
@@ -68,11 +74,18 @@ class MedQuADDatasetLoader:
             client_dataset = client_dataset.map(chunk_function, batched=True)
             dataset = client_dataset["train"].train_test_split(test_size=(1 - self.training_subset_fraction))
 
+            client_folder_num = int(client_folder.split("_")[1])
+
+            # Poisoned clients will have half of their tokens selected for masking
+            # then replaced with random tokens
+
             # DataLoader preparation
             collate_fn = DataCollatorForLanguageModeling(
                 tokenizer=tokenizer,
                 mlm=True,
-                mlm_probability=self.mlm_probability,
+                mlm_probability=.75 if client_folder_num in poisoned_client_ids else self.mlm_probability,
+                mask_replace_prob=0 if client_folder_num in poisoned_client_ids else 0.8,
+                random_replace_prob=1 if client_folder_num in poisoned_client_ids else 0.1,
             )
 
             trainloader = DataLoader(
