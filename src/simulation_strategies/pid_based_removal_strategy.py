@@ -7,7 +7,7 @@ import time
 from typing import Dict, List, Optional, Tuple, Union
 
 from sklearn.cluster import KMeans
-from sklearn.preprocessing import MinMaxScaler
+from sklearn.preprocessing import MinMaxScaler, StandardScaler, RobustScaler
 
 from flwr.server.strategy.aggregate import weighted_loss_avg
 from flwr.common import EvaluateRes, Scalar, ndarrays_to_parameters, FitRes, Parameters
@@ -145,14 +145,33 @@ class PIDBasedRemovalStrategy(fl.server.strategy.FedAvg):
             # extract mean of weights and bias of the last layer (fc3)
             clustering_param_data.append(param_tensor)
 
-        # perform clustering
+        # -----------------------------------------------------------------------------------------------#
+        ## perform clustering
+        
+        # X = np.array(clustering_param_data)
+        # kmeans = KMeans(n_clusters=1, init='k-means++').fit(X)
+        # distances = kmeans.transform(X)
+
+        # -----------------------------------------------------------------------------------------------#
         X = np.array(clustering_param_data)
+        X = StandardScaler().fit_transform(X)  # Normalize before clustering
         kmeans = KMeans(n_clusters=1, init='k-means++').fit(X)
         distances = kmeans.transform(X)
 
         scaler = MinMaxScaler()
         scaler.fit(distances)
         normalized_distances = scaler.transform(distances)
+
+        # -----------------------------------------------------------------------------------------------#
+        # X = np.array(clustering_param_data)
+        # # X = StandardScaler().fit_transform(X)  # normalize parameter space
+        # X = RobustScaler().fit_transform(X)  # normalize parameter space
+
+        # kmeans = KMeans(n_clusters=1, init='k-means++').fit(X)
+        # distances = kmeans.transform(X)
+
+        # normalized_distances = StandardScaler().fit_transform(distances)  # normalize distances
+        # -----------------------------------------------------------------------------------------------#
 
         time_start_calc = time.time_ns()
         pids = self.calculate_all_pid_scores(results, normalized_distances)

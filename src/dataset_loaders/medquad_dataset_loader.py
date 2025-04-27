@@ -40,8 +40,8 @@ class MedQuADDatasetLoader:
         tokenizer = AutoTokenizer.from_pretrained(self.model_name)
         
         poisoned_client_ids = []
-        if self.num_poisoned_clients > 0:
-            poisoned_client_ids.append(0)
+        for i in range(self.num_poisoned_clients):
+            poisoned_client_ids.append(i)
 
         for client_folder in sorted(os.listdir(self.dataset_dir), key=lambda string: int(string.split("_")[1])):
             if client_folder.startswith("."):  # .DS_store

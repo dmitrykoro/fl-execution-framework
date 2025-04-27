@@ -279,11 +279,13 @@ class FederatedSimulation:
         valloader = self._valloaders[int(cid)]
 
         return FlowerClient(
-            net,
-            trainloader,
-            valloader,
-            self.strategy_config.training_device,
-            self.strategy_config.num_of_client_epochs,
-            self.strategy_config.model_type,
+            client_id=int(cid),
+            net=net,
+            trainloader=trainloader,
+            valloader=valloader,
+            training_device=self.strategy_config.training_device,
+            num_of_client_epochs=self.strategy_config.num_of_client_epochs,
+            model_type=self.strategy_config.model_type,
             use_lora=use_lora,
+            num_malicious_clients=self.strategy_config.num_of_malicious_clients,
         ).to_client()
