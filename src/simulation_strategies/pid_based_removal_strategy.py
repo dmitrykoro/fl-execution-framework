@@ -30,7 +30,7 @@ class PIDBasedRemovalStrategy(fl.server.strategy.FedAvg):
             num_std_dev: int,
             strategy_history: SimulationStrategyHistory,
             network_model,
-            lora,
+            use_lora,
             *args,
             **kwargs
     ):
@@ -55,7 +55,7 @@ class PIDBasedRemovalStrategy(fl.server.strategy.FedAvg):
         self.strategy_history = strategy_history
 
         self.network_model = network_model
-        self.lora = lora
+        self.use_lora = use_lora
 
         # Create a logger
         self.logger = logging.getLogger("my_logger")
@@ -71,7 +71,7 @@ class PIDBasedRemovalStrategy(fl.server.strategy.FedAvg):
         self.logger.addHandler(console_handler)
 
     def initialize_parameters(self, client_manager):
-        if self.lora:
+        if self.use_lora:
             state_dict = get_peft_model_state_dict(self.network_model)
             parameters = ndarrays_to_parameters([val.detach().numpy() for val in state_dict.values()])
             return parameters

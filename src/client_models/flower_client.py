@@ -31,14 +31,6 @@ class FlowerClient(fl.client.NumPyClient):
         self.use_lora = use_lora
         self.num_malicious_clients = num_malicious_clients
 
-    # def set_parameters(self, net, state_list):
-    #     """
-    #     Load full model weights from list of numpy arrays.
-    #     """
-    #     keys = net.state_dict().keys()
-    #     state_dict = OrderedDict({k: torch.tensor(v) for k, v in zip(keys, state_list)})
-    #     self.net.load_state_dict(state_dict, strict=True)
-
     def set_parameters(self, net, parameters: List[np.ndarray]):
         if self.use_lora:
             params_dict = zip(get_peft_model_state_dict(net).keys(), parameters)
@@ -197,12 +189,6 @@ class FlowerClient(fl.client.NumPyClient):
                 loss.backward()
 
         elif self.model_type == "transformer":
-            # In transformers, the model usually returns a namedtuple with a 'loss' field
-            # for batch in self.trainloader:
-            #     batch = {k: v.to(self.training_device) for k, v in batch.items()}
-            #     outputs = self.net(**batch)
-            #     loss = outputs.loss
-            #     loss.backward()
             pass
 
         else:

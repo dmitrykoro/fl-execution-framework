@@ -68,7 +68,7 @@ Defines the aggregation strategy. Options:
   - `use_llm`: use an llm (`true`/`false`)
   - `llm_model`: the llm model to be used
   - `llm_finetuning`: how to finetune the llm (`full`, `lora`)
-  - `llm_task`: the task the llm is performing
+  - `llm_task`: the task the llm is performing (`mlm`)
   - `llm_chunk_size`: size of the token sequences used for training/testing
   - **MLM settings**
     - `mlm_probability`: specific to mlm tasks, the probability that a token is masked
