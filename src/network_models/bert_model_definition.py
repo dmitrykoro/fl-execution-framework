@@ -38,6 +38,7 @@ def load_model_with_lora(
 
     return model
 
+
 def load_model(
     model_name: str,
 ):
