@@ -273,7 +273,7 @@ class FederatedSimulation:
 
         net = self._network_model.to(self.strategy_config.training_device)
 
-        use_lora = True if self.strategy_config.use_llm and self.strategy_config.llm_finetuning == "lora" else False
+        use_lora = True if self.strategy_config.use_llm == "true" and self.strategy_config.llm_finetuning == "lora" else False
 
         trainloader = self._trainloaders[int(cid)]
         valloader = self._valloaders[int(cid)]
