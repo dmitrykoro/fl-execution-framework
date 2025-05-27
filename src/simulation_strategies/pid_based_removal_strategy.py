@@ -84,7 +84,7 @@ class PIDBasedRemovalStrategy(fl.server.strategy.FedAvg):
             prev_distance = self.client_distances.get(client_id, 0)
             d = self.kd * (distance - prev_distance)
 
-            return p + i + d
+            return (p + i + d)/self.current_round
 
     def calculate_all_pid_scores(self, results, normalized_distances) -> List[float]:
         pid_scores = []
