@@ -29,6 +29,7 @@ class PIDBasedRemovalStrategy(fl.server.strategy.FedAvg):
             num_std_dev: int,
             strategy_history: SimulationStrategyHistory,
             network_model,
+            aggregation_strategy_keyword: str,
             *args,
             **kwargs
     ):
@@ -54,6 +55,8 @@ class PIDBasedRemovalStrategy(fl.server.strategy.FedAvg):
 
         self.network_model = network_model
 
+        self.aggregation_strategy_keyword = aggregation_strategy_keyword
+
         # Create a logger
         self.logger = logging.getLogger("my_logger")
         self.logger.setLevel(logging.INFO)  # Set the logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL)
@@ -77,14 +80,19 @@ class PIDBasedRemovalStrategy(fl.server.strategy.FedAvg):
         p = distance * self.kp
 
         if self.current_round == 1:
-            return p
+            current_pid = p
         else:
             curr_sum = self.client_distance_sums.get(client_id, 0)
             i = curr_sum * self.ki
             prev_distance = self.client_distances.get(client_id, 0)
             d = self.kd * (distance - prev_distance)
 
-            return p + i + d
+            if self.aggregation_strategy_keyword == "pid":  # the very first version of pid formula
+                current_pid = p + i + d
+            elif self.aggregation_strategy_keyword == "pid_v2": # updated formula to avoid integral part growth
+                current_pid = (p + i + d) / self.current_round
+
+        return current_pid
 
     def calculate_all_pid_scores(self, results, normalized_distances) -> List[float]:
         pid_scores = []

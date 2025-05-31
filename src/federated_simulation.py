@@ -188,7 +188,7 @@ class FederatedSimulation:
                 strategy_history=self.strategy_history,
                 begin_removing_from_round=self.strategy_config.begin_removing_from_round
             )
-        elif aggregation_strategy_keyword == "pid":
+        elif aggregation_strategy_keyword == "pid" or aggregation_strategy_keyword == "pid_v2":
             self._aggregation_strategy = PIDBasedRemovalStrategy(
                 min_fit_clients=self.strategy_config.min_fit_clients,
                 min_evaluate_clients=self.strategy_config.min_evaluate_clients,
@@ -201,7 +201,8 @@ class FederatedSimulation:
                 kd=self.strategy_config.Kd,
                 num_std_dev=self.strategy_config.num_std_dev,
                 strategy_history=self.strategy_history,
-                network_model=self._network_model
+                network_model=self._network_model,
+                aggregation_strategy_keyword=aggregation_strategy_keyword
             )
         elif aggregation_strategy_keyword == "krum":
             self._aggregation_strategy = KrumBasedRemovalStrategy(

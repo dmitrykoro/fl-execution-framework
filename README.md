@@ -25,7 +25,8 @@ effects of these parameters on the collected metrics, as well as plug-and-play i
 - **`aggregation_strategy_keyword`**  
 Defines the aggregation strategy. Options:
   - `trust`: Trust & Reputation-based aggregation.
-  - `pid`: PiD-based aggregation.
+  - `pid`: PiD-based aggregation. Initial version of the formula.
+  - `pid_v2`: PiD-based aggregation. Updated formula to avoid the growth of the integral part.
   - `multi-krum`: Multi-Krum aggregation.
   - `krum`:
   - `multi-krum-based`:

@@ -6,7 +6,7 @@ config_schema = {
         # Common parameters
         "aggregation_strategy_keyword": {
             "type": "string",
-            "enum": ["trust", "pid", "multi-krum", "krum", "multi-krum-based", "trimmed_mean"]
+            "enum": ["trust", "pid", "pid_v2", "multi-krum", "krum", "multi-krum-based", "trimmed_mean"]
         },
         "remove_clients": {
             "type": "string",
@@ -14,7 +14,7 @@ config_schema = {
         },
         "dataset_keyword": {
             "type": "string",
-            "enum": ["femnist_iid", "femnist_niid", "its", "pneumoniamnist", "flair", "bloodmnist","lung_photos"]
+            "enum": ["femnist_iid", "femnist_niid", "its", "pneumoniamnist", "flair", "bloodmnist", "lung_photos"]
         },
         "num_of_rounds": {
             "type": "integer"
@@ -97,7 +97,7 @@ config_schema = {
             "maximum": 1
         },
 
-        # PID
+        # PID, PIDv2
         "num_std_dev": {
             "type": "number"
         },
@@ -147,7 +147,7 @@ def check_strategy_specific_parameters(strategy_config: dict) -> None:
                 raise ValidationError(
                     f"Missing parameter {param} for trust aggregation {aggregation_strategy_keyword}"
                 )
-    elif strategy_config["aggregation_strategy_keyword"] == "pid":
+    elif strategy_config["aggregation_strategy_keyword"] in ("pid", "pid_v2"):
         pid_specific_parameters = [
             "num_std_dev", "Kp", "Ki", "Kd"
         ]
