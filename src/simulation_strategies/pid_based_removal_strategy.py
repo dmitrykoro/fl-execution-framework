@@ -119,7 +119,7 @@ class PIDBasedRemovalStrategy(fl.server.strategy.FedAvg):
 
             return p + i + d
     
-    def calculate_single_client_pid_standardized(self, client_id, distance, avg_sum, std_dev=0):
+    def calculate_single_client_pid_standardized(self, client_id, distance, avg_sum, sum_std_dev=0):
         """Calculate pid with standardized distance."""
 
         p = distance * self.kp
@@ -128,7 +128,7 @@ class PIDBasedRemovalStrategy(fl.server.strategy.FedAvg):
             return p
         else:
             curr_sum = self.client_distance_sums.get(client_id, 0)
-            i = ((curr_sum - avg_sum)/std_dev) * self.ki if std_dev != 0 else 0
+            i = ((curr_sum - avg_sum)/sum_std_dev) * self.ki if sum_std_dev != 0 else 0
             prev_distance = self.client_distances.get(client_id, 0)
             d = self.kd * (distance - prev_distance)
 
@@ -207,12 +207,13 @@ class PIDBasedRemovalStrategy(fl.server.strategy.FedAvg):
         normalized_distances = distances
 
         time_start_calc = time.time_ns()
-        pids = self.calculate_all_pid_scores(results, normalized_distances, standardized=False, scaled=False)
+        pids = self.calculate_all_pid_scores(results, normalized_distances, standardized=True, scaled=False)
         time_end_calc = time.time_ns()
 
         self.strategy_history.insert_round_history_entry(score_calculation_time_nanos=time_end_calc - time_start_calc)
 
         counted_pids = []
+        counted_dist = []
         for i, (client_proxy, _) in enumerate(results):
             client_id = client_proxy.cid
             curr_dist = normalized_distances[i][0]
@@ -222,6 +223,7 @@ class PIDBasedRemovalStrategy(fl.server.strategy.FedAvg):
 
             if not client_id in self.removed_client_ids:
                 counted_pids.append(new_PID)
+                counted_dist.append(curr_dist)
 
             self.client_distances[client_id] = curr_dist
             curr_sum = self.client_distance_sums.get(client_id, 0)
@@ -241,10 +243,22 @@ class PIDBasedRemovalStrategy(fl.server.strategy.FedAvg):
                 f'Normalized Distance: {normalized_distances[i][0]} '
             )
 
-        pid_avg = np.mean(counted_pids)
-        pid_std = np.std(counted_pids) 
-        # if len(counted_pids) > 1 else 0
-        self.current_threshold = pid_avg + (self.num_std_dev * pid_std)
+        # pid_avg = np.mean(counted_pids)
+        # pid_std = np.std(counted_pids) 
+
+        # use client distances to calculate the removal threshold on ALL CLIENTS
+        # distances_avg = np.mean(list(self.client_distances.values())) if self.client_distances else 0
+        # distances_std = np.std(list(self.client_distances.values())) if self.client_distances else 0
+        # self.current_threshold = distances_avg + (self.num_std_dev * distances_std) if len(counted_pids) > 1 else 0
+        # self.logger.info(f"DISTANCE-BASED REMOVAL THRESHOLD: {self.current_threshold}")
+
+        distances_avg = np.mean(counted_dist)
+        distances_std = np.std(counted_dist)
+        self.current_threshold = distances_avg + (self.num_std_dev * distances_std) if len(counted_pids) > 1 else 0
+        self.logger.info(f"ALL CLIENTS DISTANCE-BASED REMOVAL THRESHOLD: {self.current_threshold}")
+
+
+        # self.current_threshold = pid_avg + (self.num_std_dev * pid_std)
 
         self.strategy_history.insert_round_history_entry(removal_threshold=self.current_threshold)
 

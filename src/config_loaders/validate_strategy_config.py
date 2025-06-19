@@ -6,7 +6,7 @@ config_schema = {
         # Common parameters
         "aggregation_strategy_keyword": {
             "type": "string",
-            "enum": ["trust", "pid", "pid_v2", "multi-krum", "krum", "multi-krum-based", "trimmed_mean"]
+            "enum": ["trust", "pid", "pid_v2", "multi-krum", "krum", "multi-krum-based", "trimmed_mean", "rfa"]
         },
         "remove_clients": {
             "type": "string",
