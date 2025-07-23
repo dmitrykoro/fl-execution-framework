@@ -45,6 +45,7 @@ Defines the aggregation strategy. Options:
   - `pneumoniamnist`: medical imaging (pneumonia diagnosis), binary classification, IID distribution, 10 clients.
   - `flair`: non-IID distribution (FLAIR dataset, unsupported in current version), 20 clients. 
   - `bloodmnist`: IID distribution, but non-equal number of samples per class, 40 clients. 
+  - `lung_photos`: contains images of lung cancer from NLST archive from different CT machines. Data distributed according to the source, with varying number of images representing each stage of cancer. 30 clients.
 
 
 - `num_of_rounds`: total aggregation rounds.
