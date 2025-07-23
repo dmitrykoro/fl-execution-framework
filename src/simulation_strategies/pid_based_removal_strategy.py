@@ -103,20 +103,6 @@ class PIDBasedRemovalStrategy(fl.server.strategy.FedAvg):
             d = self.kd * (distance - prev_distance)
             return p + i + d
     
-    # def calculate_single_client_pid(self, client_id, distance):
-    #     """ Old PID calculation without scaling or standardization."""
-    #     p = distance * self.kp
-
-    #     if self.current_round == 1:
-    #         current_pid = p
-    #     else:
-    #         curr_sum = self.client_distance_sums.get(client_id, 0)
-    #         i = curr_sum * self.ki
-    #         prev_distance = self.client_distances.get(client_id, 0)
-    #         d = self.kd * (distance - prev_distance)
-
-    #         return p + i + d
-    
     def calculate_single_client_pid_standardized(self, client_id, distance, avg_sum, sum_std_dev=0):
         """Calculate pid with standardized distance."""
 

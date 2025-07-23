@@ -189,7 +189,7 @@ class FederatedSimulation:
                 strategy_history=self.strategy_history,
                 begin_removing_from_round=self.strategy_config.begin_removing_from_round
             )
-        elif aggregation_strategy_keyword == "pid" or aggregation_strategy_keyword == "pid_scaled" or aggregation_strategy_keyword == "pid_standardized":
+        elif aggregation_strategy_keyword in ("pid", "pid_scaled", "pid_standardized"):
             self._aggregation_strategy = PIDBasedRemovalStrategy(
                 min_fit_clients=self.strategy_config.min_fit_clients,
                 min_evaluate_clients=self.strategy_config.min_evaluate_clients,

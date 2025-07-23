@@ -97,7 +97,7 @@ config_schema = {
             "maximum": 1
         },
 
-        # PID, PIDv2
+        # PID, PID scaled, PID standardized
         "num_std_dev": {
             "type": "number"
         },
@@ -147,7 +147,7 @@ def check_strategy_specific_parameters(strategy_config: dict) -> None:
                 raise ValidationError(
                     f"Missing parameter {param} for trust aggregation {aggregation_strategy_keyword}"
                 )
-    elif strategy_config["aggregation_strategy_keyword"] in ("pid", "pid_v2"):
+    elif strategy_config["aggregation_strategy_keyword"] in ("pid", "pid_scaled", "pid_standardized"):
         pid_specific_parameters = [
             "num_std_dev", "Kp", "Ki", "Kd"
         ]
