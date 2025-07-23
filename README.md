@@ -25,10 +25,12 @@ effects of these parameters on the collected metrics, as well as plug-and-play i
 - **`aggregation_strategy_keyword`**  
 Defines the aggregation strategy. Options:
   - `trust`: Trust & Reputation-based aggregation.
-  - `pid`: PiD-based aggregation.
-  - `multi-krum`: Multi-Krum aggregation.
-  - `krum`:
-  - `multi-krum-based`:
+  - `pid`: PID-based aggregation. Initial version of the formula.
+  - `pid_scaled`: PID-based aggregation with Integral part divided by the number of current round.
+  - `pid_standardized`: PID-based aggregation with the Integral part standardized based on the distribution parameters of all Integral parts.
+  - `multi-krum`: Multi-Krum aggregation. Clients are removed from aggregation only in current round.
+  - `krum`: Krum aggregation works like Multi-Krum, but uses only a single client. 
+  - `multi-krum-based`: Multi-Krum-based aggregation where removed clients are excluded from aggregation permanently. 
   - `trimmed_mean`:
 
 
@@ -43,6 +45,7 @@ Defines the aggregation strategy. Options:
   - `pneumoniamnist`: medical imaging (pneumonia diagnosis), binary classification, IID distribution, 10 clients.
   - `flair`: non-IID distribution (FLAIR dataset, unsupported in current version), 20 clients. 
   - `bloodmnist`: IID distribution, but non-equal number of samples per class, 40 clients. 
+  - `lung_photos`: contains images of lung cancer from NLST archive from different CT machines. Data distributed according to the source, with varying number of images representing each stage of cancer. 30 clients.
 
 
 - `num_of_rounds`: total aggregation rounds.

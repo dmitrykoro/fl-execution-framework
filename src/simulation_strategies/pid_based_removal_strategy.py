@@ -29,6 +29,7 @@ class PIDBasedRemovalStrategy(fl.server.strategy.FedAvg):
             num_std_dev: int,
             strategy_history: SimulationStrategyHistory,
             network_model,
+            aggregation_strategy_keyword: str,
             *args,
             **kwargs
     ):
@@ -54,6 +55,8 @@ class PIDBasedRemovalStrategy(fl.server.strategy.FedAvg):
 
         self.network_model = network_model
 
+        self.aggregation_strategy_keyword = aggregation_strategy_keyword
+
         # Create a logger
         self.logger = logging.getLogger("my_logger")
         self.logger.setLevel(logging.INFO)  # Set the logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL)
@@ -71,7 +74,7 @@ class PIDBasedRemovalStrategy(fl.server.strategy.FedAvg):
         parameters = ndarrays_to_parameters([param.detach().numpy() for param in self.network_model.parameters()])
         return parameters
 
-    def calculate_single_client_pid(self, client_id, distance):
+    def calculate_single_client_pid_scaled(self, client_id, distance):
         """Calculate pid."""
 
         p = distance * self.kp
@@ -84,15 +87,60 @@ class PIDBasedRemovalStrategy(fl.server.strategy.FedAvg):
             prev_distance = self.client_distances.get(client_id, 0)
             d = self.kd * (distance - prev_distance)
 
+            i_scaled = i / (self.current_round)
+            return p + i_scaled + d
+    
+    def calculate_single_client_pid(self, client_id, distance):
+        """ Old PID calculation without scaling or standardization."""
+        p = distance * self.kp
+
+        if self.current_round == 1:
+            return p
+        else:
+            curr_sum = self.client_distance_sums.get(client_id, 0)
+            i = curr_sum * self.ki
+            prev_distance = self.client_distances.get(client_id, 0)
+            d = self.kd * (distance - prev_distance)
+            return p + i + d
+    
+    def calculate_single_client_pid_standardized(self, client_id, distance, avg_sum, sum_std_dev=0):
+        """Calculate pid with standardized distance."""
+
+        p = distance * self.kp
+
+        if self.current_round == 1:
+            return p
+        else:
+            curr_sum = self.client_distance_sums.get(client_id, 0)
+            i = ((curr_sum - avg_sum)/sum_std_dev) * self.ki if sum_std_dev != 0 else 0
+            prev_distance = self.client_distances.get(client_id, 0)
+            d = self.kd * (distance - prev_distance)
+
             return p + i + d
 
-    def calculate_all_pid_scores(self, results, normalized_distances) -> List[float]:
+    def calculate_all_pid_scores(self, results, normalized_distances, standardized=False, scaled=False) -> List[float]:
         pid_scores = []
+
+        if self.aggregation_strategy_keyword == "pid_scaled":
+            scaled = True
+        elif self.aggregation_strategy_keyword == "pid_standardized":
+            standardized = True
+
+        if standardized:
+            all_sums = sum(self.client_distance_sums.values())
+            avg_sum = all_sums / len(self.client_distance_sums) if self.client_distance_sums else 0
+            sum_dev = np.std(list(self.client_distance_sums.values())) if self.client_distance_sums else 0
 
         for i, (client_proxy, _) in enumerate(results):
             client_id = client_proxy.cid
             curr_dist = normalized_distances[i][0]
-            new_PID = self.calculate_single_client_pid(client_id, curr_dist)
+            if standardized:
+                new_PID = self.calculate_single_client_pid_standardized(client_id, curr_dist, avg_sum, sum_dev)
+            elif scaled:
+                new_PID = self.calculate_single_client_pid_scaled(client_id, curr_dist)
+            else:
+                new_PID = self.calculate_single_client_pid(client_id, curr_dist)
+                # print(f"PID for client {client_id} is {new_PID}")
             self.client_pids[client_id] = new_PID
             pid_scores.append(new_PID)
 
@@ -142,9 +190,11 @@ class PIDBasedRemovalStrategy(fl.server.strategy.FedAvg):
         kmeans = KMeans(n_clusters=1, init='k-means++').fit(X)
         distances = kmeans.transform(X)
 
-        scaler = MinMaxScaler()
-        scaler.fit(distances)
-        normalized_distances = scaler.transform(distances)
+        # Uncomment the following lines to normalize distances in range [0, 1]
+        # scaler = MinMaxScaler()
+        # scaler.fit(distances)
+        # normalized_distances = scaler.transform(distances)
+        normalized_distances = distances
 
         time_start_calc = time.time_ns()
         pids = self.calculate_all_pid_scores(results, normalized_distances)
@@ -153,6 +203,7 @@ class PIDBasedRemovalStrategy(fl.server.strategy.FedAvg):
         self.strategy_history.insert_round_history_entry(score_calculation_time_nanos=time_end_calc - time_start_calc)
 
         counted_pids = []
+        counted_dist = []
         for i, (client_proxy, _) in enumerate(results):
             client_id = client_proxy.cid
             curr_dist = normalized_distances[i][0]
@@ -162,11 +213,12 @@ class PIDBasedRemovalStrategy(fl.server.strategy.FedAvg):
 
             if not client_id in self.removed_client_ids:
                 counted_pids.append(new_PID)
+                counted_dist.append(curr_dist)
 
             self.client_distances[client_id] = curr_dist
             curr_sum = self.client_distance_sums.get(client_id, 0)
             self.client_distance_sums[client_id] = curr_dist + curr_sum
-
+            # print(self.client_pids)
             self.strategy_history.insert_single_client_history_entry(
                 current_round=self.current_round,
                 client_id=int(client_id),
@@ -181,9 +233,30 @@ class PIDBasedRemovalStrategy(fl.server.strategy.FedAvg):
                 f'Normalized Distance: {normalized_distances[i][0]} '
             )
 
-        pid_avg = np.mean(counted_pids)
-        pid_std = np.std(counted_pids)
-        self.current_threshold = pid_avg + (self.num_std_dev * pid_std)
+        # use pid-based threshold if self.aggregation_strategy_keyword is pid
+
+        if self.aggregation_strategy_keyword == "pid":
+            pid_avg = np.mean(counted_pids)
+            pid_std = np.std(counted_pids) 
+            self.current_threshold = pid_avg + (self.num_std_dev * pid_std) if len(counted_pids) > 1 else 0
+            # self.logger.info(f"ALL CLIENTS DISTANCE-BASED REMOVAL THRESHOLD: {self.current_threshold}")
+        
+        # use distance-based threshold for pid_scaled and pid_standardized
+        else:
+            distances_avg = np.mean(list(self.client_distances.values())) if self.client_distances else 0
+            distances_std = np.std(list(self.client_distances.values())) if self.client_distances else 0
+            self.current_threshold = distances_avg + (self.num_std_dev * distances_std) if len(counted_pids) > 1 else 0
+        # use client distances to calculate the removal threshold on ALL CLIENTS
+        # distances_avg = np.mean(list(self.client_distances.values())) if self.client_distances else 0
+        # distances_std = np.std(list(self.client_distances.values())) if self.client_distances else 0
+        # self.current_threshold = distances_avg + (self.num_std_dev * distances_std) if len(counted_pids) > 1 else 0
+        # self.logger.info(f"DISTANCE-BASED REMOVAL THRESHOLD: {self.current_threshold}")
+
+        # distances_avg = np.mean(counted_dist)
+        # distances_std = np.std(counted_dist)
+        # self.current_threshold = distances_avg + (self.num_std_dev * distances_std) if len(counted_pids) > 1 else 0
+        # self.logger.info(f"ALL CLIENTS DISTANCE-BASED REMOVAL THRESHOLD: {self.current_threshold}")
+
 
         self.strategy_history.insert_round_history_entry(removal_threshold=self.current_threshold)
 

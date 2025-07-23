@@ -12,6 +12,7 @@ from dataset_loaders.image_transformers.femnist_image_transformer import femnist
 from dataset_loaders.image_transformers.flair_image_transformer import flair_image_transformer
 from dataset_loaders.image_transformers.pneumoniamnist_image_transformer import pneumoniamnist_image_transformer
 from dataset_loaders.image_transformers.bloodmnist_image_transformer import bloodmnist_image_transformer
+from dataset_loaders.image_transformers.lung_photos_image_transformer import lung_cancer_image_transformer
 
 from network_models.its_network_definition import ITSNetwork
 from network_models.femnist_reduced_iid_network_definition import FemnistReducedIIDNetwork
@@ -19,6 +20,8 @@ from network_models.femnist_full_niid_network_definition import FemnistFullNIIDN
 from network_models.flair_network_definition import FlairNetwork
 from network_models.pneumoniamnist_network_definition import PneumoniamnistNetwork
 from network_models.bloodmnist_network_definition import BloodmnistNetwork
+from network_models.lung_photos_network_definition import LungCancerCNN
+
 
 from client_models.flower_client import FlowerClient
 
@@ -28,6 +31,7 @@ from simulation_strategies.krum_based_removal_strategy import KrumBasedRemovalSt
 from simulation_strategies.multi_krum_based_removal_strategy import MultiKrumBasedRemovalStrategy
 from simulation_strategies.trimmed_mean_based_removal_strategy import TrimmedMeanBasedRemovalStrategy
 from simulation_strategies.mutli_krum_strategy import MultiKrumStrategy
+from simulation_strategies.rfa_based_removal_strategy import RFABasedRemovalStrategy
 
 from data_models.simulation_strategy_config import StrategyConfig
 from data_models.simulation_strategy_history import SimulationStrategyHistory
@@ -150,7 +154,15 @@ class FederatedSimulation:
                 training_subset_fraction=training_subset_fraction
             )
             self._network_model = BloodmnistNetwork()
-
+        elif dataset_keyword == "lung_photos":
+            dataset_loader = ImageDatasetLoader(
+                transformer=lung_cancer_image_transformer,
+                dataset_dir=self._dataset_dir,
+                num_of_clients=num_of_clients,
+                batch_size=batch_size,
+                training_subset_fraction=training_subset_fraction
+            )
+            self._network_model = LungCancerCNN()
         else:
             logging.error(
                 f"You are parsing a strategy for dataset: {dataset_keyword}. "
@@ -177,7 +189,7 @@ class FederatedSimulation:
                 strategy_history=self.strategy_history,
                 begin_removing_from_round=self.strategy_config.begin_removing_from_round
             )
-        elif aggregation_strategy_keyword == "pid":
+        elif aggregation_strategy_keyword in ("pid", "pid_scaled", "pid_standardized"):
             self._aggregation_strategy = PIDBasedRemovalStrategy(
                 min_fit_clients=self.strategy_config.min_fit_clients,
                 min_evaluate_clients=self.strategy_config.min_evaluate_clients,
@@ -190,7 +202,8 @@ class FederatedSimulation:
                 kd=self.strategy_config.Kd,
                 num_std_dev=self.strategy_config.num_std_dev,
                 strategy_history=self.strategy_history,
-                network_model=self._network_model
+                network_model=self._network_model,
+                aggregation_strategy_keyword=aggregation_strategy_keyword
             )
         elif aggregation_strategy_keyword == "krum":
             self._aggregation_strategy = KrumBasedRemovalStrategy(
@@ -238,6 +251,18 @@ class FederatedSimulation:
                 begin_removing_from_round=self.strategy_config.begin_removing_from_round,
                 strategy_history=self.strategy_history,
                 trim_ratio=self.strategy_config.trim_ratio
+            )
+
+        elif aggregation_strategy_keyword == "rfa":
+            self._aggregation_strategy = RFABasedRemovalStrategy(
+                min_fit_clients=self.strategy_config.min_fit_clients,
+                min_evaluate_clients=self.strategy_config.min_evaluate_clients,
+                min_available_clients=self.strategy_config.min_available_clients,
+                evaluate_metrics_aggregation_fn=self.strategy_config.evaluate_metrics_aggregation_fn,
+                remove_clients=self.strategy_config.remove_clients,
+                begin_removing_from_round=self.strategy_config.begin_removing_from_round,
+                strategy_history=self.strategy_history,
+                num_of_malicious_clients=self.strategy_config.num_of_malicious_clients
             )
 
         else:
