@@ -274,10 +274,7 @@ class FederatedSimulation:
                 remove_clients=self.strategy_config.remove_clients,
                 begin_removing_from_round=self.strategy_config.begin_removing_from_round,
                 strategy_history=self.strategy_history,
-                network_model=self._network_model,
-                aggregation_strategy_keyword=aggregation_strategy_keyword,
-                # fix to the number of assumed malicious clients
-                assumed_num_malicious=self.strategy_config.num_of_malicious_clients
+                num_krum_selections=self.strategy_config.num_krum_selections,
             )
 
         else:

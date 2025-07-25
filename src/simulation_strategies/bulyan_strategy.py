@@ -1,8 +1,13 @@
+import time
+import numpy as np
+import flwr as fl
+import torch
 import logging
 from typing import Dict, List, Optional, Tuple, Union
 
-import numpy as np
-import flwr as fl
+from sklearn.cluster import KMeans
+from sklearn.preprocessing import MinMaxScaler
+
 from flwr.common import (
     FitRes,
     EvaluateRes,
@@ -14,27 +19,16 @@ from flwr.common import (
 from flwr.server.client_proxy import ClientProxy
 from flwr.server.strategy.aggregate import weighted_loss_avg
 
-# Optional: remove if you do not need torch‑based clustering diagnostics
-import torch
-from sklearn.cluster import KMeans
-from sklearn.preprocessing import MinMaxScaler
-
-# Project‑specific history tracker
+from output_handlers.directory_handler import DirectoryHandler
 from data_models.simulation_strategy_history import SimulationStrategyHistory
 
 
 class BulyanStrategy(fl.server.strategy.FedAvg):
-    """Bulyan aggregation strategy compatible with the secure‑FL framework.
+    """Bulyan aggregation strategy implemented in the *same coding style* as
+    the provided ``MultiKrumStrategy``.
 
-    Two‑stage robust aggregation (Mhamdi *et al.*, ICML 2018):
-    1. **Multi‑Krum** chooses `n − 2f` candidates most mutually consistent.
-    2. **Coordinate‑wise trimmed mean** discards the largest & smallest *f*
-       values per coordinate among those candidates.
-
-    The class preserves the same public attributes (`current_round`,
-    `rounds_history`, `client_scores`, etc.) and logging style used by the
-    previously implemented `RFABasedRemovalStrategy` so downstream modules
-    (dashboards, removal logic, history serialization) require no changes.
+    Arguments mirror the original class so the surrounding secure‑FL
+    framework can swap strategies without refactoring.
     """
 
     # ------------------------------------------------------------------
@@ -44,31 +38,46 @@ class BulyanStrategy(fl.server.strategy.FedAvg):
     def __init__(
         self,
         remove_clients: bool,
+        num_krum_selections: int, # n - f
         begin_removing_from_round: int,
         strategy_history: SimulationStrategyHistory,
-        network_model,
-        aggregation_strategy_keyword: str,
-        assumed_num_malicious: int,
         *args,
         **kwargs,
-    ) -> None:
+    ):
         super().__init__(*args, **kwargs)
-        self.remove_clients = remove_clients
-        self.begin_removing_from_round = begin_removing_from_round
-        self.strategy_history = strategy_history
-        self.network_model = network_model
-        self.aggregation_strategy_keyword = aggregation_strategy_keyword
-        self.assumed_num_malicious = assumed_num_malicious  # 'f' in Bulyan
 
-        # Internal state matching the framework conventions
-        self.current_round: int = 0
-        self.removed_client_ids: set[str] = set()
-        self.rounds_history: Dict[str, Dict] = {}
+        # --- Public / framework‑visible fields -------------------------
+        self.remove_clients = remove_clients
+        self.num_krum_selections = num_krum_selections # n - f
+        self.begin_removing_from_round = begin_removing_from_round
+
+        # --- Internal state -------------------------------------------
         self.client_scores: Dict[str, float] = {}
-        self.logger = logging.getLogger(self.__class__.__name__)
+        self.removed_client_ids: set[str] = set()
+        self.current_round: int = 0
+        self.strategy_history = strategy_history
+
+        # --- Logger (matches MultiKrum style) -------------------------
+        self.logger = logging.getLogger("my_logger")
+        self.logger.setLevel(logging.INFO)
+        out_dir = DirectoryHandler.dirname
+        file_handler = logging.FileHandler(f"{out_dir}/output.log")
+        console_handler = logging.StreamHandler()
+        self.logger.addHandler(file_handler)
+        self.logger.addHandler(console_handler)
 
     # ------------------------------------------------------------------
-    # Core FedAvg hooks -------------------------------------------------
+    # Helper: pairwise distances (cached) ------------------------------
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    def _pairwise_sq_dists(vectors: np.ndarray) -> np.ndarray:
+        """Return condensed Euclidean distance matrix squared."""
+        diff = vectors[:, None, :] - vectors[None, :, :]
+        return np.square(np.linalg.norm(diff, axis=2))
+
+    # ------------------------------------------------------------------
+    # Core aggregation --------------------------------------------------
     # ------------------------------------------------------------------
 
     def aggregate_fit(
@@ -77,98 +86,140 @@ class BulyanStrategy(fl.server.strategy.FedAvg):
         results: List[Tuple[ClientProxy, FitRes]],
         failures: List[Union[Tuple[ClientProxy, FitRes], BaseException]],
     ) -> Tuple[Optional[Parameters], Dict[str, Scalar]]:
-        """Aggregate parameters using **Bulyan** (Multi‑Krum + trimmed mean)."""
         self.current_round += 1
-        self.rounds_history[str(self.current_round)] = {"client_info": {}, "round_info": {}}
 
         if not results:
-            self.logger.warning("[Bulyan] No successful client results in round %s", server_round)
             return None, {}
 
-        # Exclude permanently removed clients
-        active = [(cp, fr) for cp, fr in results if cp.cid not in self.removed_client_ids]
-        n = len(active)
-        f = self.assumed_num_malicious
+        # ---------------- Clustering diagnostics (optional) ------------
+        clustering_param_data = []
+        for _, fit_res in results:
+            tensors = [torch.tensor(arr).flatten() for arr in parameters_to_ndarrays(fit_res.parameters)]
+            clustering_param_data.append(torch.cat(tensors))
+        X_embed = np.vstack([t.numpy() for t in clustering_param_data])
+        kmeans = KMeans(n_clusters=1, init="k-means++").fit(X_embed)
+        abs_distances = kmeans.transform(X_embed)
+        norm_distances = MinMaxScaler().fit(abs_distances).transform(abs_distances)
+
+        # ---------------- Flatten updates ------------------------------
+        param_arrays = [parameters_to_ndarrays(fr.parameters) for _, fr in results]
+        flat_updates = np.stack([np.concatenate([p.ravel() for p in pa]) for pa in param_arrays])
+        n, dim = flat_updates.shape
+        C = self.num_krum_selections
+        f = (n - C) // 2  # number of malicious clients
+        if C > n or (n - C) % 2:
+            self.logger.error("C must satisfy n - C = 2f (even, ≤ n)")
+            return super().aggregate_fit(server_round, results, failures)
+
+        # Ensure Bulyan preconditions
         if n <= 4 * f + 2:
             self.logger.warning(
-                "[Bulyan] Not enough clients (%s) for assumed f=%s; falling back to mean.",
-                n,
-                f,
+                f"[Bulyan] Not enough clients ({n}) for assumed f={f}. Using simple mean."
             )
             return super().aggregate_fit(server_round, results, failures)
 
-        # 1. Flatten updates
-        param_arrays = [parameters_to_ndarrays(fr.parameters) for _, fr in active]
-        flats = np.stack([np.concatenate([p.ravel() for p in pa]) for pa in param_arrays])
-        dim = flats.shape[1]
+        # ----------------- Multi‑Krum phase ----------------------------
+        time_start_calc = time.time_ns()
+        dists = self._pairwise_sq_dists(flat_updates)
+        m = n - f - 2  # number of nearest neighbours to sum
+        krum_scores = np.array([np.partition(dists[i], m)[:m].sum() for i in range(n)])
+        candidate_idx = np.argpartition(krum_scores, C)[:C]
+        candidates = flat_updates[candidate_idx]
 
-        # 2. Multi‑Krum pre‑selection
-        distances = np.square(np.linalg.norm(flats[:, None, :] - flats[None, :, :], axis=2))
-        m = n - f - 2  # number of closest vectors to sum for each score
-        krum_scores = np.array([np.partition(distances[i], m)[:m].sum() for i in range(n)])
-        sel_cnt = n - 2 * f
-        selected_idx = np.argpartition(krum_scores, sel_cnt)[:sel_cnt]
-        candidates = flats[selected_idx]
-
-        # 3. Coordinate‑wise trimmed mean
+        # ----------------- Trimmed‑mean phase --------------------------
+        # drop top f and bottom f scores from C candidates
         sorted_idx = np.argsort(candidates, axis=0)
-        keep_slice = slice(f, sel_cnt - f)
-        kept = candidates[sorted_idx[keep_slice, np.arange(dim)], np.arange(dim)]
-        bulyan_vec = kept.mean(axis=0)
+        kept_slice = slice(f, C - f)
+        trimmed = candidates[sorted_idx[kept_slice, np.arange(dim)], np.arange(dim)]
+        bulyan_vector = trimmed.mean(axis=0)
+        time_end_calc = time.time_ns()
 
-        # 4. Per‑client deviation bookkeeping (optional diagnostics)
-        for idx, (cp, _) in enumerate(active):
-            cid = cp.cid
-            dev = float(np.linalg.norm(flats[idx] - bulyan_vec))
-            self.client_scores[cid] = dev
-            self.rounds_history[str(self.current_round)]["client_info"][f"client_{cid}"] = {
-                "removal_criterion": dev,
-                "is_removed": self.rounds_history
-                .get(str(self.current_round - 1), {})
-                .get("client_info", {})
-                .get(f"client_{cid}", {})
-                .get("is_removed", False),
-            }
-
-        # Optional cluster distance monitoring (same pattern as RFA, but skip if deps missing)
-        try:
-            tensors = [torch.cat([torch.tensor(a).flatten() for a in pa]) for pa in param_arrays]
-            X = np.vstack([t.numpy() for t in tensors])
-            raw_dist = KMeans(n_clusters=1, init="k-means++").fit(X).transform(X)
-            norm_dist = MinMaxScaler().fit(raw_dist).transform(raw_dist)
-            for idx, (cp, _) in enumerate(active):
-                cid = cp.cid
-                self.rounds_history[str(self.current_round)]["client_info"][f"client_{cid}"] |= {
-                    "absolute_distance": float(raw_dist[idx][0]),
-                    "normalized_distance": float(norm_dist[idx][0]),
-                }
-        except Exception as exc:  # noqa: BLE001
-            self.logger.debug("[Bulyan] Diagnostics skipped: %s", exc)
-
-        # 5. Re‑assemble aggregated parameters
-        out, cur = [], 0
+        # ----------------- Prepare return params -----------------------
+        agg_list, cursor = [], 0
         for arr in param_arrays[0]:
             num = arr.size
-            out.append(bulyan_vec[cur : cur + num].reshape(arr.shape).astype(arr.dtype))
-            cur += num
-        return ndarrays_to_parameters(out), {}
+            agg_list.append(bulyan_vector[cursor : cursor + num].reshape(arr.shape).astype(arr.dtype))
+            cursor += num
+        aggregated_parameters = ndarrays_to_parameters(agg_list)
+
+        # ----------------- Book‑keeping & logging ----------------------
+        self.strategy_history.insert_round_history_entry(
+            score_calculation_time_nanos=time_end_calc - time_start_calc
+        )
+
+        for i, (client_proxy, _) in enumerate(results):
+            cid = client_proxy.cid
+            deviation = float(np.linalg.norm(flat_updates[i] - bulyan_vector))
+            self.client_scores[cid] = deviation
+            self.strategy_history.insert_single_client_history_entry(
+                current_round=self.current_round,
+                client_id=int(cid),
+                removal_criterion=deviation,
+                absolute_distance=float(abs_distances[i][0]),
+            )
+            self.logger.info(
+                f"Aggregation round: {server_round} Client ID: {cid} Deviation: {deviation:.4e} "
+                f"Normalized Distance: {norm_distances[i][0]:.4f}"
+            )
+
+        return aggregated_parameters, {}
 
     # ------------------------------------------------------------------
-    # Client selection & evaluation
+    # Client selection --------------------------------------------------
     # ------------------------------------------------------------------
 
-    def configure_fit(self, server_round: int, parameters: Parameters, client_manager):
-        available = client_manager.all()
+    def configure_fit(
+        self,
+        server_round: int,
+        parameters: Parameters,
+        client_manager,
+    ) -> List[Tuple[ClientProxy, fl.common.FitIns]]:
+        available_clients = client_manager.all()
+
+        # Warm‑up: keep everyone
         if self.current_round <= self.begin_removing_from_round:
-            return [(c, fl.common.FitIns(parameters, {})) for c in available.values()]
-        scores = {cid: self.client_scores.get(cid, 0.0) for cid in available}
-        if self.remove_clients and scores:
-            worst = max(scores, key=scores.get)
-            self.logger.info("[Bulyan] Removing client %s (highest deviation)", worst)
-            self.removed_client_ids.add(worst)
-            self.rounds_history[str(self.current_round)]["client_info"][f"client_{worst}"]["is_removed"] = True
-        ordered = sorted(scores, key=scores.get, reverse=True)
-        return [(available[c], fl.common.FitIns(parameters, {})) for c in ordered if c in available]
+            fit_ins = fl.common.FitIns(parameters, {})
+            return [(c, fit_ins) for c in available_clients.values()]
+
+        # --- Gather scores for available clients ----------------------
+        client_scores = {cid: self.client_scores.get(cid, 0.0) for cid in available_clients.keys()}
+
+        # --- Reset removed set each round -----------------------------
+        self.removed_client_ids = set()
+
+        if self.remove_clients:
+            # Remove *f* clients with highest scores this round
+            n = len(client_scores)
+            f = max(0, n - self.num_krum_selections) // 2
+            for _ in range(f):
+                if not client_scores:
+                    break
+                eligible = {cid: s for cid, s in client_scores.items() if cid not in self.removed_client_ids}
+                if not eligible:
+                    break
+                worst = max(eligible, key=eligible.get)
+                self.removed_client_ids.add(worst)
+
+        self.logger.info(
+            f"Removed clients at round {self.current_round} are : {self.removed_client_ids}"
+        )
+
+        self.strategy_history.update_client_participation(
+            current_round=self.current_round, removed_client_ids=self.removed_client_ids
+        )
+
+        # --- Build fit instructions ----------------------------------
+        ordered_cids = sorted(client_scores, key=client_scores.get, reverse=True)
+        fit_ins = fl.common.FitIns(parameters, {})
+        return [
+            (available_clients[cid], fit_ins)
+            for cid in ordered_cids
+            if cid in available_clients and cid not in self.removed_client_ids
+        ]
+
+    # ------------------------------------------------------------------
+    # Evaluation aggregation (identical pattern to Multi‑Krum) ---------
+    # ------------------------------------------------------------------
 
     def aggregate_evaluate(
         self,
@@ -176,6 +227,38 @@ class BulyanStrategy(fl.server.strategy.FedAvg):
         results: List[Tuple[ClientProxy, EvaluateRes]],
         failures: List[Tuple[Union[ClientProxy, EvaluateRes], BaseException]],
     ) -> Tuple[Optional[float], Dict[str, Scalar]]:
-        # Re‑use FedAvg’s default evaluation aggregation (or your custom one
-        # if you copy the identical logic here). This keeps dashboards aligned.
-        return super().aggregate_evaluate(server_round, results, failures)
+        self.logger.info("\n" + "-" * 50 + f"AGGREGATION ROUND {server_round}" + "-" * 50)
+
+        for cp, ev in results:
+            cid = cp.cid
+            acc_metrics = dict(ev.metrics)
+            acc_metrics["cid"] = cid
+            self.strategy_history.insert_single_client_history_entry(
+                client_id=int(cid),
+                current_round=self.current_round,
+                accuracy=acc_metrics.get("accuracy"),
+            )
+
+        if not results:
+            return None, {}
+
+        aggregate_value, num_clients_loss = [], 0
+        for cp, ev in results:
+            self.strategy_history.insert_single_client_history_entry(
+                client_id=int(cp.cid), current_round=self.current_round, loss=ev.loss
+            )
+            if cp.cid not in self.removed_client_ids:
+                aggregate_value.append((ev.num_examples, ev.loss))
+                num_clients_loss += 1
+
+        loss_aggregated = weighted_loss_avg(aggregate_value)
+        self.strategy_history.insert_round_history_entry(loss_aggregated=loss_aggregated)
+
+        for cp, ev in results:
+            logging.debug(f"Client ID: {cp.cid} Metrics: {ev.metrics} Loss: {ev.loss}")
+
+        self.logger.info(
+            f"Round: {server_round} Number of aggregated clients: {num_clients_loss} "
+            f"Aggregated loss: {loss_aggregated}"
+        )
+        return loss_aggregated, {}
