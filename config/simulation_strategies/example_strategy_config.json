@@ -1,6 +1,6 @@
 {
   "shared_settings": {
-    "aggregation_strategy_keyword": "pid",
+    "aggregation_strategy_keyword": "bulyan",
     "remove_clients": "true",
     "dataset_keyword": "femnist_iid",
     "num_of_rounds": 4,
