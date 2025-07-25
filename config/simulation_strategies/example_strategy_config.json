@@ -3,7 +3,7 @@
     "aggregation_strategy_keyword": "bulyan",
     "remove_clients": "true",
     "dataset_keyword": "femnist_iid",
-    "num_of_rounds": 10,
+    "num_of_rounds": 50,
     "num_of_clients": 20,
     "num_of_malicious_clients": 2,
     "attack_type": "label_flipping",

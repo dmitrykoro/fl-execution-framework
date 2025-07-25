@@ -150,6 +150,8 @@ class BulyanStrategy(fl.server.strategy.FedAvg):
         for i, (client_proxy, _) in enumerate(results):
             cid = client_proxy.cid
             deviation = float(np.linalg.norm(flat_updates[i] - bulyan_vector))
+            # if neeeded krum scores instead uncomment the following line
+            # deviation = float(krum_scores[i])
             self.client_scores[cid] = deviation
             self.strategy_history.insert_single_client_history_entry(
                 current_round=self.current_round,
@@ -214,7 +216,7 @@ class BulyanStrategy(fl.server.strategy.FedAvg):
         return [
             (available_clients[cid], fit_ins)
             for cid in ordered_cids
-            if cid in available_clients and cid not in self.removed_client_ids
+            if cid in available_clients
         ]
 
     # ------------------------------------------------------------------
