@@ -32,6 +32,7 @@ Defines the aggregation strategy. Options:
   - `krum`: Krum aggregation works like Multi-Krum, but uses only a single client. 
   - `multi-krum-based`: Multi-Krum-based aggregation where removed clients are excluded from aggregation permanently. 
   - `trimmed_mean`:
+  - `bulyan`: Bulyan aggregation strategy. Uses Multi-Krum as the first step of filtering and Trimmed-Mean as the second step to ensure robustness.
 
 
 - **`remove_clients`**: attempt to remove malicious clients using strategy-specific mechanisms.
