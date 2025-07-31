@@ -69,7 +69,7 @@ class DatasetHandler:
         for client_dir in client_dirs_to_poison:
             if attack_type == "label_flipping":
                 self._flip_labels(client_dir)
-            if attack_type == "gaussian_noise":
+            elif attack_type == "gaussian_noise":
                 self._add_noise(client_dir)
             else:
                 raise NotImplementedError(f"Not supported attack type: {attack_type}")
