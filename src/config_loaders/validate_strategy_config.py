@@ -27,7 +27,7 @@ config_schema = {
         },
         "attack_type": {
             "type": "string",
-            "enum": ["label_flipping"]
+            "enum": ["label_flipping", "gaussian_noise"]
         },
         "show_plots": {
             "type": "string",
@@ -133,12 +133,12 @@ config_schema = {
 }
 
 
-def check_strategy_specific_parameters(strategy_config: dict) -> None:
-    """Check if strategy specific parameters are valid"""
+def validate_dependent_params(strategy_config: dict) -> None:
+    """Validate that all params that require additional params are correct."""
 
     aggregation_strategy_keyword = strategy_config["aggregation_strategy_keyword"]
 
-    if strategy_config["aggregation_strategy_keyword"] == "trust":
+    if aggregation_strategy_keyword == "trust":
         trust_specific_parameters = [
             "begin_removing_from_round", "trust_threshold", "beta_value", "num_of_clusters"
         ]
@@ -147,7 +147,7 @@ def check_strategy_specific_parameters(strategy_config: dict) -> None:
                 raise ValidationError(
                     f"Missing parameter {param} for trust aggregation {aggregation_strategy_keyword}"
                 )
-    elif strategy_config["aggregation_strategy_keyword"] in ("pid", "pid_scaled", "pid_standardized"):
+    elif aggregation_strategy_keyword in ("pid", "pid_scaled", "pid_standardized"):
         pid_specific_parameters = [
             "num_std_dev", "Kp", "Ki", "Kd"
         ]
@@ -156,17 +156,28 @@ def check_strategy_specific_parameters(strategy_config: dict) -> None:
                 raise ValidationError(
                     f"Missing parameter {param} for PID aggregation {aggregation_strategy_keyword}"
                 )
-    elif strategy_config["aggregation_strategy_keyword"] in ["multi-krum", "krum", "multi-krum-based"]:
+    elif aggregation_strategy_keyword in ["multi-krum", "krum", "multi-krum-based"]:
         if "num_krum_selections" not in strategy_config:
             raise ValidationError(
                 f"Missing parameter num_krum_selections for Krum-based aggregation {aggregation_strategy_keyword}"
             )
-    elif strategy_config["aggregation_strategy_keyword"] == "trimmed_mean":
+    elif aggregation_strategy_keyword == "trimmed_mean":
         if "trim_ratio" not in strategy_config:
             raise ValidationError(
                 f"Missing parameter trim_ratio for trimmed mean aggregation {aggregation_strategy_keyword}"
             )
 
+    attack_type = strategy_config["attack_type"]
+
+    if attack_type == "gaussian_noise":
+        gaussian_noise_specific_params = [
+            "gaussian_noise_mean", "gaussian_noise_std", "attack_ratio"
+        ]
+        for param in gaussian_noise_specific_params:
+            if param not in strategy_config:
+                raise ValidationError(
+                    f"Missing {param} that is required for {attack_type} in configuration."
+                )
 
 
 def validate_strategy_config(config: dict) -> None:
@@ -175,4 +186,4 @@ def validate_strategy_config(config: dict) -> None:
     # Validates any shared settings
     validate(instance=config, schema=config_schema)
 
-    check_strategy_specific_parameters(config)
+    validate_dependent_params(config)
