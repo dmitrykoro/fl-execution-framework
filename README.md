@@ -51,7 +51,13 @@ Defines the aggregation strategy. Options:
 - `num_of_rounds`: total aggregation rounds.
 - `num_of_clients`: number of clients (limited to available dataset clients).
 - `num_of_malicious_clients`: number of malicious clients (malicious throughout simulation).
-- `attack_type`: type of adversarial attack (`label_flipping`).
+- `attack_type`: type of adversarial attack:
+  - `label_flipping`: flip 100% of client labels;
+  - `gaussian_noise`: add gaussian noise to client image samples in each label. The following params need to be specified:
+    - `gaussian_noise_mean`: The mean (μ) of the Gaussian distribution. It’s the average value of the noise, 0 for the center. Setting mean > 0 will make the image brighter on average, darker otherwise.
+    - `gaussian_noise_std`: (0 - 100). The standard deviation (σ) of the Gaussian distribution, which controls how spread out the noise values are. 0 = no noise, 50+ = heavy noise.
+    - `attack_ratio`: proportion of samples for each label to poison.
+
 - `show_plots`: show plots during runtime (`true`/`false`).
 - `save_plots`: save plots to `out/` directory (`true`/`false`).
 - `save_csv`: Save metrics as `.csv` files in `out/` directory (`true`/`false`).

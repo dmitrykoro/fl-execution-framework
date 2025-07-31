@@ -1,4 +1,5 @@
 import json
+
 from dataclasses import dataclass, asdict
 
 
@@ -13,6 +14,9 @@ class StrategyConfig:
     num_of_clients: int = None
     num_of_malicious_clients: int = None
     attack_type: str = None
+    attack_ratio: float = None
+    gaussian_noise_mean: int = None
+    gaussian_noise_std: int = None
     show_plots: bool = None
     save_plots: bool = None
     save_csv: bool = None

@@ -3,6 +3,8 @@ import os
 import logging
 import random
 import sys
+import cv2
+import numpy as np
 
 
 class DatasetHandler:
@@ -67,6 +69,8 @@ class DatasetHandler:
         for client_dir in client_dirs_to_poison:
             if attack_type == "label_flipping":
                 self._flip_labels(client_dir)
+            elif attack_type == "gaussian_noise":
+                self._add_noise(client_dir)
             else:
                 raise NotImplementedError(f"Not supported attack type: {attack_type}")
 
@@ -107,6 +111,56 @@ class DatasetHandler:
 
         os.rename(os.path.join(self.dst_dataset, client_dir), os.path.join(self.dst_dataset, client_dir + "_bad"))
 
+    def _add_noise(self, client_dir: str) -> None:
+        """Add Gaussian noise to a subset of images for the specified client."""
+
+        supported_extensions = ('.png', '.jpg', '.jpeg', '.bmp', '.tiff')
+        client_path = os.path.join(self.dst_dataset, client_dir)
+
+        try:
+            label_folders = [
+                d for d in os.listdir(client_path)
+                if os.path.isdir(os.path.join(client_path, d)) and not d.startswith(".")
+            ]
+        except FileNotFoundError:
+            logging.error(f"Client directory not found: {client_path}")
+            return
+
+        for label_folder in label_folders:
+            label_path = os.path.join(client_path, label_folder)
+
+            all_images = [
+                f for f in os.listdir(label_path)
+                if f.lower().endswith(supported_extensions)
+            ]
+
+            if not all_images:
+                logging.warning(f"No valid images in {label_path}")
+                continue
+
+            split_index = int(len(all_images) * self._strategy_config.attack_ratio)
+            images_to_corrupt = all_images[:split_index]
+
+            for filename in images_to_corrupt:
+                filepath = os.path.join(label_path, filename)
+                image = cv2.imread(filepath)
+
+                if image is None:
+                    logging.error(f"Failed to load image: {filepath}")
+                    continue
+
+                mean = self._strategy_config.gaussian_noise_mean
+                std = self._strategy_config.gaussian_noise_std
+                noise = np.random.normal(mean, std, image.shape).astype(np.float32)
+
+                noisy_image = np.clip(image.astype(np.float32) + noise, 0, 255).astype(np.uint8)
+                success = cv2.imwrite(filepath, noisy_image)
+
+                if success:
+                    logging.info(f"Added noise to: {filepath}")
+                else:
+                    logging.error(f"Failed to write image: {filepath}")
+
     def _assign_poisoned_client_ids(
             self, bad_client_dirs: list
     ) -> None:
@@ -118,4 +172,3 @@ class DatasetHandler:
             except Exception as e:
                 logging.error(f"Error while parsing client dataset folder: client id must be a number: {e}")
                 sys.exit(-1)
-
