@@ -32,6 +32,7 @@ from simulation_strategies.multi_krum_based_removal_strategy import MultiKrumBas
 from simulation_strategies.trimmed_mean_based_removal_strategy import TrimmedMeanBasedRemovalStrategy
 from simulation_strategies.mutli_krum_strategy import MultiKrumStrategy
 from simulation_strategies.rfa_based_removal_strategy import RFABasedRemovalStrategy
+from simulation_strategies.bulyan_strategy import BulyanStrategy
 
 from data_models.simulation_strategy_config import StrategyConfig
 from data_models.simulation_strategy_history import SimulationStrategyHistory
@@ -263,6 +264,17 @@ class FederatedSimulation:
                 begin_removing_from_round=self.strategy_config.begin_removing_from_round,
                 strategy_history=self.strategy_history,
                 num_of_malicious_clients=self.strategy_config.num_of_malicious_clients
+            )
+        
+        elif aggregation_strategy_keyword == "bulyan":
+            self._aggregation_strategy = BulyanStrategy(
+                min_fit_clients=self.strategy_config.min_fit_clients,
+                min_evaluate_clients=self.strategy_config.min_evaluate_clients,
+                min_available_clients=self.strategy_config.min_available_clients,
+                remove_clients=self.strategy_config.remove_clients,
+                begin_removing_from_round=self.strategy_config.begin_removing_from_round,
+                strategy_history=self.strategy_history,
+                num_krum_selections=self.strategy_config.num_krum_selections,
             )
 
         else:
