@@ -21,6 +21,8 @@ class LungCancerCNN(nn.Module):
         self.dropout2 = nn.Dropout(0.2)
         self.fc3 = nn.Linear(64, num_classes)
 
+        self._initialize_weights()
+
     def _setup_flatten_size(self):
         with torch.no_grad():
             x = torch.zeros(1, 1, 224, 224)  # Input size of your images
@@ -40,3 +42,21 @@ class LungCancerCNN(nn.Module):
         x = self.dropout2(x)
         x = self.fc3(x)
         return x
+
+    def _initialize_weights(self):
+        """Random weight initialization"""
+
+        nn.init.kaiming_uniform_(self.conv1.weight, nonlinearity='relu')
+        nn.init.kaiming_uniform_(self.conv2.weight, nonlinearity='relu')
+        nn.init.kaiming_uniform_(self.conv3.weight, nonlinearity='relu')
+
+        nn.init.xavier_uniform_(self.fc1.weight)
+        nn.init.xavier_uniform_(self.fc2.weight)
+        nn.init.xavier_uniform_(self.fc3.weight)
+
+        nn.init.zeros_(self.conv1.bias)
+        nn.init.zeros_(self.conv2.bias)
+        nn.init.zeros_(self.conv3.bias)
+        nn.init.zeros_(self.fc1.bias)
+        nn.init.zeros_(self.fc2.bias)
+        nn.init.zeros_(self.fc3.bias)

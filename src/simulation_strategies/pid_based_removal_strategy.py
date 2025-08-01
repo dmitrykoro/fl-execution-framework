@@ -26,7 +26,7 @@ class PIDBasedRemovalStrategy(fl.server.strategy.FedAvg):
             ki: float,
             kd: float,
             kp: float,
-            num_std_dev: int,
+            num_std_dev: float,
             strategy_history: SimulationStrategyHistory,
             network_model,
             aggregation_strategy_keyword: str,
@@ -49,7 +49,6 @@ class PIDBasedRemovalStrategy(fl.server.strategy.FedAvg):
         self.num_std_dev = num_std_dev
 
         self.current_threshold = None
-        self.rounds_history = {}
 
         self.strategy_history = strategy_history
 
@@ -69,10 +68,6 @@ class PIDBasedRemovalStrategy(fl.server.strategy.FedAvg):
         # Add the handlers to the logger
         self.logger.addHandler(file_handler)
         self.logger.addHandler(console_handler)
-
-    def initialize_parameters(self, client_manager):
-        parameters = ndarrays_to_parameters([param.detach().numpy() for param in self.network_model.parameters()])
-        return parameters
 
     def calculate_single_client_pid_scaled(self, client_id, distance):
         """Calculate pid."""
@@ -164,7 +159,7 @@ class PIDBasedRemovalStrategy(fl.server.strategy.FedAvg):
     ) -> Tuple[Optional[Parameters], Dict[str, Scalar]]:
 
         self.current_round += 1
-        self.rounds_history[f'{self.current_round}'] = {}
+
         aggregate_clients = []
 
         for result in results:
@@ -218,7 +213,7 @@ class PIDBasedRemovalStrategy(fl.server.strategy.FedAvg):
             self.client_distances[client_id] = curr_dist
             curr_sum = self.client_distance_sums.get(client_id, 0)
             self.client_distance_sums[client_id] = curr_dist + curr_sum
-            # print(self.client_pids)
+
             self.strategy_history.insert_single_client_history_entry(
                 current_round=self.current_round,
                 client_id=int(client_id),
