@@ -3,11 +3,12 @@ import numpy as np
 import flwr as fl
 import logging
 
-from typing import Dict, List, Optional, Tuple, Union
+from typing import Dict, List, Optional, Tuple, Union, Set
 
 from flwr.common import FitRes, Parameters, Scalar
 from flwr.server.strategy.aggregate import weighted_loss_avg
 from flwr.common import EvaluateRes, Scalar
+from flwr.common import parameters_to_ndarrays, ndarrays_to_parameters, FitRes
 from flwr.server.client_proxy import ClientProxy
 from flwr.server.strategy.fedavg import FedAvg
 
@@ -37,104 +38,80 @@ class TrimmedMeanBasedRemovalStrategy(FedAvg):
     def aggregate_fit(
             self,
             server_round: int,
-            results: List[Tuple[ClientProxy, FitRes]],
-            failures: List[Union[Tuple[ClientProxy, FitRes], BaseException]]
-    ) -> Tuple[Optional[Parameters], Dict[str, Scalar]]:
+            results: List[Tuple],
+            failures: List[BaseException]
+    ) -> Tuple[Optional[Union[ndarrays_to_parameters, bytes]], Dict[str, Scalar]]:
 
-        # Increment the current round counter.
         self.current_round += 1
-        aggregate_clients = []
 
-        # Filter clients that have not been removed.
-        for result in results:
-            client_id = result[0].cid
-            if client_id not in self.removed_client_ids:
-                aggregate_clients.append(result)
-
-        # Convert parameters to numpy arrays for aggregation.
-        param_data = [fl.common.parameters_to_ndarrays(fit_res.parameters) for _, fit_res in aggregate_clients]
-        if len(param_data) == 0:
-            logging.warning("No clients available for aggregation after filtering removed clients.")
+        if not results:
             return None, {}
 
-        stacked_params = np.stack([np.concatenate([p.flatten() for p in params]) for params in param_data])
+        # Track all clients that submitted updates
+        participating_clients = [client.cid for client, _ in results]
 
-        time_start_calc = time.time_ns()
-        # Calculate norms for each client's parameter vector.
-        norms = np.linalg.norm(stacked_params, axis=1)
-        self._assign_scores(norms, aggregate_clients)
+        # Extract weights and client IDs
+        weights_results = [(parameters_to_ndarrays(fit_res.parameters), fit_res.num_examples, client.cid)
+                           for client, fit_res in results]
 
-        # Sort clients based on their norms and trim them.
-        trimmed_indices = self._trim_clients(norms)
+        num_clients = len(weights_results)
+        num_trim = int(self.trim_ratio * num_clients)
 
-        # Aggregate using the trimmed mean.
-        if len(trimmed_indices) == 0:
-            logging.warning("No clients left after trimming. Using all available clients for aggregation.")
-            trimmed_params = stacked_params
-        else:
-            trimmed_params = stacked_params[trimmed_indices]
-        trimmed_mean = np.mean(trimmed_params, axis=0)
-
-        time_end_calc = time.time_ns()
-
-        self.strategy_history.insert_round_history_entry(score_calculation_time_nanos=time_end_calc - time_start_calc)
-
-        # Store the removal criterion and other info for each client.
-        for i, (client_proxy, _) in enumerate(aggregate_clients):
-            client_id = client_proxy.cid
-            norm = norms[i]
-            self.client_scores[client_id] = norm
-
-            self.strategy_history.insert_single_client_history_entry(
+        if num_trim == 0:
+            # No trimming needed
+            aggregated_weights = self._average_weights([w for w, _, _ in weights_results])
+            self.strategy_history.update_client_participation(
                 current_round=self.current_round,
-                client_id=int(client_id),
-                removal_criterion=float(norm),
-                absolute_distance=float(norm)
+                removed_client_ids=set()
             )
+            return ndarrays_to_parameters(aggregated_weights), {}
 
-            logging.info(f'Aggregation round: {server_round} Client ID: {client_id} Norm: {norm} Normalized Distance: {norm / np.max(norms)}')
+        # Transpose weights for each layer
+        weights_by_layer = list(zip(*[w for w, _, _ in weights_results]))
+        aggregated = []
 
-        # Aggregate the parameters using the trimmed mean.
-        aggregated_parameters_list = []
-        start_idx = 0
-        for param in param_data[0]:
-            param_size = param.size
-            aggregated_param = np.reshape(trimmed_mean[start_idx:start_idx + param_size], param.shape)
-            aggregated_parameters_list.append(aggregated_param)
-            start_idx += param_size
-        aggregated_parameters = fl.common.ndarrays_to_parameters(aggregated_parameters_list)
-        aggregated_metrics = {}
+        trimmed_clients: Set[str] = set()
 
-        return aggregated_parameters, aggregated_metrics
+        for layer_weights in weights_by_layer:
+            stacked = np.stack(layer_weights)  # Shape: (n_clients, layer_shape...)
 
-    def _assign_scores(
-            self,
-            scores: np.ndarray,
-            aggregate_clients: List[Tuple[ClientProxy, FitRes]]
-    ):
-        """
-        Assign scores to each client.
-        """
-        for i, (_, _) in enumerate(aggregate_clients):
-            client_id = aggregate_clients[i][0].cid
-            self.client_scores[client_id] = scores[i]
+            # Flatten weights across clients
+            trimmed_layer = []
+            for i in range(np.prod(stacked.shape[1:]) if len(stacked.shape) > 1 else 1):
+                # For each scalar value in the layer (if multidimensional)
+                values = stacked if len(stacked.shape) == 1 else stacked.reshape((num_clients, -1))[:, i]
+                sorted_indices = np.argsort(values)
+                trimmed_indices = sorted_indices[num_trim:-num_trim]
+                trimmed_values = values[trimmed_indices]
+                trimmed_layer.append(np.mean(trimmed_values))
 
-    def _trim_clients(self, scores: np.ndarray) -> np.ndarray:
-        """
-        Trim clients based on their scores.
-        """
-        sorted_indices = np.argsort(scores)
-        num_trim = int(len(sorted_indices) * self.trim_ratio)
-        if len(sorted_indices) - 2 * num_trim <= 0:
-            logging.warning("Not enough clients to perform trimming. Using all available clients for aggregation.")
-            return np.arange(len(sorted_indices))
-        return sorted_indices[num_trim:-num_trim]
+                # Track which clients were trimmed
+                removed_this_dim = set(
+                    weights_results[j][2] for j in sorted_indices[:num_trim]
+                ).union(
+                    weights_results[j][2] for j in sorted_indices[-num_trim:]
+                )
+                trimmed_clients.update(removed_this_dim)
+
+            aggregated.append(np.array(trimmed_layer).reshape(stacked.shape[1:]))
+
+        # Log trimmed clients for this round
+        self.strategy_history.update_client_participation(
+            current_round=self.current_round,
+            removed_client_ids=removed_this_dim
+        )
+
+        logging.info(f"removed clients are : {removed_this_dim}")
+
+        return ndarrays_to_parameters(aggregated), {}
 
     def configure_fit(
             self,
             server_round: int,
             parameters: Parameters, client_manager
     ) -> List[Tuple[ClientProxy, fl.common.FitIns]]:
+
+        currently_removed_client_ids = set()
 
         # Fetch available clients as a dictionary.
         available_clients = client_manager.all()  # dictionary with client IDs as keys and RayActorClientProxy objects as values
@@ -150,17 +127,10 @@ class TrimmedMeanBasedRemovalStrategy(FedAvg):
         if self.remove_clients:
             # Remove clients with the highest score if applicable.
             client_id = max(client_scores, key=client_scores.get)
-            logging.info(f"Removing client with highest score: {client_id}")
-            self.removed_client_ids.add(client_id)
-
-        logging.info(f"removed clients are : {self.removed_client_ids}")
+            currently_removed_client_ids.add(client_id)
 
         selected_client_ids = sorted(client_scores, key=client_scores.get, reverse=True)
         fit_ins = fl.common.FitIns(parameters, {})
-
-        self.strategy_history.update_client_participation(
-            current_round=self.current_round, removed_client_ids=self.removed_client_ids
-        )
 
         return [(available_clients[cid], fit_ins) for cid in selected_client_ids if cid in available_clients]
 
@@ -221,3 +191,12 @@ class TrimmedMeanBasedRemovalStrategy(FedAvg):
         )
 
         return loss_aggregated, metrics_aggregated
+
+    def _average_weights(self, weights: List[List[np.ndarray]]) -> List[np.ndarray]:
+        """Compute average weights."""
+        num_weights = len(weights)
+        avg_weights = []
+        for layers in zip(*weights):
+            stacked = np.stack(layers, axis=0)
+            avg_weights.append(np.mean(stacked, axis=0))
+        return avg_weights

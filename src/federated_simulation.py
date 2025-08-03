@@ -4,6 +4,7 @@ import os
 
 import flwr
 from flwr.client import Client, ClientApp, NumPyClient
+from flwr.common import ndarrays_to_parameters
 
 
 from dataset_loaders.image_dataset_loader import ImageDatasetLoader
@@ -180,6 +181,7 @@ class FederatedSimulation:
 
         if aggregation_strategy_keyword == "trust":
             self._aggregation_strategy = TrustBasedRemovalStrategy(
+                initial_parameters=ndarrays_to_parameters(self._get_model_params(self._network_model)),
                 min_fit_clients=self.strategy_config.min_fit_clients,
                 min_evaluate_clients=self.strategy_config.min_evaluate_clients,
                 min_available_clients=self.strategy_config.min_available_clients,
@@ -192,6 +194,7 @@ class FederatedSimulation:
             )
         elif aggregation_strategy_keyword in ("pid", "pid_scaled", "pid_standardized"):
             self._aggregation_strategy = PIDBasedRemovalStrategy(
+                initial_parameters=ndarrays_to_parameters(self._get_model_params(self._network_model)),
                 min_fit_clients=self.strategy_config.min_fit_clients,
                 min_evaluate_clients=self.strategy_config.min_evaluate_clients,
                 min_available_clients=self.strategy_config.min_available_clients,
@@ -208,18 +211,20 @@ class FederatedSimulation:
             )
         elif aggregation_strategy_keyword == "krum":
             self._aggregation_strategy = KrumBasedRemovalStrategy(
-               min_fit_clients=self.strategy_config.min_fit_clients,
-               min_evaluate_clients=self.strategy_config.min_evaluate_clients,
-               min_available_clients=self.strategy_config.min_available_clients,
-               evaluate_metrics_aggregation_fn=self.strategy_config.evaluate_metrics_aggregation_fn,
-               remove_clients=self.strategy_config.remove_clients,
-               begin_removing_from_round=self.strategy_config.begin_removing_from_round,
-               num_malicious_clients=self.strategy_config.num_of_malicious_clients,
-               strategy_history=self.strategy_history,
-               num_krum_selections=self.strategy_config.num_krum_selections  # Use to simulate different Attack strategies
+                initial_parameters=ndarrays_to_parameters(self._get_model_params(self._network_model)),
+                min_fit_clients=self.strategy_config.min_fit_clients,
+                min_evaluate_clients=self.strategy_config.min_evaluate_clients,
+                min_available_clients=self.strategy_config.min_available_clients,
+                evaluate_metrics_aggregation_fn=self.strategy_config.evaluate_metrics_aggregation_fn,
+                remove_clients=self.strategy_config.remove_clients,
+                begin_removing_from_round=self.strategy_config.begin_removing_from_round,
+                num_malicious_clients=self.strategy_config.num_of_malicious_clients,
+                strategy_history=self.strategy_history,
+                num_krum_selections=self.strategy_config.num_krum_selections
             )
         elif aggregation_strategy_keyword == "multi-krum-based":
             self._aggregation_strategy = MultiKrumBasedRemovalStrategy(
+                initial_parameters=ndarrays_to_parameters(self._get_model_params(self._network_model)),
                 min_fit_clients=self.strategy_config.min_fit_clients,
                 min_evaluate_clients=self.strategy_config.min_evaluate_clients,
                 min_available_clients=self.strategy_config.min_available_clients,
@@ -232,6 +237,7 @@ class FederatedSimulation:
             )
         elif aggregation_strategy_keyword == "multi-krum":
             self._aggregation_strategy = MultiKrumStrategy(
+                initial_parameters=ndarrays_to_parameters(self._get_model_params(self._network_model)),
                 min_fit_clients=self.strategy_config.min_fit_clients,
                 min_evaluate_clients=self.strategy_config.min_evaluate_clients,
                 min_available_clients=self.strategy_config.min_available_clients,
@@ -244,6 +250,7 @@ class FederatedSimulation:
             )
         elif aggregation_strategy_keyword == "trimmed_mean":
             self._aggregation_strategy = TrimmedMeanBasedRemovalStrategy(
+                initial_parameters=ndarrays_to_parameters(self._get_model_params(self._network_model)),
                 min_fit_clients=self.strategy_config.min_fit_clients,
                 min_evaluate_clients=self.strategy_config.min_evaluate_clients,
                 min_available_clients=self.strategy_config.min_available_clients,
@@ -256,6 +263,7 @@ class FederatedSimulation:
 
         elif aggregation_strategy_keyword == "rfa":
             self._aggregation_strategy = RFABasedRemovalStrategy(
+                initial_parameters=ndarrays_to_parameters(self._get_model_params(self._network_model)),
                 min_fit_clients=self.strategy_config.min_fit_clients,
                 min_evaluate_clients=self.strategy_config.min_evaluate_clients,
                 min_available_clients=self.strategy_config.min_available_clients,
@@ -268,6 +276,7 @@ class FederatedSimulation:
         
         elif aggregation_strategy_keyword == "bulyan":
             self._aggregation_strategy = BulyanStrategy(
+                initial_parameters=ndarrays_to_parameters(self._get_model_params(self._network_model)),
                 min_fit_clients=self.strategy_config.min_fit_clients,
                 min_evaluate_clients=self.strategy_config.min_evaluate_clients,
                 min_available_clients=self.strategy_config.min_available_clients,
@@ -295,3 +304,8 @@ class FederatedSimulation:
             self.strategy_config.training_device,
             self.strategy_config.num_of_client_epochs
         ).to_client()
+
+    @staticmethod
+    def _get_model_params(model):
+        """Convert initial model params to suitable format."""
+        return [val.cpu().numpy() for _, val in model.state_dict().items()]

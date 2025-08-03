@@ -31,7 +31,7 @@ Defines the aggregation strategy. Options:
   - `multi-krum`: Multi-Krum aggregation. Clients are removed from aggregation only in current round.
   - `krum`: Krum aggregation works like Multi-Krum, but uses only a single client. 
   - `multi-krum-based`: Multi-Krum-based aggregation where removed clients are excluded from aggregation permanently. 
-  - `trimmed_mean`:
+  - `trimmed_mean`: Trimmed-Mean aggregation strategy. Aggregates updates by removing a fixed fraction of the largest and smallest values for each parameter dimension before averaging. Robust against outliers and certain types of attacks.
   - `bulyan`: Bulyan aggregation strategy. Uses Multi-Krum as the first step of filtering and Trimmed-Mean as the second step to ensure robustness.
 
 
@@ -88,10 +88,10 @@ Defines the aggregation strategy. Options:
 - `Kp`, `Ki`, `Kd`: PID controller parameters.
 
 **For `krum`, `multi-krum`, `multi-krum-based` strategies**:
-- `num_krum_selections`: 
+- `num_krum_selections`: how many clients the algorithm will select. 
 
 **For `trimmed_mean` strategy**:
-- `trim_ratio`:
+- `trim_ratio`: fraction of extreme values to discard from both ends (lowest and highest) of each parameter dimension before averaging. Must be in the range 0–0.5.
 
 
 
