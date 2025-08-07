@@ -16,6 +16,7 @@ class DatasetHandler:
         self.src_dataset = dataset_config_list[self._strategy_config.dataset_keyword]
 
         self.poisoned_client_ids = set()
+        self.all_poisoned_img_snrs = []
 
     def setup_dataset(self) -> None:
         """Copy the specified number of clients' subsets to runtime folder and perform poisoning"""
@@ -73,6 +74,9 @@ class DatasetHandler:
                 self._add_noise(client_dir)
             else:
                 raise NotImplementedError(f"Not supported attack type: {attack_type}")
+
+        if attack_type == "gaussian_noise":
+            logging.warning(f"Avg. SNR for poisoned images: {np.average(self.all_poisoned_img_snrs)}")
 
     def _flip_labels(self, client_dir: str) -> None:
         """Perform 100% label flipping for the specified client"""
@@ -152,6 +156,22 @@ class DatasetHandler:
                 mean = self._strategy_config.gaussian_noise_mean
                 std = self._strategy_config.gaussian_noise_std
                 noise = np.random.normal(mean, std, image.shape).astype(np.float32)
+
+                signal_power = np.mean(image.astype(np.float32) ** 2)
+                noise_power = np.mean(noise ** 2)
+
+                """
+                Signal-to-Noise Ratio (SNR) in decibels (dB) is calculated as:
+                
+                    SNR (dB) = 10 * log10(signal_power / noise_power)
+                
+                where:
+                    signal_power = mean squared value of the original image
+                    noise_power  = mean squared value of the added noise
+                """
+
+                snr = 10 * np.log10(signal_power / noise_power)
+                self.all_poisoned_img_snrs.append(snr)
 
                 noisy_image = np.clip(image.astype(np.float32) + noise, 0, 255).astype(np.uint8)
                 success = cv2.imwrite(filepath, noisy_image)
