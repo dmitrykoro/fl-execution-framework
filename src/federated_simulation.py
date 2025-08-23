@@ -3,8 +3,11 @@ import sys
 import os
 
 import flwr
+
 from flwr.client import Client, ClientApp, NumPyClient
 from flwr.common import ndarrays_to_parameters
+
+from peft import PeftModel, get_peft_model_state_dict
 
 
 from dataset_loaders.image_dataset_loader import ImageDatasetLoader
@@ -339,5 +342,15 @@ class FederatedSimulation:
 
     @staticmethod
     def _get_model_params(model):
-        """Convert initial model params to suitable format."""
-        return [val.cpu().numpy() for _, val in model.state_dict().items()]
+        """
+        Convert initial model params to suitable format.
+        - For PEFT/LoRA models: return only LoRA adapter params
+        - For regular models (CNN, etc.): return full state_dict
+        """
+
+        if isinstance(model, PeftModel):
+            state_dict = get_peft_model_state_dict(model)
+            return [val.cpu().numpy() for val in state_dict.values()]
+
+        else:
+            return [val.cpu().numpy() for _, val in model.state_dict().items()]

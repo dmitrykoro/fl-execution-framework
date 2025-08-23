@@ -5,19 +5,14 @@ import logging
 import time
 
 from typing import Dict, List, Optional, Tuple, Union
-
 from sklearn.cluster import KMeans
 from sklearn.preprocessing import MinMaxScaler, StandardScaler, RobustScaler
-
 from flwr.server.strategy.aggregate import weighted_loss_avg
 from flwr.common import EvaluateRes, Scalar, ndarrays_to_parameters, FitRes, Parameters
 from flwr.server.client_proxy import ClientProxy
 
 from output_handlers.directory_handler import DirectoryHandler
-
 from data_models.simulation_strategy_history import SimulationStrategyHistory
-
-from network_models.bert_model_definition import get_peft_model_state_dict, set_peft_model_state_dict
 
 class PIDBasedRemovalStrategy(fl.server.strategy.FedAvg):
     def __init__(
@@ -188,23 +183,6 @@ class PIDBasedRemovalStrategy(fl.server.strategy.FedAvg):
         kmeans = KMeans(n_clusters=1, init='k-means++').fit(X)
         distances = kmeans.transform(X)
 
-        # Uncomment the following lines to normalize distances in range [0, 1]
-        # scaler = MinMaxScaler()
-        # scaler.fit(distances)
-        # normalized_distances = scaler.transform(distances)
-
-        # LLMs
-        """
-        X = np.array(clustering_param_data)
-        X = StandardScaler().fit_transform(X)  # Normalize before clustering
-        kmeans = KMeans(n_clusters=1, init='k-means++').fit(X)
-        distances = kmeans.transform(X)
-
-        scaler = MinMaxScaler()
-        scaler.fit(distances)
-        normalized_distances = scaler.transform(distances)
-        """
-
         normalized_distances = distances
 
         time_start_calc = time.time_ns()
@@ -245,29 +223,16 @@ class PIDBasedRemovalStrategy(fl.server.strategy.FedAvg):
             )
 
         # use pid-based threshold if self.aggregation_strategy_keyword is pid
-
         if self.aggregation_strategy_keyword == "pid":
             pid_avg = np.mean(counted_pids)
             pid_std = np.std(counted_pids)
             self.current_threshold = pid_avg + (self.num_std_dev * pid_std) if len(counted_pids) > 1 else 0
-            # self.logger.info(f"ALL CLIENTS DISTANCE-BASED REMOVAL THRESHOLD: {self.current_threshold}")
 
         # use distance-based threshold for pid_scaled and pid_standardized
         else:
             distances_avg = np.mean(list(self.client_distances.values())) if self.client_distances else 0
             distances_std = np.std(list(self.client_distances.values())) if self.client_distances else 0
             self.current_threshold = distances_avg + (self.num_std_dev * distances_std) if len(counted_pids) > 1 else 0
-        # use client distances to calculate the removal threshold on ALL CLIENTS
-        # distances_avg = np.mean(list(self.client_distances.values())) if self.client_distances else 0
-        # distances_std = np.std(list(self.client_distances.values())) if self.client_distances else 0
-        # self.current_threshold = distances_avg + (self.num_std_dev * distances_std) if len(counted_pids) > 1 else 0
-        # self.logger.info(f"DISTANCE-BASED REMOVAL THRESHOLD: {self.current_threshold}")
-
-        # distances_avg = np.mean(counted_dist)
-        # distances_std = np.std(counted_dist)
-        # self.current_threshold = distances_avg + (self.num_std_dev * distances_std) if len(counted_pids) > 1 else 0
-        # self.logger.info(f"ALL CLIENTS DISTANCE-BASED REMOVAL THRESHOLD: {self.current_threshold}")
-
 
         self.strategy_history.insert_round_history_entry(removal_threshold=self.current_threshold)
 
