@@ -25,11 +25,14 @@ effects of these parameters on the collected metrics, as well as plug-and-play i
 - **`aggregation_strategy_keyword`**  
 Defines the aggregation strategy. Options:
   - `trust`: Trust & Reputation-based aggregation.
-  - `pid`: PiD-based aggregation.
-  - `multi-krum`: Multi-Krum aggregation.
-  - `krum`:
-  - `multi-krum-based`:
-  - `trimmed_mean`:
+  - `pid`: PID-based aggregation. Initial version of the formula.
+  - `pid_scaled`: PID-based aggregation with Integral part divided by the number of current round.
+  - `pid_standardized`: PID-based aggregation with the Integral part standardized based on the distribution parameters of all Integral parts.
+  - `multi-krum`: Multi-Krum aggregation. Clients are removed from aggregation only in current round.
+  - `krum`: Krum aggregation works like Multi-Krum, but uses only a single client. 
+  - `multi-krum-based`: Multi-Krum-based aggregation where removed clients are excluded from aggregation permanently. 
+  - `trimmed_mean`: Trimmed-Mean aggregation strategy. Aggregates updates by removing a fixed fraction of the largest and smallest values for each parameter dimension before averaging. Robust against outliers and certain types of attacks.
+  - `bulyan`: Bulyan aggregation strategy. Uses Multi-Krum as the first step of filtering and Trimmed-Mean as the second step to ensure robustness.
 
 
 - **`remove_clients`**: attempt to remove malicious clients using strategy-specific mechanisms.
@@ -43,11 +46,18 @@ Defines the aggregation strategy. Options:
   - `pneumoniamnist`: medical imaging (pneumonia diagnosis), binary classification, IID distribution, 10 clients.
   - `flair`: non-IID distribution (FLAIR dataset, unsupported in current version), 20 clients. 
   - `bloodmnist`: IID distribution, but non-equal number of samples per class, 40 clients. 
+  - `lung_photos`: contains images of lung cancer from NLST archive from different CT machines. Data distributed according to the source, with varying number of images representing each stage of cancer. 30 clients.
 
 - `num_of_rounds`: total aggregation rounds.
 - `num_of_clients`: number of clients (limited to available dataset clients).
 - `num_of_malicious_clients`: number of malicious clients (malicious throughout simulation).
-- `attack_type`: type of adversarial attack (`label_flipping`).
+- `attack_type`: type of adversarial attack:
+  - `label_flipping`: flip 100% of client labels;
+  - `gaussian_noise`: add gaussian noise to client image samples in each label. The following params need to be specified:
+    - `gaussian_noise_mean`: The mean (μ) of the Gaussian distribution. It’s the average value of the noise, 0 for the center. Setting mean > 0 will make the image brighter on average, darker otherwise.
+    - `gaussian_noise_std`: (0 - 100). The standard deviation (σ) of the Gaussian distribution, which controls how spread out the noise values are. 0 = no noise, 50+ = heavy noise.
+    - `attack_ratio`: proportion of samples for each label to poison.
+
 - `show_plots`: show plots during runtime (`true`/`false`).
 - `save_plots`: save plots to `out/` directory (`true`/`false`).
 - `save_csv`: Save metrics as `.csv` files in `out/` directory (`true`/`false`).
@@ -91,10 +101,10 @@ Defines the aggregation strategy. Options:
 - `Kp`, `Ki`, `Kd`: PID controller parameters.
 
 **For `krum`, `multi-krum`, `multi-krum-based` strategies**:
-- `num_krum_selections`: 
+- `num_krum_selections`: how many clients the algorithm will select. 
 
 **For `trimmed_mean` strategy**:
-- `trim_ratio`:
+- `trim_ratio`: fraction of extreme values to discard from both ends (lowest and highest) of each parameter dimension before averaging. Must be in the range 0–0.5.
 
 
 

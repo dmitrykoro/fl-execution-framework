@@ -2,6 +2,7 @@ import os
 import datetime
 import json
 import csv
+import numpy as np
 
 from data_models.simulation_strategy_history import SimulationStrategyHistory
 
@@ -34,7 +35,7 @@ class DirectoryHandler:
             simulation_strategy_history: SimulationStrategyHistory
     ) -> None:
         """
-        Save per-client and per-round metrics to CSV files, as well as simulation strategy config.
+        Save per-client, per-round and per-execution metrics to CSV files, as well as simulation strategy config.
         """
 
         self.simulation_strategy_history = simulation_strategy_history
@@ -42,6 +43,7 @@ class DirectoryHandler:
         self._save_simulation_config()
         self._save_per_client_to_csv()
         self._save_per_round_to_csv()
+        self._save_per_execution_to_csv()
 
     def _save_simulation_config(self):
         """Save simulation config to current directory"""
@@ -113,3 +115,60 @@ class DirectoryHandler:
                         row.append("not collected")
 
                 writer.writerow(row)
+
+    def _save_per_execution_to_csv(self):
+        """
+        Save MAD stats per execution:
+            mean for (TP, TN, FP, FN, accuracy, precision, recall, f1)
+                    ± std
+        """
+
+        if not self.simulation_strategy_history.strategy_config.remove_clients:
+            return
+
+        csv_filepath = (
+            f"{self.new_csv_dirname}/"
+            f"exec_stats_{self.simulation_strategy_history.strategy_config.strategy_number}.csv"
+        )
+        with open(csv_filepath, mode="w", newline="") as exec_stats:
+            writer = csv.writer(exec_stats)
+
+            statsable_metrics = self.simulation_strategy_history.rounds_history.statsable_metrics
+
+            csv_headers = [f"mean_{metric_name}" for metric_name in statsable_metrics]
+            writer.writerow(csv_headers)
+
+            metric_cells = []
+            started_removing_from = self.simulation_strategy_history.strategy_config.begin_removing_from_round
+
+            for metric_name in statsable_metrics:
+                collected_history = (
+                    self.simulation_strategy_history.rounds_history.get_metric_by_name(metric_name)[started_removing_from:-1-1]
+                )
+
+                metric_mean = np.mean(collected_history)
+                metric_std = np.std(collected_history)
+
+                if metric_name in (
+                        "average_accuracy_history",
+                        "removal_accuracy_history",
+                        "removal_precision_history",
+                        "removal_recall_history",
+                        "removal_f1_history"
+                ):
+                    metric_mean *= 100
+                    metric_std *= 100
+
+                if metric_name in (
+                        "tp_history",
+                        "tn_history",
+                        "fp_history",
+                        "fn_history",
+                ):
+                    total_cases = self.simulation_strategy_history.strategy_config.num_of_clients
+                    metric_mean = metric_mean / total_cases * 100
+                    metric_std = metric_std / total_cases * 100
+
+                metric_cells.append(f"{metric_mean:.2f} ± {metric_std:.2f}")
+
+            writer.writerow(metric_cells)

@@ -10,5 +10,4 @@ local_run_simulation.sh
 venv
 out
 datasets/
-!datasets/medquad/
-!datasets/medquad_bak/
+/datasets/*

@@ -50,17 +50,21 @@ class RoundsInfo:
             "aggregated_loss_history",
             "average_accuracy_history",
         ]
+
+        self.statsable_metrics = [
+            "average_accuracy_history",
+            "tp_history",
+            "tn_history",
+            "fp_history",
+            "fn_history",
+            "removal_accuracy_history",
+            "removal_precision_history",
+            "removal_recall_history",
+            "removal_f1_history",
+        ]
+
         if self.simulation_strategy_config.remove_clients:
-            self.savable_metrics += [
-                "tp_history",
-                "tn_history",
-                "fp_history",
-                "fn_history",
-                "removal_accuracy_history",
-                "removal_precision_history",
-                "removal_recall_history",
-                "removal_f1_history",
-            ]
+            self.savable_metrics += self.statsable_metrics
 
     def add_history_entry(
             self,

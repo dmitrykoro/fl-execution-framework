@@ -6,7 +6,9 @@ config_schema = {
         # Common parameters
         "aggregation_strategy_keyword": {
             "type": "string",
-            "enum": ["trust", "pid", "multi-krum", "krum", "multi-krum-based", "trimmed_mean"]
+            "enum": ["trust", "pid", "pid_scaled", "pid_standardized",
+                    "multi-krum", "krum", "multi-krum-based", "trimmed_mean",
+                    "rfa", "bulyan"]
         },
         "remove_clients": {
             "type": "string",
@@ -14,7 +16,7 @@ config_schema = {
         },
         "dataset_keyword": {
             "type": "string",
-            "enum": ["femnist_iid", "femnist_niid", "its", "pneumoniamnist", "flair", "bloodmnist", "medquad"]
+            "enum": ["femnist_iid", "femnist_niid", "its", "pneumoniamnist", "flair", "bloodmnist", "medquad", "lung_photos"]
         },
         "model_type": {
             "type": "string",
@@ -31,7 +33,7 @@ config_schema = {
         },
         "attack_type": {
             "type": "string",
-            "enum": ["label_flipping"]
+            "enum": ["label_flipping", "gaussian_noise"]
         },
         "show_plots": {
             "type": "string",
@@ -140,7 +142,7 @@ config_schema = {
             "maximum": 1
         },
 
-        # PID
+        # PID, PID scaled, PID standardized
         "num_std_dev": {
             "type": "number"
         },
@@ -175,6 +177,52 @@ config_schema = {
     ]
 }
 
+
+def validate_dependent_params(strategy_config: dict) -> None:
+    """Validate that all params that require additional params are correct."""
+
+    aggregation_strategy_keyword = strategy_config["aggregation_strategy_keyword"]
+
+    if aggregation_strategy_keyword == "trust":
+        trust_specific_parameters = [
+            "begin_removing_from_round", "trust_threshold", "beta_value", "num_of_clusters"
+        ]
+        for param in trust_specific_parameters:
+            if param not in strategy_config:
+                raise ValidationError(
+                    f"Missing parameter {param} for trust aggregation {aggregation_strategy_keyword}"
+                )
+    elif aggregation_strategy_keyword in ("pid", "pid_scaled", "pid_standardized"):
+        pid_specific_parameters = [
+            "num_std_dev", "Kp", "Ki", "Kd"
+        ]
+        for param in pid_specific_parameters:
+            if param not in strategy_config:
+                raise ValidationError(
+                    f"Missing parameter {param} for PID aggregation {aggregation_strategy_keyword}"
+                )
+    elif aggregation_strategy_keyword in ["multi-krum", "krum", "multi-krum-based"]:
+        if "num_krum_selections" not in strategy_config:
+            raise ValidationError(
+                f"Missing parameter num_krum_selections for Krum-based aggregation {aggregation_strategy_keyword}"
+            )
+    elif aggregation_strategy_keyword == "trimmed_mean":
+        if "trim_ratio" not in strategy_config:
+            raise ValidationError(
+                f"Missing parameter trim_ratio for trimmed mean aggregation {aggregation_strategy_keyword}"
+            )
+
+    attack_type = strategy_config["attack_type"]
+
+    if attack_type == "gaussian_noise":
+        gaussian_noise_specific_params = [
+            "gaussian_noise_mean", "gaussian_noise_std", "attack_ratio"
+        ]
+        for param in gaussian_noise_specific_params:
+            if param not in strategy_config:
+                raise ValidationError(
+                    f"Missing {param} that is required for {attack_type} in configuration."
+                )
 
 def check_llm_specific_parameters(strategy_config: dict) -> None:
     """Check if LLM specific parameters are valid"""
@@ -211,52 +259,17 @@ def check_llm_specific_parameters(strategy_config: dict) -> None:
                 )
 
 
-def check_strategy_specific_parameters(strategy_config: dict) -> None:
-    """Check if strategy specific parameters are valid"""
-
-    aggregation_strategy_keyword = strategy_config["aggregation_strategy_keyword"]
-
-    if strategy_config["aggregation_strategy_keyword"] == "trust":
-        trust_specific_parameters = [
-            "begin_removing_from_round", "trust_threshold", "beta_value", "num_of_clusters"
-        ]
-        for param in trust_specific_parameters:
-            if param not in strategy_config:
-                raise ValidationError(
-                    f"Missing parameter {param} for trust aggregation {aggregation_strategy_keyword}"
-                )
-    elif strategy_config["aggregation_strategy_keyword"] == "pid":
-        pid_specific_parameters = [
-            "num_std_dev", "Kp", "Ki", "Kd"
-        ]
-        for param in pid_specific_parameters:
-            if param not in strategy_config:
-                raise ValidationError(
-                    f"Missing parameter {param} for PID aggregation {aggregation_strategy_keyword}"
-                )
-    elif strategy_config["aggregation_strategy_keyword"] in ["multi-krum", "krum", "multi-krum-based"]:
-        if "num_krum_selections" not in strategy_config:
-            raise ValidationError(
-                f"Missing parameter num_krum_selections for Krum-based aggregation {aggregation_strategy_keyword}"
-            )
-    elif strategy_config["aggregation_strategy_keyword"] == "trimmed_mean":
-        if "trim_ratio" not in strategy_config:
-            raise ValidationError(
-                f"Missing parameter trim_ratio for trimmed mean aggregation {aggregation_strategy_keyword}"
-            )
-
-
 def validate_strategy_config(config: dict) -> None:
     """Validate config based on the schema, will raise an exception if invalid"""
 
     # Validates any shared settings
     validate(instance=config, schema=config_schema)
 
+    validate_dependent_params(config)
+
     use_llm_keyword = config["use_llm"]
     if use_llm_keyword == "true":
         check_llm_specific_parameters(config)
-
-    check_strategy_specific_parameters(config)
 
     num_of_clients = config["num_of_clients"]
     num_fit_clients = config["min_fit_clients"]

@@ -24,7 +24,7 @@ test-simulation:
   stage: execute_simulation
   image: python:3.10-slim
   before_script:
-    - apt-get update && apt-get install -y wget
+    - apt-get update && apt-get install -y wget libgl1 libglib2.0-0
   script:
     - echo "Downloading datasets..."
     - cd datasets
