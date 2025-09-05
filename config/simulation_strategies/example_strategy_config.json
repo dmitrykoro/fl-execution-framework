@@ -3,6 +3,7 @@
     "aggregation_strategy_keyword": "pid",
     "remove_clients": "true",
     "dataset_keyword": "femnist_iid",
+    "use_llm": "false",
     "num_of_rounds": 4,
     "num_of_clients": 5,
     "num_of_malicious_clients": 1,
@@ -19,6 +20,16 @@
     "reputation_threshold": 0.15,
     "beta_value": 0.75,
     "num_of_clusters": 1,
+    "model_type": "cnn",
+    "llm_model": "microsoft/BiomedNLP-BiomedBERT-base-uncased-abstract-fulltext",
+    "llm_finetuning": "lora",
+    "llm_task": "mlm",
+    "llm_chunk_size": 256,
+    "mlm_probability": 0.15,
+    "lora_rank": 16,
+    "lora_alpha": 32,
+    "lora_dropout": 0.1,
+    "lora_target_modules": ["query", "value"],
     "Kp": 1,
     "Ki": 0.05,
     "Kd": 0.05,
@@ -44,3 +55,4 @@
     }
   ]
 }
+

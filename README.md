@@ -48,7 +48,6 @@ Defines the aggregation strategy. Options:
   - `bloodmnist`: IID distribution, but non-equal number of samples per class, 40 clients. 
   - `lung_photos`: contains images of lung cancer from NLST archive from different CT machines. Data distributed according to the source, with varying number of images representing each stage of cancer. 30 clients.
 
-
 - `num_of_rounds`: total aggregation rounds.
 - `num_of_clients`: number of clients (limited to available dataset clients).
 - `num_of_malicious_clients`: number of malicious clients (malicious throughout simulation).
@@ -64,7 +63,7 @@ Defines the aggregation strategy. Options:
 - `save_csv`: Save metrics as `.csv` files in `out/` directory (`true`/`false`).
 - `preserve_dataset`: save poisoned dataset for verification (`true`/`false`).
 - `training_subset_fraction`: fraction of each client's dataset for training (e.g., `0.9` for 90% training, 10% evaluation).
-
+- `model_type`: type of model being trained
 
 - **Flower settings**:
   - `training_device`: `cpu`, `gpu`, or `cuda`.
@@ -74,6 +73,20 @@ Defines the aggregation strategy. Options:
   - `evaluate_metrics_aggregation_fn`: not used.
   - `num_of_client_epochs`: local client training epochs per round.
   - `batch_size`: batch size for training.
+
+- **LLM settings**:
+  - `use_llm`: use an llm (`true`/`false`)
+  - `llm_model`: the llm model to be used
+  - `llm_finetuning`: how to finetune the llm (`full`, `lora`)
+  - `llm_task`: the task the llm is performing (`mlm`)
+  - `llm_chunk_size`: size of the token sequences used for training/testing
+  - **MLM settings**
+    - `mlm_probability`: specific to mlm tasks, the probability that a token is masked
+  - **Lora settings**
+    - `lora_rank`: rank/size of the low-rank matrices used in lora
+    - `lora_alpha`: scaling factor for lora updates
+    - `lora_dropout`: droput rate applied during training
+    - `lora_target_modules`: list of model layers where lora should be applied
 
 #### Strategy-specific parameters
 
