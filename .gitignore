@@ -9,3 +9,9 @@ local_run_simulation.sh
 venv
 out
 /datasets/*
+
+# Coverage files
+.coverage
+.coverage.*
+htmlcov/
+.pytest_cache/
