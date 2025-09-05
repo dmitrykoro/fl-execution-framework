@@ -11,3 +11,9 @@ venv
 out
 datasets/
 /datasets/*
+
+# Coverage files
+.coverage
+.coverage.*
+htmlcov/
+.pytest_cache/

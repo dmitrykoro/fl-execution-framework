@@ -82,3 +82,9 @@ urllib3==2.2.2
 xxhash==3.4.1
 yarl==1.9.4
 zipp==3.19.2
+
+# Testing dependencies
+pytest==8.3.3
+pytest-cov==5.0.0
+pytest-mock==3.14.0
+pytest-xdist==3.5.0
