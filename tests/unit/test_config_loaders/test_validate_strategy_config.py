@@ -9,7 +9,9 @@ import pytest
 from jsonschema import ValidationError
 
 from src.config_loaders.validate_strategy_config import (
-    validate_dependent_params, validate_strategy_config)
+    validate_dependent_params,
+    validate_strategy_config,
+)
 
 
 class TestValidateStrategyConfig:
