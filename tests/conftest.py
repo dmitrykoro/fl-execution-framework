@@ -10,19 +10,13 @@ import numpy as np
 import pytest
 
 # Import mock utilities
-from tests.fixtures.mock_datasets import (
-    MockDataset,
-    MockDatasetHandler,
-    MockFederatedDataset,
-    generate_byzantine_client_parameters,
-)
-from tests.fixtures.sample_models import (
-    MockCNNNetwork,
-    MockFlowerClient,
-    MockNetwork,
-    create_mock_client_models,
-    generate_mock_model_parameters,
-)
+from tests.fixtures.mock_datasets import (MockDataset, MockDatasetHandler,
+                                          MockFederatedDataset,
+                                          generate_byzantine_client_parameters)
+from tests.fixtures.sample_models import (MockCNNNetwork, MockFlowerClient,
+                                          MockNetwork,
+                                          create_mock_client_models,
+                                          generate_mock_model_parameters)
 
 
 @pytest.fixture
