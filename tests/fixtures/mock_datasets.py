@@ -2,7 +2,7 @@
 Mock dataset generators and utilities for testing federated learning components.
 """
 
-from typing import Dict, List, Tuple
+from typing import Dict, List, Optional, Tuple
 
 import numpy as np
 import torch
@@ -115,7 +115,7 @@ class MockDatasetHandler:
         self.dataset_type = dataset_type
         self.dataset_path = dataset_path
         self.is_setup = False
-        self.federated_dataset = None
+        self.federated_dataset: Optional[MockFederatedDataset] = None
 
     def setup_dataset(self, num_clients: int = 10) -> None:
         """Mock dataset setup without file operations."""
