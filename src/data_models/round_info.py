@@ -1,7 +1,7 @@
 from dataclasses import dataclass, field
 from typing import List
 
-from data_models.simulation_strategy_config import StrategyConfig
+from src.data_models.simulation_strategy_config import StrategyConfig
 
 
 @dataclass

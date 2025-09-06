@@ -1,10 +1,10 @@
 from dataclasses import dataclass, field
 
-from data_models.client_info import ClientInfo
-from data_models.round_info import RoundsInfo
-from data_models.simulation_strategy_config import StrategyConfig
+from src.data_models.client_info import ClientInfo
+from src.data_models.round_info import RoundsInfo
+from src.data_models.simulation_strategy_config import StrategyConfig
 
-from dataset_handlers.dataset_handler import DatasetHandler
+from src.dataset_handlers.dataset_handler import DatasetHandler
 
 
 @dataclass

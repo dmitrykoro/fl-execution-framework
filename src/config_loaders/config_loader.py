@@ -3,7 +3,7 @@ import json
 import logging
 import sys
 
-from config_loaders.validate_strategy_config import validate_strategy_config
+from src.config_loaders.validate_strategy_config import validate_strategy_config
 
 
 class ConfigLoader:
