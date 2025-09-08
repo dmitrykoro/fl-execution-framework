@@ -19,8 +19,8 @@ from flwr.common import (
 from flwr.server.client_proxy import ClientProxy
 from flwr.server.strategy.aggregate import weighted_loss_avg
 
-from output_handlers.directory_handler import DirectoryHandler
-from data_models.simulation_strategy_history import SimulationStrategyHistory
+from src.output_handlers.directory_handler import DirectoryHandler
+from src.data_models.simulation_strategy_history import SimulationStrategyHistory
 
 
 class BulyanStrategy(fl.server.strategy.FedAvg):

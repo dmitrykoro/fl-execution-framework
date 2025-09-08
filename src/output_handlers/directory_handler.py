@@ -4,7 +4,7 @@ import json
 import csv
 import numpy as np
 
-from data_models.simulation_strategy_history import SimulationStrategyHistory
+from src.data_models.simulation_strategy_history import SimulationStrategyHistory
 
 
 class DirectoryHandler:

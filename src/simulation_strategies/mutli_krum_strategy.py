@@ -14,9 +14,9 @@ from flwr.server.strategy.aggregate import weighted_loss_avg
 from flwr.common import EvaluateRes, Scalar
 from flwr.server.client_proxy import ClientProxy
 
-from output_handlers.directory_handler import DirectoryHandler
+from src.output_handlers.directory_handler import DirectoryHandler
 
-from data_models.simulation_strategy_history import SimulationStrategyHistory
+from src.data_models.simulation_strategy_history import SimulationStrategyHistory
 
 
 class MultiKrumStrategy(fl.server.strategy.FedAvg):

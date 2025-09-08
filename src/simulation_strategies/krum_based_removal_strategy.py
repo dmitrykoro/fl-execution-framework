@@ -15,7 +15,7 @@ from flwr.common import EvaluateRes, Scalar
 from flwr.server.client_proxy import ClientProxy
 from flwr.server.strategy.krum import Krum
 
-from data_models.simulation_strategy_history import SimulationStrategyHistory
+from src.data_models.simulation_strategy_history import SimulationStrategyHistory
 
 
 class KrumBasedRemovalStrategy(Krum):
@@ -83,6 +83,10 @@ class KrumBasedRemovalStrategy(Krum):
     ) -> Tuple[Optional[Parameters], Dict[str, Scalar]]:
 
         self.current_round += 1
+
+        # Handle empty results
+        if not results:
+            return super().aggregate_fit(server_round, results, failures)
 
         # clustering
         clustering_param_data = []

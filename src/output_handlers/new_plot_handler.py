@@ -4,9 +4,9 @@ import math
 
 from matplotlib.ticker import MaxNLocator
 
-from data_models.simulation_strategy_config import StrategyConfig
-from federated_simulation import FederatedSimulation
-from output_handlers.directory_handler import DirectoryHandler
+from src.data_models.simulation_strategy_config import StrategyConfig
+from src.federated_simulation import FederatedSimulation
+from src.output_handlers.directory_handler import DirectoryHandler
 
 
 plot_size = (11, 7)

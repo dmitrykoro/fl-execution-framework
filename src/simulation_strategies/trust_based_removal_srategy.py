@@ -14,7 +14,7 @@ from flwr.server.strategy.aggregate import weighted_loss_avg
 from flwr.common import EvaluateRes, Scalar
 from flwr.server.client_proxy import ClientProxy
 
-from data_models.simulation_strategy_history import SimulationStrategyHistory
+from src.data_models.simulation_strategy_history import SimulationStrategyHistory
 
 
 class TrustBasedRemovalStrategy(fl.server.strategy.FedAvg):

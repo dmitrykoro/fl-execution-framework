@@ -5,7 +5,7 @@ import torch
 from collections import OrderedDict
 from typing import List
 
-from network_models.bert_model_definition import get_peft_model_state_dict, set_peft_model_state_dict
+from src.network_models.bert_model_definition import get_peft_model_state_dict, set_peft_model_state_dict
 
 
 class FlowerClient(fl.client.NumPyClient):
