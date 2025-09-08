@@ -23,6 +23,8 @@ class TestConfigLoader:
             "shared_settings": {
                 "num_of_rounds": 5,
                 "dataset_keyword": "its",
+                "model_type": "cnn",
+                "use_llm": "false",
                 "remove_clients": "true",
                 "num_of_clients": 10,
                 "num_of_malicious_clients": 2,
@@ -78,6 +80,8 @@ class TestConfigLoader:
             "shared_settings": {
                 "num_of_rounds": 5,
                 "dataset_keyword": "its",
+                "model_type": "cnn",
+                "use_llm": "false",
                 "remove_clients": "true",
                 "num_of_clients": 10,
                 "num_of_malicious_clients": 2,
@@ -224,6 +228,8 @@ class TestConfigLoader:
             "shared_settings": {
                 "num_of_rounds": 3,
                 "dataset_keyword": "its",
+                "model_type": "cnn",
+                "use_llm": "false",
                 "remove_clients": "true",
                 "num_of_clients": 5,
                 "num_of_malicious_clients": 1,
@@ -272,6 +278,8 @@ class TestConfigLoader:
             "shared_settings": {
                 "num_of_rounds": 3,
                 "dataset_keyword": "its",
+                "model_type": "cnn",
+                "use_llm": "false",
                 "remove_clients": "false",
                 "num_of_clients": 5,
                 "num_of_malicious_clients": 0,
@@ -322,6 +330,8 @@ class TestConfigLoader:
             "shared_settings": {
                 "num_of_rounds": 1,
                 "dataset_keyword": "its",
+                "model_type": "cnn",
+                "use_llm": "false",
                 "remove_clients": "false",
                 "num_of_clients": 3,
                 "num_of_malicious_clients": 0,
@@ -368,6 +378,8 @@ class TestConfigLoader:
             "shared_settings": {
                 "num_of_rounds": 1,
                 "dataset_keyword": "its",
+                "model_type": "cnn",
+                "use_llm": "false",
                 "remove_clients": "false",
                 "num_of_clients": 3,
                 "num_of_malicious_clients": 0,
@@ -418,6 +430,8 @@ class TestConfigLoader:
             "shared_settings": {
                 "num_of_rounds": 5,
                 "dataset_keyword": "its",
+                "model_type": "cnn",
+                "use_llm": "false",
                 "remove_clients": "true",
                 "num_of_clients": 10,
                 "num_of_malicious_clients": 2,
@@ -492,6 +506,8 @@ class TestConfigLoader:
             "shared_settings": {
                 "num_of_rounds": 10,
                 "dataset_keyword": "femnist_iid",
+                "model_type": "cnn",
+                "use_llm": "false",
                 "remove_clients": "true",
                 "num_of_clients": 20,
                 "num_of_malicious_clients": 4,
@@ -562,6 +578,8 @@ class TestConfigLoader:
             "shared_settings": {
                 "num_of_rounds": 1,
                 "dataset_keyword": "its",
+                "model_type": "cnn",
+                "use_llm": "false",
                 "remove_clients": "false",
                 "num_of_clients": 3,
                 "num_of_malicious_clients": 0,
