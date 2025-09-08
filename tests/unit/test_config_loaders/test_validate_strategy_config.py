@@ -9,7 +9,9 @@ import pytest
 from jsonschema import ValidationError
 
 from src.config_loaders.validate_strategy_config import (
-    validate_dependent_params, validate_strategy_config)
+    validate_dependent_params,
+    validate_strategy_config,
+)
 
 
 class TestValidateStrategyConfig:
@@ -21,6 +23,8 @@ class TestValidateStrategyConfig:
             "aggregation_strategy_keyword": "trust",
             "remove_clients": "true",
             "dataset_keyword": "femnist_iid",
+            "model_type": "cnn",
+            "use_llm": "false",
             "num_of_rounds": 5,
             "num_of_clients": 10,
             "num_of_malicious_clients": 2,
@@ -55,6 +59,8 @@ class TestValidateStrategyConfig:
             "aggregation_strategy_keyword": "pid",
             "remove_clients": "true",
             "dataset_keyword": "its",
+            "model_type": "cnn",
+            "use_llm": "false",
             "num_of_rounds": 3,
             "num_of_clients": 8,
             "num_of_malicious_clients": 1,
@@ -93,6 +99,8 @@ class TestValidateStrategyConfig:
             "aggregation_strategy_keyword": "krum",
             "remove_clients": "false",
             "dataset_keyword": "pneumoniamnist",
+            "model_type": "cnn",
+            "use_llm": "false",
             "num_of_rounds": 4,
             "num_of_clients": 12,
             "num_of_malicious_clients": 0,
@@ -124,6 +132,8 @@ class TestValidateStrategyConfig:
             "aggregation_strategy_keyword": "trimmed_mean",
             "remove_clients": "true",
             "dataset_keyword": "bloodmnist",
+            "model_type": "cnn",
+            "use_llm": "false",
             "num_of_rounds": 6,
             "num_of_clients": 15,
             "num_of_malicious_clients": 3,
@@ -158,6 +168,8 @@ class TestValidateStrategyConfigMissingRequiredParams:
         config = {
             "remove_clients": "true",
             "dataset_keyword": "femnist_iid",
+            "model_type": "cnn",
+            "use_llm": "false",
             "num_of_rounds": 5,
             "num_of_clients": 10,
             "num_of_malicious_clients": 2,
@@ -221,6 +233,8 @@ class TestValidateStrategyConfigMissingRequiredParams:
             "aggregation_strategy_keyword": "trust",
             "remove_clients": "true",
             "dataset_keyword": "femnist_iid",
+            "model_type": "cnn",
+            "use_llm": "false",
             "num_of_clients": 10,
             "num_of_malicious_clients": 2,
             "attack_type": "label_flipping",
@@ -251,6 +265,8 @@ class TestValidateStrategyConfigMissingRequiredParams:
             "aggregation_strategy_keyword": "trust",
             "remove_clients": "true",
             "dataset_keyword": "femnist_iid",
+            "model_type": "cnn",
+            "use_llm": "false",
             "num_of_rounds": 5,
             "num_of_clients": 10,
             "num_of_malicious_clients": 2,
@@ -279,6 +295,8 @@ class TestValidateStrategyConfigInvalidValues:
             "aggregation_strategy_keyword": "invalid_strategy",
             "remove_clients": "true",
             "dataset_keyword": "femnist_iid",
+            "model_type": "cnn",
+            "use_llm": "false",
             "num_of_rounds": 5,
             "num_of_clients": 10,
             "num_of_malicious_clients": 2,
@@ -310,6 +328,8 @@ class TestValidateStrategyConfigInvalidValues:
             "aggregation_strategy_keyword": "trust",
             "remove_clients": "true",
             "dataset_keyword": "invalid_dataset",
+            "model_type": "cnn",
+            "use_llm": "false",
             "num_of_rounds": 5,
             "num_of_clients": 10,
             "num_of_malicious_clients": 2,
@@ -341,6 +361,8 @@ class TestValidateStrategyConfigInvalidValues:
             "aggregation_strategy_keyword": "trust",
             "remove_clients": "maybe",  # Invalid boolean string
             "dataset_keyword": "femnist_iid",
+            "model_type": "cnn",
+            "use_llm": "false",
             "num_of_rounds": 5,
             "num_of_clients": 10,
             "num_of_malicious_clients": 2,
@@ -372,6 +394,8 @@ class TestValidateStrategyConfigInvalidValues:
             "aggregation_strategy_keyword": "trust",
             "remove_clients": "true",
             "dataset_keyword": "femnist_iid",
+            "model_type": "cnn",
+            "use_llm": "false",
             "num_of_rounds": 5,
             "num_of_clients": 10,
             "num_of_malicious_clients": 2,
@@ -406,6 +430,8 @@ class TestValidateStrategyConfigInvalidValues:
             "aggregation_strategy_keyword": "trust",
             "remove_clients": "true",
             "dataset_keyword": "femnist_iid",
+            "model_type": "cnn",
+            "use_llm": "false",
             "num_of_rounds": 5,
             "num_of_clients": 10,
             "num_of_malicious_clients": 2,
@@ -437,6 +463,8 @@ class TestValidateStrategyConfigInvalidValues:
             "aggregation_strategy_keyword": "trust",
             "remove_clients": "true",
             "dataset_keyword": "femnist_iid",
+            "model_type": "cnn",
+            "use_llm": "false",
             "num_of_rounds": "five",  # Should be integer
             "num_of_clients": 10,
             "num_of_malicious_clients": 2,
@@ -741,6 +769,8 @@ class TestValidateStrategyConfigErrorMessages:
             "aggregation_strategy_keyword": "invalid_strategy",
             "remove_clients": "true",
             "dataset_keyword": "femnist_iid",
+            "model_type": "cnn",
+            "use_llm": "false",
             "num_of_rounds": 5,
             "num_of_clients": 10,
             "num_of_malicious_clients": 2,
@@ -776,6 +806,8 @@ class TestValidateStrategyConfigErrorMessages:
         config = {
             "remove_clients": "true",
             "dataset_keyword": "femnist_iid",
+            "model_type": "cnn",
+            "use_llm": "false",
             # Missing aggregation_strategy_keyword and other required fields
         }
 
@@ -792,6 +824,8 @@ class TestValidateStrategyConfigErrorMessages:
             "aggregation_strategy_keyword": "trust",
             "remove_clients": "true",
             "dataset_keyword": "femnist_iid",
+            "model_type": "cnn",
+            "use_llm": "false",
             "num_of_rounds": "not_a_number",  # Should be integer
             "num_of_clients": 10,
             "num_of_malicious_clients": 2,
@@ -864,6 +898,8 @@ class TestValidateStrategyConfigEdgeCases:
             "aggregation_strategy_keyword": "rfa",
             "remove_clients": "true",
             "dataset_keyword": "flair",
+            "model_type": "cnn",
+            "use_llm": "false",
             "num_of_rounds": 4,
             "num_of_clients": 10,
             "num_of_malicious_clients": 2,
@@ -893,6 +929,8 @@ class TestValidateStrategyConfigEdgeCases:
             "aggregation_strategy_keyword": "bulyan",
             "remove_clients": "false",
             "dataset_keyword": "lung_photos",
+            "model_type": "cnn",
+            "use_llm": "false",
             "num_of_rounds": 3,
             "num_of_clients": 15,
             "num_of_malicious_clients": 0,
@@ -947,6 +985,8 @@ class TestValidateStrategyConfigEdgeCases:
             "aggregation_strategy_keyword": "trust",
             "remove_clients": "true",
             "dataset_keyword": "femnist_iid",
+            "model_type": "cnn",
+            "use_llm": "false",
             "num_of_rounds": 5,
             "num_of_clients": 10,
             "num_of_malicious_clients": 2,
