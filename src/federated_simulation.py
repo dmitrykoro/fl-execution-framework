@@ -3,8 +3,11 @@ import sys
 import os
 
 import flwr
+
 from flwr.client import Client, ClientApp, NumPyClient
 from flwr.common import ndarrays_to_parameters
+
+from peft import PeftModel, get_peft_model_state_dict
 
 
 from dataset_loaders.image_dataset_loader import ImageDatasetLoader
@@ -14,6 +17,7 @@ from dataset_loaders.image_transformers.flair_image_transformer import flair_ima
 from dataset_loaders.image_transformers.pneumoniamnist_image_transformer import pneumoniamnist_image_transformer
 from dataset_loaders.image_transformers.bloodmnist_image_transformer import bloodmnist_image_transformer
 from dataset_loaders.image_transformers.lung_photos_image_transformer import lung_cancer_image_transformer
+from dataset_loaders.medquad_dataset_loader import MedQuADDatasetLoader
 
 from network_models.its_network_definition import ITSNetwork
 from network_models.femnist_reduced_iid_network_definition import FemnistReducedIIDNetwork
@@ -23,6 +27,7 @@ from network_models.pneumoniamnist_network_definition import PneumoniamnistNetwo
 from network_models.bloodmnist_network_definition import BloodmnistNetwork
 from network_models.lung_photos_network_definition import LungCancerCNN
 
+from network_models.bert_model_definition import load_model, load_model_with_lora
 
 from client_models.flower_client import FlowerClient
 
@@ -165,6 +170,29 @@ class FederatedSimulation:
                 training_subset_fraction=training_subset_fraction
             )
             self._network_model = LungCancerCNN()
+        elif dataset_keyword == "medquad":
+            dataset_loader = MedQuADDatasetLoader(
+                dataset_dir=self._dataset_dir,
+                num_of_clients=num_of_clients,
+                batch_size=batch_size,
+                training_subset_fraction=training_subset_fraction,
+                model_name=self.strategy_config.llm_model,
+                chunk_size=self.strategy_config.llm_chunk_size,
+                mlm_probability=self.strategy_config.mlm_probability,
+                num_poisoned_clients=self.strategy_config.num_of_malicious_clients,
+            )
+            if self.strategy_config.llm_finetuning == "lora":
+                self._network_model = load_model_with_lora(
+                    model_name=self.strategy_config.llm_model,
+                    lora_rank=self.strategy_config.lora_rank,
+                    lora_alpha=self.strategy_config.lora_alpha,
+                    lora_dropout=self.strategy_config.lora_dropout,
+                    lora_target_modules=["query", "value"],
+                )
+            else:
+                self._network_model = load_model(
+                    model_name=self.strategy_config.llm_model,
+                )
         else:
             logging.error(
                 f"You are parsing a strategy for dataset: {dataset_keyword}. "
@@ -207,7 +235,8 @@ class FederatedSimulation:
                 num_std_dev=self.strategy_config.num_std_dev,
                 strategy_history=self.strategy_history,
                 network_model=self._network_model,
-                aggregation_strategy_keyword=aggregation_strategy_keyword
+                aggregation_strategy_keyword=aggregation_strategy_keyword,
+                use_lora=True if self.strategy_config.use_llm and self.strategy_config.llm_finetuning == "lora" else False
             )
         elif aggregation_strategy_keyword == "krum":
             self._aggregation_strategy = KrumBasedRemovalStrategy(
@@ -273,7 +302,7 @@ class FederatedSimulation:
                 strategy_history=self.strategy_history,
                 num_of_malicious_clients=self.strategy_config.num_of_malicious_clients
             )
-        
+
         elif aggregation_strategy_keyword == "bulyan":
             self._aggregation_strategy = BulyanStrategy(
                 initial_parameters=ndarrays_to_parameters(self._get_model_params(self._network_model)),
@@ -294,18 +323,34 @@ class FederatedSimulation:
 
         net = self._network_model.to(self.strategy_config.training_device)
 
+        use_lora = True if self.strategy_config.use_llm and self.strategy_config.llm_finetuning == "lora" else False
+
         trainloader = self._trainloaders[int(cid)]
         valloader = self._valloaders[int(cid)]
 
         return FlowerClient(
-            net,
-            trainloader,
-            valloader,
-            self.strategy_config.training_device,
-            self.strategy_config.num_of_client_epochs
+            client_id=int(cid),
+            net=net,
+            trainloader=trainloader,
+            valloader=valloader,
+            training_device=self.strategy_config.training_device,
+            num_of_client_epochs=self.strategy_config.num_of_client_epochs,
+            model_type=self.strategy_config.model_type,
+            use_lora=use_lora,
+            num_malicious_clients=self.strategy_config.num_of_malicious_clients,
         ).to_client()
 
     @staticmethod
     def _get_model_params(model):
-        """Convert initial model params to suitable format."""
-        return [val.cpu().numpy() for _, val in model.state_dict().items()]
+        """
+        Convert initial model params to suitable format.
+        - For PEFT/LoRA models: return only LoRA adapter params
+        - For regular models (CNN, etc.): return full state_dict
+        """
+
+        if isinstance(model, PeftModel):
+            state_dict = get_peft_model_state_dict(model)
+            return [val.cpu().numpy() for val in state_dict.values()]
+
+        else:
+            return [val.cpu().numpy() for _, val in model.state_dict().items()]
