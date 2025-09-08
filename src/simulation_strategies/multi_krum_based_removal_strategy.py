@@ -3,6 +3,7 @@ import numpy as np
 import flwr as fl
 import torch
 import logging
+import os
 
 from typing import Dict, List, Optional, Tuple, Union
 
@@ -48,6 +49,7 @@ class MultiKrumBasedRemovalStrategy(Krum):
 
         # Create handlers
         out_dir = DirectoryHandler.dirname
+        os.makedirs(out_dir, exist_ok=True)
         file_handler = logging.FileHandler(f"{out_dir}/output.log")
         console_handler = logging.StreamHandler()
 

@@ -3,6 +3,7 @@ import flwr as fl
 import torch
 import logging
 import time
+import os
 
 from typing import Dict, List, Optional, Tuple, Union
 from sklearn.cluster import KMeans
@@ -60,6 +61,7 @@ class PIDBasedRemovalStrategy(fl.server.strategy.FedAvg):
 
         # Create handlers
         out_dir = DirectoryHandler.dirname
+        os.makedirs(out_dir, exist_ok=True)
         file_handler = logging.FileHandler(f"{out_dir}/output.log")
         console_handler = logging.StreamHandler()
 

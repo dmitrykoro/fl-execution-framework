@@ -3,6 +3,7 @@ import numpy as np
 import flwr as fl
 import torch
 import logging
+import os
 from typing import Dict, List, Optional, Tuple, Union
 
 from sklearn.cluster import KMeans
@@ -61,6 +62,7 @@ class BulyanStrategy(fl.server.strategy.FedAvg):
         self.logger = logging.getLogger("my_logger")
         self.logger.setLevel(logging.INFO)
         out_dir = DirectoryHandler.dirname
+        os.makedirs(out_dir, exist_ok=True)
         file_handler = logging.FileHandler(f"{out_dir}/output.log")
         console_handler = logging.StreamHandler()
         self.logger.addHandler(file_handler)
