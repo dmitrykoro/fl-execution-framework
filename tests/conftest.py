@@ -267,6 +267,22 @@ def temp_output_dir(tmp_path: Path) -> Path:
 
 
 @pytest.fixture
+def mock_output_directory(tmp_path, monkeypatch):
+    """Create proper output directory structure for tests and mock DirectoryHandler."""
+    output_dir = tmp_path / "out" / "test_run"
+    output_dir.mkdir(parents=True)
+    (output_dir / "output.log").touch()
+
+    # Mock DirectoryHandler.dirname to point to test directory
+    monkeypatch.setattr(
+        "src.output_handlers.directory_handler.DirectoryHandler.dirname",
+        str(output_dir),
+    )
+
+    return output_dir
+
+
+@pytest.fixture
 def mock_simulation_config() -> Dict[str, Any]:
     """Complete simulation configuration for integration testing."""
     return {
