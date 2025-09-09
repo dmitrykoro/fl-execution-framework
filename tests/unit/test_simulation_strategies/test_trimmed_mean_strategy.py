@@ -4,6 +4,7 @@ Unit tests for TrimmedMeanBasedRemovalStrategy.
 Tests trimmed mean aggregation and client removal logic.
 """
 
+import warnings
 from unittest.mock import Mock, patch
 
 import numpy as np
@@ -402,7 +403,17 @@ class TestTrimmedMeanBasedRemovalStrategy:
             fit_res.num_examples = 100
             results.append((client_proxy, fit_res))
 
-        result_params, result_metrics = strategy.aggregate_fit(1, results, [])
+        # Suppress NumPy warnings for edge case test
+        with warnings.catch_warnings():
+            warnings.filterwarnings(
+                "ignore", category=RuntimeWarning, message="Mean of empty slice"
+            )
+            warnings.filterwarnings(
+                "ignore",
+                category=RuntimeWarning,
+                message="invalid value encountered in scalar divide",
+            )
+            result_params, result_metrics = strategy.aggregate_fit(1, results, [])
 
         # Should handle extreme trim ratio gracefully
         assert result_params is not None
