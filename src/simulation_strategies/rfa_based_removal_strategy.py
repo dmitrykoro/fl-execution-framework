@@ -24,6 +24,9 @@ class RFABasedRemovalStrategy(FedAvg):
         self.client_scores = {}
 
     def aggregate_fit(self, server_round: int, results: List[Tuple[ClientProxy, FitRes]], failures: List[Union[Tuple[ClientProxy, FitRes], BaseException]]) -> Tuple[Optional[Parameters], Dict[str, Scalar]]:
+        if not results:
+            return super().aggregate_fit(server_round, results, failures)
+
         # Increment the current round counter.
         self.current_round += 1
         self.rounds_history[f'{self.current_round}'] = {}
@@ -34,6 +37,9 @@ class RFABasedRemovalStrategy(FedAvg):
             client_id = result[0].cid
             if client_id not in self.removed_client_ids:
                 aggregate_clients.append(result)
+        
+        if not aggregate_clients:
+            return super().aggregate_fit(server_round, results, failures)
 
         # Convert parameters to numpy arrays for aggregation.
         param_data = [fl.common.parameters_to_ndarrays(fit_res.parameters) for _, fit_res in aggregate_clients]
@@ -136,6 +142,10 @@ class RFABasedRemovalStrategy(FedAvg):
             client_id = max(client_scores, key=client_scores.get)
             logging.info(f"Removing client with highest deviation: {client_id}")
             self.removed_client_ids.add(client_id)
+            if f'{self.current_round}' not in self.rounds_history:
+                self.rounds_history[f'{self.current_round}'] = {'client_info': {}}
+            if f'client_{client_id}' not in self.rounds_history[f'{self.current_round}']['client_info']:
+                self.rounds_history[f'{self.current_round}']['client_info'][f'client_{client_id}'] = {}
             self.rounds_history[f'{self.current_round}']['client_info'][f'client_{client_id}']['is_removed'] = True
         
         logging.info(f"removed clients are : {self.removed_client_ids}")
