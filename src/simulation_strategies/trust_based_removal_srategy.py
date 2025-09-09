@@ -96,6 +96,9 @@ class TrustBasedRemovalStrategy(fl.server.strategy.FedAvg):
             failures: List[Union[Tuple[ClientProxy, FitRes], BaseException]],
     ) -> Tuple[Optional[Parameters], Dict[str, Scalar]]:
 
+        if not results:
+            return super().aggregate_fit(server_round, results, failures)
+
         self.current_round += 1
         aggregate_clients = []
 
@@ -103,6 +106,9 @@ class TrustBasedRemovalStrategy(fl.server.strategy.FedAvg):
             client_id = result[0].cid
             if client_id not in self.removed_client_ids:
                 aggregate_clients.append(result)
+
+        if not aggregate_clients:
+            return super().aggregate_fit(server_round, results, failures)
 
         aggregated_parameters, aggregated_metrics = super().aggregate_fit(server_round, aggregate_clients, failures)
 
