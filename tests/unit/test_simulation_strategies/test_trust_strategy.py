@@ -495,7 +495,7 @@ class TestTrustBasedRemovalStrategy:
         """Test handling of single client scenario."""
         # Create single client result
         client_proxy = Mock(spec=ClientProxy)
-        client_proxy.cid = "client_0"
+        client_proxy.cid = "0"
         mock_params = [np.random.randn(10, 5), np.random.randn(5)]
         fit_res = Mock(spec=FitRes)
         fit_res.parameters = ndarrays_to_parameters(mock_params)
