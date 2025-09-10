@@ -116,6 +116,7 @@ class MockDatasetHandler:
         self.dataset_path = dataset_path
         self.is_setup = False
         self.federated_dataset: Optional[MockFederatedDataset] = None
+        self.poisoned_client_ids = set()
 
     def setup_dataset(self, num_clients: int = 10) -> None:
         """Mock dataset setup without file operations."""
