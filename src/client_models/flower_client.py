@@ -71,8 +71,8 @@ class FlowerClient(fl.client.NumPyClient):
                     epoch_loss += loss
                     total += labels.size(0)
                     correct += (torch.max(outputs.data, 1)[1] == labels).sum().item()
-                epoch_loss /= len(trainloader.dataset)
-                epoch_acc = correct / total
+                epoch_loss /= len(trainloader.dataset) if len(trainloader.dataset) > 0 else 1
+                epoch_acc = correct / total if total > 0 else 0.0
                 if verbose:
                     print(f"Epoch {epoch + 1}: train loss {epoch_loss}, accuracy {epoch_acc}")
 
@@ -95,7 +95,7 @@ class FlowerClient(fl.client.NumPyClient):
                     if global_params is not None and self.client_id >= self.num_malicious_clients:
                         local_params = [torch.tensor(p, device=self.training_device) for p in self.get_parameters(config=None)]
                         prox_term = sum(torch.norm(lp - gp) ** 2 for lp, gp in zip(local_params, global_params))
-                        loss += (mu / 2) * prox_term
+                        loss = loss + (mu / 2) * prox_term
 
                     loss.backward()
 
@@ -134,8 +134,8 @@ class FlowerClient(fl.client.NumPyClient):
                     _, predicted = torch.max(outputs.data, 1)
                     total += labels.size(0)
                     correct += (predicted == labels).sum().item()
-            loss /= len(testloader.dataset)
-            accuracy = correct / total
+            loss /= len(testloader.dataset) if len(testloader.dataset) > 0 else 1
+            accuracy = correct / total if total > 0 else 0.0
             return loss, accuracy
 
         # add check for mlm as well
