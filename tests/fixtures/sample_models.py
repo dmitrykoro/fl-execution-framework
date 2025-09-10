@@ -206,7 +206,7 @@ class MockNetworkFactory:
             "flair": {"input_channels": 3, "network_type": "cnn"},
             "pneumoniamnist": {"input_channels": 1, "network_type": "cnn"},
             "bloodmnist": {"input_channels": 3, "network_type": "cnn"},
-            "lung_photos": {"input_channels": 3, "network_type": "cnn"},
+            "lung_photos": {"input_channels": 1, "network_type": "cnn"},
             "medquad": {"input_size": 768, "network_type": "linear"},  # Text data
         }
 
