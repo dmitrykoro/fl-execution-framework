@@ -24,7 +24,7 @@ from src.simulation_strategies.rfa_based_removal_strategy import \
     RFABasedRemovalStrategy
 from src.simulation_strategies.trimmed_mean_based_removal_strategy import \
     TrimmedMeanBasedRemovalStrategy
-from src.simulation_strategies.trust_based_removal_srategy import \
+from src.simulation_strategies.trust_based_removal_strategy import \
     TrustBasedRemovalStrategy
 
 

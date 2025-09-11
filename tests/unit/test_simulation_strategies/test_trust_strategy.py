@@ -13,7 +13,7 @@ from flwr.server.client_proxy import ClientProxy
 
 from src.data_models.simulation_strategy_history import \
     SimulationStrategyHistory
-from src.simulation_strategies.trust_based_removal_srategy import \
+from src.simulation_strategies.trust_based_removal_strategy import \
     TrustBasedRemovalStrategy
 
 

@@ -31,7 +31,7 @@ from src.network_models.bert_model_definition import load_model, load_model_with
 
 from src.client_models.flower_client import FlowerClient
 
-from src.simulation_strategies.trust_based_removal_srategy import TrustBasedRemovalStrategy
+from src.simulation_strategies.trust_based_removal_strategy import TrustBasedRemovalStrategy
 from src.simulation_strategies.pid_based_removal_strategy import PIDBasedRemovalStrategy
 from src.simulation_strategies.krum_based_removal_strategy import KrumBasedRemovalStrategy
 from src.simulation_strategies.multi_krum_based_removal_strategy import MultiKrumBasedRemovalStrategy
