@@ -122,13 +122,13 @@ class MockDatasetHandler:
         """Mock dataset setup without file operations."""
         # Simulate dataset setup based on type
         input_shapes = {
-            "its": (3, 32, 32),
+            "its": (3, 224, 224),
             "femnist_iid": (1, 28, 28),
             "femnist_niid": (1, 28, 28),
             "flair": (3, 224, 224),
             "pneumoniamnist": (1, 28, 28),
             "bloodmnist": (3, 28, 28),
-            "lung_photos": (3, 224, 224),
+            "lung_photos": (1, 224, 224),
             "mock": (3, 32, 32),
         }
 
