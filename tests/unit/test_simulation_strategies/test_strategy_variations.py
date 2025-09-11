@@ -60,7 +60,7 @@ class TestStrategyVariations:
         [
             (
                 "trust",
-                "src.simulation_strategies.trust_based_removal_srategy.TrustBasedRemovalStrategy",
+                "src.simulation_strategies.trust_based_removal_strategy.TrustBasedRemovalStrategy",
                 {
                     "remove_clients": True,
                     "beta_value": 0.5,
@@ -113,7 +113,7 @@ class TestStrategyVariations:
         [
             (
                 "trust",
-                "src.simulation_strategies.trust_based_removal_srategy.TrustBasedRemovalStrategy",
+                "src.simulation_strategies.trust_based_removal_strategy.TrustBasedRemovalStrategy",
                 [
                     {"beta_value": 0.1, "trust_threshold": 0.3},  # Low values
                     {"beta_value": 0.5, "trust_threshold": 0.7},  # Medium values
@@ -178,7 +178,7 @@ class TestStrategyVariations:
         [
             (
                 "trust",
-                "src.simulation_strategies.trust_based_removal_srategy.TrustBasedRemovalStrategy",
+                "src.simulation_strategies.trust_based_removal_strategy.TrustBasedRemovalStrategy",
             ),
             (
                 "trimmed_mean",
@@ -241,7 +241,7 @@ class TestStrategyVariations:
         [
             (
                 "trust",
-                "src.simulation_strategies.trust_based_removal_srategy.TrustBasedRemovalStrategy",
+                "src.simulation_strategies.trust_based_removal_strategy.TrustBasedRemovalStrategy",
                 [
                     {"beta_value": 0.0, "trust_threshold": 0.0},  # Minimum values
                     {"beta_value": 1.0, "trust_threshold": 1.0},  # Maximum values

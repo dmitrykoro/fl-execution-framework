@@ -197,8 +197,8 @@ class TestTrustBasedRemovalStrategy:
             trust = trust_strategy.update_trust(prev_trust, reputation, d)
             assert 0 <= trust <= 1
 
-    @patch("src.simulation_strategies.trust_based_removal_srategy.KMeans")
-    @patch("src.simulation_strategies.trust_based_removal_srategy.MinMaxScaler")
+    @patch("src.simulation_strategies.trust_based_removal_strategy.KMeans")
+    @patch("src.simulation_strategies.trust_based_removal_strategy.MinMaxScaler")
     def test_aggregate_fit_clustering(
         self, mock_scaler, mock_kmeans, trust_strategy, mock_client_results
     ):
@@ -235,9 +235,9 @@ class TestTrustBasedRemovalStrategy:
     def test_aggregate_fit_trust_calculation(self, trust_strategy, mock_client_results):
         """Test aggregate_fit calculates trust scores for all clients."""
         with patch(
-            "src.simulation_strategies.trust_based_removal_srategy.KMeans"
+            "src.simulation_strategies.trust_based_removal_strategy.KMeans"
         ) as mock_kmeans, patch(
-            "src.simulation_strategies.trust_based_removal_srategy.MinMaxScaler"
+            "src.simulation_strategies.trust_based_removal_strategy.MinMaxScaler"
         ) as mock_scaler, patch(
             "flwr.server.strategy.FedAvg.aggregate_fit"
         ) as mock_parent_aggregate:
@@ -448,9 +448,9 @@ class TestTrustBasedRemovalStrategy:
     def test_strategy_history_integration(self, trust_strategy, mock_client_results):
         """Test integration with strategy history."""
         with patch(
-            "src.simulation_strategies.trust_based_removal_srategy.KMeans"
+            "src.simulation_strategies.trust_based_removal_strategy.KMeans"
         ) as mock_kmeans, patch(
-            "src.simulation_strategies.trust_based_removal_srategy.MinMaxScaler"
+            "src.simulation_strategies.trust_based_removal_strategy.MinMaxScaler"
         ) as mock_scaler, patch(
             "flwr.server.strategy.FedAvg.aggregate_fit"
         ) as mock_parent_aggregate:
@@ -504,9 +504,9 @@ class TestTrustBasedRemovalStrategy:
         single_result = [(client_proxy, fit_res)]
 
         with patch(
-            "src.simulation_strategies.trust_based_removal_srategy.KMeans"
+            "src.simulation_strategies.trust_based_removal_strategy.KMeans"
         ) as mock_kmeans, patch(
-            "src.simulation_strategies.trust_based_removal_srategy.MinMaxScaler"
+            "src.simulation_strategies.trust_based_removal_strategy.MinMaxScaler"
         ) as mock_scaler, patch(
             "flwr.server.strategy.FedAvg.aggregate_fit"
         ) as mock_parent_aggregate:

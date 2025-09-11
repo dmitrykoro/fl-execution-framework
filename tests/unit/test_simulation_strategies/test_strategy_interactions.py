@@ -162,9 +162,9 @@ class TestStrategyInteractions:
 
         # Mock the clustering and aggregation components
         with patch(
-            "src.simulation_strategies.trust_based_removal_srategy.KMeans"
+            "src.simulation_strategies.trust_based_removal_strategy.KMeans"
         ) as mock_kmeans_trust, patch(
-            "src.simulation_strategies.trust_based_removal_srategy.MinMaxScaler"
+            "src.simulation_strategies.trust_based_removal_strategy.MinMaxScaler"
         ) as mock_scaler_trust, patch(
             "src.simulation_strategies.pid_based_removal_strategy.KMeans"
         ) as mock_kmeans_pid, patch(
