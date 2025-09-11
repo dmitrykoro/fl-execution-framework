@@ -608,3 +608,28 @@ class TestFlowerClient:
         loss, accuracy = flower_client_cnn.test(flower_client_cnn.net, empty_loader)
         assert isinstance(loss, float)
         assert isinstance(accuracy, float)
+
+    def test_verbose_training_output_transformer(self, flower_client_transformer, capsys):
+        """Test verbose training produces output for transformer model."""
+        # Mock transformer outputs
+        mock_outputs = Mock()
+        mock_outputs.loss = torch.tensor(0.5, requires_grad=True)
+        mock_outputs.logits = torch.randn(2, 128, 10)
+
+        flower_client_transformer.net.return_value = mock_outputs
+
+        with patch("torch.optim.AdamW") as mock_optimizer_class:
+            mock_optimizer = Mock()
+            mock_optimizer_class.return_value = mock_optimizer
+
+            flower_client_transformer.train(
+                net=flower_client_transformer.net,
+                trainloader=flower_client_transformer.trainloader,
+                epochs=1,
+                verbose=True,
+            )
+
+        captured = capsys.readouterr()
+        assert "Epoch 1:" in captured.out
+        assert "train loss" in captured.out
+        assert "accuracy" in captured.out
