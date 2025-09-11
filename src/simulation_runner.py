@@ -77,6 +77,7 @@ class SimulationRunner:
         new_plot_handler.show_inter_strategy_plots(executed_simulation_strategies, self._directory_handler)
 
 
-"""Put the filename of the json strategy from config/simulation_strategies here"""
-simulation_runner = SimulationRunner("example_strategy_config.json")
-simulation_runner.run()
+if __name__ == "__main__":
+    """Put the filename of the json strategy from config/simulation_strategies here"""
+    simulation_runner = SimulationRunner("example_strategy_config.json")
+    simulation_runner.run()
