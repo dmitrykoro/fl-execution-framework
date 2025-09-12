@@ -14,6 +14,7 @@ from flwr.server.strategy.fedavg import FedAvg
 
 class RFABasedRemovalStrategy(FedAvg):
     def __init__(self, remove_clients: bool, begin_removing_from_round: int, weighted_median_factor: float = 1.0, *args, **kwargs):
+        self.strategy_history = kwargs.pop('strategy_history', None)
         super().__init__(*args, **kwargs)
         self.remove_clients = remove_clients
         self.begin_removing_from_round = begin_removing_from_round
