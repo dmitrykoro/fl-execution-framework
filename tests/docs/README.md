@@ -24,9 +24,10 @@ tests/
 ├── conftest.py                         # Global fixtures and configuration
 ├── pytest.ini                         # PyTest execution configuration
 ├── unit/                              # Unit tests for individual components
+│   ├── test_attack_scenarios.py       # Byzantine attack pattern testing
 │   ├── test_data_models/              # StrategyConfig, ClientInfo, RoundInfo tests
 │   ├── test_config_loaders/           # Configuration parsing and validation tests
-│   ├── test_simulation_strategies/    # All 9 aggregation strategy tests
+│   ├── test_simulation_strategies/    # All 10 aggregation strategy tests
 │   ├── test_dataset_handlers/         # Dataset management component tests
 │   ├── test_client_models/            # FlowerClient and model interaction tests
 │   └── test_network_models/           # Neural network definition tests
@@ -37,9 +38,10 @@ tests/
 ├── performance/                       # Scalability and memory usage tests
 │   ├── test_memory_usage.py           # Memory leak detection and monitoring
 │   └── test_scalability.py            # Client count and round scaling tests
-└── fixtures/                         # Reusable test utilities and mock data
-    ├── mock_datasets.py              # Synthetic dataset generation
-    └── sample_models.py              # Lightweight mock network models
+├── fixtures/                         # Reusable test utilities and mock data
+│   ├── mock_datasets.py              # Synthetic dataset generation
+│   └── sample_models.py              # Lightweight mock network models
+└── test_setup.py                     # Test configuration and setup utilities
 ```
 
 ## 🎲 Synthetic Dataset Generation
@@ -88,10 +90,11 @@ class MockFederatedDataset:
 ```python
 input_shapes = {
     "its": (3, 224, 224),         # RGB traffic sign images
-    "femnist_iid": (1, 28, 28),   # Grayscale handwritten characters
+    "femnist_iid": (1, 28, 28),   # Grayscale handwritten characters (IID)
+    "femnist_niid": (1, 28, 28),  # Grayscale handwritten characters (Non-IID)
     "pneumoniamnist": (1, 28, 28), # Medical X-ray images
     "bloodmnist": (3, 28, 28),    # Medical blood cell images
-    "lung_photos": (1, 224, 224), # High-resolution lung scans (grayscale)
+    "lung_photos": (3, 224, 224), # High-resolution lung scans (RGB)
     "flair": (3, 224, 224),       # Natural language processing embeddings
 }
 ```
@@ -146,6 +149,15 @@ else:
 
 ### 🔬 Unit Tests
 
+#### ⚔️ Attack Scenarios (`tests/unit/test_attack_scenarios.py`)
+
+Comprehensive Byzantine attack testing across multiple defense strategies:
+
+- **Attack Types**: Gaussian noise, model poisoning, Byzantine clients, gradient inversion, label flipping, backdoor attacks
+- **Defense Validation**: Trust-based, Krum, Multi-Krum, RFA, Bulyan, Trimmed Mean strategies
+- **Robustness Testing**: High, medium, and low robustness scenarios with expected outcomes
+- **Parameterized Testing**: All attack-defense combinations tested systematically
+
 #### 📊 Data Models (`tests/unit/test_data_models/`)
 
 - **StrategyConfig**: Initialization, validation, serialization/deserialization
@@ -160,7 +172,7 @@ else:
 
 #### 🛡️ Simulation Strategies (`tests/unit/test_simulation_strategies/`)
 
-All 9 aggregation strategies with test coverage:
+All 10 aggregation strategies with test coverage:
 
 1. **TrustBasedRemovalStrategy**: Trust score calculation, client removal logic
 2. **PIDBasedRemovalStrategy**: PID controller implementation, 3 variants (pid/pid_scaled/pid_standardized)
@@ -170,7 +182,8 @@ All 9 aggregation strategies with test coverage:
 6. **RFABasedRemovalStrategy**: Robust federated averaging implementation
 7. **BulyanStrategy**: Byzantine-robust aggregation with multi-phase selection
 8. **MultiKrumStrategy**: Multi-Krum aggregation without removal mechanisms
-9. **Strategy Interactions**: Complex multi-strategy scenarios and combinations
+9. **Strategy Variations**: Cross-strategy testing and parameterized configurations
+10. **Strategy Interactions**: Complex multi-strategy scenarios and combinations
 
 #### 💾 Dataset and Client Components (`tests/unit/test_dataset_handlers/`, `tests/unit/test_client_models/`)
 
@@ -244,7 +257,7 @@ def mock_output_directory(tmp_path, monkeypatch):
 - **Test Infrastructure**: Complete directory structure with organized fixtures and configuration
 - **Data Models**: Unit test coverage for all data structures and validation logic
 - **Configuration Management**: JSON parsing, validation, error handling with edge case coverage
-- **Simulation Strategies**: All 9 aggregation algorithms with extensive testing including Byzantine attack scenarios
+- **Simulation Strategies**: All 10 aggregation algorithms with extensive testing including Byzantine attack scenarios
 - **Strategy Interactions**: Multi-strategy combinations and robustness validation
 - **Synthetic Data Generation**: Mock dataset infrastructure with realistic FL scenarios
 - **Dataset and Client Components**: Complete testing of file operations, dataset management, and client model interactions
@@ -302,6 +315,12 @@ pytest tests/unit/test_simulation_strategies/test_trust_strategy.py -v
 
 # Test strategy interactions
 pytest tests/unit/test_simulation_strategies/test_strategy_interactions.py -v
+
+# Test attack scenarios
+pytest tests/unit/test_attack_scenarios.py -v
+
+# Test strategy variations (all 10 strategies)
+pytest tests/unit/test_simulation_strategies/test_strategy_variations.py -v
 ```
 
 ## ✨ Key Testing Features
@@ -311,9 +330,14 @@ pytest tests/unit/test_simulation_strategies/test_strategy_interactions.py -v
 ```python
 @pytest.mark.parametrize("strategy_name,config", [
     ("trust", TRUST_CONFIG),
-    ("pid", PID_CONFIG), 
+    ("pid", PID_CONFIG),
+    ("pid_scaled", PID_SCALED_CONFIG),
+    ("pid_standardized", PID_STANDARDIZED_CONFIG), 
     ("krum", KRUM_CONFIG),
     ("multi-krum", MULTI_KRUM_CONFIG),
+    ("multi-krum-based", MULTI_KRUM_BASED_CONFIG),
+    ("trimmed_mean", TRIMMED_MEAN_CONFIG),
+    ("rfa", RFA_CONFIG),
     ("bulyan", BULYAN_CONFIG),
 ])
 def test_strategy_execution(strategy_name, config):
@@ -338,6 +362,7 @@ def test_defense_mechanisms(attack_type, defense_strategies):
 @pytest.mark.parametrize("dataset_type,expected_shape", [
     ("its", (3, 224, 224)),
     ("femnist_iid", (1, 28, 28)),
+    ("femnist_niid", (1, 28, 28)),
     ("pneumoniamnist", (1, 28, 28)),
     ("lung_photos", (3, 224, 224)),
 ])
@@ -391,3 +416,9 @@ The test suite follows a systematic approach to ensure coverage and maintainabil
 - **Clear separation** between unit, integration, and performance tests
 
 This test suite demonstrates that federated learning testing **goes beyond simple integers** - it requires realistic tensor operations, proper FL protocol simulation, and validation of distributed algorithm correctness under adversarial conditions.
+
+---
+
+### AI Tool Usage Disclosure
+
+This project utilized generative AI tools (Claude) for development infrastructure and testing framework creation. AI assistance focused on Python best practices, pytest patterns, code quality tooling, and development workflow optimization. All federated learning research, algorithmic implementations, and core technical insights remain original work. AI usage aligns with RIT's responsible AI integration guidelines.

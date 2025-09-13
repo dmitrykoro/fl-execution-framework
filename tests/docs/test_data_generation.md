@@ -44,7 +44,7 @@ Simulates how data would be split across different federated learning clients.
 
 #### Supported Configurations
 
-The framework supports 8 different dataset types with appropriate tensor dimensions:
+The framework supports 7 different dataset types with appropriate tensor dimensions:
 
 | Dataset Type | Input Shape | Description |
 |--------------|-------------|-------------|
@@ -54,7 +54,7 @@ The framework supports 8 different dataset types with appropriate tensor dimensi
 | `flair` | (3, 224, 224) | RGB medical imaging |
 | `pneumoniamnist` | (1, 28, 28) | Grayscale medical scans |
 | `bloodmnist` | (3, 28, 28) | RGB microscopic images |
-| `lung_photos` | (1, 224, 224) | Grayscale lung X-rays |
+| `lung_photos` | (3, 224, 224) | RGB lung X-rays |
 | `mock` | (3, 32, 32) | RGB general testing |
 
 ### 3. Client Parameter Generation
@@ -126,6 +126,7 @@ Provides shared test configurations and mock components that all tests can use.
 - **Mock Components**: Network models, client handlers, and dataset managers
 - **Temporary Resources**: File system mocking and automated cleanup
 - **Parameterized Testing**: Full support for all 10 aggregation strategies
+- **Attack Scenario Testing**: Comprehensive Byzantine attack pattern validation
 
 #### Test Coverage Areas
 
@@ -195,7 +196,7 @@ aggregated = robust_strategy.aggregate_fit(byzantine_params)
 
 ```python
 # Test across all supported dataset types
-dataset_types = ["its", "femnist_iid", "flair", "pneumoniamnist"]
+dataset_types = ["its", "femnist_iid", "femnist_niid", "flair", "pneumoniamnist", "bloodmnist", "lung_photos"]
 for dataset_type in dataset_types:
     handler = MockDatasetHandler(dataset_type=dataset_type)
     handler.setup_dataset(num_clients=10)
@@ -231,7 +232,7 @@ for dataset_type in dataset_types:
 
 This test data generation system enables testing the federated learning framework without needing real datasets. The system provides:
 
-- **Dataset Support**: 8 different dataset types with correct tensor dimensions
+- **Dataset Support**: 7 different dataset types with correct tensor dimensions  
 - **Attack Testing**: 8 different attack patterns to test defense strategies
 - **Scalable Testing**: Works with few clients or many clients
 - **Pytest Integration**: Works seamlessly with the pytest testing framework
