@@ -17,6 +17,7 @@ class MockDataset(Dataset):
         size: int = 100,
         num_classes: int = 10,
         input_shape: Tuple[int, ...] = (3, 32, 32),
+        use_default_seed: bool = True,
     ):
         """
         Initialize mock dataset with specified parameters.
@@ -25,14 +26,16 @@ class MockDataset(Dataset):
             size: Number of samples in the dataset
             num_classes: Number of classification classes
             input_shape: Shape of input data (channels, height, width)
+            use_default_seed: Whether to set default seeds (False when called from federated dataset)
         """
         self.size = size
         self.num_classes = num_classes
         self.input_shape = input_shape
 
         # Generate reproducible mock data
-        torch.manual_seed(42)
-        np.random.seed(42)
+        if use_default_seed:
+            torch.manual_seed(42)
+            np.random.seed(42)
 
         # Create mock data and labels
         self.data = torch.randn(size, *input_shape)
@@ -85,6 +88,7 @@ class MockFederatedDataset:
                 size=self.samples_per_client,
                 num_classes=self.num_classes,
                 input_shape=self.input_shape,
+                use_default_seed=False,
             )
 
         return client_datasets
@@ -218,7 +222,8 @@ def generate_byzantine_client_parameters(
         num_clients: Total number of clients
         num_byzantine: Number of Byzantine clients
         param_size: Size of parameter vector
-        attack_type: Type of attack ("gaussian", "zero", "flip")
+        attack_type: Type of attack ("gaussian_noise", "model_poisoning", "byzantine_clients",
+                     "gradient_inversion", "label_flipping", "backdoor_attack", "zero", "flip")
 
     Returns:
         List of parameters with Byzantine clients included
@@ -227,15 +232,46 @@ def generate_byzantine_client_parameters(
 
     # Generate honest client parameters
     honest_params = [
-        np.random.randn(param_size) for _ in range(num_clients - num_byzantine)
+        np.random.randn(param_size) * 0.1 for _ in range(num_clients - num_byzantine)
     ]
 
     # Generate Byzantine client parameters based on attack type
     byzantine_params = []
-    for _ in range(num_byzantine):
-        if attack_type == "gaussian":
+    for i in range(num_byzantine):
+        if attack_type in ["gaussian_noise", "gaussian"]:
             # Add large Gaussian noise
             byzantine_params.append(np.random.randn(param_size) * 10)
+        elif attack_type == "model_poisoning":
+            # Model poisoning with targeted parameter manipulation
+            poisoned_param = np.random.randn(param_size) * 0.1
+            # Inject large values in specific parameter ranges
+            poison_indices = np.random.choice(
+                param_size, size=param_size // 10, replace=False
+            )
+            poisoned_param[poison_indices] *= 50
+            byzantine_params.append(poisoned_param)
+        elif attack_type == "byzantine_clients":
+            # Byzantine clients with adversarial behavior
+            byzantine_params.append(np.random.randn(param_size) * 15)
+        elif attack_type == "gradient_inversion":
+            # Gradient inversion attack with scaled parameters
+            byzantine_params.append(np.random.randn(param_size) * 3)
+        elif attack_type == "label_flipping":
+            # Label flipping attack (simulated through parameter manipulation)
+            flipped_param = np.random.randn(param_size) * 0.1
+            # Flip signs of random parameters to simulate label flipping effects
+            flip_indices = np.random.choice(
+                param_size, size=param_size // 5, replace=False
+            )
+            flipped_param[flip_indices] *= -10
+            byzantine_params.append(flipped_param)
+        elif attack_type == "backdoor_attack":
+            # Backdoor attack with specific pattern injection
+            backdoor_param = np.random.randn(param_size) * 0.1
+            # Inject backdoor pattern in specific locations
+            pattern_indices = np.arange(0, min(100, param_size), 10)
+            backdoor_param[pattern_indices] = 5.0  # Fixed backdoor pattern
+            byzantine_params.append(backdoor_param)
         elif attack_type == "zero":
             # Send zero parameters
             byzantine_params.append(np.zeros(param_size))

@@ -134,7 +134,7 @@ class TestMultiStrategyScenarios:
             (["trust", "krum", "rfa"], "robust_aggregation_convergence"),
             # Test PID variants with different scaling approaches
             (["pid", "pid_scaled", "pid_standardized"], "consistent_pid_behavior"),
-            # Test comprehensive defense strategy combinations
+            # Test defense strategy combinations
             (["trust", "krum", "bulyan", "trimmed_mean"], "multi_layer_defense"),
         ],
     )
@@ -237,7 +237,7 @@ class TestMultiStrategyScenarios:
             assert len(pid_strategies) == 3
 
         elif expected_behavior == "multi_layer_defense":
-            # Verify comprehensive defense strategies were executed
+            # Verify defense strategies were executed
             call_args_list = mocks["federated_simulation"].call_args_list
             strategy_keywords = [
                 call.kwargs["strategy_config"].aggregation_strategy_keyword
@@ -811,7 +811,7 @@ class TestAttackDefenseScenarios:
         # Arrange
         mocks = mock_attack_simulation_components
 
-        # Test comprehensive defense against multiple attacks
+        # Test defense against multiple attacks
         attack_types = ["gaussian_noise", "model_poisoning", "byzantine_clients"]
         defense_strategies = ["trust", "krum", "rfa", "bulyan", "trimmed_mean"]
 
@@ -868,7 +868,7 @@ class TestAttackDefenseScenarios:
         # Act
         runner.run()
 
-        # Assert - Verify comprehensive defense testing
+        # Assert - Verify defense testing
         expected_total_simulations = len(attack_types) * len(defense_strategies)
         assert mocks["federated_simulation"].call_count == expected_total_simulations
         assert (
