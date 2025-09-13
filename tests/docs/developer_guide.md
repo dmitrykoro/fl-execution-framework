@@ -1,5 +1,53 @@
 # 👨‍💻 Developer Testing Guide
 
+## 📑 Table of Contents
+
+### 🚀 Getting Started
+
+- [Quick Command Reference](#-quick-command-reference-copy--paste-these)
+- [Quick Start for New Developers](#-quick-start-for-new-developers)
+- [Your First Test (Step-by-step walkthrough)](#-your-first-test-step-by-step-walkthrough)
+- [Learning Path for New Researchers](#-learning-path-for-new-researchers)
+
+### 📚 Testing Fundamentals
+
+- [Testing Fundamentals (For Developers New to Testing)](#-testing-fundamentals-for-developers-new-to-testing)
+- [The AAA Pattern (Your New Best Friend)](#-the-aaa-pattern-your-new-best-friend)
+- [Understanding Assertions (The Heart of Testing)](#️-understanding-assertions-the-heart-of-testing)
+- [Mock Data: Why We Don't Use Real Data](#-mock-data-why-we-dont-use-real-data)
+- [Test Classes: Organizing Your Tests](#-test-classes-organizing-your-tests)
+- [Fixtures: Reusable Test Data](#-fixtures-reusable-test-data)
+
+### ➕ Adding Tests
+
+- [Adding Tests for New Source Code](#-adding-tests-for-new-source-code)
+- [Adding Tests for LLM-Generated Code](#-adding-tests-for-llm-generated-code)
+
+### 🏃 Running & Debugging
+
+- [Running Your Tests](#-running-your-tests)
+- [Testing Best Practices](#-testing-best-practices)
+- [Common Beginner Mistakes (Fix These First!)](#-common-beginner-mistakes-fix-these-first)
+- [Common Testing Pitfalls](#️-common-testing-pitfalls)
+- [Troubleshooting Common Issues](#-troubleshooting-common-issues)
+- [Getting Help](#-getting-help)
+
+### ✅ Final Steps
+
+- [Checklist for New Researchers](#-checklist-for-new-researchers)
+
+---
+
+## ⚡ Quick Command Reference (Copy & Paste These!)
+
+```bash
+# Essential commands for beginners (use "python3" if "python" doesn't work):
+python -m pytest --version                                       # Check pytest works
+python -m pytest tests/unit/test_data_models/ --no-cov -v       # Run simple existing tests
+pwd                                                               # Verify you're in project root
+python -m pytest tests/unit/test_my_first_test.py --no-cov -v -s # Run YOUR tutorial test (after creating it)
+```
+
 ## 🚀 Quick Start for New Developers
 
 ### 📎 Prerequisites
@@ -126,8 +174,8 @@ class TestMyFirstExperience:
 #### 5️⃣ Run Your Test
 
 ```bash
-# Run your specific test file with verbose output and print statements
-python -m pytest tests/unit/test_my_first_test.py -v -s
+# Run your specific test file with verbose output and print statements (bypassing coverage)
+python -m pytest tests/unit/test_my_first_test.py -v -s --no-cov
 
 # You should see:
 # test_framework_is_working PASSED ✅
@@ -137,17 +185,28 @@ python -m pytest tests/unit/test_my_first_test.py -v -s
 
 #### 6️⃣ Understanding Test Output
 
-When tests pass, you'll see:
+**✅ SUCCESS - You'll see this when everything works:**
 
-- ✅ Green checkmarks or "PASSED"
-- Any `print()` statements you added
-- Summary: "3 passed in X.XXs"
+```bash
+tests/unit/test_my_first_test.py::TestMyFirstExperience::test_framework_is_working PASSED
+tests/unit/test_my_first_test.py::TestMyFirstExperience::test_understanding_assertions PASSED
+tests/unit/test_my_first_test.py::TestMyFirstExperience::test_learning_mock_data PASSED
 
-When tests fail, you'll see:
+🔍 Generated data for 3 clients
+✅ Test passed! Framework is working correctly.
 
-- ❌ Red "FAILED"
-- The exact line that failed
-- What was expected vs. what happened
+========================= 3 passed in 0.12s =========================
+```
+
+**❌ FAILURE - Common issues and fixes:**
+
+```bash
+FAILED tests/unit/test_my_first_test.py::TestMyFirstExperience::test_framework_is_working
+
+ImportError: No module named 'tests.fixtures.mock_datasets'
+```
+
+**Fix:** Make sure you're in the project root directory and virtual environment is active
 
 ## Overview
 
@@ -215,7 +274,7 @@ This guide helps student researchers add tests when extending the federated lear
 2. **Learn Byzantine attack patterns** - How to test attack resistance
 3. **Test complex scenarios** - Multiple clients, different attack types
 
-## 🧠 Testing Fundamentals (For CS Students New to Testing)
+## 🧠 Testing Fundamentals (For Developers New to Testing)
 
 ### ❓ What is Testing? (The Basics)
 
@@ -817,6 +876,60 @@ isort tests
 # Check specific test file
 flake8 --ignore=E501,W503,E203 tests/unit/test_simulation_strategies/test_your_strategy.py
 isort tests/unit/test_simulation_strategies/test_your_strategy.py
+```
+
+## 🚨 Common Beginner Mistakes (Fix These First!)
+
+### 1️⃣ Wrong Directory
+
+```bash
+# ❌ WRONG - Running from tests/ directory
+cd tests/
+python -m pytest unit/test_my_first_test.py  # Will fail with import errors
+
+# ✅ RIGHT - Always run from project root
+cd /path/to/fl-execution-framework
+python -m pytest tests/unit/test_my_first_test.py
+```
+
+### 2️⃣ Coverage Blocking Your Progress
+
+```bash
+# ❌ This will fail for beginners (coverage too low)
+python -m pytest tests/unit/test_my_first_test.py
+
+# ✅ Use this instead while learning
+python -m pytest tests/unit/test_my_first_test.py --no-cov -v -s
+```
+
+### 3️⃣ Python Command Issues
+
+```bash
+# Check which Python you're using
+python --version   # Should show Python 3.10+
+python3 --version  # Alternative on some systems
+
+# If "python" shows Python 2.x or doesn't exist, use "python3" instead:
+python3 -m pytest tests/unit/test_data_models/ --no-cov -v
+
+# Check if you're in the right virtual environment:
+pip list | grep pytest  # Should show pytest installed
+
+# If not, activate your environment:
+source .venv/Scripts/activate  # Windows Git Bash
+source .venv/bin/activate      # Linux/Mac
+```
+
+### 4️⃣ Test File Naming
+
+```bash
+# ❌ WRONG - pytest won't find these
+my_test.py
+testing_stuff.py
+
+# ✅ RIGHT - MUST start with "test_"
+test_my_first_test.py
+test_learning_basics.py
 ```
 
 ## ⚠️ Common Testing Pitfalls
