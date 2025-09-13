@@ -42,6 +42,11 @@ class TestStrategyInteractions:
         return Mock()
 
     @pytest.fixture
+    def krum_fit_metrics_fn(self):
+        """Provide consistent fit_metrics_aggregation_fn for Krum-based strategies."""
+        return lambda x: x
+
+    @pytest.fixture
     def mock_client_results_normal(self):
         """Create mock client results with normal behavior."""
         results = []
@@ -277,7 +282,9 @@ class TestStrategyInteractions:
         assert pid_scores["pid"] != pid_scores["pid_standardized"]
         assert pid_scores["pid_scaled"] != pid_scores["pid_standardized"]
 
-    def test_krum_variants_interaction(self, mock_strategy_history):
+    def test_krum_variants_interaction(
+        self, mock_strategy_history, krum_fit_metrics_fn
+    ):
         """Test interactions between Krum and Multi-Krum strategies."""
         # Create Krum strategy
         krum_strategy = KrumBasedRemovalStrategy(
@@ -286,6 +293,7 @@ class TestStrategyInteractions:
             num_krum_selections=3,
             begin_removing_from_round=2,
             strategy_history=mock_strategy_history,
+            fit_metrics_aggregation_fn=krum_fit_metrics_fn,
         )
 
         # Create Multi-Krum strategy
@@ -295,6 +303,7 @@ class TestStrategyInteractions:
             num_krum_selections=3,
             begin_removing_from_round=2,
             strategy_history=mock_strategy_history,
+            fit_metrics_aggregation_fn=krum_fit_metrics_fn,
         )
 
         # Both should have similar interfaces but different behaviors
@@ -336,7 +345,11 @@ class TestStrategyInteractions:
         assert all(np.isfinite(score) for score in multi_krum_scores)
 
     def test_byzantine_robust_strategy_combinations(
-        self, mock_strategy_history, mock_network_model, mock_client_results_byzantine
+        self,
+        mock_strategy_history,
+        mock_network_model,
+        mock_client_results_byzantine,
+        krum_fit_metrics_fn,
     ):
         """Test combinations of Byzantine-robust strategies."""
         # Create Byzantine-robust strategies
@@ -354,6 +367,7 @@ class TestStrategyInteractions:
                 num_krum_selections=3,
                 begin_removing_from_round=1,
                 strategy_history=mock_strategy_history,
+                fit_metrics_aggregation_fn=krum_fit_metrics_fn,
             ),
             "rfa": RFABasedRemovalStrategy(
                 remove_clients=True,
@@ -376,7 +390,11 @@ class TestStrategyInteractions:
             assert strategy.begin_removing_from_round == 1
 
     def test_strategy_robustness_under_attack(
-        self, mock_strategy_history, mock_network_model, mock_client_results_byzantine
+        self,
+        mock_strategy_history,
+        mock_network_model,
+        mock_client_results_byzantine,
+        krum_fit_metrics_fn,
     ):
         """Test strategy robustness under different attack scenarios."""
         # Create strategies known for Byzantine robustness
@@ -387,6 +405,7 @@ class TestStrategyInteractions:
                 num_krum_selections=3,
                 begin_removing_from_round=1,
                 strategy_history=mock_strategy_history,
+                fit_metrics_aggregation_fn=krum_fit_metrics_fn,
             ),
             "multi_krum": MultiKrumBasedRemovalStrategy(
                 remove_clients=True,
@@ -394,6 +413,7 @@ class TestStrategyInteractions:
                 num_krum_selections=6,
                 begin_removing_from_round=1,
                 strategy_history=mock_strategy_history,
+                fit_metrics_aggregation_fn=krum_fit_metrics_fn,
             ),
             "trimmed_mean": TrimmedMeanBasedRemovalStrategy(
                 remove_clients=True,
@@ -445,7 +465,7 @@ class TestStrategyInteractions:
                             )
 
     def test_strategy_parameter_compatibility(
-        self, mock_strategy_history, mock_network_model
+        self, mock_strategy_history, mock_network_model, krum_fit_metrics_fn
     ):
         """Test that strategies with similar parameters are compatible."""
         # Test strategies that share begin_removing_from_round parameter
@@ -475,6 +495,7 @@ class TestStrategyInteractions:
                 num_krum_selections=3,
                 begin_removing_from_round=3,
                 strategy_history=mock_strategy_history,
+                fit_metrics_aggregation_fn=krum_fit_metrics_fn,
             ),
         ]
 

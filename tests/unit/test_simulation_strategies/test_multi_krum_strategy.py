@@ -26,7 +26,14 @@ class TestMultiKrumBasedRemovalStrategy:
         return Mock(spec=SimulationStrategyHistory)
 
     @pytest.fixture
-    def multi_krum_strategy(self, mock_strategy_history, mock_output_directory):
+    def krum_fit_metrics_fn(self):
+        """Provide consistent fit_metrics_aggregation_fn for Krum-based strategies."""
+        return lambda x: x
+
+    @pytest.fixture
+    def multi_krum_strategy(
+        self, mock_strategy_history, mock_output_directory, krum_fit_metrics_fn
+    ):
         """Create MultiKrumBasedRemovalStrategy instance for testing."""
         return MultiKrumBasedRemovalStrategy(
             remove_clients=True,
@@ -36,6 +43,7 @@ class TestMultiKrumBasedRemovalStrategy:
             strategy_history=mock_strategy_history,
             fraction_fit=1.0,
             fraction_evaluate=1.0,
+            fit_metrics_aggregation_fn=krum_fit_metrics_fn,
         )
 
     @pytest.fixture
@@ -119,7 +127,7 @@ class TestMultiKrumBasedRemovalStrategy:
         assert all(np.isfinite(score) for score in multi_krum_scores)
 
     def test_calculate_multi_krum_scores_selection_parameter_effect(
-        self, mock_strategy_history, mock_output_directory
+        self, mock_strategy_history, mock_output_directory, krum_fit_metrics_fn
     ):
         """Test num_krum_selections parameter affects score calculation."""
         # Test with different num_krum_selections values
@@ -132,6 +140,7 @@ class TestMultiKrumBasedRemovalStrategy:
                 num_krum_selections=num_selections,
                 begin_removing_from_round=2,
                 strategy_history=mock_strategy_history,
+                fit_metrics_aggregation_fn=krum_fit_metrics_fn,
             )
 
             # Create simple test data
@@ -346,7 +355,7 @@ class TestMultiKrumBasedRemovalStrategy:
         assert multi_krum_strategy.removed_client_ids == set()
 
     def test_num_krum_selections_parameter_effect(
-        self, mock_strategy_history, mock_output_directory
+        self, mock_strategy_history, mock_output_directory, krum_fit_metrics_fn
     ):
         """Test num_krum_selections parameter affects client selection and removal limits."""
         selection_counts = [2, 4, 6]
@@ -358,6 +367,7 @@ class TestMultiKrumBasedRemovalStrategy:
                 num_krum_selections=num_selections,
                 begin_removing_from_round=2,
                 strategy_history=mock_strategy_history,
+                fit_metrics_aggregation_fn=krum_fit_metrics_fn,
             )
 
             assert strategy.num_krum_selections == num_selections
@@ -383,7 +393,7 @@ class TestMultiKrumBasedRemovalStrategy:
             assert len(strategy.removed_client_ids) <= expected_max_removals
 
     def test_begin_removing_from_round_parameter(
-        self, mock_strategy_history, mock_output_directory
+        self, mock_strategy_history, mock_output_directory, krum_fit_metrics_fn
     ):
         """Test begin_removing_from_round parameter handling."""
         # Test different begin_removing_from_round values
@@ -394,6 +404,7 @@ class TestMultiKrumBasedRemovalStrategy:
                 num_krum_selections=3,
                 begin_removing_from_round=begin_round,
                 strategy_history=mock_strategy_history,
+                fit_metrics_aggregation_fn=krum_fit_metrics_fn,
             )
 
             assert strategy.begin_removing_from_round == begin_round
