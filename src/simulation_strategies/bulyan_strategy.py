@@ -110,7 +110,7 @@ class BulyanStrategy(fl.server.strategy.FedAvg):
         C = self.num_krum_selections
         f = (n - C) // 2  # number of malicious clients
         if C > n or (n - C) % 2:
-            self.logger.error("C must satisfy n - C = 2f (even, ≤ n)")
+            self.logger.error("C must satisfy n - C = 2f (even, <= n)")
             return super().aggregate_fit(server_round, results, failures)
 
         # Ensure Bulyan preconditions
