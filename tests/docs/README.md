@@ -1,22 +1,22 @@
-# 🧪 Federated Learning PyTest Test Suite
+# 🧪 FL Framework Test Suite
 
-A testing framework for the federated learning simulation codebase, featuring synthetic data generation, mocking strategies, and coverage of FL-specific scenarios.
+Test suite for federated learning simulation framework with 10 aggregation strategies and Byzantine attack scenarios.
 
-## Overview
+## 📋 Overview
 
-This test suite provides unit tests, integration tests, and performance benchmarks for a federated learning framework that implements multiple aggregation strategies and Byzantine fault tolerance mechanisms. The testing approach prioritizes minimal changes to production code while validating critical FL components.
+Unit tests, integration tests, and performance tests for federated learning components. Tests use synthetic data generation and mocking to validate FL algorithms without requiring real datasets.
 
-### Key Design Principles
+### 🎯 Design Principles
 
-- **No Production Code Modifications**: All tests use external mocking without touching source code
-- **Realistic Synthetic Data**: Multi-dimensional PyTorch tensors, not simple integers
-- **FL-Specific Testing**: Client heterogeneity, Byzantine attacks, and strategy interactions
-- **Reproducible Results**: Deterministic random seeds for consistent test outcomes
-- **Scalable Architecture**: Parameterized tests across strategies, datasets, and attack scenarios
+- External mocking only - no production code modifications
+- Multi-dimensional PyTorch tensors matching real data shapes
+- FL-specific scenarios: client heterogeneity, Byzantine attacks, strategy combinations
+- Deterministic random seeds for reproducible results
+- Parameterized tests across all strategies and datasets
 
 ## 🏗️ Architecture
 
-### Directory Structure
+### 📁 Directory Structure
 
 ```text
 tests/
@@ -46,11 +46,11 @@ tests/
 
 ## 🎲 Synthetic Dataset Generation
 
-### Multi-Layered Architecture
+### 🏛️ Architecture
 
-Our synthetic data generation creates **realistic federated learning scenarios** without depending on actual datasets:
+Synthetic data generation creates federated learning test scenarios without real datasets:
 
-#### 1. Base MockDataset Class
+#### 1️⃣ Base MockDataset Class
 
 ```python
 class MockDataset(Dataset):
@@ -62,13 +62,13 @@ class MockDataset(Dataset):
         self.targets = torch.randint(0, num_classes, (size,))
 ```
 
-**Creates:**
+Creates:
 
-- **Multi-dimensional tensors** matching real image data shapes
-- **Gaussian-distributed parameters** similar to trained neural networks
-- **Proper PyTorch Dataset interface** for seamless integration
+- Multi-dimensional tensors matching real image data shapes
+- Gaussian-distributed parameters similar to trained neural networks
+- PyTorch Dataset interface for DataLoader compatibility
 
-#### 2. Federated Dataset Simulation
+#### 2️⃣ Federated Dataset Simulation
 
 ```python
 class MockFederatedDataset:
@@ -79,13 +79,13 @@ class MockFederatedDataset:
             client_datasets[client_id] = MockDataset(...)
 ```
 
-**Simulates:**
+Simulates:
 
-- **Client data heterogeneity** (Non-IID distribution)
-- **Realistic FL scenarios** with per-client datasets
-- **Scalable client populations** for testing different federation sizes
+- Client data heterogeneity (Non-IID distribution)
+- Per-client datasets with different random seeds
+- Variable client populations (5-1000+ clients)
 
-#### 3. Dataset Type Adaptation
+#### 3️⃣ Dataset Type Adaptation
 
 ```python
 input_shapes = {
@@ -99,15 +99,15 @@ input_shapes = {
 }
 ```
 
-**Provides:**
+Provides:
 
-- **Dataset-specific tensor dimensions** matching production data
-- **Memory usage patterns** representative of real workloads
-- **Domain-specific characteristics** without actual domain data
+- Dataset-specific tensor dimensions matching production data
+- Memory usage patterns representative of real workloads
+- Domain-specific characteristics without actual domain data
 
-### Advanced Synthetic Features
+### ⚡ Advanced Synthetic Features
 
-#### Byzantine Attack Simulation
+#### ⚔️ Byzantine Attack Simulation
 
 ```python
 def generate_byzantine_client_parameters(num_clients, num_byzantine, attack_type):
@@ -122,13 +122,13 @@ def generate_byzantine_client_parameters(num_clients, num_byzantine, attack_type
         byzantine_params.append(-base_param * 5)
 ```
 
-**Enables Testing:**
+Enables Testing:
 
-- **Defense mechanism validation** against various attack patterns
-- **Strategy robustness evaluation** under adversarial conditions
-- **Byzantine fault tolerance** across different aggregation algorithms
+- Defense mechanism validation against attack patterns
+- Strategy behavior under adversarial conditions
+- Byzantine fault tolerance across aggregation algorithms
 
-#### Client Behavior Patterns
+#### 👥 Client Behavior Patterns
 
 ```python
 # Honest clients - similar parameter updates
@@ -139,11 +139,11 @@ else:
     mock_params = [np.random.randn(10, 5) * (i + 1), np.random.randn(5) * (i + 1)]
 ```
 
-**Tests:**
+Tests:
 
-- **Client selection algorithms** (Krum, Multi-Krum, Trust-based)
-- **Aggregation correctness** under different client behaviors  
-- **Threshold-based removal** mechanisms
+- Client selection algorithms (Krum, Multi-Krum, Trust-based)
+- Aggregation correctness under different client behaviors  
+- Threshold-based removal mechanisms
 
 ## 📂 Test Categories
 
@@ -151,12 +151,12 @@ else:
 
 #### ⚔️ Attack Scenarios (`tests/unit/test_attack_scenarios.py`)
 
-Comprehensive Byzantine attack testing across multiple defense strategies:
+Byzantine attack testing across defense strategies:
 
-- **Attack Types**: Gaussian noise, model poisoning, Byzantine clients, gradient inversion, label flipping, backdoor attacks
-- **Defense Validation**: Trust-based, Krum, Multi-Krum, RFA, Bulyan, Trimmed Mean strategies
-- **Robustness Testing**: High, medium, and low robustness scenarios with expected outcomes
-- **Parameterized Testing**: All attack-defense combinations tested systematically
+- Attack Types: Gaussian noise, model poisoning, Byzantine clients, gradient inversion, label flipping, backdoor attacks
+- Defense Validation: Trust-based, Krum, Multi-Krum, RFA, Bulyan, Trimmed Mean strategies
+- Attack Testing: High, medium, and low attack scenarios with expected outcomes
+- Parameterized Testing: All attack-defense combinations tested systematically
 
 #### 📊 Data Models (`tests/unit/test_data_models/`)
 
@@ -180,7 +180,7 @@ All 10 aggregation strategies with test coverage:
 4. **MultiKrumBasedRemovalStrategy**: Multi-client selection, consistency validation
 5. **TrimmedMeanBasedRemovalStrategy**: Robust averaging, outlier removal
 6. **RFABasedRemovalStrategy**: Robust federated averaging implementation
-7. **BulyanStrategy**: Byzantine-robust aggregation with multi-phase selection
+7. **BulyanStrategy**: Byzantine-resistant aggregation with multi-phase selection
 8. **MultiKrumStrategy**: Multi-Krum aggregation without removal mechanisms
 9. **Strategy Variations**: Cross-strategy testing and parameterized configurations
 10. **Strategy Interactions**: Complex multi-strategy scenarios and combinations
@@ -254,17 +254,17 @@ def mock_output_directory(tmp_path, monkeypatch):
 
 ### ⚡ Core Components
 
-- **Test Infrastructure**: Complete directory structure with organized fixtures and configuration
-- **Data Models**: Unit test coverage for all data structures and validation logic
-- **Configuration Management**: JSON parsing, validation, error handling with edge case coverage
-- **Simulation Strategies**: All 10 aggregation algorithms with extensive testing including Byzantine attack scenarios
-- **Strategy Interactions**: Multi-strategy combinations and robustness validation
-- **Synthetic Data Generation**: Mock dataset infrastructure with realistic FL scenarios
-- **Dataset and Client Components**: Complete testing of file operations, dataset management, and client model interactions
-- **Integration Testing**: End-to-end simulation workflows with component interaction validation
-- **Performance Testing**: Memory usage monitoring, scalability validation, and computational complexity verification
-- **CI/CD Integration**: Coverage reporting, automated test execution, and quality gate enforcement
-- **Parameterized FL Scenarios**: Cross-strategy, cross-dataset testing with attack-defense validation
+- Test Infrastructure: Directory structure with fixtures and configuration
+- Data Models: Unit test coverage for data structures and validation logic
+- Configuration Management: JSON parsing, validation, error handling with edge cases
+- Simulation Strategies: All 10 aggregation algorithms with Byzantine attack scenarios
+- Strategy Interactions: Multi-strategy combinations and validation
+- Synthetic Data Generation: Mock dataset infrastructure for FL scenarios
+- Dataset and Client Components: File operations, dataset management, and client model interactions
+- Integration Testing: End-to-end simulation workflows with component interaction validation
+- Performance Testing: Memory usage monitoring, scalability validation, and computational complexity verification
+- CI/CD Integration: Coverage reporting, automated test execution, and quality gates
+- Parameterized FL Scenarios: Cross-strategy, cross-dataset testing with attack-defense validation
 
 ## 🚀 Running Tests
 
@@ -415,7 +415,7 @@ The test suite follows a systematic approach to ensure coverage and maintainabil
 - **Reusable fixtures** and utilities for consistent testing patterns
 - **Clear separation** between unit, integration, and performance tests
 
-This test suite demonstrates that federated learning testing **goes beyond simple integers** - it requires realistic tensor operations, proper FL protocol simulation, and validation of distributed algorithm correctness under adversarial conditions.
+This test suite demonstrates that federated learning testing requires realistic tensor operations, proper FL protocol simulation, and validation of distributed algorithm correctness under adversarial conditions.
 
 ---
 

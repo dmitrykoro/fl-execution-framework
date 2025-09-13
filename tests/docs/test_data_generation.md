@@ -1,18 +1,18 @@
-# Test Data Generation Framework
+# 🎲 Test Data Generation Framework
 
-## Overview
+## 📋 Overview
 
 This document explains the test data generation system for the federated learning simulation framework. The system creates mock datasets, client parameters, and attack scenarios for testing without needing real datasets.
 
-## Core Components
+## ⚡ Core Components
 
-### 1. Mock Dataset Generation (`tests/fixtures/mock_datasets.py`)
+### 1️⃣ Mock Dataset Generation (`tests/fixtures/mock_datasets.py`)
 
-#### MockDataset Class
+#### 🎭 MockDataset Class
 
 Lightweight dataset replacement that works with PyTorch DataLoaders for testing.
 
-**Technical Features:**
+Technical Features:
 
 - Configurable input dimensions: `(channels, height, width)`
 - Reproducible random data generation with seed control
@@ -29,20 +29,20 @@ dataset = MockDataset(
 )
 ```
 
-#### MockFederatedDataset Class
+#### 🌍 MockFederatedDataset Class
 
 Simulates how data would be split across different federated learning clients.
 
-**Technical Features:**
+Technical Features:
 
 - Client-specific data partitioning
 - Configurable data heterogeneity through different random seeds
 - Individual DataLoader generation per client
-- Realistic federated learning data scenarios
+- Federated learning data scenarios
 
-### 2. Dataset Type Support
+### 2️⃣ Dataset Type Support
 
-#### Supported Configurations
+#### ⚙️ Supported Configurations
 
 The framework supports 7 different dataset types with appropriate tensor dimensions:
 
@@ -57,9 +57,9 @@ The framework supports 7 different dataset types with appropriate tensor dimensi
 | `lung_photos` | (3, 224, 224) | RGB lung X-rays |
 | `mock` | (3, 32, 32) | RGB general testing |
 
-### 3. Client Parameter Generation
+### 3️⃣ Client Parameter Generation
 
-#### Standard Client Parameters
+#### 👥 Standard Client Parameters
 
 Generates neural network parameters that simulate what real federated learning clients would send.
 
@@ -67,14 +67,14 @@ Generates neural network parameters that simulate what real federated learning c
 def generate_mock_client_parameters(num_clients: int, param_size: int = 1000) -> List[np.ndarray]:
 ```
 
-**Technical Features:**
+Technical Features:
 
-- Generates realistic neural network parameter vectors
+- Generates neural network parameter vectors
 - Configurable parameter dimensionality
 - Gaussian distribution with controlled variance
 - Reproducible through seed management
 
-#### Byzantine Attack Simulation
+#### ⚔️ Byzantine Attack Simulation
 
 Creates different types of malicious client parameters to test if defense strategies work.
 
@@ -98,9 +98,9 @@ def generate_byzantine_client_parameters(
 7. **Zero Attack**: All-zero parameter submission
 8. **Flip Attack**: Negated honest parameters
 
-### 4. Client Metrics Generation
+### 4️⃣ Client Metrics Generation
 
-#### Historical Metrics Simulation
+#### 📊 Historical Metrics Simulation
 
 Generates fake client performance metrics (loss, accuracy, F1-score) for testing.
 
@@ -114,9 +114,9 @@ def generate_mock_client_metrics(num_clients: int, num_rounds: int) -> Dict[int,
 - **Accuracy**: Range [0.5, 0.95] representing realistic model performance trajectories
 - **F1-Score**: Range [0.4, 0.9] for classification quality assessment
 
-## Integration with Testing Framework
+## 🔗 Integration with Testing Framework
 
-### Pytest Framework Integration
+### 🧪 Pytest Framework Integration
 
 Provides shared test configurations and mock components that all tests can use.
 
@@ -128,7 +128,7 @@ Provides shared test configurations and mock components that all tests can use.
 - **Parameterized Testing**: Full support for all 10 aggregation strategies
 - **Attack Scenario Testing**: Comprehensive Byzantine attack pattern validation
 
-#### Test Coverage Areas
+#### 🎯 Test Coverage Areas
 
 Tests different aspects of the framework to make sure everything works correctly.
 
@@ -140,32 +140,32 @@ Tests different aspects of the framework to make sure everything works correctly
 4. **Attack Scenario Tests**: Byzantine resilience validation under adversarial conditions
 5. **Dataset Variation Tests**: Cross-dataset compatibility verification and adaptation
 
-## Technical Implementation Details
+## 🔧 Technical Implementation Details
 
-### Tensor Dimension Management
+### 📊 Tensor Dimension Management
 
 - **Dynamic Sizing**: Automatic adaptation to different dataset requirements
 - **Memory Optimization**: Efficient tensor allocation and deallocation
 - **GPU Compatibility**: CUDA-aware tensor generation when available
 - **Batch Processing**: Support for configurable batch sizes across all datasets
 
-### Reproducibility Features
+### 🔄 Reproducibility Features
 
 - **Seed Control**: Deterministic random generation across test runs
 - **Parameter Consistency**: Identical outputs for identical configurations
 - **Cross-Platform Compatibility**: Windows/Linux/macOS consistent behavior
 - **Version Independence**: Stable across PyTorch and NumPy versions
 
-### Performance Considerations
+### ⚡ Performance Considerations
 
 - **Lazy Loading**: On-demand dataset generation to minimize memory usage
 - **Vectorized Operations**: NumPy/PyTorch optimized computations
 - **Scalable Architecture**: Efficient handling from 5-1000+ clients
 - **Resource Cleanup**: Automatic memory management and garbage collection
 
-## Usage Examples
+## 📝 Usage Examples
 
-### Basic Strategy Testing
+### 🎯 Basic Strategy Testing
 
 ```python
 # Generate test data for trust-based strategy
@@ -177,7 +177,7 @@ strategy = TrustBasedRemovalStrategy(trust_threshold=0.7)
 result = strategy.aggregate_fit(client_params)
 ```
 
-### Byzantine Attack Testing  
+### ⚔️ Byzantine Attack Testing  
 
 ```python
 # Generate Byzantine client parameters
@@ -188,11 +188,11 @@ byzantine_params = generate_byzantine_client_parameters(
 )
 
 # Test defense mechanism effectiveness
-robust_strategy = BulyanStrategy(num_byzantine=3)
-aggregated = robust_strategy.aggregate_fit(byzantine_params)
+bulyan_strategy = BulyanStrategy(num_byzantine=3)
+aggregated = bulyan_strategy.aggregate_fit(byzantine_params)
 ```
 
-### Dataset Variation Testing
+### 📋 Dataset Variation Testing
 
 ```python
 # Test across all supported dataset types
@@ -203,32 +203,32 @@ for dataset_type in dataset_types:
     # Run simulation with dataset-specific dimensions
 ```
 
-## Quality Assurance
+## ✅ Quality Assurance
 
-### Validation Mechanisms
+### ⚙️ Validation Mechanisms
 
 - **Dimension Verification**: Automatic tensor shape validation
 - **Range Checking**: Parameter value bounds enforcement  
 - **Statistical Properties**: Distribution characteristic validation
 - **Attack Effectiveness**: Byzantine attack success rate measurement
 
-### Testing Standards
+### 📄 Testing Standards
 
 - **Code Coverage**: >70% line coverage across all mock components
 - **Performance Benchmarks**: Sub-second generation for standard test cases
 - **Memory Efficiency**: <100MB peak usage for typical test scenarios
 - **Error Handling**: Comprehensive exception testing and recovery
 
-## Future Enhancements
+## 🚀 Future Enhancements
 
-### Planned Features
+### 🗺️ Planned Features
 
-- **Advanced Attack Patterns**: More sophisticated Byzantine attack simulations
+- **Advanced Attack Patterns**: More complex Byzantine attack simulations
 - **Realistic Data Distributions**: Non-uniform client data partitioning
 - **Dynamic Client Participation**: Simulated client dropouts and reconnections
 - **Hardware Simulation**: Different client computational capability modeling
 
-## Summary
+## 📝 Summary
 
 This test data generation system enables testing the federated learning framework without needing real datasets. The system provides:
 
