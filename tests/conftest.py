@@ -3,13 +3,13 @@ Global pytest configuration and fixtures for federated learning simulation tests
 """
 
 import json
+import os
 from pathlib import Path
 from typing import Any, Dict, List
 
 import numpy as np
 import pytest
 
-# Import mock utilities
 from tests.fixtures.mock_datasets import (MockDataset, MockDatasetHandler,
                                           MockFederatedDataset,
                                           generate_byzantine_client_parameters)
@@ -17,6 +17,10 @@ from tests.fixtures.sample_models import (MockCNNNetwork, MockFlowerClient,
                                           MockNetwork,
                                           create_mock_client_models,
                                           generate_mock_model_parameters)
+
+# Configure environment for deterministic test execution
+os.environ["LOKY_MAX_CPU_COUNT"] = "1"  # Single-threaded to avoid subprocess issues
+os.environ["OMP_NUM_THREADS"] = "1"  # Limit OpenMP threads
 
 
 @pytest.fixture
