@@ -8,6 +8,7 @@ and clear error message generation according to requirements 2.2, 2.3, 2.5.
 import pytest
 from jsonschema import ValidationError
 from src.config_loaders.validate_strategy_config import (
+    check_llm_specific_parameters,
     validate_dependent_params,
     validate_strategy_config,
 )
@@ -1015,3 +1016,346 @@ class TestValidateStrategyConfigEdgeCases:
 
         # Should not raise any exception (JSON schema allows additional properties by default)
         validate_strategy_config(config)
+
+
+class TestCheckLlmSpecificParameters:
+    """Test suite for LLM-specific parameter validation."""
+
+    def test_llm_enabled_with_cnn_model_fails(self):
+        """Test that LLM is rejected for non-transformer models."""
+        config = {"model_type": "cnn", "use_llm": "true"}
+
+        with pytest.raises(ValidationError) as exc_info:
+            check_llm_specific_parameters(config)
+
+        assert "LLM finetuning is only supported for transformer models" in str(
+            exc_info.value
+        )
+
+    def test_llm_missing_llm_model_parameter(self):
+        """Test that validation fails when LLM config is missing llm_model."""
+        config = {
+            "model_type": "transformer",
+            "llm_finetuning": "full",
+            "llm_task": "classification",
+            "llm_chunk_size": 512,
+            # Missing llm_model
+        }
+
+        with pytest.raises(ValidationError) as exc_info:
+            check_llm_specific_parameters(config)
+
+        assert "Missing parameter llm_model for LLM finetuning" in str(exc_info.value)
+
+    def test_llm_missing_llm_finetuning_parameter(self):
+        """Test that validation fails when LLM config is missing llm_finetuning."""
+        config = {
+            "model_type": "transformer",
+            "llm_model": "bert-base-uncased",
+            "llm_task": "classification",
+            "llm_chunk_size": 512,
+            # Missing llm_finetuning
+        }
+
+        with pytest.raises(ValidationError) as exc_info:
+            check_llm_specific_parameters(config)
+
+        assert "Missing parameter llm_finetuning for LLM finetuning" in str(
+            exc_info.value
+        )
+
+    def test_llm_missing_llm_task_parameter(self):
+        """Test that validation fails when LLM config is missing llm_task."""
+        config = {
+            "model_type": "transformer",
+            "llm_model": "bert-base-uncased",
+            "llm_finetuning": "full",
+            "llm_chunk_size": 512,
+            # Missing llm_task
+        }
+
+        with pytest.raises(ValidationError) as exc_info:
+            check_llm_specific_parameters(config)
+
+        assert "Missing parameter llm_task for LLM finetuning" in str(exc_info.value)
+
+    def test_llm_missing_llm_chunk_size_parameter(self):
+        """Test that validation fails when LLM config is missing llm_chunk_size."""
+        config = {
+            "model_type": "transformer",
+            "llm_model": "bert-base-uncased",
+            "llm_finetuning": "full",
+            "llm_task": "classification",
+            # Missing llm_chunk_size
+        }
+
+        with pytest.raises(ValidationError) as exc_info:
+            check_llm_specific_parameters(config)
+
+        assert "Missing parameter llm_chunk_size for LLM finetuning" in str(
+            exc_info.value
+        )
+
+    def test_llm_mlm_task_missing_mlm_probability(self):
+        """Test that MLM task requires mlm_probability parameter."""
+        config = {
+            "model_type": "transformer",
+            "llm_model": "bert-base-uncased",
+            "llm_finetuning": "full",
+            "llm_task": "mlm",
+            "llm_chunk_size": 512,
+            # Missing mlm_probability
+        }
+
+        with pytest.raises(ValidationError) as exc_info:
+            check_llm_specific_parameters(config)
+
+        assert "Missing parameter mlm_probability for LLM task mlm" in str(
+            exc_info.value
+        )
+
+    def test_llm_lora_finetuning_missing_lora_rank(self):
+        """Test that LORA finetuning requires lora_rank parameter."""
+        config = {
+            "model_type": "transformer",
+            "llm_model": "bert-base-uncased",
+            "llm_finetuning": "lora",
+            "llm_task": "classification",
+            "llm_chunk_size": 512,
+            "lora_alpha": 32,
+            "lora_dropout": 0.1,
+            "lora_target_modules": ["query", "value"],
+            # Missing lora_rank
+        }
+
+        with pytest.raises(ValidationError) as exc_info:
+            check_llm_specific_parameters(config)
+
+        assert "Missing parameter lora_rank for LORA" in str(exc_info.value)
+
+    def test_llm_lora_finetuning_missing_lora_alpha(self):
+        """Test that LORA finetuning requires lora_alpha parameter."""
+        config = {
+            "model_type": "transformer",
+            "llm_model": "bert-base-uncased",
+            "llm_finetuning": "lora",
+            "llm_task": "classification",
+            "llm_chunk_size": 512,
+            "lora_rank": 16,
+            "lora_dropout": 0.1,
+            "lora_target_modules": ["query", "value"],
+            # Missing lora_alpha
+        }
+
+        with pytest.raises(ValidationError) as exc_info:
+            check_llm_specific_parameters(config)
+
+        assert "Missing parameter lora_alpha for LORA" in str(exc_info.value)
+
+    def test_llm_lora_finetuning_missing_lora_dropout(self):
+        """Test that LORA finetuning requires lora_dropout parameter."""
+        config = {
+            "model_type": "transformer",
+            "llm_model": "bert-base-uncased",
+            "llm_finetuning": "lora",
+            "llm_task": "classification",
+            "llm_chunk_size": 512,
+            "lora_rank": 16,
+            "lora_alpha": 32,
+            "lora_target_modules": ["query", "value"],
+            # Missing lora_dropout
+        }
+
+        with pytest.raises(ValidationError) as exc_info:
+            check_llm_specific_parameters(config)
+
+        assert "Missing parameter lora_dropout for LORA" in str(exc_info.value)
+
+    def test_llm_lora_finetuning_missing_lora_target_modules(self):
+        """Test that LORA finetuning requires lora_target_modules parameter."""
+        config = {
+            "model_type": "transformer",
+            "llm_model": "bert-base-uncased",
+            "llm_finetuning": "lora",
+            "llm_task": "classification",
+            "llm_chunk_size": 512,
+            "lora_rank": 16,
+            "lora_alpha": 32,
+            "lora_dropout": 0.1,
+            # Missing lora_target_modules
+        }
+
+        with pytest.raises(ValidationError) as exc_info:
+            check_llm_specific_parameters(config)
+
+        assert "Missing parameter lora_target_modules for LORA" in str(exc_info.value)
+
+    def test_llm_valid_full_finetuning_config(self):
+        """Test that valid full finetuning config passes validation."""
+        config = {
+            "model_type": "transformer",
+            "llm_model": "bert-base-uncased",
+            "llm_finetuning": "full",
+            "llm_task": "classification",
+            "llm_chunk_size": 512,
+        }
+
+        # Should not raise any exception
+        check_llm_specific_parameters(config)
+
+    def test_llm_valid_lora_finetuning_config(self):
+        """Test that valid LORA finetuning config passes validation."""
+        config = {
+            "model_type": "transformer",
+            "llm_model": "bert-base-uncased",
+            "llm_finetuning": "lora",
+            "llm_task": "classification",
+            "llm_chunk_size": 512,
+            "lora_rank": 16,
+            "lora_alpha": 32,
+            "lora_dropout": 0.1,
+            "lora_target_modules": ["query", "value"],
+        }
+
+        # Should not raise any exception
+        check_llm_specific_parameters(config)
+
+    def test_llm_valid_mlm_task_config(self):
+        """Test that valid MLM task config passes validation."""
+        config = {
+            "model_type": "transformer",
+            "llm_model": "bert-base-uncased",
+            "llm_finetuning": "full",
+            "llm_task": "mlm",
+            "llm_chunk_size": 512,
+            "mlm_probability": 0.15,
+        }
+
+        # Should not raise any exception
+        check_llm_specific_parameters(config)
+
+
+class TestValidateStrategyConfigLlmIntegration:
+    """Test LLM integration in the main validation function."""
+
+    def test_validate_strategy_config_calls_llm_validation(self):
+        """Test that main validation calls LLM validation when use_llm is true."""
+        config = {
+            "aggregation_strategy_keyword": "trust",
+            "remove_clients": "true",
+            "dataset_keyword": "medquad",
+            "model_type": "transformer",
+            "use_llm": "true",
+            "num_of_rounds": 5,
+            "num_of_clients": 10,
+            "num_of_malicious_clients": 2,
+            "attack_type": "label_flipping",
+            "show_plots": "false",
+            "save_plots": "true",
+            "save_csv": "true",
+            "preserve_dataset": "false",
+            "training_subset_fraction": 0.8,
+            "training_device": "cpu",
+            "cpus_per_client": 1,
+            "gpus_per_client": 0.0,
+            "min_fit_clients": 8,
+            "min_evaluate_clients": 8,
+            "min_available_clients": 10,
+            "evaluate_metrics_aggregation_fn": "weighted_average",
+            "num_of_client_epochs": 3,
+            "batch_size": 32,
+            # Trust-specific parameters
+            "begin_removing_from_round": 2,
+            "trust_threshold": 0.7,
+            "beta_value": 0.5,
+            "num_of_clusters": 1,
+            # Missing LLM parameters should cause error
+        }
+
+        with pytest.raises(ValidationError) as exc_info:
+            validate_strategy_config(config)
+
+        # Should call LLM validation and fail due to missing parameters
+        assert "Missing parameter llm_model for LLM finetuning" in str(exc_info.value)
+
+    def test_validate_strategy_config_skips_llm_validation_when_disabled(self):
+        """Test that main validation skips LLM validation when use_llm is false."""
+        config = {
+            "aggregation_strategy_keyword": "trust",
+            "remove_clients": "true",
+            "dataset_keyword": "femnist_iid",
+            "model_type": "cnn",
+            "use_llm": "false",
+            "num_of_rounds": 5,
+            "num_of_clients": 10,
+            "num_of_malicious_clients": 2,
+            "attack_type": "label_flipping",
+            "show_plots": "false",
+            "save_plots": "true",
+            "save_csv": "true",
+            "preserve_dataset": "false",
+            "training_subset_fraction": 0.8,
+            "training_device": "cpu",
+            "cpus_per_client": 1,
+            "gpus_per_client": 0.0,
+            "min_fit_clients": 8,
+            "min_evaluate_clients": 8,
+            "min_available_clients": 10,
+            "evaluate_metrics_aggregation_fn": "weighted_average",
+            "num_of_client_epochs": 3,
+            "batch_size": 32,
+            # Trust-specific parameters
+            "begin_removing_from_round": 2,
+            "trust_threshold": 0.7,
+            "beta_value": 0.5,
+            "num_of_clusters": 1,
+            # No LLM parameters needed when use_llm is false
+        }
+
+        # Should not raise any exception
+        validate_strategy_config(config)
+
+    def test_validate_strategy_config_checks_client_numbers(self):
+        """Test that main validation checks client number consistency."""
+        config = {
+            "aggregation_strategy_keyword": "trust",
+            "remove_clients": "true",
+            "dataset_keyword": "femnist_iid",
+            "model_type": "cnn",
+            "use_llm": "false",
+            "num_of_rounds": 5,
+            "num_of_clients": 5,  # Too few clients
+            "num_of_malicious_clients": 2,
+            "attack_type": "label_flipping",
+            "show_plots": "false",
+            "save_plots": "true",
+            "save_csv": "true",
+            "preserve_dataset": "false",
+            "training_subset_fraction": 0.8,
+            "training_device": "cpu",
+            "cpus_per_client": 1,
+            "gpus_per_client": 0.0,
+            "min_fit_clients": 8,  # More than num_of_clients
+            "min_evaluate_clients": 8,  # More than num_of_clients
+            "min_available_clients": 10,  # More than num_of_clients
+            "evaluate_metrics_aggregation_fn": "weighted_average",
+            "num_of_client_epochs": 3,
+            "batch_size": 32,
+            # Trust-specific parameters
+            "begin_removing_from_round": 2,
+            "trust_threshold": 0.7,
+            "beta_value": 0.5,
+            "num_of_clusters": 1,
+        }
+
+        with pytest.raises(ValidationError) as exc_info:
+            validate_strategy_config(config)
+
+        # Should fail due to insufficient clients
+        error_message = str(exc_info.value)
+        assert (
+            "The number of clients" in error_message
+            or "min_fit_clients" in error_message
+            or "min_evaluate_clients" in error_message
+            or "min_available_clients" in error_message
+        )
