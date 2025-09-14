@@ -10,13 +10,27 @@ from typing import Any, Dict, List
 import numpy as np
 import pytest
 
-from tests.fixtures.mock_datasets import (MockDataset, MockDatasetHandler,
-                                          MockFederatedDataset,
-                                          generate_byzantine_client_parameters)
-from tests.fixtures.sample_models import (MockCNNNetwork, MockFlowerClient,
-                                          MockNetwork,
-                                          create_mock_client_models,
-                                          generate_mock_model_parameters)
+from tests.fixtures.mock_datasets import (
+    MockDataset,
+    MockDatasetHandler,
+    MockFederatedDataset,
+    generate_byzantine_client_parameters,
+)
+from tests.fixtures.mock_flower_components import (
+    MockServerConfig,
+    create_mock_client_proxies,
+    create_mock_evaluate_results,
+    create_mock_fit_results,
+    create_mock_flower_client,
+    mock_start_simulation,
+)
+from tests.fixtures.sample_models import (
+    MockCNNNetwork,
+    MockFlowerClient,
+    MockNetwork,
+    create_mock_client_models,
+    generate_mock_model_parameters,
+)
 
 # Configure environment for deterministic test execution
 os.environ["LOKY_MAX_CPU_COUNT"] = "1"  # Single-threaded to avoid subprocess issues
@@ -401,3 +415,83 @@ def create_temp_config_file(tmp_path: Path, config_data: Dict[str, Any]) -> Path
     with open(config_file, "w") as f:
         json.dump(config_data, f, indent=2)
     return config_file
+
+
+# Flower FL component fixtures
+
+
+@pytest.fixture
+def mock_flower_client():
+    """Create a mock Flower client for testing."""
+    return create_mock_flower_client(client_id=0)
+
+
+@pytest.fixture
+def mock_client_proxies():
+    """Create mock client proxies for testing."""
+    return create_mock_client_proxies(5)
+
+
+@pytest.fixture
+def mock_server_config():
+    """Create mock server configuration for testing."""
+    return MockServerConfig(num_rounds=3)
+
+
+@pytest.fixture
+def mock_fit_results():
+    """Create mock fit results for testing aggregation."""
+    param_shapes = [(100, 10), (10,)]  # Common parameter shapes
+    return create_mock_fit_results(5, param_shapes)
+
+
+@pytest.fixture
+def mock_evaluate_results():
+    """Create mock evaluation results for testing."""
+    return create_mock_evaluate_results(5)
+
+
+@pytest.fixture
+def mock_parameters():
+    """Create mock parameters for testing."""
+    from tests.fixtures.mock_flower_components import mock_ndarrays_to_parameters
+
+    arrays = [
+        np.random.randn(100, 10).astype(np.float32),
+        np.random.randn(10).astype(np.float32),
+    ]
+    return mock_ndarrays_to_parameters(arrays)
+
+
+@pytest.fixture
+def mock_simulation_function():
+    """Create a mock simulation function for testing."""
+
+    def client_fn(cid: str):
+        return create_mock_flower_client(int(cid))
+
+    def run_mock_simulation(num_clients=5, num_rounds=3, strategy=None):
+        config = MockServerConfig(num_rounds)
+        return mock_start_simulation(
+            client_fn=client_fn,
+            num_clients=num_clients,
+            config=config,
+            strategy=strategy or MockStrategy(),
+        )
+
+    return run_mock_simulation
+
+
+class MockStrategy:
+    """Mock aggregation strategy for testing."""
+
+    def __init__(self):
+        self.name = "mock_strategy"
+
+    def aggregate_fit(self, results):
+        """Mock aggregate fit method."""
+        return None, {}
+
+    def aggregate_evaluate(self, results):
+        """Mock aggregate evaluate method."""
+        return None, {}
