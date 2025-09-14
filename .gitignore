@@ -17,4 +17,6 @@ datasets/
 .coverage.*
 htmlcov/
 coverage.xml
+coverage.json
 .pytest_cache/
+pytest.log
