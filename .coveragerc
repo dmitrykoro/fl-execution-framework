@@ -5,6 +5,8 @@ omit =
     */__pycache__/*
     */venv/*
     */.venv/*
+    config.py
+    config-3.py
 
 [report]
 exclude_lines =
