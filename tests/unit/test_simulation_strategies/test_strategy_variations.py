@@ -5,15 +5,21 @@ Tests all 10 aggregation strategies with parameter variations, edge cases, and b
 Covers requirement 10.1: verify each strategy's specific behavior across different configurations.
 """
 
+import importlib
 from unittest.mock import Mock, patch
 
 import numpy as np
 import pytest
 from flwr.common import FitRes, ndarrays_to_parameters
 from flwr.server.client_proxy import ClientProxy
-
-from src.data_models.simulation_strategy_history import \
-    SimulationStrategyHistory
+from src.data_models.simulation_strategy_history import SimulationStrategyHistory
+from src.simulation_strategies.krum_based_removal_strategy import (
+    KrumBasedRemovalStrategy,
+)
+from src.simulation_strategies.pid_based_removal_strategy import PIDBasedRemovalStrategy
+from src.simulation_strategies.trust_based_removal_strategy import (
+    TrustBasedRemovalStrategy,
+)
 
 
 class TestStrategyVariations:
@@ -150,9 +156,6 @@ class TestStrategyVariations:
         """Test basic initialization of strategies that work reliably."""
         # Import the strategy class dynamically
         module_path, class_name = strategy_class.rsplit(".", 1)
-
-        import importlib
-
         module = importlib.import_module(module_path)
         strategy_cls = getattr(module, class_name)
 
@@ -271,9 +274,6 @@ class TestStrategyVariations:
         """Test strategies with different parameter variations."""
         # Import the strategy class dynamically
         module_path, class_name = strategy_class.rsplit(".", 1)
-
-        import importlib
-
         module = importlib.import_module(module_path)
         strategy_cls = getattr(module, class_name)
 
@@ -366,9 +366,6 @@ class TestStrategyVariations:
         """Test strategy behavior with insufficient clients (edge case)."""
         # Import the strategy class dynamically
         module_path, class_name = strategy_class.rsplit(".", 1)
-
-        import importlib
-
         module = importlib.import_module(module_path)
         strategy_cls = getattr(module, class_name)
 
@@ -494,9 +491,6 @@ class TestStrategyVariations:
         """Test strategies with extreme parameter values (boundary conditions)."""
         # Import the strategy class dynamically
         module_path, class_name = strategy_class.rsplit(".", 1)
-
-        import importlib
-
         module = importlib.import_module(module_path)
         strategy_cls = getattr(module, class_name)
 
@@ -592,9 +586,6 @@ class TestStrategyVariations:
     ):
         """Test strategy behavior at boundary conditions for client counts."""
         # Test with trust strategy as it's most reliable
-        from src.simulation_strategies.trust_based_removal_strategy import \
-            TrustBasedRemovalStrategy
-
         strategy = TrustBasedRemovalStrategy(
             remove_clients=True,
             beta_value=0.5,
@@ -641,9 +632,6 @@ class TestStrategyVariations:
         mock_output_directory,
     ):
         """Test all PID strategy variants with their specific behaviors."""
-        from src.simulation_strategies.pid_based_removal_strategy import \
-            PIDBasedRemovalStrategy
-
         strategy = PIDBasedRemovalStrategy(
             remove_clients=True,
             begin_removing_from_round=2,
@@ -684,9 +672,6 @@ class TestStrategyVariations:
         krum_fit_metrics_fn,
     ):
         """Test Krum strategy with different selection counts and client bounds."""
-        from src.simulation_strategies.krum_based_removal_strategy import \
-            KrumBasedRemovalStrategy
-
         strategy = KrumBasedRemovalStrategy(
             remove_clients=True,
             num_malicious_clients=2,
@@ -813,9 +798,6 @@ class TestStrategyVariations:
         mock_output_directory,
     ):
         """Test PID strategy with different standard deviation thresholds."""
-        from src.simulation_strategies.pid_based_removal_strategy import \
-            PIDBasedRemovalStrategy
-
         strategy = PIDBasedRemovalStrategy(
             remove_clients=True,
             begin_removing_from_round=2,
@@ -846,9 +828,6 @@ class TestStrategyVariations:
 
         # Trust-based strategy
         try:
-            from src.simulation_strategies.trust_based_removal_strategy import \
-                TrustBasedRemovalStrategy
-
             trust_strategy = TrustBasedRemovalStrategy(
                 remove_clients=True,
                 beta_value=0.5,
@@ -862,9 +841,6 @@ class TestStrategyVariations:
 
         # PID-based strategy
         try:
-            from src.simulation_strategies.pid_based_removal_strategy import \
-                PIDBasedRemovalStrategy
-
             pid_strategy = PIDBasedRemovalStrategy(
                 remove_clients=True,
                 begin_removing_from_round=2,
@@ -883,9 +859,6 @@ class TestStrategyVariations:
 
         # Krum-based strategy
         try:
-            from src.simulation_strategies.krum_based_removal_strategy import \
-                KrumBasedRemovalStrategy
-
             krum_strategy = KrumBasedRemovalStrategy(
                 remove_clients=True,
                 num_malicious_clients=2,
@@ -946,9 +919,6 @@ class TestStrategyVariations:
             try:
                 # Import the strategy class dynamically
                 module_path, class_name = case["strategy_class"].rsplit(".", 1)
-
-                import importlib
-
                 module = importlib.import_module(module_path)
                 strategy_cls = getattr(module, class_name)
 
@@ -981,9 +951,6 @@ class TestStrategyVariations:
 
         for begin_round in round_variations:
             try:
-                from src.simulation_strategies.trust_based_removal_strategy import \
-                    TrustBasedRemovalStrategy
-
                 strategy = TrustBasedRemovalStrategy(
                     remove_clients=True,
                     beta_value=0.5,
