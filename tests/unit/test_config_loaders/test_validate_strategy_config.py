@@ -1354,8 +1354,6 @@ class TestValidateStrategyConfigLlmIntegration:
         # Should fail due to insufficient clients
         error_message = str(exc_info.value)
         assert (
-            "The number of clients" in error_message
-            or "min_fit_clients" in error_message
-            or "min_evaluate_clients" in error_message
-            or "min_available_clients" in error_message
+            "Number of clients for fit, evaluate or available cannot be greater than total number of clients"
+            in error_message
         )
