@@ -8,10 +8,10 @@ set -e  # Exit on first error
 echo "🔧 Running isort..."
 isort .
 
-echo "🔍 Running flake8..."
-flake8 --ignore=E501,W503,E203 .
-
 echo "⚫ Running black..."
 black .
+
+echo "🔍 Running flake8..."
+flake8 --ignore=E501,W503,E203 .
 
 echo "✅ All linting and formatting completed!"
