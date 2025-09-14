@@ -1,5 +1,4 @@
 import pytest
-
 from src.data_models.client_info import ClientInfo
 
 

@@ -10,11 +10,8 @@ import numpy as np
 import pytest
 from flwr.common import FitRes, ndarrays_to_parameters
 from flwr.server.client_proxy import ClientProxy
-
-from src.data_models.simulation_strategy_history import \
-    SimulationStrategyHistory
-from src.simulation_strategies.pid_based_removal_strategy import \
-    PIDBasedRemovalStrategy
+from src.data_models.simulation_strategy_history import SimulationStrategyHistory
+from src.simulation_strategies.pid_based_removal_strategy import PIDBasedRemovalStrategy
 
 
 class TestPIDBasedRemovalStrategy:

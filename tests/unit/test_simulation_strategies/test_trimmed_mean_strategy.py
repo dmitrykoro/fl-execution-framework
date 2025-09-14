@@ -11,11 +11,10 @@ import numpy as np
 import pytest
 from flwr.common import FitRes, ndarrays_to_parameters, parameters_to_ndarrays
 from flwr.server.client_proxy import ClientProxy
-
-from src.data_models.simulation_strategy_history import \
-    SimulationStrategyHistory
-from src.simulation_strategies.trimmed_mean_based_removal_strategy import \
-    TrimmedMeanBasedRemovalStrategy
+from src.data_models.simulation_strategy_history import SimulationStrategyHistory
+from src.simulation_strategies.trimmed_mean_based_removal_strategy import (
+    TrimmedMeanBasedRemovalStrategy,
+)
 
 
 class TestTrimmedMeanBasedRemovalStrategy:

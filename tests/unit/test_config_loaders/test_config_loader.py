@@ -9,7 +9,6 @@ import json
 from unittest.mock import mock_open, patch
 
 import pytest
-
 from src.config_loaders.config_loader import ConfigLoader
 
 

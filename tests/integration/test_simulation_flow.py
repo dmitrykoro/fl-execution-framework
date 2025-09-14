@@ -11,9 +11,9 @@ from unittest.mock import Mock, patch
 
 import numpy as np
 import pytest
-
 from src.data_models.simulation_strategy_config import StrategyConfig
 from src.federated_simulation import FederatedSimulation
+
 from tests.fixtures.mock_datasets import MockDatasetHandler
 from tests.fixtures.sample_models import MockCNNNetwork, MockNetwork
 

@@ -10,22 +10,22 @@ import numpy as np
 import pytest
 from flwr.common import FitRes, ndarrays_to_parameters, parameters_to_ndarrays
 from flwr.server.client_proxy import ClientProxy
-
-from src.data_models.simulation_strategy_history import \
-    SimulationStrategyHistory
+from src.data_models.simulation_strategy_history import SimulationStrategyHistory
 from src.simulation_strategies.bulyan_strategy import BulyanStrategy
-from src.simulation_strategies.krum_based_removal_strategy import \
-    KrumBasedRemovalStrategy
-from src.simulation_strategies.multi_krum_based_removal_strategy import \
-    MultiKrumBasedRemovalStrategy
-from src.simulation_strategies.pid_based_removal_strategy import \
-    PIDBasedRemovalStrategy
-from src.simulation_strategies.rfa_based_removal_strategy import \
-    RFABasedRemovalStrategy
-from src.simulation_strategies.trimmed_mean_based_removal_strategy import \
-    TrimmedMeanBasedRemovalStrategy
-from src.simulation_strategies.trust_based_removal_strategy import \
-    TrustBasedRemovalStrategy
+from src.simulation_strategies.krum_based_removal_strategy import (
+    KrumBasedRemovalStrategy,
+)
+from src.simulation_strategies.multi_krum_based_removal_strategy import (
+    MultiKrumBasedRemovalStrategy,
+)
+from src.simulation_strategies.pid_based_removal_strategy import PIDBasedRemovalStrategy
+from src.simulation_strategies.rfa_based_removal_strategy import RFABasedRemovalStrategy
+from src.simulation_strategies.trimmed_mean_based_removal_strategy import (
+    TrimmedMeanBasedRemovalStrategy,
+)
+from src.simulation_strategies.trust_based_removal_strategy import (
+    TrustBasedRemovalStrategy,
+)
 
 
 class TestStrategyInteractions:

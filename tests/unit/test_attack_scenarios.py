@@ -10,9 +10,11 @@ from unittest.mock import Mock
 import numpy as np
 import pytest
 
-from tests.fixtures.mock_datasets import (MockDatasetHandler,
-                                          generate_byzantine_client_parameters,
-                                          generate_mock_client_parameters)
+from tests.fixtures.mock_datasets import (
+    MockDatasetHandler,
+    generate_byzantine_client_parameters,
+    generate_mock_client_parameters,
+)
 
 # Attack scenario configurations
 ATTACK_SCENARIOS = [

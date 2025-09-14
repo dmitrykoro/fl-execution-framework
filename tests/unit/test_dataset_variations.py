@@ -11,9 +11,11 @@ import pytest
 import torch
 from torch.utils.data import DataLoader
 
-from tests.fixtures.mock_datasets import (MockDatasetHandler,
-                                          MockFederatedDataset,
-                                          generate_mock_dataset_config)
+from tests.fixtures.mock_datasets import (
+    MockDatasetHandler,
+    MockFederatedDataset,
+    generate_mock_dataset_config,
+)
 
 # Dataset configurations with expected characteristics
 DATASET_CONFIGURATIONS = [

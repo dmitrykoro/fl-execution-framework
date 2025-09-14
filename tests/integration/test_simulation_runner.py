@@ -12,7 +12,6 @@ from typing import Any, Dict, List
 from unittest.mock import Mock, patch
 
 import pytest
-
 from src.data_models.simulation_strategy_config import StrategyConfig
 from src.simulation_runner import SimulationRunner
 

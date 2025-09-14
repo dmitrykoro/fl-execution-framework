@@ -2,12 +2,10 @@ import sys
 from unittest.mock import MagicMock, Mock
 
 import pytest
-
 from src.data_models.client_info import ClientInfo
 from src.data_models.round_info import RoundsInfo
 from src.data_models.simulation_strategy_config import StrategyConfig
-from src.data_models.simulation_strategy_history import \
-    SimulationStrategyHistory
+from src.data_models.simulation_strategy_history import SimulationStrategyHistory
 from src.dataset_handlers.dataset_handler import DatasetHandler
 
 # Mock cv2 before importing modules that depend on it

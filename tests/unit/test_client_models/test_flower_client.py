@@ -11,8 +11,8 @@ from unittest.mock import Mock, patch
 import numpy as np
 import pytest
 import torch
-
 from src.client_models.flower_client import FlowerClient
+
 from tests.fixtures.sample_models import MockCNNNetwork
 
 
@@ -609,7 +609,9 @@ class TestFlowerClient:
         assert isinstance(loss, float)
         assert isinstance(accuracy, float)
 
-    def test_verbose_training_output_transformer(self, flower_client_transformer, capsys):
+    def test_verbose_training_output_transformer(
+        self, flower_client_transformer, capsys
+    ):
         """Test verbose training produces output for transformer model."""
         # Mock transformer outputs
         mock_outputs = Mock()

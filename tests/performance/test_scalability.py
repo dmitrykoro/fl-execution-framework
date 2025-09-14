@@ -12,14 +12,15 @@ from unittest.mock import Mock
 
 import numpy as np
 import pytest
-
 from src.data_models.client_info import ClientInfo
 from src.data_models.simulation_strategy_config import StrategyConfig
-from src.data_models.simulation_strategy_history import \
-    SimulationStrategyHistory
-from tests.fixtures.mock_datasets import (MockFederatedDataset,
-                                          generate_byzantine_client_parameters,
-                                          generate_mock_client_parameters)
+from src.data_models.simulation_strategy_history import SimulationStrategyHistory
+
+from tests.fixtures.mock_datasets import (
+    MockFederatedDataset,
+    generate_byzantine_client_parameters,
+    generate_mock_client_parameters,
+)
 
 
 class PerformanceTimer:

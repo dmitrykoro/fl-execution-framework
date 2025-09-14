@@ -7,9 +7,10 @@ and clear error message generation according to requirements 2.2, 2.3, 2.5.
 
 import pytest
 from jsonschema import ValidationError
-
 from src.config_loaders.validate_strategy_config import (
-    validate_dependent_params, validate_strategy_config)
+    validate_dependent_params,
+    validate_strategy_config,
+)
 
 
 class TestValidateStrategyConfig:

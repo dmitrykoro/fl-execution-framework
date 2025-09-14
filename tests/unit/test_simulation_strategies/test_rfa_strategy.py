@@ -10,9 +10,7 @@ import numpy as np
 import pytest
 from flwr.common import FitRes, ndarrays_to_parameters, parameters_to_ndarrays
 from flwr.server.client_proxy import ClientProxy
-
-from src.simulation_strategies.rfa_based_removal_strategy import \
-    RFABasedRemovalStrategy
+from src.simulation_strategies.rfa_based_removal_strategy import RFABasedRemovalStrategy
 
 
 class TestRFABasedRemovalStrategy:

@@ -10,11 +10,10 @@ import numpy as np
 import pytest
 from flwr.common import FitRes, ndarrays_to_parameters
 from flwr.server.client_proxy import ClientProxy
-
-from src.data_models.simulation_strategy_history import \
-    SimulationStrategyHistory
-from src.simulation_strategies.krum_based_removal_strategy import \
-    KrumBasedRemovalStrategy
+from src.data_models.simulation_strategy_history import SimulationStrategyHistory
+from src.simulation_strategies.krum_based_removal_strategy import (
+    KrumBasedRemovalStrategy,
+)
 
 
 class TestKrumBasedRemovalStrategy:
