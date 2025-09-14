@@ -76,7 +76,10 @@ class DatasetHandler:
                 raise NotImplementedError(f"Not supported attack type: {attack_type}")
 
         if attack_type == "gaussian_noise":
-            logging.warning(f"Avg. SNR for poisoned images: {np.average(self.all_poisoned_img_snrs)}")
+            if len(self.all_poisoned_img_snrs) > 0:
+                logging.warning(f"Avg. SNR for poisoned images: {np.average(self.all_poisoned_img_snrs)}")
+            else:
+                logging.warning("No poisoned images to calculate SNR average")
 
     def _flip_labels(self, client_dir: str) -> None:
         """Perform 100% label flipping for the specified client"""
