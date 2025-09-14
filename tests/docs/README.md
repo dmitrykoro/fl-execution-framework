@@ -14,6 +14,15 @@ Unit tests, integration tests, and performance tests for federated learning comp
 - Deterministic random seeds for reproducible results
 - Parameterized tests across all strategies and datasets
 
+### 📚 Documentation Suite
+
+This `README.md` provides a high-level overview. For more detailed information, see all other documentation files in this directory:
+
+- **[FL Fundamentals](./fl_fundamentals.md)**: Core federated learning concepts, aggregation strategies, and Byzantine fault tolerance mechanisms used in this framework
+- **[Testing Guide](./testing_guide.md)**: A step-by-step guide for developers on how to write, run, and debug tests
+- **[Test Data Generation](./test_data_generation.md)**: A deep dive into the framework for creating mock data and simulating federated learning scenarios
+- **[Refactoring for Testability](./refactoring_for_testability.md)**: A technical summary of the source code modifications made to enable testing
+
 ## 🏗️ Architecture
 
 ### 📁 Directory Structure
