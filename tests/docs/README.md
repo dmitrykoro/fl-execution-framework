@@ -23,6 +23,7 @@ tests/
 ├── README.md                           # This documentation
 ├── conftest.py                         # Global fixtures and configuration
 ├── pytest.ini                         # PyTest execution configuration
+├── validate_coverage_setup.py          # Test suite setup validation script
 ├── unit/                              # Unit tests for individual components
 │   ├── test_attack_scenarios.py       # Byzantine attack pattern testing
 │   ├── test_data_models/              # StrategyConfig, ClientInfo, RoundInfo tests
@@ -267,6 +268,20 @@ def mock_output_directory(tmp_path, monkeypatch):
 - Parameterized FL Scenarios: Cross-strategy, cross-dataset testing with attack-defense validation
 
 ## 🚀 Running Tests
+
+### 🔍 Pre-Test Validation
+
+```bash
+# Validate test suite configuration before running tests
+python tests/validate_coverage_setup.py
+
+# Expected output on successful validation:
+# 🎉 All checks passed (5/5)
+# Next steps:
+#   1. Run: pytest --cov=src
+#   2. Check: htmlcov/index.html
+#   3. Commit and push to trigger CI
+```
 
 ### ⚡ Basic Execution
 

@@ -42,6 +42,7 @@
 
 ```bash
 # Essential commands for beginners (use "python3" if "python" doesn't work):
+python tests/validate_coverage_setup.py                          # Validate test suite setup
 python -m pytest --version                                       # Check pytest works
 python -m pytest tests/unit/test_data_models/ --no-cov -v       # Run simple existing tests
 pwd                                                               # Verify you're in project root
@@ -53,8 +54,9 @@ python -m pytest tests/unit/test_my_first_test.py --no-cov -v -s # Run YOUR tuto
 ### 📎 Prerequisites
 
 1. **Environment Setup**: Ensure you have Python 3.10+ and virtual environment activated
-2. **Test Familiarity**: Basic knowledge of pytest and Python testing
-3. **Framework Understanding**: Read `tests/docs/README.md` for architecture overview
+2. **Test Suite Validation**: Run `python tests/validate_coverage_setup.py` to verify setup
+3. **Test Familiarity**: Basic knowledge of pytest and Python testing
+4. **Framework Understanding**: Read `tests/docs/README.md` for architecture overview
 
 ### 🎆 Your First Test (Step-by-step walkthrough)
 
@@ -70,6 +72,9 @@ pwd  # Should show: /path/to/fl-execution-framework
 source .venv/Scripts/activate  # Windows Git Bash
 # OR
 source .venv/bin/activate      # Linux/Mac
+
+# Validate test suite setup
+python tests/validate_coverage_setup.py
 
 # Verify pytest works
 python -m pytest --version
@@ -1033,6 +1038,7 @@ python -c "from tests.fixtures.mock_datasets import *; print('Fixtures loaded!')
 ### ✅ Before You Start
 
 - [ ] Environment activated and dependencies installed
+- [ ] Test suite setup validated: `python tests/validate_coverage_setup.py`
 - [ ] Read `tests/docs/README.md` for architecture overview
 - [ ] Run existing tests to verify setup: `python -m pytest tests/unit/test_data_models/ -v`
 

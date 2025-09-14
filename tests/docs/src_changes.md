@@ -33,7 +33,7 @@ Added `__init__.py` files to all `src/` subdirectories to establish proper Pytho
 
 ### 2. Import Path Standardization
 
-#### Change Summary
+#### Import Changes
 
 Converted all relative imports to absolute imports with `src.` prefix across the entire codebase.
 
@@ -52,7 +52,7 @@ Converted all relative imports to absolute imports with `src.` prefix across the
 
 ### 3. Robustness and Bug Fixes
 
-#### Change Summary
+#### Bug Fixes
 
 Fixed runtime errors, edge cases, and deprecation warnings discovered during test suite development.
 
@@ -93,6 +93,13 @@ Fixed runtime errors, edge cases, and deprecation warnings discovered during tes
 - **Purpose**: Eliminate deprecation warnings in test output
 - **Impact**: Clean test execution without warning noise
 
+#### Empty Array Validation Fix
+
+- **File**: `src/dataset_handlers/dataset_handler.py`
+- **Change**: Added length check before `np.average()` call: `if len(self.all_poisoned_img_snrs) > 0:`
+- **Purpose**: Prevent "Mean of empty slice" RuntimeWarning from numpy operations
+- **Impact**: Eliminates runtime warnings during dataset poisoning operations
+
 #### Empty Results Handling
 
 - **Files**: Multiple strategy implementation files
@@ -116,7 +123,7 @@ Fixed runtime errors, edge cases, and deprecation warnings discovered during tes
 
 ### 4. Code Structure and Naming Conventions
 
-#### Change Summary
+#### Details
 
 Application of Python best practices for module structure and naming consistency.
 
@@ -164,7 +171,7 @@ Application of Python best practices for module structure and naming consistency
 - **Test Coverage**: All affected components covered by corresponding unit tests
 - **Error Handling**: Comprehensive edge case protection and defensive programming
 
-## Summary
+## Final Summary
 
 These changes to the `src/` directory enable pytest testing while maintaining backward compatibility. All modifications follow Python best practices, resulting in:
 
