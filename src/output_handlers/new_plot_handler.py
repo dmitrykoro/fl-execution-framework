@@ -48,6 +48,9 @@ def show_plots_within_strategy(
 
     list_of_client_histories = simulation_strategy.strategy_history.get_all_clients()
 
+    if not list_of_client_histories:
+        return
+
     plottable_metrics = list_of_client_histories[0].plottable_metrics
 
     for metric_name in plottable_metrics:
