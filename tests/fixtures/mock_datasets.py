@@ -216,7 +216,7 @@ def generate_byzantine_client_parameters(
     attack_type: str = "gaussian",
 ) -> List[np.ndarray]:
     """
-    Generate client parameters with Byzantine (malicious) clients for testing defense mechanisms.
+    Generate client parameters with Byzantine (malicious) clients for defense testing.
 
     Args:
         num_clients: Total number of clients

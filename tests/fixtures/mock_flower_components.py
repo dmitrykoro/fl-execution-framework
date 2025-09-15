@@ -1,8 +1,5 @@
 """
-Mock implementations for Flower FL components to enable testing without actual federated learning execution.
-
-This module provides lightweight mock classes that simulate the behavior of Flower FL components
-while avoiding the overhead of actual distributed training and communication.
+Mock implementations for Flower FL components to enable testing without distributed execution.
 """
 
 from typing import Any, Callable, Dict, List, Optional, Tuple, Union
@@ -299,9 +296,6 @@ def mock_start_simulation(
 ) -> Dict[str, Any]:
     """
     Mock implementation of flwr.simulation.start_simulation.
-
-    This function simulates the federated learning process without actual
-    distributed execution, providing consistent mock results for testing.
 
     Args:
         client_fn: Function to create client instances
