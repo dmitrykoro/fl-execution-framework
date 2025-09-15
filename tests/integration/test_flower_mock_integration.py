@@ -1,8 +1,7 @@
 """
-Integration tests demonstrating how Flower FL component mocks work with existing simulation components.
+Integration tests for Flower FL component mocks with simulation components.
 
-These tests show that the mock implementations can be used as drop-in replacements
-for real Flower components in federated learning simulation testing.
+Tests mock implementations as drop-in replacements for real Flower components.
 """
 
 from unittest.mock import MagicMock, patch

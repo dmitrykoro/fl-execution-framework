@@ -1,7 +1,7 @@
 """
 Integration tests for strategy combination scenarios.
 
-Tests complex multi-strategy scenarios, Byzantine fault tolerance across strategy combinations,
+Tests multi-strategy scenarios, Byzantine fault tolerance across strategy combinations,
 and attack-defense scenario workflows with mocked dependencies.
 """
 

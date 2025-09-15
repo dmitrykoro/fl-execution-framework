@@ -1,8 +1,8 @@
 """
 Integration tests for SimulationRunner class.
 
-Tests multi-strategy execution workflows, configuration loading and strategy processing,
-and output generation and cleanup operations with mocked dependencies.
+Tests multi-strategy execution workflows, configuration loading, strategy processing,
+and output generation with mocked dependencies.
 """
 
 import json
