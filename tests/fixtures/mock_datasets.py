@@ -2,7 +2,7 @@
 Mock dataset generators and utilities for testing federated learning components.
 """
 
-from typing import Dict, List, Optional, Tuple
+from typing import Callable, Dict, List, Optional, Tuple
 
 import numpy as np
 import torch
@@ -209,6 +209,69 @@ def generate_mock_client_metrics(
     }
 
 
+def _create_gaussian_attack(param_size: int) -> np.ndarray:
+    """Generate parameters with large Gaussian noise."""
+    return np.random.randn(param_size) * 10
+
+
+def _create_model_poisoning_attack(param_size: int) -> np.ndarray:
+    """Generate parameters with targeted manipulation."""
+    poisoned_param = np.random.randn(param_size) * 0.1
+    poison_indices = np.random.choice(param_size, size=param_size // 10, replace=False)
+    poisoned_param[poison_indices] *= 50
+    return poisoned_param
+
+
+def _create_byzantine_clients_attack(param_size: int) -> np.ndarray:
+    """Generate parameters with adversarial behavior."""
+    return np.random.randn(param_size) * 15
+
+
+def _create_gradient_inversion_attack(param_size: int) -> np.ndarray:
+    """Generate parameters with scaled values."""
+    return np.random.randn(param_size) * 3
+
+
+def _create_label_flipping_attack(param_size: int) -> np.ndarray:
+    """Generate parameters simulating label flipping effects."""
+    flipped_param = np.random.randn(param_size) * 0.1
+    flip_indices = np.random.choice(param_size, size=param_size // 5, replace=False)
+    flipped_param[flip_indices] *= -10
+    return flipped_param
+
+
+def _create_backdoor_attack(param_size: int) -> np.ndarray:
+    """Generate parameters with a backdoor pattern."""
+    backdoor_param = np.random.randn(param_size) * 0.1
+    pattern_indices = np.arange(0, min(100, param_size), 10)
+    backdoor_param[pattern_indices] = 5.0
+    return backdoor_param
+
+
+def _create_zero_attack(param_size: int) -> np.ndarray:
+    """Generate zero parameters."""
+    return np.zeros(param_size)
+
+
+def _create_flip_attack(param_size: int) -> np.ndarray:
+    """Generate parameters with flipped signs."""
+    base_param = np.random.randn(param_size)
+    return -base_param * 5
+
+
+ATTACK_FUNCTIONS: Dict[str, Callable[[int], np.ndarray]] = {
+    "gaussian_noise": _create_gaussian_attack,
+    "gaussian": _create_gaussian_attack,
+    "model_poisoning": _create_model_poisoning_attack,
+    "byzantine_clients": _create_byzantine_clients_attack,
+    "gradient_inversion": _create_gradient_inversion_attack,
+    "label_flipping": _create_label_flipping_attack,
+    "backdoor_attack": _create_backdoor_attack,
+    "zero": _create_zero_attack,
+    "flip": _create_flip_attack,
+}
+
+
 def generate_byzantine_client_parameters(
     num_clients: int,
     num_byzantine: int,
@@ -222,8 +285,7 @@ def generate_byzantine_client_parameters(
         num_clients: Total number of clients
         num_byzantine: Number of Byzantine clients
         param_size: Size of parameter vector
-        attack_type: Type of attack ("gaussian_noise", "model_poisoning", "byzantine_clients",
-                     "gradient_inversion", "label_flipping", "backdoor_attack", "zero", "flip")
+        attack_type: Type of attack (e.g., "gaussian", "model_poisoning")
 
     Returns:
         List of parameters with Byzantine clients included
@@ -235,53 +297,9 @@ def generate_byzantine_client_parameters(
         np.random.randn(param_size) * 0.1 for _ in range(num_clients - num_byzantine)
     ]
 
-    # Generate Byzantine client parameters based on attack type
-    byzantine_params = []
-    for i in range(num_byzantine):
-        if attack_type in ["gaussian_noise", "gaussian"]:
-            # Add large Gaussian noise
-            byzantine_params.append(np.random.randn(param_size) * 10)
-        elif attack_type == "model_poisoning":
-            # Model poisoning with targeted parameter manipulation
-            poisoned_param = np.random.randn(param_size) * 0.1
-            # Inject large values in specific parameter ranges
-            poison_indices = np.random.choice(
-                param_size, size=param_size // 10, replace=False
-            )
-            poisoned_param[poison_indices] *= 50
-            byzantine_params.append(poisoned_param)
-        elif attack_type == "byzantine_clients":
-            # Byzantine clients with adversarial behavior
-            byzantine_params.append(np.random.randn(param_size) * 15)
-        elif attack_type == "gradient_inversion":
-            # Gradient inversion attack with scaled parameters
-            byzantine_params.append(np.random.randn(param_size) * 3)
-        elif attack_type == "label_flipping":
-            # Label flipping attack (simulated through parameter manipulation)
-            flipped_param = np.random.randn(param_size) * 0.1
-            # Flip signs of random parameters to simulate label flipping effects
-            flip_indices = np.random.choice(
-                param_size, size=param_size // 5, replace=False
-            )
-            flipped_param[flip_indices] *= -10
-            byzantine_params.append(flipped_param)
-        elif attack_type == "backdoor_attack":
-            # Backdoor attack with specific pattern injection
-            backdoor_param = np.random.randn(param_size) * 0.1
-            # Inject backdoor pattern in specific locations
-            pattern_indices = np.arange(0, min(100, param_size), 10)
-            backdoor_param[pattern_indices] = 5.0  # Fixed backdoor pattern
-            byzantine_params.append(backdoor_param)
-        elif attack_type == "zero":
-            # Send zero parameters
-            byzantine_params.append(np.zeros(param_size))
-        elif attack_type == "flip":
-            # Flip sign of honest parameters
-            base_param = np.random.randn(param_size)
-            byzantine_params.append(-base_param * 5)
-        else:
-            # Default to Gaussian attack
-            byzantine_params.append(np.random.randn(param_size) * 10)
+    # Get attack function from dictionary, with a default
+    attack_fn = ATTACK_FUNCTIONS.get(attack_type, _create_gaussian_attack)
+    byzantine_params = [attack_fn(param_size) for _ in range(num_byzantine)]
 
     # Combine and shuffle
     all_params = honest_params + byzantine_params
