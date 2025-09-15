@@ -1,27 +1,36 @@
 #!/bin/bash
-# Lint, format, and test runner for your tests/ directory
+# Lint, format, and test the codebase
 # Run with: ./lint.sh
+
+# exit immediately if a command fails
 set -euo pipefail
 
-# Step 1: go to repo root
+# navigate to the project root directory
 ROOT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT_DIR"
 
-# echo "📦 Installing requirements..."
-# pip install -r requirements.txt
+# install dependencies from requirements.txt
+echo "📦 Installing requirements..."
+pip install -r requirements.txt
 
-# Step 2: lint/format tests/ only (configs picked up from tests/)
-echo "🔧 Running isort on tests/..."
+# sort imports
+echo "🔧 Running isort..."
 isort tests
 
-echo "⚫ Running black on tests/..."
+# format code with black
+echo "⚫ Running black..."
 black tests
 
-echo "🔍 Running flake8 on tests/..."
+# lint code with flake8
+echo "🔍 Running flake8..."
 flake8 tests --config=tests/.flake8
 
-# # Step 3: run pytest with logging
-# echo "🧪 Running pytest..."
-# pytest -v --tb=short -s tests | tee pytest.log
+# run pytest with logging to a pytest.log file
+echo "🧪 Running pytest..."
+pytest -v --tb=short -s tests | tee pytest.log
+if grep -q "FAILED" pytest.log; then
+    echo "❌ Some tests failed. Check pytest.log for details."
+    exit 1
+fi
 
 echo "✅ All linting, formatting, and tests completed!"
