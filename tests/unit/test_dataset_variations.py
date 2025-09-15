@@ -1,7 +1,7 @@
 """
 Parameterized tests for dataset variations in federated learning scenarios.
 
-This module tests dataset loading, transformation operations, and dataset-specific
+Tests dataset loading, transformation operations, and dataset-specific
 characteristics across all supported dataset types.
 """
 

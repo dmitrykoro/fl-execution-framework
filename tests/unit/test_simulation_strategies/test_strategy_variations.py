@@ -2,7 +2,7 @@
 Parameterized tests for all aggregation strategy variations.
 
 Tests all 10 aggregation strategies with parameter variations, edge cases, and boundary conditions.
-Covers requirement 10.1: verify each strategy's specific behavior across different configurations.
+Verifies each strategy's specific behavior across different configurations.
 """
 
 import importlib

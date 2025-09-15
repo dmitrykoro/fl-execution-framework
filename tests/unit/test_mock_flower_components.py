@@ -1,7 +1,7 @@
 """
 Tests for mock Flower FL components to ensure behavior consistency with real Flower components.
 
-These tests verify that mock implementations behave correctly and provide consistent
+Tests verify that mock implementations behave correctly and provide consistent
 results for federated learning simulation testing.
 """
 

@@ -1,7 +1,7 @@
 """
 Parameterized tests for attack scenarios in federated learning.
 
-This module tests various attack types and defense mechanism effectiveness
+Tests various attack types and defense mechanism effectiveness
 across different aggregation strategies and client configurations.
 """
 
