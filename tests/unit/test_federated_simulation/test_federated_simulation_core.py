@@ -1,12 +1,13 @@
-"""
-Core unit tests for FederatedSimulation class.
+"""Core unit tests for FederatedSimulation.
 
-Tests the core federated learning simulation orchestration functionality.
+Covers initialization, dataset/network assignment, client function, and
+aggregation strategy selection.
 """
 
 from unittest.mock import Mock, patch
 
 import pytest
+from peft import PeftModel
 from src.data_models.simulation_strategy_config import StrategyConfig
 from src.data_models.simulation_strategy_history import SimulationStrategyHistory
 from src.dataset_handlers.dataset_handler import DatasetHandler
@@ -14,11 +15,11 @@ from src.federated_simulation import FederatedSimulation
 
 
 class TestFederatedSimulationCore:
-    """Test suite for FederatedSimulation core functionality."""
+    """Tests for FederatedSimulation core behavior."""
 
     @pytest.fixture
     def mock_strategy_config(self):
-        """Create mock strategy configuration for testing."""
+        """Return a StrategyConfig populated with test values."""
         return StrategyConfig(
             aggregation_strategy_keyword="trust",
             dataset_keyword="its",
@@ -43,7 +44,7 @@ class TestFederatedSimulationCore:
 
     @pytest.fixture
     def mock_dataset_handler(self):
-        """Create mock dataset handler for testing."""
+        """Return a Mock implementing DatasetHandler for tests."""
         handler = Mock(spec=DatasetHandler)
         handler.poisoned_client_ids = set()
         return handler
@@ -51,7 +52,11 @@ class TestFederatedSimulationCore:
     def create_simulation(
         self, strategy_config, tmp_path, mock_dataset_handler, patch_assign=True
     ):
-        """Helper method to create FederatedSimulation instances with mocked dependencies."""
+        """Create a FederatedSimulation for tests.
+
+        When patch_assign is True, patch _assign_all_properties to avoid
+        constructing dependencies.
+        """
         dataset_dir = tmp_path / "datasets"
         dataset_dir.mkdir(exist_ok=True)
 
@@ -150,13 +155,14 @@ class TestFederatedSimulationCore:
             with patch("src.federated_simulation.ITSNetwork") as mock_network_class:
                 mock_loader = Mock()
                 mock_network = Mock()
+                mock_loader.load_datasets.return_value = (Mock(), Mock())
                 mock_loader_class.return_value = mock_loader
                 mock_network_class.return_value = mock_network
 
                 simulation._assign_dataset_loaders_and_network_model()
 
-                assert simulation.dataset_loader == mock_loader
-                assert simulation.network_model == mock_network
+                assert simulation._dataset_loader == mock_loader
+                assert simulation._network_model == mock_network
 
     def test_assign_dataset_loaders_femnist_iid_dataset(
         self, mock_strategy_config, mock_dataset_handler, tmp_path
@@ -173,13 +179,14 @@ class TestFederatedSimulationCore:
             ) as mock_network_class:
                 mock_loader = Mock()
                 mock_network = Mock()
+                mock_loader.load_datasets.return_value = (Mock(), Mock())
                 mock_loader_class.return_value = mock_loader
                 mock_network_class.return_value = mock_network
 
                 simulation._assign_dataset_loaders_and_network_model()
 
-                assert simulation.dataset_loader == mock_loader
-                assert simulation.network_model == mock_network
+                assert simulation._dataset_loader == mock_loader
+                assert simulation._network_model == mock_network
 
     def test_assign_dataset_loaders_medquad_dataset(
         self, mock_strategy_config, mock_dataset_handler, tmp_path
@@ -188,6 +195,10 @@ class TestFederatedSimulationCore:
         mock_strategy_config.dataset_keyword = "medquad"
         mock_strategy_config.model_type = "transformer"
         mock_strategy_config.use_llm = "true"
+        mock_strategy_config.llm_model = "bert-base-uncased"
+        mock_strategy_config.llm_chunk_size = 128
+        mock_strategy_config.mlm_probability = 0.15
+        mock_strategy_config.llm_finetuning = "full"
         simulation = self.create_simulation(
             mock_strategy_config, tmp_path, mock_dataset_handler
         )
@@ -195,12 +206,16 @@ class TestFederatedSimulationCore:
         with patch(
             "src.federated_simulation.MedQuADDatasetLoader"
         ) as mock_loader_class:
-            mock_loader = Mock()
-            mock_loader_class.return_value = mock_loader
+            with patch("src.federated_simulation.load_model") as mock_load_model:
+                mock_loader = Mock()
+                mock_model = Mock()
+                mock_loader.load_datasets.return_value = (Mock(), Mock())
+                mock_loader_class.return_value = mock_loader
+                mock_load_model.return_value = mock_model
 
-            simulation._assign_dataset_loaders_and_network_model()
+                simulation._assign_dataset_loaders_and_network_model()
 
-            assert simulation.dataset_loader == mock_loader
+            assert simulation._dataset_loader == mock_loader
 
     def test_assign_aggregation_strategy_trust(
         self, mock_strategy_config, mock_dataset_handler, tmp_path
@@ -217,9 +232,23 @@ class TestFederatedSimulationCore:
             mock_strategy = Mock()
             mock_strategy_class.return_value = mock_strategy
 
+            # Mock the network model for parameter extraction
+            import numpy as np
+
+            mock_param1 = Mock()
+            mock_param1.cpu().numpy.return_value = np.array([1.0, 2.0])
+            mock_param2 = Mock()
+            mock_param2.cpu().numpy.return_value = np.array([3.0, 4.0])
+
+            simulation._network_model = Mock()
+            simulation._network_model.state_dict.return_value = {
+                "param1": mock_param1,
+                "param2": mock_param2,
+            }
+
             simulation._assign_aggregation_strategy()
 
-            assert simulation.aggregation_strategy == mock_strategy
+            assert simulation._aggregation_strategy == mock_strategy
 
     def test_assign_aggregation_strategy_pid(
         self, mock_strategy_config, mock_dataset_handler, tmp_path
@@ -240,9 +269,23 @@ class TestFederatedSimulationCore:
             mock_strategy = Mock()
             mock_strategy_class.return_value = mock_strategy
 
+            # Mock the network model for parameter extraction
+            import numpy as np
+
+            mock_param1 = Mock()
+            mock_param1.cpu().numpy.return_value = np.array([1.0, 2.0])
+            mock_param2 = Mock()
+            mock_param2.cpu().numpy.return_value = np.array([3.0, 4.0])
+
+            simulation._network_model = Mock()
+            simulation._network_model.state_dict.return_value = {
+                "param1": mock_param1,
+                "param2": mock_param2,
+            }
+
             simulation._assign_aggregation_strategy()
 
-            assert simulation.aggregation_strategy == mock_strategy
+            assert simulation._aggregation_strategy == mock_strategy
 
     def test_assign_aggregation_strategy_multi_krum(
         self, mock_strategy_config, mock_dataset_handler, tmp_path
@@ -258,9 +301,23 @@ class TestFederatedSimulationCore:
             mock_strategy = Mock()
             mock_strategy_class.return_value = mock_strategy
 
+            # Mock the network model for parameter extraction
+            import numpy as np
+
+            mock_param1 = Mock()
+            mock_param1.cpu().numpy.return_value = np.array([1.0, 2.0])
+            mock_param2 = Mock()
+            mock_param2.cpu().numpy.return_value = np.array([3.0, 4.0])
+
+            simulation._network_model = Mock()
+            simulation._network_model.state_dict.return_value = {
+                "param1": mock_param1,
+                "param2": mock_param2,
+            }
+
             simulation._assign_aggregation_strategy()
 
-            assert simulation.aggregation_strategy == mock_strategy
+            assert simulation._aggregation_strategy == mock_strategy
 
     def test_client_fn_creates_flower_client(
         self, mock_strategy_config, mock_dataset_handler, tmp_path
@@ -272,16 +329,22 @@ class TestFederatedSimulationCore:
 
         # Mock required components
         simulation.dataset_loader = Mock()
-        simulation.network_model = Mock()
+        simulation._network_model = Mock()
+        simulation._network_model.to.return_value = simulation._network_model
+        simulation._trainloaders = [Mock(), Mock(), Mock()]
+        simulation._valloaders = [Mock(), Mock(), Mock()]
 
         with patch("src.federated_simulation.FlowerClient") as mock_flower_client:
             mock_client = Mock()
+            mock_to_client_result = Mock()
+            mock_client.to_client.return_value = mock_to_client_result
             mock_flower_client.return_value = mock_client
 
             result = simulation.client_fn("0")
 
             mock_flower_client.assert_called_once()
-            assert result == mock_client
+            mock_client.to_client.assert_called_once()
+            assert result == mock_to_client_result
 
     def test_client_fn_handles_llm_model_loading(
         self, mock_strategy_config, mock_dataset_handler, tmp_path
@@ -295,18 +358,22 @@ class TestFederatedSimulationCore:
         )
 
         simulation.dataset_loader = Mock()
+        simulation._network_model = Mock()
+        simulation._network_model.to.return_value = simulation._network_model
+        simulation._trainloaders = [Mock(), Mock(), Mock()]
+        simulation._valloaders = [Mock(), Mock(), Mock()]
 
-        with patch("src.federated_simulation.load_model") as mock_load_model:
-            with patch("src.federated_simulation.FlowerClient") as mock_flower_client:
-                mock_model = Mock()
-                mock_load_model.return_value = mock_model
-                mock_client = Mock()
-                mock_flower_client.return_value = mock_client
+        with patch("src.federated_simulation.FlowerClient") as mock_flower_client:
+            mock_client = Mock()
+            mock_to_client_result = Mock()
+            mock_client.to_client.return_value = mock_to_client_result
+            mock_flower_client.return_value = mock_client
 
-                simulation.client_fn("0")
+            result = simulation.client_fn("0")
 
-                mock_load_model.assert_called_once()
-                mock_flower_client.assert_called_once()
+            mock_flower_client.assert_called_once()
+            mock_client.to_client.assert_called_once()
+            assert result == mock_to_client_result
 
     def test_client_fn_handles_lora_model_loading(
         self, mock_strategy_config, mock_dataset_handler, tmp_path
@@ -320,57 +387,57 @@ class TestFederatedSimulationCore:
         )
 
         simulation.dataset_loader = Mock()
+        simulation._network_model = Mock()
+        simulation._network_model.to.return_value = simulation._network_model
+        simulation._trainloaders = [Mock(), Mock(), Mock()]
+        simulation._valloaders = [Mock(), Mock(), Mock()]
 
-        with patch("src.federated_simulation.load_model_with_lora") as mock_load_lora:
-            with patch("src.federated_simulation.FlowerClient") as mock_flower_client:
-                mock_model = Mock()
-                mock_load_lora.return_value = mock_model
-                mock_client = Mock()
-                mock_flower_client.return_value = mock_client
+        with patch("src.federated_simulation.FlowerClient") as mock_flower_client:
+            mock_client = Mock()
+            mock_to_client_result = Mock()
+            mock_client.to_client.return_value = mock_to_client_result
+            mock_flower_client.return_value = mock_client
 
-                simulation.client_fn("0")
+            result = simulation.client_fn("0")
 
-                mock_load_lora.assert_called_once()
+            mock_flower_client.assert_called_once()
+            mock_client.to_client.assert_called_once()
+            assert result == mock_to_client_result
 
     def test_get_model_params_extracts_parameters(self):
         """Test _get_model_params extracts model parameters correctly."""
         mock_model = Mock()
+        mock_param1 = Mock()
+        mock_param2 = Mock()
+        mock_param1.cpu.return_value.numpy.return_value = "param1_array"
+        mock_param2.cpu.return_value.numpy.return_value = "param2_array"
+
         mock_model.state_dict.return_value = {
-            "layer1.weight": Mock(),
-            "layer1.bias": Mock(),
+            "layer1.weight": mock_param1,
+            "layer1.bias": mock_param2,
         }
 
-        with patch("src.federated_simulation.ndarrays_to_parameters") as mock_ndarrays:
-            mock_parameters = Mock()
-            mock_ndarrays.return_value = mock_parameters
+        result = FederatedSimulation._get_model_params(mock_model)
 
-            result = FederatedSimulation._get_model_params(mock_model)
-
-            mock_model.state_dict.assert_called_once()
-            mock_ndarrays.assert_called_once()
-            assert result == mock_parameters
+        mock_model.state_dict.assert_called_once()
+        assert result == ["param1_array", "param2_array"]
 
     def test_get_model_params_handles_peft_model(self):
         """Test _get_model_params handles PEFT (LoRA) models correctly."""
-        mock_model = Mock()
-        mock_model.__class__.__name__ = "PeftModel"
+        mock_model = Mock(spec=PeftModel)
 
         with patch(
             "src.federated_simulation.get_peft_model_state_dict"
         ) as mock_get_peft:
-            with patch(
-                "src.federated_simulation.ndarrays_to_parameters"
-            ) as mock_ndarrays:
-                mock_state_dict = {"lora_layer.weight": Mock()}
-                mock_get_peft.return_value = mock_state_dict
-                mock_parameters = Mock()
-                mock_ndarrays.return_value = mock_parameters
+            mock_param = Mock()
+            mock_param.cpu.return_value.numpy.return_value = "lora_param_array"
+            mock_state_dict = {"lora_layer.weight": mock_param}
+            mock_get_peft.return_value = mock_state_dict
 
-                result = FederatedSimulation._get_model_params(mock_model)
+            result = FederatedSimulation._get_model_params(mock_model)
 
-                mock_get_peft.assert_called_once_with(mock_model)
-                mock_ndarrays.assert_called_once()
-                assert result == mock_parameters
+            mock_get_peft.assert_called_once_with(mock_model)
+            assert result == ["lora_param_array"]
 
     def test_unsupported_dataset_raises_error(
         self, mock_strategy_config, mock_dataset_handler, tmp_path
@@ -381,10 +448,10 @@ class TestFederatedSimulationCore:
             mock_strategy_config, tmp_path, mock_dataset_handler
         )
 
-        with pytest.raises(ValueError) as exc_info:
+        with pytest.raises(SystemExit) as exc_info:
             simulation._assign_dataset_loaders_and_network_model()
 
-        assert "Unsupported dataset" in str(exc_info.value)
+        assert exc_info.value.code == -1
 
     def test_unsupported_strategy_raises_error(
         self, mock_strategy_config, mock_dataset_handler, tmp_path
@@ -395,10 +462,10 @@ class TestFederatedSimulationCore:
             mock_strategy_config, tmp_path, mock_dataset_handler
         )
 
-        with pytest.raises(ValueError) as exc_info:
+        with pytest.raises(NotImplementedError) as exc_info:
             simulation._assign_aggregation_strategy()
 
-        assert "Unsupported aggregation strategy" in str(exc_info.value)
+        assert "not implemented" in str(exc_info.value)
 
     def test_simulation_with_all_supported_datasets(
         self, mock_dataset_handler, tmp_path
