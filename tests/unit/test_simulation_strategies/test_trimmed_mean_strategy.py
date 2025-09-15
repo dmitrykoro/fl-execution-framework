@@ -16,6 +16,8 @@ from src.simulation_strategies.trimmed_mean_based_removal_strategy import (
     TrimmedMeanBasedRemovalStrategy,
 )
 
+from tests.conftest import generate_mock_client_data
+
 
 class TestTrimmedMeanBasedRemovalStrategy:
     """Test cases for TrimmedMeanBasedRemovalStrategy."""
@@ -39,29 +41,8 @@ class TestTrimmedMeanBasedRemovalStrategy:
 
     @pytest.fixture
     def mock_client_results(self):
-        """Create mock client results for testing."""
-        results = []
-        np.random.seed(42)  # For reproducible tests
-
-        for i in range(10):
-            client_proxy = Mock(spec=ClientProxy)
-            client_proxy.cid = str(i)
-
-            # Create mock parameters with different magnitudes
-            if i < 2:  # Outliers with large values
-                mock_params = [np.random.randn(5, 3) * 10, np.random.randn(3) * 10]
-            elif i >= 8:  # Outliers with small values
-                mock_params = [np.random.randn(5, 3) * 0.1, np.random.randn(3) * 0.1]
-            else:  # Normal clients
-                mock_params = [np.random.randn(5, 3), np.random.randn(3)]
-
-            fit_res = Mock(spec=FitRes)
-            fit_res.parameters = ndarrays_to_parameters(mock_params)
-            fit_res.num_examples = 100
-
-            results.append((client_proxy, fit_res))
-
-        return results
+        """Generate mock client results for testing."""
+        return generate_mock_client_data(num_clients=10)
 
     def test_initialization(self, trimmed_mean_strategy, mock_strategy_history):
         """Test TrimmedMeanBasedRemovalStrategy initialization."""

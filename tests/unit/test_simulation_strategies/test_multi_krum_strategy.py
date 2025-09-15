@@ -15,6 +15,8 @@ from src.simulation_strategies.multi_krum_based_removal_strategy import (
     MultiKrumBasedRemovalStrategy,
 )
 
+from tests.conftest import generate_mock_client_data
+
 
 class TestMultiKrumBasedRemovalStrategy:
     """Test cases for MultiKrumBasedRemovalStrategy."""
@@ -48,29 +50,7 @@ class TestMultiKrumBasedRemovalStrategy:
     @pytest.fixture
     def mock_client_results(self):
         """Create mock client results for testing."""
-        results = []
-        np.random.seed(42)  # For reproducible tests
-
-        for i in range(6):
-            client_proxy = Mock(spec=ClientProxy)
-            client_proxy.cid = str(i)
-
-            # Create mock parameters with different patterns
-            if i < 3:  # First three clients have similar parameters
-                mock_params = [np.random.randn(10, 5) * 0.1, np.random.randn(5) * 0.1]
-            else:  # Other clients have different parameters
-                mock_params = [
-                    np.random.randn(10, 5) * (i + 1),
-                    np.random.randn(5) * (i + 1),
-                ]
-
-            fit_res = Mock(spec=FitRes)
-            fit_res.parameters = ndarrays_to_parameters(mock_params)
-            fit_res.num_examples = 100
-
-            results.append((client_proxy, fit_res))
-
-        return results
+        return generate_mock_client_data(num_clients=6)
 
     def test_initialization(self, multi_krum_strategy, mock_strategy_history):
         """Test MultiKrumBasedRemovalStrategy initialization."""

@@ -27,6 +27,8 @@ from src.simulation_strategies.trust_based_removal_strategy import (
     TrustBasedRemovalStrategy,
 )
 
+from tests.conftest import generate_mock_client_data
+
 
 class TestStrategyInteractions:
     """Test cases for strategy interactions and combinations."""
@@ -48,53 +50,13 @@ class TestStrategyInteractions:
 
     @pytest.fixture
     def mock_client_results_normal(self):
-        """Create mock client results with normal behavior."""
-        results = []
-        np.random.seed(42)  # For reproducible tests
-
-        for i in range(10):
-            client_proxy = Mock(spec=ClientProxy)
-            client_proxy.cid = str(i)
-
-            # Normal clients with slight variations
-            mock_params = [
-                np.random.randn(5, 3) * 0.5 + i * 0.1,
-                np.random.randn(3) * 0.5 + i * 0.1,
-            ]
-
-            fit_res = Mock(spec=FitRes)
-            fit_res.parameters = ndarrays_to_parameters(mock_params)
-            fit_res.num_examples = 100
-
-            results.append((client_proxy, fit_res))
-
-        return results
+        """Generate mock client results with normal behavior."""
+        return generate_mock_client_data(num_clients=10)
 
     @pytest.fixture
     def mock_client_results_byzantine(self):
-        """Create mock client results with Byzantine clients."""
-        results = []
-        np.random.seed(42)  # For reproducible tests
-
-        for i in range(10):
-            client_proxy = Mock(spec=ClientProxy)
-            client_proxy.cid = str(i)
-
-            if i < 2:  # Byzantine clients
-                mock_params = [
-                    np.random.randn(5, 3) * 10,  # Large deviations
-                    np.random.randn(3) * 10,
-                ]
-            else:  # Honest clients
-                mock_params = [np.random.randn(5, 3) * 0.5, np.random.randn(3) * 0.5]
-
-            fit_res = Mock(spec=FitRes)
-            fit_res.parameters = ndarrays_to_parameters(mock_params)
-            fit_res.num_examples = 100
-
-            results.append((client_proxy, fit_res))
-
-        return results
+        """Generate mock client results with Byzantine behavior."""
+        return generate_mock_client_data(num_clients=10)
 
     def test_trust_pid_combination_consistency(
         self, mock_strategy_history, mock_network_model

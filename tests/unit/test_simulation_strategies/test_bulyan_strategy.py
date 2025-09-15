@@ -13,6 +13,8 @@ from flwr.server.client_proxy import ClientProxy
 from src.data_models.simulation_strategy_history import SimulationStrategyHistory
 from src.simulation_strategies.bulyan_strategy import BulyanStrategy
 
+from tests.conftest import generate_mock_client_data
+
 
 class TestBulyanStrategy:
     """Test cases for BulyanStrategy."""
@@ -36,28 +38,8 @@ class TestBulyanStrategy:
 
     @pytest.fixture
     def mock_client_results(self):
-        """Create mock client results for testing Bulyan algorithm."""
-        results = []
-        np.random.seed(42)  # For reproducible tests
-
-        # Create 15 clients for proper Bulyan testing (n=15, f=4, C=6)
-        for i in range(15):
-            client_proxy = Mock(spec=ClientProxy)
-            client_proxy.cid = str(i)
-
-            # Create mock parameters with some variation
-            if i < 2:  # Potential Byzantine clients
-                mock_params = [np.random.randn(5, 3) * 3, np.random.randn(3) * 3]
-            else:  # Honest clients
-                mock_params = [np.random.randn(5, 3), np.random.randn(3)]
-
-            fit_res = Mock(spec=FitRes)
-            fit_res.parameters = ndarrays_to_parameters(mock_params)
-            fit_res.num_examples = 100
-
-            results.append((client_proxy, fit_res))
-
-        return results
+        """Generate mock client results for testing."""
+        return generate_mock_client_data(num_clients=15)
 
     def test_initialization(self, bulyan_strategy, mock_strategy_history):
         """Test BulyanStrategy initialization."""
