@@ -279,9 +279,9 @@ This guide helps student researchers add tests when extending the federated lear
 2. **Learn Byzantine attack patterns** - How to test attack resistance
 3. **Test complex scenarios** - Multiple clients, different attack types
 
-## 🧠 Testing Fundamentals (For Developers New to Testing)
+## 🧠 Testing Fundamentals
 
-### ❓ What is Testing? (The Basics)
+### ❓ What is Testing?
 
 **Testing is asking the question**: "Does my code actually work the way I think it does?"
 
@@ -883,7 +883,7 @@ flake8 --ignore=E501,W503,E203 tests/unit/test_simulation_strategies/test_your_s
 isort tests/unit/test_simulation_strategies/test_your_strategy.py
 ```
 
-## 🚨 Common Beginner Mistakes (Fix These First!)
+## 🚨 Common Beginner Mistakes
 
 ### 1️⃣ Wrong Directory
 

@@ -231,22 +231,22 @@ Testing revealed several issues that could lead to runtime errors. These have be
 
 ### ✅ **Key Outcomes:**
 
-1. **Core functionality is preserved** - all experiments and results are unchanged.
-2. **The codebase is more resilient** - it handles edge cases better and crashes less.
-3. **The code is now fully testable** - to catch bugs before they affect research.
-4. **Code quality is improved** through adherence to Python standards.
+1. 🛡️ **Core functionality is preserved** - all experiments and results are unchanged
+2. 🔧 **The codebase is more resilient** - it handles edge cases better and crashes less
+3. 🗺️ **The code is now fully testable** - to catch bugs before they affect research
+4. 📈 **Code quality is improved** through adherence to Python standards
 
 ### 📝 **Developer Guidance:**
 
-1. **Use absolute imports** for new modules: `from src.module_name import ...`
-2. **Add `__init__.py` files** to new `src/` subdirectories.
-3. **A test suite is available.** Run `pytest` to validate changes.
+1. 📦 **Use absolute imports** for new modules: `from src.module_name import ...`
+2. 📁 **Add `__init__.py` files** to new `src/` subdirectories
+3. 🗺️ **A test suite is available** - Run `pytest` to validate changes
 
 ### 🚀 **Recommended Workflow:**
 
-1. **Validate changes:** Run `pytest tests/` to catch regressions.
-2. **Ensure stability:** The tests help ensure that new contributions do not break existing functionality.
-3. **Accelerate research:** Reduce debugging time and focus on federated learning experiments.
+1. ✅ **Validate changes:** Run `pytest tests/` to catch regressions
+2. 🛡️ **Ensure stability:** Tests help ensure new contributions do not break existing functionality
+3. 🚀 **Accelerate research:** Reduce debugging time and focus on federated learning experiments
 
 ---
 

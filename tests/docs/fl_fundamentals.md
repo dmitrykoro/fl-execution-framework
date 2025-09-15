@@ -1,6 +1,6 @@
-# Federated Learning Fundamentals
+# 🧠 Federated Learning Fundamentals
 
-A comprehensive guide to understanding federated learning concepts, challenges, and the defensive strategies implemented in this framework.
+Understanding federated learning concepts, challenges, and defensive strategies implemented in this framework.
 
 ---
 
@@ -27,10 +27,10 @@ Local training   Aggregates        Local training
 
 ### 🎯 Key Motivations
 
-1. **Privacy**: Sensitive data never leaves client devices
-2. **Bandwidth**: Sharing model parameters is more efficient than sharing datasets
-3. **Regulatory Compliance**: Meets data protection requirements (GDPR, HIPAA)
-4. **Edge Computing**: Enables learning on resource-constrained devices
+1. 🔒 **Privacy**: Sensitive data never leaves client devices
+2. 📡 **Bandwidth**: Sharing model parameters is more efficient than sharing datasets
+3. ⚖️ **Regulatory Compliance**: Meets data protection requirements (GDPR, HIPAA)
+4. 💾 **Edge Computing**: Enables learning on resource-constrained devices
 
 ---
 
@@ -38,13 +38,13 @@ Local training   Aggregates        Local training
 
 ### 📋 The FL Training Process
 
-1. **Initialization**: Central server creates initial global model
-2. **Distribution**: Server sends current model to selected clients
-3. **Local Training**: Each client trains model on their local data
-4. **Update Collection**: Clients send parameter updates back to server
-5. **Aggregation**: Server combines updates using aggregation strategy
-6. **Model Update**: New global model created from aggregated updates
-7. **Repeat**: Process continues for multiple rounds until convergence
+1. 🚀 **Initialization**: Central server creates initial global model
+2. 📤 **Distribution**: Server sends current model to selected clients
+3. 🏋️ **Local Training**: Each client trains model on their local data
+4. 📥 **Update Collection**: Clients send parameter updates back to server
+5. 🔄 **Aggregation**: Server combines updates using aggregation strategy
+6. 🔧 **Model Update**: New global model created from aggregated updates
+7. 🔁 **Repeat**: Process continues for multiple rounds until convergence
 
 ### 🔄 Round-by-Round Example
 
