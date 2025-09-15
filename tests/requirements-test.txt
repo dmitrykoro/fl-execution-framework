@@ -1,0 +1,16 @@
+pytest==8.3.3
+pytest-cov==5.0.0
+pytest-mock==3.14.0
+pytest-xdist==3.5.0
+
+numpy==1.26.4
+torch==2.6.0
+torchvision==0.21.0
+flwr==1.9.0
+peft==0.17.1
+transformers==4.56.1
+datasets==2.20.0
+
+matplotlib==3.5.2
+jsonschema==4.22.0
+pillow==10.4.0
