@@ -4,12 +4,14 @@ Global pytest configuration and fixtures for federated learning simulation tests
 
 import json
 import os
-import shutil
 from pathlib import Path
 from typing import Any, Dict, List
+from unittest.mock import Mock
 
 import numpy as np
 import pytest
+from flwr.common import FitRes, ndarrays_to_parameters
+from flwr.server.client_proxy import ClientProxy
 
 from tests.fixtures.mock_datasets import (
     MockDataset,
@@ -39,45 +41,6 @@ os.environ["OMP_NUM_THREADS"] = "1"  # Limit OpenMP threads
 
 
 @pytest.fixture
-def sample_trust_config() -> Dict[str, Any]:
-    """Sample configuration for trust-based strategy testing."""
-    return {
-        "aggregation_strategy_keyword": "trust",
-        "num_of_rounds": 5,
-        "num_of_clients": 10,
-        "trust_threshold": 0.7,
-        "beta_value": 0.5,
-        "begin_removing_from_round": 2,
-    }
-
-
-@pytest.fixture
-def sample_pid_config() -> Dict[str, Any]:
-    """Sample configuration for PID-based strategy testing."""
-    return {
-        "aggregation_strategy_keyword": "pid",
-        "num_of_rounds": 3,
-        "num_of_clients": 8,
-        "Kp": 1.0,
-        "Ki": 0.1,
-        "Kd": 0.01,
-        "begin_removing_from_round": 1,
-    }
-
-
-@pytest.fixture
-def sample_krum_config() -> Dict[str, Any]:
-    """Sample configuration for Krum-based strategy testing."""
-    return {
-        "aggregation_strategy_keyword": "krum",
-        "num_of_rounds": 4,
-        "num_of_clients": 12,
-        "num_krum_selections": 8,
-        "begin_removing_from_round": 1,
-    }
-
-
-@pytest.fixture
 def sample_dataset_config() -> Dict[str, str]:
     """Sample dataset configuration mapping."""
     return {
@@ -94,36 +57,8 @@ def sample_dataset_config() -> Dict[str, str]:
 @pytest.fixture
 def mock_client_parameters() -> List[np.ndarray]:
     """Generate mock client parameters for testing."""
-    np.random.seed(42)  # For reproducible tests
-    return [np.random.randn(100) for _ in range(5)]
-
-
-@pytest.fixture
-def mock_client_metrics() -> Dict[int, Dict[str, List[float]]]:
-    """Generate mock client metrics for testing."""
     np.random.seed(42)
-    return {
-        client_id: {
-            "loss": np.random.rand(3).tolist(),
-            "accuracy": np.random.rand(3).tolist(),
-        }
-        for client_id in range(5)
-    }
-
-
-@pytest.fixture
-def temp_config_file(tmp_path: Path) -> Path:
-    """Create a temporary configuration file for testing."""
-    config_data = {
-        "aggregation_strategy_keyword": "trust",
-        "num_of_rounds": 3,
-        "num_of_clients": 5,
-        "trust_threshold": 0.8,
-    }
-    config_file = tmp_path / "test_config.json"
-    with open(config_file, "w") as f:
-        json.dump(config_data, f)
-    return config_file
+    return [np.random.randn(100) for _ in range(5)]
 
 
 @pytest.fixture
@@ -212,7 +147,7 @@ def mock_strategy_configs() -> Dict[str, Dict[str, Any]]:
 
 
 # Test utilities
-def assert_strategy_config_valid(config: Dict[str, Any]) -> None:
+def _assert_strategy_config_valid(config: Dict[str, Any]) -> None:
     """Assert that a strategy configuration is valid."""
     assert "aggregation_strategy_keyword" in config
     assert "num_of_rounds" in config
@@ -278,14 +213,6 @@ def mock_byzantine_parameters() -> List[np.ndarray]:
 
 
 @pytest.fixture
-def temp_output_dir(tmp_path: Path) -> Path:
-    """Create a temporary output directory for testing."""
-    output_dir = tmp_path / "output"
-    output_dir.mkdir()
-    return output_dir
-
-
-@pytest.fixture
 def mock_output_directory(tmp_path, monkeypatch):
     """Create proper output directory structure for tests and mock DirectoryHandler."""
     output_dir = tmp_path / "out" / "test_run"
@@ -299,21 +226,6 @@ def mock_output_directory(tmp_path, monkeypatch):
     )
 
     return output_dir
-
-
-@pytest.fixture
-def mock_simulation_config() -> Dict[str, Any]:
-    """Complete simulation configuration for integration testing."""
-    return {
-        "aggregation_strategy_keyword": "trust",
-        "num_of_rounds": 3,
-        "num_of_clients": 5,
-        "trust_threshold": 0.7,
-        "beta_value": 0.5,
-        "begin_removing_from_round": 1,
-        "dataset_keyword": "its",
-        "output_dir": "/tmp/test_output",
-    }
 
 
 @pytest.fixture(params=["trust", "pid", "krum", "multi-krum", "trimmed_mean"])
@@ -333,7 +245,7 @@ def dataset_type(request) -> str:
 # Test utilities and helper functions
 
 
-def generate_mock_client_data(
+def _generate_mock_client_data(
     num_clients: int, data_size: int = 100
 ) -> List[np.ndarray]:
     """Generate mock client data for testing."""
@@ -341,14 +253,14 @@ def generate_mock_client_data(
     return [np.random.randn(data_size) for _ in range(num_clients)]
 
 
-def assert_client_info_consistent(client_info) -> None:
+def _assert_client_info_consistent(client_info) -> None:
     """Assert that client info maintains data consistency."""
     assert hasattr(client_info, "loss_history")
     assert hasattr(client_info, "accuracy_history")
     assert len(client_info.loss_history) == len(client_info.accuracy_history)
 
 
-def assert_parameters_shape_match(
+def _assert_parameters_shape_match(
     params1: List[np.ndarray], params2: List[np.ndarray]
 ) -> None:
     """Assert that two parameter lists have matching shapes."""
@@ -389,26 +301,7 @@ def temp_simulation_dir(tmp_path: Path) -> Path:
     return sim_dir
 
 
-@pytest.fixture
-def cleanup_temp_files():
-    """Fixture to ensure temporary files are cleaned up after tests."""
-    temp_files = []
-
-    def register_temp_file(filepath: Path):
-        temp_files.append(filepath)
-
-    yield register_temp_file
-
-    # Cleanup
-    for filepath in temp_files:
-        if filepath.exists():
-            if filepath.is_file():
-                filepath.unlink()
-            elif filepath.is_dir():
-                shutil.rmtree(filepath)
-
-
-def create_temp_config_file(tmp_path: Path, config_data: Dict[str, Any]) -> Path:
+def _create_temp_config_file(tmp_path: Path, config_data: Dict[str, Any]) -> Path:
     """Create a temporary configuration file with given data."""
     config_file = tmp_path / "config.json"
     with open(config_file, "w") as f:
@@ -494,3 +387,37 @@ class MockStrategy:
     def aggregate_evaluate(self, results):
         """Mock aggregate evaluate method."""
         return None, {}
+
+
+@pytest.fixture
+def mock_client_results():
+    """Create a function that generates mock client results for testing."""
+
+    def _create_mock_client_results(num_clients: int = 5):
+        """Generate mock client results with specified number of clients."""
+        results = []
+        np.random.seed(42)  # For reproducible tests
+
+        for i in range(num_clients):
+            client_proxy = Mock(spec=ClientProxy)
+            client_proxy.cid = str(i)
+
+            # Create mock parameters with different patterns
+            if i < 2:  # First two clients have similar parameters
+                mock_params = [np.random.randn(10, 5) * 0.1, np.random.randn(5) * 0.1]
+            else:  # Other clients have different parameters
+                mock_params = [
+                    np.random.randn(10, 5) * (i + 1),
+                    np.random.randn(5) * (i + 1),
+                ]
+
+            fit_res = Mock(spec=FitRes)
+            fit_res.parameters = ndarrays_to_parameters(mock_params)
+            fit_res.num_examples = 100
+            fit_res.metrics = {"accuracy": 0.8 + i * 0.01, "loss": 0.5 - i * 0.02}
+
+            results.append((client_proxy, fit_res))
+
+        return results
+
+    return _create_mock_client_results

@@ -37,24 +37,6 @@ class TestTrustBasedRemovalStrategy:
             fraction_evaluate=1.0,
         )
 
-    @pytest.fixture
-    def mock_client_results(self):
-        """Create mock client results for testing."""
-        results = []
-        for i in range(5):
-            client_proxy = Mock(spec=ClientProxy)
-            client_proxy.cid = str(i)
-
-            # Create mock parameters
-            mock_params = [np.random.randn(10, 5), np.random.randn(5)]
-            fit_res = Mock(spec=FitRes)
-            fit_res.parameters = ndarrays_to_parameters(mock_params)
-            fit_res.num_examples = 100
-
-            results.append((client_proxy, fit_res))
-
-        return results
-
     def test_initialization(self, trust_strategy, mock_strategy_history):
         """Test TrustBasedRemovalStrategy initialization."""
         assert trust_strategy.remove_clients is True
@@ -224,7 +206,7 @@ class TestTrustBasedRemovalStrategy:
             ) as mock_parent_aggregate:
                 mock_parent_aggregate.return_value = (Mock(), {})
 
-                trust_strategy.aggregate_fit(1, mock_client_results, [])
+                trust_strategy.aggregate_fit(1, mock_client_results(), [])
 
                 # Verify clustering was called
                 mock_kmeans.assert_called_once()
@@ -256,7 +238,7 @@ class TestTrustBasedRemovalStrategy:
 
             mock_parent_aggregate.return_value = (Mock(), {})
 
-            trust_strategy.aggregate_fit(1, mock_client_results, [])
+            trust_strategy.aggregate_fit(1, mock_client_results(), [])
 
             # Verify trust scores were calculated for all clients
             assert len(trust_strategy.client_reputations) == 5
@@ -469,7 +451,7 @@ class TestTrustBasedRemovalStrategy:
 
             mock_parent_aggregate.return_value = (Mock(), {})
 
-            trust_strategy.aggregate_fit(1, mock_client_results, [])
+            trust_strategy.aggregate_fit(1, mock_client_results(), [])
 
             # Verify strategy history methods were called
             assert (

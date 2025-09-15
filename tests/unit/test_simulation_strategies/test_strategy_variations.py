@@ -8,10 +8,7 @@ Verifies each strategy's specific behavior across different configurations.
 import importlib
 from unittest.mock import Mock, patch
 
-import numpy as np
 import pytest
-from flwr.common import FitRes, ndarrays_to_parameters
-from flwr.server.client_proxy import ClientProxy
 from src.data_models.simulation_strategy_history import SimulationStrategyHistory
 from src.simulation_strategies.krum_based_removal_strategy import (
     KrumBasedRemovalStrategy,
@@ -34,32 +31,6 @@ class TestStrategyVariations:
     def mock_network_model(self):
         """Create mock network model."""
         return Mock()
-
-    @pytest.fixture
-    def mock_client_results(self):
-        """Create mock client results for testing."""
-
-        def _create_results(num_clients):
-            results = []
-            for i in range(num_clients):
-                client_proxy = Mock(spec=ClientProxy)
-                client_proxy.cid = str(i)
-
-                # Create mock parameters with consistent shapes
-                mock_params = [
-                    np.random.randn(10, 5),  # Weight matrix
-                    np.random.randn(5),  # Bias vector
-                ]
-                fit_res = Mock(spec=FitRes)
-                fit_res.parameters = ndarrays_to_parameters(mock_params)
-                fit_res.num_examples = 100
-                fit_res.metrics = {}
-
-                results.append((client_proxy, fit_res))
-
-            return results
-
-        return _create_results
 
     @pytest.fixture
     def krum_fit_metrics_fn(self):

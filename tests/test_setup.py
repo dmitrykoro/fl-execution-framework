@@ -10,10 +10,10 @@ def test_pytest_working():
     assert True
 
 
-def test_fixtures_available(sample_trust_config):
+def test_fixtures_available(mock_strategy_configs):
     """Test that global fixtures are available."""
-    assert "aggregation_strategy_keyword" in sample_trust_config
-    assert sample_trust_config["aggregation_strategy_keyword"] == "trust"
+    assert "trust" in mock_strategy_configs
+    assert mock_strategy_configs["trust"]["aggregation_strategy_keyword"] == "trust"
 
 
 @pytest.mark.unit
@@ -29,6 +29,6 @@ class TestSetupValidation:
         """Test that pytest can discover test classes."""
         assert True
 
-    def test_fixture_injection(self, sample_pid_config):
+    def test_fixture_injection(self, mock_strategy_configs):
         """Test fixture injection in test classes."""
-        assert sample_pid_config["aggregation_strategy_keyword"] == "pid"
+        assert mock_strategy_configs["pid"]["aggregation_strategy_keyword"] == "pid"
