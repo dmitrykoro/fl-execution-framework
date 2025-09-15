@@ -9,7 +9,21 @@ import torch
 import torch.nn as nn
 
 
-class MockNetwork(nn.Module):
+class MockBaseNetwork(nn.Module):
+    """Base class for mock networks with common parameter handling."""
+
+    def get_parameters(self) -> List[np.ndarray]:
+        """Get model parameters as numpy arrays."""
+        return [param.detach().numpy() for param in self.parameters()]
+
+    def set_parameters(self, parameters: List[np.ndarray]) -> None:
+        """Set model parameters from numpy arrays."""
+        params_dict = zip(self.parameters(), parameters)
+        for param, new_param in params_dict:
+            param.data = torch.tensor(new_param, dtype=param.dtype)
+
+
+class MockNetwork(MockBaseNetwork):
     """Lightweight mock network for testing without actual training."""
 
     def __init__(self, num_classes: int = 10, input_size: int = 3072):
@@ -39,18 +53,8 @@ class MockNetwork(nn.Module):
             x = x.view(x.size(0), -1)
         return self.fc(x)
 
-    def get_parameters(self) -> List[np.ndarray]:
-        """Get model parameters as numpy arrays."""
-        return [param.detach().numpy() for param in self.parameters()]
 
-    def set_parameters(self, parameters: List[np.ndarray]) -> None:
-        """Set model parameters from numpy arrays."""
-        params_dict = zip(self.parameters(), parameters)
-        for param, new_param in params_dict:
-            param.data = torch.tensor(new_param, dtype=param.dtype)
-
-
-class MockCNNNetwork(nn.Module):
+class MockCNNNetwork(MockBaseNetwork):
     """Mock CNN network for image classification tasks."""
 
     def __init__(self, num_classes: int = 10, input_channels: int = 3):
@@ -92,16 +96,6 @@ class MockCNNNetwork(nn.Module):
         x = x.view(x.size(0), -1)
         x = self.fc(x)
         return x
-
-    def get_parameters(self) -> List[np.ndarray]:
-        """Get model parameters as numpy arrays."""
-        return [param.detach().numpy() for param in self.parameters()]
-
-    def set_parameters(self, parameters: List[np.ndarray]) -> None:
-        """Set model parameters from numpy arrays."""
-        params_dict = zip(self.parameters(), parameters)
-        for param, new_param in params_dict:
-            param.data = torch.tensor(new_param, dtype=param.dtype)
 
 
 class MockFlowerClient:
