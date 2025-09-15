@@ -11,7 +11,7 @@
 
 ### 📚 Testing Fundamentals
 
-- [Testing Fundamentals (For Developers New to Testing)](#-testing-fundamentals-for-developers-new-to-testing)
+- [Testing Fundamentals](#-testing-fundamentals)
 - [The AAA Pattern (Your New Best Friend)](#-the-aaa-pattern-your-new-best-friend)
 - [Understanding Assertions (The Heart of Testing)](#️-understanding-assertions-the-heart-of-testing)
 - [Mock Data: Why We Don't Use Real Data](#-mock-data-why-we-dont-use-real-data)
@@ -27,7 +27,7 @@
 
 - [Running Your Tests](#-running-your-tests)
 - [Testing Best Practices](#-testing-best-practices)
-- [Common Beginner Mistakes (Fix These First!)](#-common-beginner-mistakes-fix-these-first)
+- [Common Beginner Mistakes](#-common-beginner-mistakes)
 - [Common Testing Pitfalls](#️-common-testing-pitfalls)
 - [Troubleshooting Common Issues](#-troubleshooting-common-issues)
 - [Getting Help](#-getting-help)
