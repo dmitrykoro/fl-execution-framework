@@ -4,6 +4,7 @@ Global pytest configuration and fixtures for federated learning simulation tests
 
 import json
 import os
+import shutil
 from pathlib import Path
 from typing import Any, Dict, List
 
@@ -404,8 +405,6 @@ def cleanup_temp_files():
             if filepath.is_file():
                 filepath.unlink()
             elif filepath.is_dir():
-                import shutil
-
                 shutil.rmtree(filepath)
 
 
