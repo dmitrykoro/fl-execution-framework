@@ -292,18 +292,17 @@ def create_mock_aggregated_parameters(
     num_clients = len(client_parameters)
 
     if weights is None:
-        weights = [1.0 / num_clients] * num_clients
+        weights = np.ones(num_clients) / num_clients
+    else:
+        weights = np.array(weights)
 
-    # Initialize aggregated parameters
+    # Vectorized aggregation for better performance
     aggregated = []
-
     for param_idx in range(len(client_parameters[0])):
-        # Weighted average of parameters
-        weighted_sum = np.zeros_like(client_parameters[0][param_idx])
-
-        for client_idx, client_params in enumerate(client_parameters):
-            weighted_sum += weights[client_idx] * client_params[param_idx]
-
-        aggregated.append(weighted_sum)
+        param_stack = np.stack(
+            [client_params[param_idx] for client_params in client_parameters]
+        )
+        weighted_avg = np.average(param_stack, axis=0, weights=weights)
+        aggregated.append(weighted_avg)
 
     return aggregated
