@@ -41,19 +41,19 @@
 ## ⚡ Quick Command Reference (Copy & Paste These!)
 
 ```bash
-# Essential commands for beginners (use "python3" if "python" doesn't work):
+# Core commands (use "python3" if "python" doesn't work):
 python tests/validate_coverage_setup.py                          # Validate test suite setup
 python -m pytest --version                                       # Check pytest works
-python -m pytest tests/unit/test_data_models/ --no-cov -v       # Run simple existing tests
+python -m pytest tests/unit/test_data_models/ --no-cov -v       # Run unit tests
 pwd                                                               # Verify you're in project root
-python -m pytest tests/unit/test_my_first_test.py --no-cov -v -s # Run YOUR tutorial test (after creating it)
+python -m pytest tests/unit/test_my_first_test.py --no-cov -v -s # Run tutorial test (after creating it)
 ```
 
 ## 🚀 Quick Start for New Developers
 
 ### 📎 Prerequisites
 
-1. **Environment Setup**: Ensure you have Python 3.10+ and virtual environment activated
+1. **Environment Setup**: Python 3.10+ and virtual environment activated
 2. **Test Suite Validation**: Run `python tests/validate_coverage_setup.py` to verify setup
 3. **Test Familiarity**: Basic knowledge of pytest and Python testing
 4. **Framework Understanding**: Read `tests/docs/README.md` for architecture overview
@@ -106,13 +106,13 @@ cd ../..
 
 #### 4️⃣ Write Your First Test
 
-Open `tests/unit/test_my_first_test.py` and copy this EXACT code:
+Open `tests/unit/test_my_first_test.py` and copy this code:
 
 ```python
 """My first test - learning the framework step by step."""
 
 import pytest
-from tests.fixtures.mock_datasets import generate_mock_client_parameters
+from tests.conftest import generate_mock_client_data
 
 
 class TestMyFirstExperience:
@@ -121,17 +121,17 @@ class TestMyFirstExperience:
     def test_framework_is_working(self):
         """Test 1: Verify I can generate mock data."""
         # STEP 1: Generate some fake client data
-        client_params = generate_mock_client_parameters(num_clients=3, param_size=100)
+        client_results = generate_mock_client_data(num_clients=3)
 
-        # STEP 2: Check what we got
-        print(f"\n🔍 Generated data for {len(client_params)} clients")
-        print(f"🔍 Each client has {len(client_params[0])} parameters")
-        print(f"🔍 First parameter shape: {client_params[0][0].shape}")
+        # STEP 2: Check what we got (client_results contains (ClientProxy, FitRes) tuples)
+        print(f"\n🔍 Generated data for {len(client_results)} clients")
+        print(f"🔍 First client ID: {client_results[0][0].cid}")
+        print(f"🔍 Client has FitRes with parameters and metrics")
 
         # STEP 3: Make assertions (these MUST be true for test to pass)
-        assert len(client_params) == 3, "Should have exactly 3 clients"
-        assert len(client_params[0]) == 2, "Each client should have 2 parameter arrays"
-        assert client_params[0][0].shape == (10, 5), "First layer should be 10x5"
+        assert len(client_results) == 3, "Should have exactly 3 clients"
+        assert hasattr(client_results[0][1], 'parameters'), "Should have parameters"
+        assert hasattr(client_results[0][1], 'num_examples'), "Should have num_examples"
 
         print("✅ Test passed! Framework is working correctly.")
 
@@ -156,22 +156,21 @@ class TestMyFirstExperience:
     def test_learning_mock_data(self):
         """Test 3: Understand what mock data looks like."""
         # Generate mock data for federated learning
-        params = generate_mock_client_parameters(num_clients=2, param_size=50)
+        client_results = generate_mock_client_data(num_clients=2)
 
-        # Let's inspect the data structure
-        client_1_params = params[0]  # First client's parameters
-        client_2_params = params[1]  # Second client's parameters
+        # Let's inspect the data structure (client_results = [(ClientProxy, FitRes), ...])
+        client_proxy_1, fit_res_1 = client_results[0]  # First client's data
+        client_proxy_2, fit_res_2 = client_results[1]  # Second client's data
 
-        print(f"\n📊 Client 1 has {len(client_1_params)} parameter arrays")
-        print(f"📊 Array 1 shape: {client_1_params[0].shape}")
-        print(f"📊 Array 2 shape: {client_1_params[1].shape}")
-        print(f"📊 Array 1 sample values: {client_1_params[0][0][:3]}")
+        print(f"\n📊 Client 1 ID: {client_proxy_1.cid}")
+        print(f"📊 Client 1 examples: {fit_res_1.num_examples}")
+        print(f"📊 Client 1 has metrics: {fit_res_1.metrics}")
 
-        # Key understanding: Each client has multiple parameter arrays
-        # (representing different layers of a neural network)
-        assert len(client_1_params) >= 2, "Client should have multiple parameter arrays"
-        assert client_1_params[0].ndim == 2, "Should be 2D array (matrix)"
-        assert client_1_params[1].ndim == 1, "Should be 1D array (bias vector)"
+        # Key understanding: Each result contains ClientProxy and FitRes
+        # FitRes has parameters, num_examples, and metrics
+        assert hasattr(fit_res_1, 'parameters'), "Should have parameters"
+        assert hasattr(fit_res_1, 'num_examples'), "Should have num_examples"
+        assert hasattr(fit_res_1, 'metrics'), "Should have metrics"
 
         print("✅ I understand the mock data structure!")
 ```
@@ -215,7 +214,7 @@ ImportError: No module named 'tests.fixtures.mock_datasets'
 
 ## Overview
 
-This guide helps student researchers add tests when extending the federated learning framework. Follow these patterns to maintain code quality and ensure your contributions are properly validated.
+This guide helps student researchers add tests when extending the federated learning framework. Follow these patterns to maintain code quality and validate your contributions.
 
 ## 📚 Learning Path for New Researchers
 
@@ -1026,7 +1025,7 @@ python -c "from tests.fixtures.mock_datasets import *; print('Fixtures loaded!')
 
 ### 💡 Workflow Tips
 
-1. **Always start simple** - Get one test passing before adding complexity
+1. **Start simple** - Get one test passing before adding complexity
 2. **Use existing patterns** - Copy and modify similar tests
 3. **Test incrementally** - Run tests frequently during development
 4. **Ask for help** - The testing framework is designed to be approachable
@@ -1056,4 +1055,4 @@ python -c "from tests.fixtures.mock_datasets import *; print('Fixtures loaded!')
 - [ ] Import sorting: `isort tests/unit/your_test_file.py`
 - [ ] Edge cases covered (empty inputs, invalid data, etc.)
 
-This systematic approach ensures your new code maintains the framework's quality standards while providing validation for federated learning scenarios.
+This systematic approach maintains the framework's quality standards while providing validation for federated learning scenarios.

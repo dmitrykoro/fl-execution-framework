@@ -2,7 +2,7 @@
 
 ## 📋 Overview
 
-This document explains the test data generation system for the federated learning simulation framework. The system creates mock datasets, client parameters, and attack scenarios for testing without needing real datasets.
+This document explains the test data generation system for the federated learning simulation framework. The system creates mock datasets, client parameters, and attack scenarios for testing without real datasets.
 
 ## ⚡ Core Components
 
@@ -12,7 +12,7 @@ This document explains the test data generation system for the federated learnin
 
 Lightweight dataset replacement that works with PyTorch DataLoaders for testing.
 
-**🔧 Technical Features:**
+**🔧 Features:**
 
 - 📊 Configurable input dimensions: `(channels, height, width)`
 - 🎲 Reproducible random data generation with seed control
@@ -33,7 +33,7 @@ dataset = MockDataset(
 
 Simulates how data would be split across different federated learning clients.
 
-Technical Features:
+Features:
 
 - Client-specific data partitioning
 - Configurable data heterogeneity through different random seeds
@@ -61,18 +61,19 @@ The framework supports 7 different dataset types with appropriate tensor dimensi
 
 #### 👥 Standard Client Parameters
 
-Generates neural network parameters that simulate what real federated learning clients would send.
+Generates complete client results with ClientProxy and FitRes objects that simulate what real federated learning clients would send.
 
 ```python
-def generate_mock_client_parameters(num_clients: int, param_size: int = 1000) -> List[np.ndarray]:
+def generate_mock_client_data(num_clients: int, param_shape: Tuple[int, int] = (10, 5)) -> List[Tuple[ClientProxy, FitRes]]:
 ```
 
-Technical Features:
+Features:
 
-- Generates neural network parameter vectors
-- Configurable parameter dimensionality
-- Gaussian distribution with controlled variance
+- Generates complete client results with ClientProxy and FitRes
+- Configurable parameter shapes (default 10x5 matrices + bias vectors)
+- Includes realistic metrics (accuracy, loss)
 - Reproducible through seed management
+- Ready for direct use with aggregation strategies
 
 #### ⚔️ Byzantine Attack Simulation
 
@@ -87,7 +88,7 @@ def generate_byzantine_client_parameters(
 ) -> List[np.ndarray]:
 ```
 
-**⚔️ Implementation Details:**
+**⚔️ Attack Types:**
 
 1. 🔊 **Gaussian Noise**: Large-scale random perturbations
 2. ☠️ **Model Poisoning**: Targeted parameter manipulation
@@ -108,7 +109,7 @@ Generates fake client performance metrics (loss, accuracy, F1-score) for testing
 def generate_mock_client_metrics(num_clients: int, num_rounds: int) -> Dict[int, Dict[str, List[float]]]:
 ```
 
-**🔧 Technical Features:**
+**🔧 Features:**
 
 - 📉 **Loss**: Range [0.1, 2.0] simulating training convergence patterns
 - 🎯 **Accuracy**: Range [0.5, 0.95] representing realistic model performance trajectories
@@ -120,19 +121,19 @@ def generate_mock_client_metrics(num_clients: int, num_rounds: int) -> Dict[int,
 
 Provides shared test configurations and mock components that all tests can use.
 
-**🔧 Technical Features:**
+**🔧 Features:**
 
 - ⚙️ **Global Configuration**: Strategy-specific parameter sets for all test scenarios
 - 🎭 **Mock Components**: Network models, client handlers, and dataset managers
 - 🗺️ **Temporary Resources**: File system mocking and automated cleanup
-- 🎯 **Parameterized Testing**: Full support for all 10 aggregation strategies
+- 🎯 **Parameterized Testing**: Full support for multiple aggregation strategies
 - ⚔️ **Attack Scenario Testing**: Byzantine attack pattern validation
 
 #### 🎯 Test Coverage Areas
 
-Tests different aspects of the framework to make sure everything works correctly.
+Tests different aspects of the framework to verify functionality.
 
-**📝 Implementation Details:**
+**📝 Test Areas:**
 
 1. 🔬 **Unit Tests**: Individual component validation with controlled inputs
 2. 🔗 **Integration Tests**: Multi-component workflow verification and end-to-end testing
@@ -169,12 +170,16 @@ Tests different aspects of the framework to make sure everything works correctly
 
 ```python
 # Generate test data for trust-based strategy
-client_params = generate_mock_client_parameters(num_clients=10, param_size=1000)
+client_results = generate_mock_client_data(num_clients=10)
 federated_dataset = MockFederatedDataset(num_clients=10, input_shape=(3, 32, 32))
 
 # Test aggregation with mock data
 strategy = TrustBasedRemovalStrategy(trust_threshold=0.7)
-result = strategy.aggregate_fit(client_params)
+result = strategy.aggregate_fit(
+    server_round=1,
+    results=client_results,
+    failures=[]
+)
 ```
 
 ### ⚔️ Byzantine Attack Testing  
@@ -230,11 +235,11 @@ for dataset_type in dataset_types:
 
 ## 📝 Summary
 
-This test data generation system enables testing the federated learning framework without needing real datasets. The system provides:
+This test data generation system enables testing the federated learning framework without real datasets. The system provides:
 
-- **Dataset Support**: 7 different dataset types with correct tensor dimensions  
+- **Dataset Support**: 7 different dataset types with correct tensor dimensions
 - **Attack Testing**: 8 different attack patterns to test defense strategies
 - **Scalable Testing**: Works with few clients or many clients
-- **Pytest Integration**: Works seamlessly with the pytest testing framework
+- **Pytest Integration**: Works with the pytest testing framework
 
-The framework allows thorough testing of federated learning algorithms without requiring real-world data, making development and research much easier.
+The framework allows testing of federated learning algorithms without requiring real-world data, making development and research easier.

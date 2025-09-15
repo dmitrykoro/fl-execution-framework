@@ -1,6 +1,6 @@
 # 🧪 FL Framework Test Suite
 
-Test suite for federated learning simulation framework with 10 aggregation strategies and Byzantine attack scenarios.
+Test suite for federated learning simulation framework with multiple aggregation strategies and Byzantine attack scenarios.
 
 ## 📋 Overview
 
@@ -29,29 +29,36 @@ This `README.md` provides a high-level overview. For detailed information, see:
 
 ```text
 tests/
-├── README.md                           # This documentation
 ├── conftest.py                         # Global fixtures and configuration
-├── pytest.ini                         # PyTest execution configuration
+├── test_setup.py                      # Test configuration and setup utilities
 ├── validate_coverage_setup.py          # Test suite setup validation script
-├── unit/                              # Unit tests for individual components
+├── docs/                              # Test documentation suite
+│   ├── README.md                      # This documentation
+│   ├── testing_guide.md              # Developer testing guide
+│   ├── test_data_generation.md        # Mock data generation guide
+│   ├── fl_fundamentals.md             # FL concepts and strategies
+│   └── refactoring_for_testability.md # Source code modifications log
+├── unit/                             # Unit tests for individual components
 │   ├── test_attack_scenarios.py       # Byzantine attack pattern testing
 │   ├── test_data_models/              # StrategyConfig, ClientInfo, RoundInfo tests
 │   ├── test_config_loaders/           # Configuration parsing and validation tests
-│   ├── test_simulation_strategies/    # All 10 aggregation strategy tests
+│   ├── test_simulation_strategies/    # Aggregation strategy tests
 │   ├── test_dataset_handlers/         # Dataset management component tests
 │   ├── test_client_models/            # FlowerClient and model interaction tests
 │   └── test_network_models/           # Neural network definition tests
 ├── integration/                       # Multi-component interaction tests
+│   ├── test_flower_mock_integration.py # Flower framework integration
 │   ├── test_simulation_flow.py        # End-to-end simulation execution
 │   ├── test_simulation_runner.py      # Multi-strategy coordination testing
 │   └── test_strategy_combinations.py  # Multi-strategy scenario testing
 ├── performance/                       # Scalability and memory usage tests
 │   ├── test_memory_usage.py           # Memory leak detection and monitoring
 │   └── test_scalability.py            # Client count and round scaling tests
-├── fixtures/                         # Reusable test utilities and mock data
-│   ├── mock_datasets.py              # Synthetic dataset generation
-│   └── sample_models.py              # Lightweight mock network models
-└── test_setup.py                     # Test configuration and setup utilities
+└── fixtures/                          # Reusable test utilities and mock data
+    ├── mock_datasets.py               # Synthetic dataset generation
+    ├── mock_flower_components.py      # Flower framework mocks
+    ├── sample_models.py               # Lightweight mock network models
+    └── __init__.py                    # Fixture package initialization
 ```
 
 ## 🎲 Synthetic Dataset Generation
@@ -182,18 +189,17 @@ Byzantine attack testing across defense strategies:
 
 #### 🛡️ Simulation Strategies (`tests/unit/test_simulation_strategies/`)
 
-All 10 aggregation strategies with test coverage:
+Multiple aggregation strategies with test coverage:
 
 1. **TrustBasedRemovalStrategy**: Trust score calculation, client removal logic
 2. **PIDBasedRemovalStrategy**: PID controller implementation, 3 variants (pid/pid_scaled/pid_standardized)
-3. **KrumBasedRemovalStrategy**: Distance calculations, client selection algorithms  
+3. **KrumBasedRemovalStrategy**: Distance calculations, client selection algorithms
 4. **MultiKrumBasedRemovalStrategy**: Multi-client selection, consistency validation
 5. **TrimmedMeanBasedRemovalStrategy**: Robust averaging, outlier removal
 6. **RFABasedRemovalStrategy**: Robust federated averaging implementation
 7. **BulyanStrategy**: Byzantine-resistant aggregation with multi-phase selection
-8. **MultiKrumStrategy**: Multi-Krum aggregation without removal mechanisms
-9. **Strategy Variations**: Cross-strategy testing and parameterized configurations
-10. **Strategy Interactions**: Complex multi-strategy scenarios and combinations
+8. **Strategy Variations**: Cross-strategy testing and parameterized configurations
+9. **Strategy Interactions**: Multi-strategy scenarios and combinations
 
 #### 💾 Dataset and Client Components (`tests/unit/test_dataset_handlers/`, `tests/unit/test_client_models/`)
 
@@ -267,7 +273,7 @@ def mock_output_directory(tmp_path, monkeypatch):
 - 📚 Test Infrastructure: Directory structure with fixtures and configuration
 - 📐 Data Models: Unit test coverage for data structures and validation logic
 - ⚙️ Configuration Management: JSON parsing, validation, error handling with edge cases
-- 🛡️ Simulation Strategies: All 10 aggregation algorithms with Byzantine attack scenarios
+- 🛡️ Simulation Strategies: Multiple aggregation algorithms with Byzantine attack scenarios
 - 🔗 Strategy Interactions: Multi-strategy combinations and validation
 - 🎲 Synthetic Data Generation: Mock dataset infrastructure for FL scenarios
 - 📊 Dataset and Client Components: File operations, dataset management, and client model interactions
@@ -343,7 +349,7 @@ pytest tests/unit/test_simulation_strategies/test_strategy_interactions.py -v
 # Test attack scenarios
 pytest tests/unit/test_attack_scenarios.py -v
 
-# Test strategy variations (all 10 strategies)
+# Test strategy variations (multiple strategies)
 pytest tests/unit/test_simulation_strategies/test_strategy_variations.py -v
 ```
 
@@ -439,7 +445,7 @@ The test suite follows a systematic approach to ensure coverage and maintainabil
 - 🔄 **Reusable fixtures** and utilities for consistent testing patterns
 - 📂 **Clear separation** between unit, integration, and performance tests
 
-This test suite demonstrates that federated learning testing requires realistic tensor operations, proper FL protocol simulation, and validation of distributed algorithm correctness under adversarial conditions.
+This test suite provides realistic tensor operations, proper FL protocol simulation, and validation of distributed algorithm correctness under adversarial conditions.
 
 ---
 
