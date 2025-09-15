@@ -7,16 +7,16 @@ from torchvision import transforms
 
 
 class TestImageDatasetLoader:
-    """Test suite for ImageDatasetLoader functionality"""
+    """Tests for ImageDatasetLoader."""
 
     @pytest.fixture
     def mock_transformer(self):
-        """Create mock transformer for testing"""
+        """Return a simple torchvision transformer for tests."""
         return transforms.Compose([transforms.ToTensor()])
 
     @pytest.fixture
     def temp_dataset_dir(self, tmp_path):
-        """Create temporary dataset directory structure"""
+        """Return path to a temporary image dataset with client folders and dummy images."""
         dataset_dir = tmp_path / "image_dataset"
         dataset_dir.mkdir()
 
@@ -37,7 +37,7 @@ class TestImageDatasetLoader:
 
     @pytest.fixture
     def dataset_loader(self, mock_transformer, temp_dataset_dir):
-        """Create ImageDatasetLoader instance for testing"""
+        """Return an ImageDatasetLoader configured for tests."""
         return ImageDatasetLoader(
             transformer=mock_transformer,
             dataset_dir=temp_dataset_dir,
@@ -47,7 +47,7 @@ class TestImageDatasetLoader:
         )
 
     def test_init_sets_attributes_correctly(self, mock_transformer):
-        """Test ImageDatasetLoader initialization sets attributes correctly"""
+        """Verify ImageDatasetLoader.__init__ sets its attributes as expected."""
         loader = ImageDatasetLoader(
             transformer=mock_transformer,
             dataset_dir="/test/path",
@@ -68,7 +68,7 @@ class TestImageDatasetLoader:
     def test_load_datasets_processes_client_folders(
         self, mock_dataloader, mock_random_split, mock_image_folder, dataset_loader
     ):
-        """Test load_datasets processes client folders correctly"""
+        """Verify load_datasets iterates client folders and returns loaders for each."""
         # Mock ImageFolder dataset
         mock_dataset = Mock()
         mock_dataset.__len__ = Mock(return_value=100)
@@ -79,10 +79,17 @@ class TestImageDatasetLoader:
         mock_val_dataset = Mock()
         mock_random_split.return_value = (mock_train_dataset, mock_val_dataset)
 
-        # Mock DataLoader
+        # Mock DataLoader (need 2 loaders per client, 3 clients total = 6 loaders)
         mock_train_loader = Mock()
         mock_val_loader = Mock()
-        mock_dataloader.side_effect = [mock_train_loader, mock_val_loader]
+        mock_dataloader.side_effect = [
+            mock_train_loader,
+            mock_val_loader,  # client 0
+            mock_train_loader,
+            mock_val_loader,  # client 1
+            mock_train_loader,
+            mock_val_loader,  # client 2
+        ]
 
         trainloaders, valloaders = dataset_loader.load_datasets()
 
@@ -101,7 +108,7 @@ class TestImageDatasetLoader:
     def test_load_datasets_calculates_split_sizes_correctly(
         self, mock_random_split, mock_image_folder, dataset_loader
     ):
-        """Test load_datasets calculates train/val split sizes correctly"""
+        """Verify train/validation split sizes are computed from fraction."""
         # Mock dataset with 100 samples
         mock_dataset = Mock()
         mock_dataset.__len__ = Mock(return_value=100)
@@ -120,11 +127,9 @@ class TestImageDatasetLoader:
         expected_train_size = int(100 * 0.8)
         expected_val_size = 100 - expected_train_size
 
-        mock_random_split.assert_called_with(
-            mock_dataset,
-            [expected_train_size, expected_val_size],
-            torch.Generator().manual_seed(42),
-        )
+        call_args = mock_random_split.call_args_list[0][0]
+        assert call_args[0] == mock_dataset
+        assert call_args[1] == [expected_train_size, expected_val_size]
 
     @patch("src.dataset_loaders.image_dataset_loader.datasets.ImageFolder")
     @patch("src.dataset_loaders.image_dataset_loader.random_split")
@@ -132,7 +137,7 @@ class TestImageDatasetLoader:
     def test_load_datasets_creates_dataloaders_with_correct_params(
         self, mock_dataloader, mock_random_split, mock_image_folder, dataset_loader
     ):
-        """Test load_datasets creates DataLoaders with correct parameters"""
+        """Verify DataLoader instances are created with expected kwargs."""
         # Mock components
         mock_dataset = Mock()
         mock_dataset.__len__ = Mock(return_value=100)
@@ -166,7 +171,7 @@ class TestImageDatasetLoader:
             assert kwargs.get("batch_size") == 2
 
     def test_load_datasets_skips_hidden_files(self, dataset_loader, tmp_path):
-        """Test load_datasets skips hidden files like .DS_Store"""
+        """Verify hidden files/folders (e.g. .DS_Store) are ignored when scanning clients."""
         # Create a dataset directory with hidden files
         dataset_dir = tmp_path / "test_hidden"
         dataset_dir.mkdir()
@@ -191,7 +196,12 @@ class TestImageDatasetLoader:
             mock_dataset.__len__ = Mock(return_value=10)
             mock_image_folder.return_value = mock_dataset
 
-            with patch("src.dataset_loaders.image_dataset_loader.random_split"):
+            with patch(
+                "src.dataset_loaders.image_dataset_loader.random_split"
+            ) as mock_split:
+                mock_train_ds = Mock()
+                mock_val_ds = Mock()
+                mock_split.return_value = (mock_train_ds, mock_val_ds)
                 with patch("src.dataset_loaders.image_dataset_loader.DataLoader"):
                     trainloaders, valloaders = dataset_loader.load_datasets()
 
@@ -202,7 +212,7 @@ class TestImageDatasetLoader:
     def test_load_datasets_sorts_client_folders_correctly(
         self, mock_listdir, dataset_loader
     ):
-        """Test load_datasets sorts client folders by numeric suffix"""
+        """Verify client folders are sorted by their numeric suffix before processing."""
         # Mock unsorted client folder list
         mock_listdir.return_value = ["client_10", "client_2", "client_1"]
 
@@ -213,7 +223,12 @@ class TestImageDatasetLoader:
             mock_dataset.__len__ = Mock(return_value=10)
             mock_image_folder.return_value = mock_dataset
 
-            with patch("src.dataset_loaders.image_dataset_loader.random_split"):
+            with patch(
+                "src.dataset_loaders.image_dataset_loader.random_split"
+            ) as mock_split:
+                mock_train_ds = Mock()
+                mock_val_ds = Mock()
+                mock_split.return_value = (mock_train_ds, mock_val_ds)
                 with patch("src.dataset_loaders.image_dataset_loader.DataLoader"):
                     dataset_loader.load_datasets()
 
@@ -230,7 +245,7 @@ class TestImageDatasetLoader:
             assert kwargs["root"] == expected_order[i]
 
     def test_load_datasets_uses_correct_transformer(self, dataset_loader):
-        """Test load_datasets passes transformer to ImageFolder"""
+        """Verify the configured transformer is passed to ImageFolder."""
         with patch(
             "src.dataset_loaders.image_dataset_loader.datasets.ImageFolder"
         ) as mock_image_folder:
@@ -238,7 +253,12 @@ class TestImageDatasetLoader:
             mock_dataset.__len__ = Mock(return_value=10)
             mock_image_folder.return_value = mock_dataset
 
-            with patch("src.dataset_loaders.image_dataset_loader.random_split"):
+            with patch(
+                "src.dataset_loaders.image_dataset_loader.random_split"
+            ) as mock_split:
+                mock_train_ds = Mock()
+                mock_val_ds = Mock()
+                mock_split.return_value = (mock_train_ds, mock_val_ds)
                 with patch("src.dataset_loaders.image_dataset_loader.DataLoader"):
                     dataset_loader.load_datasets()
 
@@ -251,19 +271,18 @@ class TestImageDatasetLoader:
     def test_load_datasets_handles_empty_directory(
         self, mock_image_folder, dataset_loader
     ):
-        """Test load_datasets handles empty dataset directory"""
+        """Verify load_datasets returns empty lists when no client folders exist."""
         with patch(
             "src.dataset_loaders.image_dataset_loader.os.listdir", return_value=[]
         ):
             trainloaders, valloaders = dataset_loader.load_datasets()
 
-            # Should return empty lists
             assert len(trainloaders) == 0
             assert len(valloaders) == 0
             mock_image_folder.assert_not_called()
 
     def test_load_datasets_uses_reproducible_seed(self, dataset_loader):
-        """Test load_datasets uses fixed seed for reproducible splits"""
+        """Verify a reproducible random generator (torch.Generator) is used for splits."""
         with patch(
             "src.dataset_loaders.image_dataset_loader.datasets.ImageFolder"
         ) as mock_image_folder:
@@ -274,6 +293,9 @@ class TestImageDatasetLoader:
             with patch(
                 "src.dataset_loaders.image_dataset_loader.random_split"
             ) as mock_random_split:
+                mock_train_ds = Mock()
+                mock_val_ds = Mock()
+                mock_random_split.return_value = (mock_train_ds, mock_val_ds)
                 with patch("src.dataset_loaders.image_dataset_loader.DataLoader"):
                     dataset_loader.load_datasets()
 
