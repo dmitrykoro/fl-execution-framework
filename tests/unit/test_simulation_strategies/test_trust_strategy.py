@@ -15,9 +15,16 @@ from src.simulation_strategies.trust_based_removal_strategy import (
     TrustBasedRemovalStrategy,
 )
 
+from tests.conftest import generate_mock_client_data
+
 
 class TestTrustBasedRemovalStrategy:
     """Test cases for TrustBasedRemovalStrategy."""
+
+    @pytest.fixture
+    def mock_client_results(self):
+        """Generate mock client results for testing."""
+        return generate_mock_client_data(num_clients=5)
 
     @pytest.fixture
     def mock_strategy_history(self):
@@ -206,7 +213,7 @@ class TestTrustBasedRemovalStrategy:
             ) as mock_parent_aggregate:
                 mock_parent_aggregate.return_value = (Mock(), {})
 
-                trust_strategy.aggregate_fit(1, mock_client_results(), [])
+                trust_strategy.aggregate_fit(1, mock_client_results, [])
 
                 # Verify clustering was called
                 mock_kmeans.assert_called_once()
@@ -238,7 +245,7 @@ class TestTrustBasedRemovalStrategy:
 
             mock_parent_aggregate.return_value = (Mock(), {})
 
-            trust_strategy.aggregate_fit(1, mock_client_results(), [])
+            trust_strategy.aggregate_fit(1, mock_client_results, [])
 
             # Verify trust scores were calculated for all clients
             assert len(trust_strategy.client_reputations) == 5
@@ -451,7 +458,7 @@ class TestTrustBasedRemovalStrategy:
 
             mock_parent_aggregate.return_value = (Mock(), {})
 
-            trust_strategy.aggregate_fit(1, mock_client_results(), [])
+            trust_strategy.aggregate_fit(1, mock_client_results, [])
 
             # Verify strategy history methods were called
             assert (

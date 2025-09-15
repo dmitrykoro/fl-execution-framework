@@ -18,9 +18,16 @@ from src.simulation_strategies.trust_based_removal_strategy import (
     TrustBasedRemovalStrategy,
 )
 
+from tests.conftest import generate_mock_client_data
+
 
 class TestStrategyVariations:
     """Parameterized tests for all aggregation strategy variations."""
+
+    @pytest.fixture
+    def mock_client_results(self):
+        """Generate mock client results for testing."""
+        return generate_mock_client_data(num_clients=20)
 
     @pytest.fixture
     def mock_strategy_history(self):
@@ -377,7 +384,7 @@ class TestStrategyVariations:
         strategy = strategy_cls(**init_params)
 
         # Test with very few clients (2 clients)
-        few_client_results = mock_client_results(2)
+        few_client_results = mock_client_results[:2]
 
         # Mock the parent aggregate_fit method
         with patch(
@@ -566,7 +573,7 @@ class TestStrategyVariations:
         )
 
         # Test with specific client count
-        client_results = mock_client_results(client_count)
+        client_results = mock_client_results[:client_count]
 
         with patch(
             "flwr.server.strategy.FedAvg.aggregate_fit"
@@ -655,7 +662,7 @@ class TestStrategyVariations:
         assert strategy.num_krum_selections == krum_selections
 
         # Test with specific client count
-        client_results = mock_client_results(client_count)
+        client_results = mock_client_results[:client_count]
 
         with patch(
             "flwr.server.strategy.FedAvg.aggregate_fit"
