@@ -49,7 +49,7 @@ class TestFederatedSimulationCore:
         handler.poisoned_client_ids = set()
         return handler
 
-    def create_simulation(
+    def _create_simulation(
         self, strategy_config, tmp_path, mock_dataset_handler, patch_assign=True
     ):
         """Create a FederatedSimulation for tests.
@@ -74,7 +74,7 @@ class TestFederatedSimulationCore:
         self, mock_strategy_config, mock_dataset_handler, tmp_path
     ):
         """Test FederatedSimulation initialization with strategy config."""
-        simulation = self.create_simulation(
+        simulation = self._create_simulation(
             mock_strategy_config, tmp_path, mock_dataset_handler
         )
 
@@ -107,7 +107,7 @@ class TestFederatedSimulationCore:
     ):
         """Test run_simulation calls Flower's start_simulation."""
         mock_start_simulation.return_value = Mock()
-        simulation = self.create_simulation(
+        simulation = self._create_simulation(
             mock_strategy_config, tmp_path, mock_dataset_handler
         )
 
@@ -127,7 +127,7 @@ class TestFederatedSimulationCore:
         self, mock_strategy_config, mock_dataset_handler, tmp_path
     ):
         """Test _assign_all_properties calls dataset and strategy assignment methods."""
-        simulation = self.create_simulation(
+        simulation = self._create_simulation(
             mock_strategy_config, tmp_path, mock_dataset_handler
         )
 
@@ -147,7 +147,7 @@ class TestFederatedSimulationCore:
     ):
         """Test dataset loader assignment for ITS dataset."""
         mock_strategy_config.dataset_keyword = "its"
-        simulation = self.create_simulation(
+        simulation = self._create_simulation(
             mock_strategy_config, tmp_path, mock_dataset_handler
         )
 
@@ -169,7 +169,7 @@ class TestFederatedSimulationCore:
     ):
         """Test dataset loader assignment for FEMNIST IID dataset."""
         mock_strategy_config.dataset_keyword = "femnist_iid"
-        simulation = self.create_simulation(
+        simulation = self._create_simulation(
             mock_strategy_config, tmp_path, mock_dataset_handler
         )
 
@@ -199,7 +199,7 @@ class TestFederatedSimulationCore:
         mock_strategy_config.llm_chunk_size = 128
         mock_strategy_config.mlm_probability = 0.15
         mock_strategy_config.llm_finetuning = "full"
-        simulation = self.create_simulation(
+        simulation = self._create_simulation(
             mock_strategy_config, tmp_path, mock_dataset_handler
         )
 
@@ -222,7 +222,7 @@ class TestFederatedSimulationCore:
     ):
         """Test aggregation strategy assignment for trust strategy."""
         mock_strategy_config.aggregation_strategy_keyword = "trust"
-        simulation = self.create_simulation(
+        simulation = self._create_simulation(
             mock_strategy_config, tmp_path, mock_dataset_handler
         )
 
@@ -259,7 +259,7 @@ class TestFederatedSimulationCore:
         mock_strategy_config.Ki = 0.1
         mock_strategy_config.Kd = 0.01
         mock_strategy_config.num_std_dev = 2.0
-        simulation = self.create_simulation(
+        simulation = self._create_simulation(
             mock_strategy_config, tmp_path, mock_dataset_handler
         )
 
@@ -293,7 +293,7 @@ class TestFederatedSimulationCore:
         """Test aggregation strategy assignment for Multi-Krum strategy."""
         mock_strategy_config.aggregation_strategy_keyword = "multi-krum"
         mock_strategy_config.num_krum_selections = 3
-        simulation = self.create_simulation(
+        simulation = self._create_simulation(
             mock_strategy_config, tmp_path, mock_dataset_handler
         )
 
@@ -323,7 +323,7 @@ class TestFederatedSimulationCore:
         self, mock_strategy_config, mock_dataset_handler, tmp_path
     ):
         """Test client_fn creates FlowerClient instances."""
-        simulation = self.create_simulation(
+        simulation = self._create_simulation(
             mock_strategy_config, tmp_path, mock_dataset_handler
         )
 
@@ -353,7 +353,7 @@ class TestFederatedSimulationCore:
         mock_strategy_config.model_type = "transformer"
         mock_strategy_config.use_llm = "true"
         mock_strategy_config.llm_finetuning = "full"
-        simulation = self.create_simulation(
+        simulation = self._create_simulation(
             mock_strategy_config, tmp_path, mock_dataset_handler
         )
 
@@ -382,7 +382,7 @@ class TestFederatedSimulationCore:
         mock_strategy_config.model_type = "transformer"
         mock_strategy_config.use_llm = "true"
         mock_strategy_config.llm_finetuning = "lora"
-        simulation = self.create_simulation(
+        simulation = self._create_simulation(
             mock_strategy_config, tmp_path, mock_dataset_handler
         )
 
@@ -444,7 +444,7 @@ class TestFederatedSimulationCore:
     ):
         """Test that unsupported dataset raises ValueError."""
         mock_strategy_config.dataset_keyword = "unsupported_dataset"
-        simulation = self.create_simulation(
+        simulation = self._create_simulation(
             mock_strategy_config, tmp_path, mock_dataset_handler
         )
 
@@ -458,7 +458,7 @@ class TestFederatedSimulationCore:
     ):
         """Test that unsupported aggregation strategy raises ValueError."""
         mock_strategy_config.aggregation_strategy_keyword = "unsupported_strategy"
-        simulation = self.create_simulation(
+        simulation = self._create_simulation(
             mock_strategy_config, tmp_path, mock_dataset_handler
         )
 
@@ -497,13 +497,13 @@ class TestFederatedSimulationCore:
             )
 
             # Should not raise exception during initialization
-            simulation = self.create_simulation(config, tmp_path, mock_dataset_handler)
+            simulation = self._create_simulation(config, tmp_path, mock_dataset_handler)
             assert simulation.strategy_config.dataset_keyword == dataset
 
     def test_simulation_with_all_supported_strategies(
         self, mock_dataset_handler, tmp_path
     ):
-        """Test simulation initialization works with all supported aggregation strategies."""
+        """Test simulation initialization works with all aggregation strategies."""
         strategies = [
             "trust",
             "pid",
@@ -539,5 +539,5 @@ class TestFederatedSimulationCore:
             )
 
             # Should not raise exception during initialization
-            simulation = self.create_simulation(config, tmp_path, mock_dataset_handler)
+            simulation = self._create_simulation(config, tmp_path, mock_dataset_handler)
             assert simulation.strategy_config.aggregation_strategy_keyword == strategy

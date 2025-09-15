@@ -92,7 +92,7 @@ class TestFederatedSimulation:
             federated_simulation.strategy_history, SimulationStrategyHistory
         )
 
-    def setup_mock_loaders_and_model(self, federated_simulation):
+    def _setup_mock_loaders_and_model(self, federated_simulation):
         mock_trainloader = Mock()
         mock_valloader = Mock()
         federated_simulation._trainloaders = [
@@ -142,7 +142,7 @@ class TestFederatedSimulation:
         mock_start_simulation.assert_called_once()
 
     def test_assign_all_properties_calls_sub_methods(self, federated_simulation):
-        """Test _assign_all_properties calls dataset, network, and strategy assignment methods."""
+        """Test _assign_all_properties calls dataset, network, and strategy assignment."""
         with patch.object(
             federated_simulation, "_assign_dataset_loaders_and_network_model"
         ) as mock_assign_dataset, patch.object(
@@ -316,10 +316,10 @@ class TestFederatedSimulation:
                 mock_strategy_class.assert_called_once()
 
     def test_client_fn_creates_flower_client(self, federated_simulation):
-        self.setup_mock_loaders_and_model(federated_simulation)
+        self._setup_mock_loaders_and_model(federated_simulation)
 
         with patch("src.federated_simulation.FlowerClient") as mock_flower_client:
-            # Mock FlowerClient instance and its to_client method to return a real Client
+            # Mock FlowerClient instance and its to_client method
             from flwr.client import Client
 
             mock_flower_instance = Mock()

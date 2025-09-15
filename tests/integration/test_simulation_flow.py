@@ -18,7 +18,7 @@ from tests.fixtures.mock_datasets import MockDatasetHandler
 from tests.fixtures.sample_models import MockCNNNetwork, MockNetwork
 
 
-def get_base_strategy_config() -> Dict[str, Any]:
+def _get_base_strategy_config() -> Dict[str, Any]:
     """Get base strategy configuration for testing."""
     return {
         "aggregation_strategy_keyword": "trust",
@@ -68,7 +68,7 @@ class TestFederatedSimulationInitialization:
     ):
         """Test FederatedSimulation initialization with trust strategy."""
         # Arrange
-        base_config = get_base_strategy_config()
+        base_config = _get_base_strategy_config()
         strategy_config = StrategyConfig.from_dict(base_config)
 
         # Act
@@ -110,7 +110,7 @@ class TestFederatedSimulationInitialization:
     ):
         """Test FederatedSimulation initialization with PID strategy."""
         # Arrange
-        pid_config = get_base_strategy_config()
+        pid_config = _get_base_strategy_config()
         pid_config.update(
             {
                 "aggregation_strategy_keyword": "pid",
@@ -156,7 +156,7 @@ class TestFederatedSimulationInitialization:
     ):
         """Test FederatedSimulation initialization with Krum strategy."""
         # Arrange
-        krum_config = get_base_strategy_config()
+        krum_config = _get_base_strategy_config()
         krum_config.update(
             {"aggregation_strategy_keyword": "krum", "num_krum_selections": 3}
         )
@@ -209,7 +209,7 @@ class TestFederatedSimulationInitialization:
     ):
         """Test correct dataset loader and network assignment for different dataset types."""
         # Arrange
-        config = get_base_strategy_config()
+        config = _get_base_strategy_config()
         config["dataset_keyword"] = dataset_type
         strategy_config = StrategyConfig.from_dict(config)
 
@@ -244,7 +244,7 @@ class TestFederatedSimulationInitialization:
     ):
         """Test FederatedSimulation initialization with invalid strategy raises error."""
         # Arrange
-        invalid_config = get_base_strategy_config()
+        invalid_config = _get_base_strategy_config()
         invalid_config["aggregation_strategy_keyword"] = "invalid_strategy"
         strategy_config = StrategyConfig.from_dict(invalid_config)
 
@@ -276,7 +276,7 @@ class TestFederatedSimulationInitialization:
     ):
         """Test that SimulationStrategyHistory is properly initialized."""
         # Arrange
-        base_config = get_base_strategy_config()
+        base_config = _get_base_strategy_config()
         strategy_config = StrategyConfig.from_dict(base_config)
 
         # Act
@@ -311,7 +311,7 @@ class TestFederatedSimulationExecution:
     @pytest.fixture
     def mock_simulation(self) -> FederatedSimulation:
         """Create a mock simulation for testing execution."""
-        base_config = get_base_strategy_config()
+        base_config = _get_base_strategy_config()
         strategy_config = StrategyConfig.from_dict(base_config)
         mock_dataset_handler = MockDatasetHandler(dataset_type="its")
         mock_dataset_handler.setup_dataset(num_clients=5)
@@ -461,7 +461,7 @@ class TestFederatedSimulationExecution:
     def test_simulation_component_assignment_consistency(self):
         """Test that component assignment is consistent across initialization."""
         # Arrange
-        base_config = get_base_strategy_config()
+        base_config = _get_base_strategy_config()
         strategy_config = StrategyConfig.from_dict(base_config)
         mock_dataset_handler = MockDatasetHandler(dataset_type="its")
         mock_dataset_handler.setup_dataset(num_clients=5)
@@ -504,7 +504,7 @@ class TestFederatedSimulationErrorHandling:
     def test_initialization_with_invalid_dataset_keyword(self):
         """Test initialization with invalid dataset keyword."""
         # Arrange
-        invalid_config = get_base_strategy_config()
+        invalid_config = _get_base_strategy_config()
         invalid_config["dataset_keyword"] = "invalid_dataset"
         strategy_config = StrategyConfig.from_dict(invalid_config)
         mock_dataset_handler = MockDatasetHandler()
@@ -523,7 +523,7 @@ class TestFederatedSimulationErrorHandling:
     def test_simulation_handles_flower_exceptions(self, mock_start_simulation: Mock):
         """Test that simulation properly handles Flower simulation exceptions."""
         # Arrange
-        base_config = get_base_strategy_config()
+        base_config = _get_base_strategy_config()
         strategy_config = StrategyConfig.from_dict(base_config)
         mock_dataset_handler = MockDatasetHandler(dataset_type="its")
         mock_dataset_handler.setup_dataset(num_clients=5)
@@ -556,7 +556,7 @@ class TestFederatedSimulationErrorHandling:
     def test_client_fn_with_invalid_client_id(self):
         """Test client_fn with invalid client ID."""
         # Arrange
-        base_config = get_base_strategy_config()
+        base_config = _get_base_strategy_config()
         strategy_config = StrategyConfig.from_dict(base_config)
         mock_dataset_handler = MockDatasetHandler(dataset_type="its")
         mock_dataset_handler.setup_dataset(num_clients=5)

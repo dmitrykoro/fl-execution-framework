@@ -16,7 +16,7 @@ from src.data_models.simulation_strategy_config import StrategyConfig
 from src.simulation_runner import SimulationRunner
 
 
-def create_mock_strategy_config() -> Dict[str, Any]:
+def _create_mock_strategy_config() -> Dict[str, Any]:
     """Create a mock strategy configuration for testing."""
     return {
         "shared_settings": {
@@ -52,7 +52,7 @@ def create_mock_strategy_config() -> Dict[str, Any]:
     }
 
 
-def create_multi_strategy_config() -> Dict[str, Any]:
+def __create_multi_strategy_config() -> Dict[str, Any]:
     """Create a configuration with multiple different strategies."""
     return {
         "shared_settings": {
@@ -106,7 +106,7 @@ class TestSimulationRunnerInitialization:
     def temp_config_files(self, tmp_path: Path) -> Dict[str, Path]:
         """Create temporary configuration files for testing."""
         # Create strategy config
-        strategy_config = create_mock_strategy_config()
+        strategy_config = _create_mock_strategy_config()
         strategy_file = tmp_path / "test_strategy.json"
         with open(strategy_file, "w") as f:
             json.dump(strategy_config, f, indent=2)

@@ -21,7 +21,7 @@ from tests.fixtures.mock_datasets import (
 from tests.fixtures.sample_models import MockNetwork
 
 
-def create_multi_strategy_config(strategies: List[Dict[str, Any]]) -> Dict[str, Any]:
+def _create_multi_strategy_config(strategies: List[Dict[str, Any]]) -> Dict[str, Any]:
     """Create a configuration with multiple strategies for testing."""
     return {
         "shared_settings": {
@@ -51,7 +51,7 @@ def create_multi_strategy_config(strategies: List[Dict[str, Any]]) -> Dict[str, 
     }
 
 
-def create_attack_defense_config(
+def _create_attack_defense_config(
     defense_strategies: List[str], attack_type: str = "gaussian_noise"
 ) -> Dict[str, Any]:
     """Create configuration for attack-defense scenarios."""
@@ -76,7 +76,7 @@ def create_attack_defense_config(
 
         strategies.append(strategy_config)
 
-    return create_multi_strategy_config(strategies)
+    return _create_multi_strategy_config(strategies)
 
 
 class TestMultiStrategyScenarios:
@@ -727,7 +727,7 @@ class TestAttackDefenseScenarios:
         mocks = mock_attack_simulation_components
 
         # Create attack-defense configuration
-        config = create_attack_defense_config(defense_strategies, attack_type)
+        config = _create_attack_defense_config(defense_strategies, attack_type)
 
         # Configure mock to return attack-defense strategies
         config_dicts = []
