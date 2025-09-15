@@ -5,20 +5,16 @@ from src.dataset_loaders.medquad_dataset_loader import MedQuADDatasetLoader
 
 
 class TestMedQuADDatasetLoader:
-    """Test suite for MedQuADDatasetLoader functionality"""
 
     @pytest.fixture
     def temp_dataset_dir(self, tmp_path):
-        """Create temporary dataset directory structure for MedQuAD"""
+        """Return a temporary MedQuAD-style dataset with JSON files for clients."""
         dataset_dir = tmp_path / "medquad_dataset"
         dataset_dir.mkdir()
 
-        # Create client folders with JSON files
         for i in range(3):
             client_dir = dataset_dir / f"client_{i}"
             client_dir.mkdir()
-
-            # Create dummy JSON files
             json_file = client_dir / f"data_{i}.json"
             json_file.write_text(
                 '{"question": "What is test?", "answer": "This is a test answer"}'
@@ -28,7 +24,7 @@ class TestMedQuADDatasetLoader:
 
     @pytest.fixture
     def dataset_loader(self, temp_dataset_dir):
-        """Create MedQuADDatasetLoader instance for testing"""
+        """Return a MedQuADDatasetLoader configured for tests."""
         return MedQuADDatasetLoader(
             dataset_dir=temp_dataset_dir,
             num_of_clients=3,
@@ -41,7 +37,7 @@ class TestMedQuADDatasetLoader:
         )
 
     def test_init_sets_attributes_correctly(self, temp_dataset_dir):
-        """Test MedQuADDatasetLoader initialization sets attributes correctly"""
+        """Verify MedQuADDatasetLoader.__init__ sets expected attributes."""
         loader = MedQuADDatasetLoader(
             dataset_dir=temp_dataset_dir,
             num_of_clients=5,
@@ -67,7 +63,7 @@ class TestMedQuADDatasetLoader:
         assert loader.remove_columns == ["question", "answer"]
 
     def test_init_with_default_parameters(self, temp_dataset_dir):
-        """Test MedQuADDatasetLoader initialization with default parameters"""
+        """Verify default parameter values are applied when omitted."""
         loader = MedQuADDatasetLoader(
             dataset_dir=temp_dataset_dir,
             num_of_clients=3,
@@ -95,7 +91,7 @@ class TestMedQuADDatasetLoader:
         mock_tokenizer,
         dataset_loader,
     ):
-        """Test load_datasets processes client folders correctly"""
+        """Verify load_datasets loads datasets and returns train/val loaders per client."""
         # Mock glob to return JSON files
         mock_glob.return_value = ["client_0/data.json"]
 
@@ -103,20 +99,34 @@ class TestMedQuADDatasetLoader:
         mock_tokenizer_instance = Mock()
         mock_tokenizer.return_value = mock_tokenizer_instance
 
-        # Mock dataset
-        mock_dataset = Mock()
-        mock_dataset_split = Mock()
-        mock_dataset_split.train_test_split.return_value = {
+        # Create mock DatasetDict that supports the chain of operations
+        mock_dataset_dict = Mock()
+        mock_train_dataset = Mock()
+
+        # Configure the mock chain: DatasetDict.map() -> DatasetDict.remove_columns() -> DatasetDict.map() -> DatasetDict["train"] -> Dataset.train_test_split()
+        mock_dataset_dict.map.return_value = mock_dataset_dict
+        mock_dataset_dict.remove_columns.return_value = mock_dataset_dict
+        mock_dataset_dict.__getitem__ = Mock(return_value=mock_train_dataset)
+
+        mock_train_dataset.train_test_split.return_value = {
             "train": Mock(),
             "test": Mock(),
         }
-        mock_dataset.map.return_value = mock_dataset_split
-        mock_load_dataset.return_value = {"train": mock_dataset}
 
-        # Mock DataLoader
+        # load_dataset returns the DatasetDict
+        mock_load_dataset.return_value = mock_dataset_dict
+
+        # Mock DataLoader (need 2 loaders per client folder, 3 folders = 6 total)
         mock_train_loader = Mock()
         mock_val_loader = Mock()
-        mock_dataloader.side_effect = [mock_train_loader, mock_val_loader]
+        mock_dataloader.side_effect = [
+            mock_train_loader,
+            mock_val_loader,  # client_0
+            mock_train_loader,
+            mock_val_loader,  # client_1
+            mock_train_loader,
+            mock_val_loader,  # client_2
+        ]
 
         trainloaders, valloaders = dataset_loader.load_datasets()
 
@@ -142,20 +152,27 @@ class TestMedQuADDatasetLoader:
         mock_tokenizer,
         dataset_loader,
     ):
-        """Test load_datasets applies different MLM settings for poisoned clients"""
+        """Verify poisoned clients receive the configured MLM collator settings."""
         # Mock components
         mock_glob.return_value = ["data.json"]
         mock_tokenizer_instance = Mock()
         mock_tokenizer.return_value = mock_tokenizer_instance
 
-        mock_dataset = Mock()
-        mock_dataset_split = Mock()
-        mock_dataset_split.train_test_split.return_value = {
+        # Create mock DatasetDict that supports the chain of operations
+        mock_dataset_dict = Mock()
+        mock_train_dataset = Mock()
+
+        # Configure the mock chain
+        mock_dataset_dict.map.return_value = mock_dataset_dict
+        mock_dataset_dict.remove_columns.return_value = mock_dataset_dict
+        mock_dataset_dict.__getitem__ = Mock(return_value=mock_train_dataset)
+
+        mock_train_dataset.train_test_split.return_value = {
             "train": Mock(),
             "test": Mock(),
         }
-        mock_dataset.map.return_value = mock_dataset_split
-        mock_load_dataset.return_value = {"train": mock_dataset}
+
+        mock_load_dataset.return_value = mock_dataset_dict
 
         with patch(
             "src.dataset_loaders.medquad_dataset_loader.DataCollatorForLanguageModeling"
@@ -183,7 +200,7 @@ class TestMedQuADDatasetLoader:
     def test_load_datasets_applies_tokenization(
         self, mock_load_dataset, mock_tokenizer, dataset_loader
     ):
-        """Test load_datasets applies tokenization correctly"""
+        """Verify tokenization and column removal are applied to loaded datasets."""
         # Mock tokenizer
         mock_tokenizer_instance = Mock()
         mock_tokenizer_instance.return_value = {
@@ -192,21 +209,21 @@ class TestMedQuADDatasetLoader:
         }
         mock_tokenizer.return_value = mock_tokenizer_instance
 
-        # Mock dataset with map method
-        mock_dataset = Mock()
-        mock_dataset_mapped = Mock()
-        mock_dataset_split = Mock()
-        mock_dataset_split.train_test_split.return_value = {
+        # Create mock DatasetDict that supports the chain of operations
+        mock_dataset_dict = Mock()
+        mock_train_dataset = Mock()
+
+        # Configure the mock chain: DatasetDict.map() -> DatasetDict.remove_columns() -> DatasetDict.map() -> DatasetDict["train"] -> Dataset.train_test_split()
+        mock_dataset_dict.map.return_value = mock_dataset_dict
+        mock_dataset_dict.remove_columns.return_value = mock_dataset_dict
+        mock_dataset_dict.__getitem__ = Mock(return_value=mock_train_dataset)
+
+        mock_train_dataset.train_test_split.return_value = {
             "train": Mock(),
             "test": Mock(),
         }
 
-        # Chain the map operations
-        mock_dataset.map.return_value = mock_dataset_mapped
-        mock_dataset_mapped.remove_columns.return_value = mock_dataset_mapped
-        mock_dataset_mapped.map.return_value = mock_dataset_split
-
-        mock_load_dataset.return_value = {"train": mock_dataset}
+        mock_load_dataset.return_value = mock_dataset_dict
 
         with patch(
             "src.dataset_loaders.medquad_dataset_loader.glob.glob",
@@ -219,14 +236,14 @@ class TestMedQuADDatasetLoader:
                     dataset_loader.load_datasets()
 
         # Should apply tokenization mapping
-        assert mock_dataset.map.called
+        assert mock_dataset_dict.map.called
         # Should remove specified columns
-        assert mock_dataset_mapped.remove_columns.called
-        # Should apply chunking mapping
-        assert mock_dataset_mapped.map.called
+        assert mock_dataset_dict.remove_columns.called
+        # Should apply chunking mapping (2 map calls per client, 3 clients = 6 total)
+        assert mock_dataset_dict.map.call_count == 6
 
     def test_load_datasets_skips_hidden_files(self, dataset_loader):
-        """Test load_datasets skips hidden files like .DS_Store"""
+        """Verify hidden files/folders are ignored when scanning client folders."""
         with patch(
             "src.dataset_loaders.medquad_dataset_loader.os.listdir"
         ) as mock_listdir:
@@ -242,14 +259,25 @@ class TestMedQuADDatasetLoader:
                     with patch(
                         "src.dataset_loaders.medquad_dataset_loader.load_dataset"
                     ) as mock_load_dataset:
-                        mock_dataset = Mock()
-                        mock_dataset_split = Mock()
-                        mock_dataset_split.train_test_split.return_value = {
+                        # Create mock DatasetDict that supports the chain of operations
+                        mock_dataset_dict = Mock()
+                        mock_train_dataset = Mock()
+
+                        # Configure the mock chain
+                        mock_dataset_dict.map.return_value = mock_dataset_dict
+                        mock_dataset_dict.remove_columns.return_value = (
+                            mock_dataset_dict
+                        )
+                        mock_dataset_dict.__getitem__ = Mock(
+                            return_value=mock_train_dataset
+                        )
+
+                        mock_train_dataset.train_test_split.return_value = {
                             "train": Mock(),
                             "test": Mock(),
                         }
-                        mock_dataset.map.return_value = mock_dataset_split
-                        mock_load_dataset.return_value = {"train": mock_dataset}
+
+                        mock_load_dataset.return_value = mock_dataset_dict
 
                         with patch(
                             "src.dataset_loaders.medquad_dataset_loader.DataLoader"
@@ -268,7 +296,7 @@ class TestMedQuADDatasetLoader:
     def test_load_datasets_sorts_client_folders_correctly(
         self, mock_listdir, dataset_loader
     ):
-        """Test load_datasets sorts client folders by numeric suffix"""
+        """Verify client folders are processed in numeric order by suffix."""
         mock_listdir.return_value = ["client_10", "client_2", "client_1"]
 
         with patch(
@@ -281,14 +309,23 @@ class TestMedQuADDatasetLoader:
                 with patch(
                     "src.dataset_loaders.medquad_dataset_loader.load_dataset"
                 ) as mock_load_dataset:
-                    mock_dataset = Mock()
-                    mock_dataset_split = Mock()
-                    mock_dataset_split.train_test_split.return_value = {
+                    # Create mock DatasetDict that supports the chain of operations
+                    mock_dataset_dict = Mock()
+                    mock_train_dataset = Mock()
+
+                    # Configure the mock chain
+                    mock_dataset_dict.map.return_value = mock_dataset_dict
+                    mock_dataset_dict.remove_columns.return_value = mock_dataset_dict
+                    mock_dataset_dict.__getitem__ = Mock(
+                        return_value=mock_train_dataset
+                    )
+
+                    mock_train_dataset.train_test_split.return_value = {
                         "train": Mock(),
                         "test": Mock(),
                     }
-                    mock_dataset.map.return_value = mock_dataset_split
-                    mock_load_dataset.return_value = {"train": mock_dataset}
+
+                    mock_load_dataset.return_value = mock_dataset_dict
 
                     with patch("src.dataset_loaders.medquad_dataset_loader.DataLoader"):
                         with patch(
@@ -300,7 +337,7 @@ class TestMedQuADDatasetLoader:
         assert mock_load_dataset.call_count == 3
 
     def test_load_datasets_creates_correct_poisoned_client_list(self, dataset_loader):
-        """Test load_datasets creates correct list of poisoned client IDs"""
+        """Verify the loader identifies the correct client IDs to poison."""
         # Set num_poisoned_clients to 2
         dataset_loader.num_poisoned_clients = 2
 
@@ -319,14 +356,25 @@ class TestMedQuADDatasetLoader:
                     with patch(
                         "src.dataset_loaders.medquad_dataset_loader.load_dataset"
                     ) as mock_load_dataset:
-                        mock_dataset = Mock()
-                        mock_dataset_split = Mock()
-                        mock_dataset_split.train_test_split.return_value = {
+                        # Create mock DatasetDict that supports the chain of operations
+                        mock_dataset_dict = Mock()
+                        mock_train_dataset = Mock()
+
+                        # Configure the mock chain
+                        mock_dataset_dict.map.return_value = mock_dataset_dict
+                        mock_dataset_dict.remove_columns.return_value = (
+                            mock_dataset_dict
+                        )
+                        mock_dataset_dict.__getitem__ = Mock(
+                            return_value=mock_train_dataset
+                        )
+
+                        mock_train_dataset.train_test_split.return_value = {
                             "train": Mock(),
                             "test": Mock(),
                         }
-                        mock_dataset.map.return_value = mock_dataset_split
-                        mock_load_dataset.return_value = {"train": mock_dataset}
+
+                        mock_load_dataset.return_value = mock_dataset_dict
 
                         with patch(
                             "src.dataset_loaders.medquad_dataset_loader.DataLoader"
@@ -397,14 +445,21 @@ class TestMedQuADDatasetLoader:
         mock_glob.return_value = ["data.json"]
         mock_tokenizer.return_value = Mock()
 
-        mock_dataset = Mock()
-        mock_dataset_split = Mock()
-        mock_dataset_split.train_test_split.return_value = {
+        # Create mock DatasetDict that supports the chain of operations
+        mock_dataset_dict = Mock()
+        mock_train_dataset = Mock()
+
+        # Configure the mock chain
+        mock_dataset_dict.map.return_value = mock_dataset_dict
+        mock_dataset_dict.remove_columns.return_value = mock_dataset_dict
+        mock_dataset_dict.__getitem__ = Mock(return_value=mock_train_dataset)
+
+        mock_train_dataset.train_test_split.return_value = {
             "train": Mock(),
             "test": Mock(),
         }
-        mock_dataset.map.return_value = mock_dataset_split
-        mock_load_dataset.return_value = {"train": mock_dataset}
+
+        mock_load_dataset.return_value = mock_dataset_dict
 
         with patch(
             "src.dataset_loaders.medquad_dataset_loader.DataCollatorForLanguageModeling"
@@ -413,6 +468,6 @@ class TestMedQuADDatasetLoader:
 
         # Should use correct test_size (1 - training_subset_fraction)
         expected_test_size = 1 - dataset_loader.training_subset_fraction
-        mock_dataset_split.train_test_split.assert_called_with(
+        mock_train_dataset.train_test_split.assert_called_with(
             test_size=expected_test_size
         )
