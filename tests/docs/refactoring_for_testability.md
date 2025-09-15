@@ -201,6 +201,18 @@ Testing revealed several issues that could lead to runtime errors. These have be
 - **Purpose**: Prevents `FileExistsError` during testing.
 - **Risk Assessment**: Low - standard practice for directory creation.
 
+#### **Dataset Loader Access for Testing**
+
+- **Problem:** Test cases needed access to the dataset loader instance to verify correct initialization and behavior.
+- **Fix:** Added `self._dataset_loader = dataset_loader` to store the dataset loader reference in FederatedSimulation.
+- **Benefit:** Enables tests to verify dataset loader state and configuration without changing public API.
+
+#### Dataset Loader Access Details
+
+- **File**: `src/federated_simulation.py`
+- **Purpose**: Enable test verification of dataset loader initialization and state.
+- **Risk Assessment**: Very low - internal state tracking with no functional changes.
+
 #### **Robust CSV Metric Handling**
 
 - **Problem:** `None` or missing metric values were written as empty strings to CSV files, and `IndexError` could occur.

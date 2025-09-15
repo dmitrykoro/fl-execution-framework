@@ -69,6 +69,7 @@ class FederatedSimulation:
 
         self._network_model = None
         self._aggregation_strategy = None
+        self._dataset_loader = None
 
         self._trainloaders = None
         self._valloaders = None
@@ -200,6 +201,7 @@ class FederatedSimulation:
             )
             sys.exit(-1)
 
+        self._dataset_loader = dataset_loader
         self._trainloaders, self._valloaders = dataset_loader.load_datasets()
 
     def _assign_aggregation_strategy(self) -> None:
