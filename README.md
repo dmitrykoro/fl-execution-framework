@@ -1,3 +1,4 @@
+[![codecov](https://codecov.io/github/dmitrykoro/fl-execution-framework/graph/badge.svg?token=HJFASRJ43T)](https://codecov.io/github/dmitrykoro/fl-execution-framework)
 # Knowledge Management Framework for Federated Learning
 ### A framework for Federated Learning simulation configuration and execution
 
