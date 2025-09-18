@@ -25,6 +25,10 @@ black tests
 echo "🔍 Running flake8..."
 flake8 tests --config=tests/.flake8
 
+# run mypy type checking on test infrastructure
+echo "🔍 Running mypy..."
+mypy tests/conftest.py tests/fixtures/ tests/integration/ tests/unit/ tests/performance/ --config-file=tests/pyproject.toml
+
 # run pytest with logging to a pytest.log file
 echo "🧪 Running pytest..."
 pytest -v --tb=short -s tests | tee pytest.log
