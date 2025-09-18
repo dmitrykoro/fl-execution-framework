@@ -1,5 +1,5 @@
 """
-Mock dataset generators and utilities for testing federated learning components.
+Mock dataset generators for federated learning tests.
 """
 
 from typing import Callable, Dict, List, Optional, Tuple
@@ -8,9 +8,16 @@ import numpy as np
 import torch
 from torch.utils.data import DataLoader, Dataset
 
+# Flower type imports with fallbacks
+try:
+    from tests.type_definitions.flower_typing_reference import NDArray
+except ImportError:
+    # Development fallbacks
+    NDArray = np.ndarray  # type: ignore[misc]
 
-class MockDataset(Dataset):
-    """Lightweight mock dataset for testing without real data dependencies."""
+
+class MockDataset(Dataset[Tuple[torch.Tensor, torch.Tensor]]):
+    """Lightweight mock dataset without real data dependencies."""
 
     def __init__(
         self,
@@ -26,18 +33,18 @@ class MockDataset(Dataset):
             size: Number of samples in the dataset
             num_classes: Number of classification classes
             input_shape: Shape of input data (channels, height, width)
-            use_default_seed: Whether to set default seeds (False when called from federated dataset)
+            use_default_seed: Whether to set default seeds
         """
         self.size = size
         self.num_classes = num_classes
         self.input_shape = input_shape
 
-        # Generate reproducible mock data
+        # Generate reproducible data
         if use_default_seed:
             torch.manual_seed(42)
             np.random.seed(42)
 
-        # Create mock data and labels
+        # Create data and labels
         self.data = torch.randn(size, *input_shape)
         self.targets = torch.randint(0, num_classes, (size,))
 
@@ -49,7 +56,7 @@ class MockDataset(Dataset):
 
 
 class MockFederatedDataset:
-    """Mock federated dataset that simulates client data distribution."""
+    """Mock federated dataset with client data distribution."""
 
     def __init__(
         self,
@@ -76,11 +83,11 @@ class MockFederatedDataset:
         self.client_datasets = self._generate_client_datasets()
 
     def _generate_client_datasets(self) -> Dict[int, MockDataset]:
-        """Generate individual datasets for each client."""
+        """Generate datasets for each client."""
         client_datasets = {}
 
         for client_id in range(self.num_clients):
-            # Use different seeds for each client to simulate data heterogeneity
+            # Different seeds simulate data heterogeneity
             torch.manual_seed(42 + client_id)
             np.random.seed(42 + client_id)
 
@@ -99,14 +106,16 @@ class MockFederatedDataset:
             raise ValueError(f"Client {client_id} not found")
         return self.client_datasets[client_id]
 
-    def get_client_dataloader(self, client_id: int, batch_size: int = 32) -> DataLoader:
+    def get_client_dataloader(
+        self, client_id: int, batch_size: int = 32
+    ) -> DataLoader[Tuple[torch.Tensor, torch.Tensor]]:
         """Get DataLoader for a specific client."""
         dataset = self.get_client_dataset(client_id)
         return DataLoader(dataset, batch_size=batch_size, shuffle=True)
 
 
 class MockDatasetHandler:
-    """Mock dataset handler that simulates dataset setup and teardown operations."""
+    """Mock dataset handler for setup and teardown operations."""
 
     def __init__(self, dataset_type: str = "mock", dataset_path: str = "/tmp/mock"):
         """
@@ -120,11 +129,11 @@ class MockDatasetHandler:
         self.dataset_path = dataset_path
         self.is_setup = False
         self.federated_dataset: Optional[MockFederatedDataset] = None
-        self.poisoned_client_ids = set()
+        self.poisoned_client_ids: set[int] = set()
 
     def setup_dataset(self, num_clients: int = 10) -> None:
-        """Mock dataset setup without file operations."""
-        # Simulate dataset setup based on type
+        """Setup dataset without file operations."""
+        # Setup based on dataset type
         input_shapes = {
             "its": (3, 224, 224),
             "femnist_iid": (1, 28, 28),
@@ -144,19 +153,19 @@ class MockDatasetHandler:
         self.is_setup = True
 
     def teardown_dataset(self) -> None:
-        """Mock dataset cleanup without file operations."""
+        """Cleanup dataset without file operations."""
         self.federated_dataset = None
         self.is_setup = False
 
     def get_client_data(self, client_id: int) -> MockDataset:
         """Get data for a specific client."""
-        if not self.is_setup:
+        if not self.is_setup or self.federated_dataset is None:
             raise RuntimeError("Dataset not setup. Call setup_dataset() first.")
         return self.federated_dataset.get_client_dataset(client_id)
 
 
 def generate_mock_dataset_config() -> Dict[str, str]:
-    """Generate mock dataset configuration mapping."""
+    """Generate dataset configuration mapping."""
     return {
         "its": "datasets/its",
         "femnist_iid": "datasets/femnist_iid",
@@ -170,9 +179,8 @@ def generate_mock_dataset_config() -> Dict[str, str]:
 
 def generate_mock_client_parameters(
     num_clients: int, param_size: int = 1000
-) -> List[np.ndarray]:
-    """
-    Generate mock client parameters for testing aggregation strategies.
+) -> List[NDArray]:
+    """Generate client parameters for aggregation strategy testing.
 
     Args:
         num_clients: Number of clients to generate parameters for
@@ -188,8 +196,7 @@ def generate_mock_client_parameters(
 def generate_mock_client_metrics(
     num_clients: int, num_rounds: int
 ) -> Dict[int, Dict[str, List[float]]]:
-    """
-    Generate mock client metrics for testing history tracking.
+    """Generate client metrics for history tracking tests.
 
     Args:
         num_clients: Number of clients
@@ -209,12 +216,12 @@ def generate_mock_client_metrics(
     }
 
 
-def _create_gaussian_attack(param_size: int) -> np.ndarray:
+def _create_gaussian_attack(param_size: int) -> NDArray:
     """Generate parameters with large Gaussian noise."""
     return np.random.randn(param_size) * 10
 
 
-def _create_model_poisoning_attack(param_size: int) -> np.ndarray:
+def _create_model_poisoning_attack(param_size: int) -> NDArray:
     """Generate parameters with targeted manipulation."""
     poisoned_param = np.random.randn(param_size) * 0.1
     poison_indices = np.random.choice(param_size, size=param_size // 10, replace=False)
@@ -222,17 +229,17 @@ def _create_model_poisoning_attack(param_size: int) -> np.ndarray:
     return poisoned_param
 
 
-def _create_byzantine_clients_attack(param_size: int) -> np.ndarray:
+def _create_byzantine_clients_attack(param_size: int) -> NDArray:
     """Generate parameters with adversarial behavior."""
     return np.random.randn(param_size) * 15
 
 
-def _create_gradient_inversion_attack(param_size: int) -> np.ndarray:
+def _create_gradient_inversion_attack(param_size: int) -> NDArray:
     """Generate parameters with scaled values."""
     return np.random.randn(param_size) * 3
 
 
-def _create_label_flipping_attack(param_size: int) -> np.ndarray:
+def _create_label_flipping_attack(param_size: int) -> NDArray:
     """Generate parameters simulating label flipping effects."""
     flipped_param = np.random.randn(param_size) * 0.1
     flip_indices = np.random.choice(param_size, size=param_size // 5, replace=False)
@@ -240,7 +247,7 @@ def _create_label_flipping_attack(param_size: int) -> np.ndarray:
     return flipped_param
 
 
-def _create_backdoor_attack(param_size: int) -> np.ndarray:
+def _create_backdoor_attack(param_size: int) -> NDArray:
     """Generate parameters with a backdoor pattern."""
     backdoor_param = np.random.randn(param_size) * 0.1
     pattern_indices = np.arange(0, min(100, param_size), 10)
@@ -248,18 +255,18 @@ def _create_backdoor_attack(param_size: int) -> np.ndarray:
     return backdoor_param
 
 
-def _create_zero_attack(param_size: int) -> np.ndarray:
+def _create_zero_attack(param_size: int) -> NDArray:
     """Generate zero parameters."""
     return np.zeros(param_size)
 
 
-def _create_flip_attack(param_size: int) -> np.ndarray:
+def _create_flip_attack(param_size: int) -> NDArray:
     """Generate parameters with flipped signs."""
     base_param = np.random.randn(param_size)
     return -base_param * 5
 
 
-ATTACK_FUNCTIONS: Dict[str, Callable[[int], np.ndarray]] = {
+ATTACK_FUNCTIONS: Dict[str, Callable[[int], NDArray]] = {
     "gaussian_noise": _create_gaussian_attack,
     "gaussian": _create_gaussian_attack,
     "model_poisoning": _create_model_poisoning_attack,
@@ -277,9 +284,8 @@ def generate_byzantine_client_parameters(
     num_byzantine: int,
     param_size: int = 1000,
     attack_type: str = "gaussian",
-) -> List[np.ndarray]:
-    """
-    Generate client parameters with Byzantine (malicious) clients for defense testing.
+) -> List[NDArray]:
+    """Generate client parameters with Byzantine clients for defense testing.
 
     Args:
         num_clients: Total number of clients
@@ -292,12 +298,12 @@ def generate_byzantine_client_parameters(
     """
     np.random.seed(42)
 
-    # Generate honest client parameters
+    # Generate honest parameters
     honest_params = [
         np.random.randn(param_size) * 0.1 for _ in range(num_clients - num_byzantine)
     ]
 
-    # Get attack function from dictionary, with a default
+    # Get attack function with default fallback
     attack_fn = ATTACK_FUNCTIONS.get(attack_type, _create_gaussian_attack)
     byzantine_params = [attack_fn(param_size) for _ in range(num_byzantine)]
 

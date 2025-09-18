@@ -12,9 +12,24 @@ import pytest
 from flwr.common import FitRes, ndarrays_to_parameters
 from flwr.server.client_proxy import ClientProxy
 
-# Configure environment for deterministic test execution
-os.environ["LOKY_MAX_CPU_COUNT"] = "1"  # Single-threaded to avoid subprocess issues
-os.environ["OMP_NUM_THREADS"] = "1"  # Limit OpenMP threads
+# Flower type imports with fallbacks
+try:
+    from tests.type_definitions.flower_typing_reference import (
+        Config,
+        Metrics,
+        NDArray,
+        Parameters,
+    )
+except ImportError:
+    # Development fallbacks
+    NDArray = np.ndarray  # type: ignore[misc]
+    Config = Dict[str, Any]  # type: ignore[misc]
+    Metrics = Dict[str, Any]  # type: ignore[misc]
+    Parameters = Any  # type: ignore[misc,assignment]
+
+# Deterministic test environment
+os.environ["LOKY_MAX_CPU_COUNT"] = "1"  # Single-threaded
+os.environ["OMP_NUM_THREADS"] = "1"  # Limit OpenMP
 
 pytest_plugins = [
     "tests.fixtures.mock_datasets",
@@ -24,13 +39,13 @@ pytest_plugins = [
 
 
 @pytest.fixture
-def mock_output_directory(tmp_path, monkeypatch):
-    """Create proper output directory structure for tests and mock DirectoryHandler."""
+def mock_output_directory(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
+    """Create test output directory structure and mock DirectoryHandler."""
     output_dir = tmp_path / "out" / "test_run"
     output_dir.mkdir(parents=True)
     (output_dir / "output.log").touch()
 
-    # Mock DirectoryHandler.dirname to point to test directory
+    # Mock DirectoryHandler.dirname for test directory
     monkeypatch.setattr(
         "src.output_handlers.directory_handler.DirectoryHandler.dirname",
         str(output_dir),
@@ -39,10 +54,10 @@ def mock_output_directory(tmp_path, monkeypatch):
     return output_dir
 
 
-# Essential fixtures for strategy testing
+# Strategy testing fixtures
 @pytest.fixture
 def mock_strategy_configs() -> Dict[str, Dict[str, Any]]:
-    """Collection of all strategy configurations for parameterized testing."""
+    """Strategy configurations for parameterized tests."""
     return {
         "trust": {
             "aggregation_strategy_keyword": "trust",
@@ -82,21 +97,21 @@ def mock_strategy_configs() -> Dict[str, Dict[str, Any]]:
 
 @pytest.fixture(params=["trust", "pid", "krum", "multi-krum", "trimmed_mean"])
 def strategy_config(
-    request, mock_strategy_configs: Dict[str, Dict[str, Any]]
+    request: pytest.FixtureRequest, mock_strategy_configs: Dict[str, Dict[str, Any]]
 ) -> Dict[str, Any]:
-    """Parameterized fixture for different strategy configurations."""
+    """Parameterized strategy configurations."""
     return mock_strategy_configs[request.param]
 
 
 @pytest.fixture(params=["its", "femnist_iid", "pneumoniamnist", "bloodmnist"])
-def dataset_type(request) -> str:
-    """Parameterized fixture for different dataset types."""
-    return request.param
+def dataset_type(request: pytest.FixtureRequest) -> str:
+    """Parameterized dataset types."""
+    return str(request.param)
 
 
 @pytest.fixture
 def temp_dataset_dir(tmp_path: Path) -> Path:
-    """Create a temporary dataset directory for testing."""
+    """Create temporary dataset directory."""
     dataset_dir = tmp_path / "datasets"
     dataset_dir.mkdir()
     (dataset_dir / "train.txt").write_text("mock training data")
@@ -105,8 +120,8 @@ def temp_dataset_dir(tmp_path: Path) -> Path:
 
 
 @pytest.fixture
-def mock_client_parameters() -> List[np.ndarray]:
-    """Generate mock client parameters for testing."""
+def mock_client_parameters() -> List[NDArray]:
+    """Generate mock client parameters."""
     np.random.seed(42)
     return [np.random.randn(100) for _ in range(5)]
 
@@ -114,23 +129,21 @@ def mock_client_parameters() -> List[np.ndarray]:
 def generate_mock_client_data(
     num_clients: int, param_shape: Tuple[int, int] = (10, 5)
 ) -> List[Tuple[ClientProxy, FitRes]]:
-    """
-    Generate a list of mock client results (ClientProxy, FitRes) for testing.
-    """
-    results = []
+    """Generate mock client results (ClientProxy, FitRes)."""
+    results: List[Tuple[ClientProxy, FitRes]] = []
     np.random.seed(42)
 
     for i in range(num_clients):
         client_proxy = Mock(spec=ClientProxy)
         client_proxy.cid = str(i)
 
-        # Create mock parameters with some variation
-        if i < 2:  # First two clients have similar parameters
+        # Create varied mock parameters
+        if i < 2:  # Similar parameters for first two clients
             mock_params = [
                 np.random.randn(*param_shape) * 0.1,
                 np.random.randn(param_shape[1]) * 0.1,
             ]
-        else:  # Other clients have different parameters
+        else:  # Different parameters for remaining clients
             mock_params = [
                 np.random.randn(*param_shape) * (i + 1),
                 np.random.randn(param_shape[1]) * (i + 1),
