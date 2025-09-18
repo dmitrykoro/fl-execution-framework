@@ -7,6 +7,7 @@ and dataset configuration handling and validation.
 
 import os
 from pathlib import Path
+from typing import Dict, List, Set
 from unittest.mock import Mock, call, patch
 
 import numpy as np
@@ -17,11 +18,11 @@ from src.output_handlers.directory_handler import DirectoryHandler
 
 
 class TestDatasetHandler:
-    """Test suite for DatasetHandler class."""
+    """Test DatasetHandler class."""
 
     @pytest.fixture
-    def mock_strategy_config(self):
-        """Create a mock strategy configuration for testing."""
+    def mock_strategy_config(self) -> StrategyConfig:
+        """Create mock strategy configuration."""
         config = StrategyConfig()
         config.num_of_clients = 5
         config.dataset_keyword = "its"
@@ -34,14 +35,14 @@ class TestDatasetHandler:
         return config
 
     @pytest.fixture
-    def mock_directory_handler(self, tmp_path):
+    def mock_directory_handler(self, tmp_path: Path) -> Mock:
         """Create a mock directory handler with temporary paths."""
         handler = Mock(spec=DirectoryHandler)
         handler.dataset_dir = str(tmp_path / "dataset")
         return handler
 
     @pytest.fixture
-    def mock_dataset_config_list(self, tmp_path):
+    def mock_dataset_config_list(self, tmp_path: Path) -> Dict[str, str]:
         """Create mock dataset configuration mapping."""
         return {
             "its": str(tmp_path / "source_datasets" / "its"),
@@ -51,8 +52,11 @@ class TestDatasetHandler:
 
     @pytest.fixture
     def dataset_handler(
-        self, mock_strategy_config, mock_directory_handler, mock_dataset_config_list
-    ):
+        self,
+        mock_strategy_config: StrategyConfig,
+        mock_directory_handler: Mock,
+        mock_dataset_config_list: Dict[str, str],
+    ) -> DatasetHandler:
         """Create DatasetHandler instance for testing."""
         handler = DatasetHandler(
             strategy_config=mock_strategy_config,
@@ -65,7 +69,9 @@ class TestDatasetHandler:
         return handler
 
     @pytest.fixture
-    def temp_source_dataset(self, tmp_path, mock_dataset_config_list):
+    def temp_source_dataset(
+        self, tmp_path: Path, mock_dataset_config_list: Dict[str, str]
+    ) -> Path:
         """Create temporary source dataset structure for testing."""
         source_dir = Path(mock_dataset_config_list["its"])
         source_dir.mkdir(parents=True, exist_ok=True)
@@ -88,9 +94,12 @@ class TestDatasetHandler:
         return source_dir
 
     def test_init(
-        self, mock_strategy_config, mock_directory_handler, mock_dataset_config_list
-    ):
-        """Test DatasetHandler initialization."""
+        self,
+        mock_strategy_config: StrategyConfig,
+        mock_directory_handler: Mock,
+        mock_dataset_config_list: Dict[str, str],
+    ) -> None:
+        """Test initialization."""
         handler = DatasetHandler(
             strategy_config=mock_strategy_config,
             directory_handler=mock_directory_handler,
@@ -103,8 +112,10 @@ class TestDatasetHandler:
         assert handler.poisoned_client_ids == set()
         assert handler.all_poisoned_img_snrs == []
 
-    def test_setup_dataset_calls_copy_and_poison(self, dataset_handler):
-        """Test that setup_dataset calls both copy and poison methods."""
+    def test_setup_dataset_calls_copy_and_poison(
+        self, dataset_handler: DatasetHandler
+    ) -> None:
+        """Test setup_dataset calls copy and poison methods."""
         with patch.object(dataset_handler, "_copy_dataset") as mock_copy, patch.object(
             dataset_handler, "_poison_clients"
         ) as mock_poison:
@@ -118,8 +129,8 @@ class TestDatasetHandler:
 
     @patch("shutil.rmtree")
     def test_teardown_dataset_removes_directory_when_not_preserved(
-        self, mock_rmtree, dataset_handler
-    ):
+        self, mock_rmtree: Mock, dataset_handler: DatasetHandler
+    ) -> None:
         """Test teardown removes dataset when preserve_dataset is False."""
         dataset_handler._strategy_config.preserve_dataset = False
 
@@ -200,18 +211,20 @@ class TestDatasetHandler:
 
     @patch("os.listdir")
     def test_poison_clients_assigns_poisoned_client_ids(
-        self, mock_listdir, dataset_handler
-    ):
+        self, mock_listdir: Mock, dataset_handler: DatasetHandler
+    ) -> None:
         """Test _poison_clients correctly assigns poisoned client IDs."""
         mock_listdir.return_value = ["client_0", "client_1", "client_2"]
 
         with patch.object(dataset_handler, "_flip_labels"):
             dataset_handler._poison_clients("label_flipping", 2)
 
-        expected_ids = {0, 1}  # First 2 clients should be poisoned
+        expected_ids: Set[int] = {0, 1}  # First 2 clients should be poisoned
         assert dataset_handler.poisoned_client_ids == expected_ids
 
-    def test_poison_clients_raises_error_for_unsupported_attack(self, dataset_handler):
+    def test_poison_clients_raises_error_for_unsupported_attack(
+        self, dataset_handler: DatasetHandler
+    ) -> None:
         """Test _poison_clients raises error for unsupported attack types."""
         with patch("os.listdir", return_value=["client_0"]):
             with pytest.raises(
@@ -365,13 +378,15 @@ class TestDatasetHandler:
         mock_log_error.assert_called()
         assert "Failed to write image" in mock_log_error.call_args[0][0]
 
-    def test_assign_poisoned_client_ids_parses_correctly(self, dataset_handler):
+    def test_assign_poisoned_client_ids_parses_correctly(
+        self, dataset_handler: DatasetHandler
+    ) -> None:
         """Test _assign_poisoned_client_ids parses client IDs correctly."""
-        bad_client_dirs = ["client_0", "client_3", "client_7"]
+        bad_client_dirs: List[str] = ["client_0", "client_3", "client_7"]
 
         dataset_handler._assign_poisoned_client_ids(bad_client_dirs)
 
-        expected_ids = {0, 3, 7}
+        expected_ids: Set[int] = {0, 3, 7}
         assert dataset_handler.poisoned_client_ids == expected_ids
 
     @patch("logging.error")
@@ -442,7 +457,7 @@ class TestDatasetHandler:
 
             mock_method.assert_called_once_with("client_0")
 
-    def test_dataset_handler_with_real_temp_directories(self, tmp_path):
+    def test_dataset_handler_with_real_temp_directories(self, tmp_path: Path) -> None:
         """Integration test with real temporary directories."""
         # Create real temporary directory structure
         source_dir = tmp_path / "source"
@@ -470,7 +485,7 @@ class TestDatasetHandler:
         dir_handler.dataset_dir = str(dest_dir)
 
         # Create dataset config
-        dataset_config = {"test": str(source_dir)}
+        dataset_config: Dict[str, str] = {"test": str(source_dir)}
 
         # Create handler and test copy functionality
         handler = DatasetHandler(config, dir_handler, dataset_config)

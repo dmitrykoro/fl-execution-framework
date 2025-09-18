@@ -12,32 +12,18 @@ import pytest
 from flwr.common import FitRes, ndarrays_to_parameters
 from flwr.server.client_proxy import ClientProxy
 
-# Flower type imports with fallbacks
-try:
-    from tests.type_definitions.flower_typing_reference import (
-        Config,
-        Metrics,
-        NDArray,
-        Parameters,
-    )
-except ImportError:
-    # Development fallbacks
-    NDArray = np.ndarray  # type: ignore[misc]
-    Config = Dict[str, Any]  # type: ignore[misc]
-    Metrics = Dict[str, Any]  # type: ignore[misc]
-    Parameters = Any  # type: ignore[misc,assignment]
-
 # Deterministic test environment
 os.environ["LOKY_MAX_CPU_COUNT"] = "1"  # Single-threaded
 os.environ["OMP_NUM_THREADS"] = "1"  # Limit OpenMP
 
-pytest_plugins = [
-    "tests.fixtures.mock_datasets",
-    "tests.fixtures.sample_models",
-    "tests.fixtures.mock_flower_components",
-]
+# Type definitions
+NDArray = np.ndarray
+Config = Dict[str, Any]
+Metrics = Dict[str, Any]
+Parameters = Any
 
 
+# Output directory fixture
 @pytest.fixture
 def mock_output_directory(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     """Create test output directory structure and mock DirectoryHandler."""

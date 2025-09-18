@@ -1,13 +1,14 @@
 import json
+from typing import Any, Dict
 
 from src.data_models.simulation_strategy_config import StrategyConfig
 
 
 class TestStrategyConfig:
-    """Test suite for StrategyConfig data model"""
+    """Test StrategyConfig data model."""
 
-    def test_init_with_valid_parameters(self):
-        """Test StrategyConfig initialization with valid parameters"""
+    def test_init_with_valid_parameters(self) -> None:
+        """Test initialization with valid parameters."""
         config = StrategyConfig(
             aggregation_strategy_keyword="trust",
             num_of_rounds=5,
@@ -23,7 +24,7 @@ class TestStrategyConfig:
         assert config.beta_value == 0.5
 
     def test_init_with_string_booleans(self):
-        """Test StrategyConfig initialization converts string booleans correctly"""
+        """Test initialization converts string booleans correctly."""
         config = StrategyConfig(
             remove_clients="true",
             show_plots="false",
@@ -37,7 +38,7 @@ class TestStrategyConfig:
         assert config.save_csv is False
 
     def test_init_with_none_values(self):
-        """Test StrategyConfig initialization with None values"""
+        """Test initialization with None values."""
         config = StrategyConfig()
 
         assert config.aggregation_strategy_keyword is None
@@ -46,7 +47,7 @@ class TestStrategyConfig:
         assert config.trust_threshold is None
 
     def test_init_with_mixed_parameters(self):
-        """Test StrategyConfig initialization with mixed parameter types"""
+        """Test initialization with mixed parameter types."""
         config = StrategyConfig(
             aggregation_strategy_keyword="pid",
             num_of_rounds=3,
@@ -65,9 +66,9 @@ class TestStrategyConfig:
         assert config.Kd == 0.01
         assert config.show_plots is False
 
-    def test_from_dict_valid_config(self):
-        """Test StrategyConfig.from_dict with valid configuration dictionary"""
-        config_dict = {
+    def test_from_dict_valid_config(self) -> None:
+        """Test from_dict with valid configuration dictionary."""
+        config_dict: Dict[str, Any] = {
             "aggregation_strategy_keyword": "krum",
             "num_of_rounds": 4,
             "num_of_clients": 8,
@@ -83,8 +84,8 @@ class TestStrategyConfig:
         assert config.num_krum_selections == 3
         assert config.remove_clients is True
 
-    def test_from_dict_empty_config(self):
-        """Test StrategyConfig.from_dict with empty dictionary"""
+    def test_from_dict_empty_config(self) -> None:
+        """Test from_dict with empty dictionary."""
         config = StrategyConfig.from_dict({})
 
         assert config.aggregation_strategy_keyword is None
@@ -92,7 +93,7 @@ class TestStrategyConfig:
         assert config.num_of_clients is None
 
     def test_from_dict_with_string_booleans(self):
-        """Test StrategyConfig.from_dict converts string booleans correctly"""
+        """Test from_dict converts string booleans correctly."""
         config_dict = {
             "save_plots": "true",
             "preserve_dataset": "false",
@@ -105,8 +106,8 @@ class TestStrategyConfig:
         assert config.preserve_dataset is False
         assert config.show_plots is True
 
-    def test_to_json_valid_config(self):
-        """Test StrategyConfig.to_json serialization"""
+    def test_to_json_valid_config(self) -> None:
+        """Test to_json serialization."""
         config = StrategyConfig(
             aggregation_strategy_keyword="trust",
             num_of_rounds=5,
@@ -125,7 +126,7 @@ class TestStrategyConfig:
         assert parsed_json["remove_clients"] is True
 
     def test_to_json_with_none_values(self):
-        """Test StrategyConfig.to_json with None values"""
+        """Test to_json with None values."""
         config = StrategyConfig(
             aggregation_strategy_keyword="pid", num_of_rounds=None, Kp=1.5
         )
@@ -138,7 +139,7 @@ class TestStrategyConfig:
         assert parsed_json["Kp"] == 1.5
 
     def test_to_json_roundtrip(self):
-        """Test StrategyConfig serialization and deserialization roundtrip"""
+        """Test serialization and deserialization roundtrip."""
         original_config = StrategyConfig(
             aggregation_strategy_keyword="multi-krum",
             num_of_rounds=6,
@@ -167,7 +168,7 @@ class TestStrategyConfig:
         assert new_config.beta_value == original_config.beta_value
 
     def test_invalid_parameter_handling(self):
-        """Test StrategyConfig handles invalid parameters gracefully"""
+        """Test handling invalid parameters gracefully."""
         # StrategyConfig accepts any keyword arguments, so this tests that
         # unknown parameters are set as attributes
         config = StrategyConfig(unknown_parameter="test_value", another_unknown=123)
@@ -176,7 +177,7 @@ class TestStrategyConfig:
         assert config.another_unknown == 123
 
     def test_boolean_conversion_edge_cases(self):
-        """Test StrategyConfig boolean conversion edge cases"""
+        """Test boolean conversion edge cases."""
         config = StrategyConfig(
             # Only "true" and "false" strings are converted
             actual_boolean=True,
@@ -193,7 +194,7 @@ class TestStrategyConfig:
         assert config.number_value == 1  # Not converted
 
     def test_strategy_specific_parameters(self):
-        """Test StrategyConfig with strategy-specific parameters"""
+        """Test strategy-specific parameters."""
         # Trust strategy parameters
         trust_config = StrategyConfig(
             aggregation_strategy_keyword="trust",
@@ -233,7 +234,7 @@ class TestStrategyConfig:
         assert trimmed_config.trim_ratio == 0.2
 
     def test_training_parameters(self):
-        """Test StrategyConfig with training-related parameters"""
+        """Test training-related parameters."""
         config = StrategyConfig(
             training_subset_fraction=0.8,
             min_fit_clients=5,
@@ -257,7 +258,7 @@ class TestStrategyConfig:
         assert config.gpus_per_client == 0.5
 
     def test_attack_parameters(self):
-        """Test StrategyConfig with attack-related parameters"""
+        """Test attack-related parameters."""
         config = StrategyConfig(
             num_of_malicious_clients=2,
             attack_type="gaussian_noise",

@@ -6,6 +6,7 @@ with mocked PyTorch operations and data.
 """
 
 from collections import OrderedDict
+from typing import Any, Dict
 from unittest.mock import Mock, patch
 
 import numpy as np
@@ -15,13 +16,17 @@ from src.client_models.flower_client import FlowerClient
 
 from tests.fixtures.sample_models import MockCNNNetwork
 
+NDArray = np.ndarray
+Config = Dict[str, Any]
+Metrics = Dict[str, Any]
+
 
 class TestFlowerClient:
-    """Test suite for FlowerClient class."""
+    """Test FlowerClient class."""
 
     @pytest.fixture
     def mock_network(self):
-        """Create a mock network for testing."""
+        """Create mock network."""
         return MockCNNNetwork(num_classes=10, input_channels=3)
 
     @pytest.fixture
@@ -132,7 +137,7 @@ class TestFlowerClient:
         )
 
     def test_init(self, mock_network, mock_trainloader, mock_valloader):
-        """Test FlowerClient initialization."""
+        """Test initialization."""
         client = FlowerClient(
             client_id=5,
             net=mock_network,

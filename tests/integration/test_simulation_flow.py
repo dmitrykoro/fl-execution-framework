@@ -2,11 +2,11 @@
 Integration tests for FederatedSimulation class.
 
 Tests simulation initialization, component assignment, and execution workflows
-with mocked dependencies to avoid heavy computations and external dependencies.
+with mocked dependencies.
 """
 
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any, Dict, List
 from unittest.mock import Mock, patch
 
 import numpy as np
@@ -17,9 +17,11 @@ from src.federated_simulation import FederatedSimulation
 from tests.fixtures.mock_datasets import MockDatasetHandler
 from tests.fixtures.sample_models import MockCNNNetwork, MockNetwork
 
+NDArray = np.ndarray
+
 
 def _get_base_strategy_config() -> Dict[str, Any]:
-    """Get base strategy configuration for testing."""
+    """Return base strategy configuration for testing."""
     return {
         "aggregation_strategy_keyword": "trust",
         "dataset_keyword": "its",
@@ -47,11 +49,11 @@ def _get_base_strategy_config() -> Dict[str, Any]:
 
 
 class TestFederatedSimulationInitialization:
-    """Test FederatedSimulation initialization and component setup."""
+    """Test FederatedSimulation initialization."""
 
     @pytest.fixture
     def mock_dataset_handler(self) -> MockDatasetHandler:
-        """Create a mock dataset handler for testing."""
+        """Create mock dataset handler."""
         handler = MockDatasetHandler(dataset_type="its")
         handler.setup_dataset(num_clients=5)
         return handler
@@ -65,8 +67,8 @@ class TestFederatedSimulationInitialization:
 
     def test_simulation_initialization_with_trust_strategy(
         self, temp_dataset_dir: str, mock_dataset_handler: MockDatasetHandler
-    ):
-        """Test FederatedSimulation initialization with trust strategy."""
+    ) -> None:
+        """Test initialization with trust strategy."""
         # Arrange
         base_config = _get_base_strategy_config()
         strategy_config = StrategyConfig.from_dict(base_config)
@@ -107,8 +109,8 @@ class TestFederatedSimulationInitialization:
 
     def test_simulation_initialization_with_pid_strategy(
         self, temp_dataset_dir: str, mock_dataset_handler: MockDatasetHandler
-    ):
-        """Test FederatedSimulation initialization with PID strategy."""
+    ) -> None:
+        """Test initialization with PID strategy."""
         # Arrange
         pid_config = _get_base_strategy_config()
         pid_config.update(
@@ -153,8 +155,8 @@ class TestFederatedSimulationInitialization:
 
     def test_simulation_initialization_with_krum_strategy(
         self, temp_dataset_dir: str, mock_dataset_handler: MockDatasetHandler
-    ):
-        """Test FederatedSimulation initialization with Krum strategy."""
+    ) -> None:
+        """Test initialization with Krum strategy."""
         # Arrange
         krum_config = _get_base_strategy_config()
         krum_config.update(
@@ -206,8 +208,8 @@ class TestFederatedSimulationInitialization:
         mock_dataset_handler: MockDatasetHandler,
         dataset_type: str,
         expected_network: str,
-    ):
-        """Test correct dataset loader and network assignment for different dataset types."""
+    ) -> None:
+        """Test dataset loader and network assignment for different dataset types."""
         # Arrange
         config = _get_base_strategy_config()
         config["dataset_keyword"] = dataset_type
@@ -241,7 +243,7 @@ class TestFederatedSimulationInitialization:
 
     def test_simulation_initialization_with_invalid_strategy(
         self, temp_dataset_dir: str, mock_dataset_handler: MockDatasetHandler
-    ):
+    ) -> None:
         """Test FederatedSimulation initialization with invalid strategy raises error."""
         # Arrange
         invalid_config = _get_base_strategy_config()
@@ -273,7 +275,7 @@ class TestFederatedSimulationInitialization:
 
     def test_simulation_strategy_history_initialization(
         self, temp_dataset_dir: str, mock_dataset_handler: MockDatasetHandler
-    ):
+    ) -> None:
         """Test that SimulationStrategyHistory is properly initialized."""
         # Arrange
         base_config = _get_base_strategy_config()
@@ -306,7 +308,7 @@ class TestFederatedSimulationInitialization:
 
 
 class TestFederatedSimulationExecution:
-    """Test FederatedSimulation execution workflows."""
+    """Test FederatedSimulation execution."""
 
     @pytest.fixture
     def mock_simulation(self) -> FederatedSimulation:
@@ -339,7 +341,7 @@ class TestFederatedSimulationExecution:
     @patch("src.federated_simulation.flwr.simulation.start_simulation")
     def test_run_simulation_calls_flower_with_correct_parameters(
         self, mock_start_simulation: Mock, mock_simulation: FederatedSimulation
-    ):
+    ) -> None:
         """Test that run_simulation calls Flower with correct parameters."""
         # Act
         mock_simulation.run_simulation()
@@ -358,7 +360,7 @@ class TestFederatedSimulationExecution:
 
     def test_client_fn_creates_flower_client(
         self, mock_simulation: FederatedSimulation
-    ):
+    ) -> None:
         """Test that client_fn creates FlowerClient with correct parameters."""
         # Arrange
         client_id = "0"
@@ -389,7 +391,7 @@ class TestFederatedSimulationExecution:
 
     def test_client_fn_with_different_client_ids(
         self, mock_simulation: FederatedSimulation
-    ):
+    ) -> None:
         """Test client_fn with different client IDs uses correct data loaders."""
         # Mock FlowerClient
         with patch("src.federated_simulation.FlowerClient") as mock_flower_client:
@@ -414,13 +416,13 @@ class TestFederatedSimulationExecution:
                     == mock_simulation._valloaders[int(client_id)]
                 )
 
-    def test_get_model_params_with_regular_model(self):
+    def test_get_model_params_with_regular_model(self) -> None:
         """Test _get_model_params with regular PyTorch model."""
         # Arrange
         model = MockNetwork(num_classes=10, input_size=100)
 
         # Act
-        params = FederatedSimulation._get_model_params(model)
+        params: List[NDArray] = FederatedSimulation._get_model_params(model)
 
         # Assert
         assert isinstance(params, list)
@@ -436,7 +438,7 @@ class TestFederatedSimulationExecution:
     @patch("src.federated_simulation.flwr.simulation.start_simulation")
     def test_simulation_execution_with_mocked_flower_components(
         self, mock_start_simulation: Mock, mock_simulation: FederatedSimulation
-    ):
+    ) -> None:
         """Test complete simulation execution with mocked Flower components."""
         # Arrange
         mock_start_simulation.return_value = None  # Simulate successful completion
@@ -458,7 +460,7 @@ class TestFederatedSimulationExecution:
                 client = mock_simulation.client_fn(str(i))
                 assert client is not None
 
-    def test_simulation_component_assignment_consistency(self):
+    def test_simulation_component_assignment_consistency(self) -> None:
         """Test that component assignment is consistent across initialization."""
         # Arrange
         base_config = _get_base_strategy_config()
@@ -501,7 +503,7 @@ class TestFederatedSimulationExecution:
 class TestFederatedSimulationErrorHandling:
     """Test error handling in FederatedSimulation."""
 
-    def test_initialization_with_invalid_dataset_keyword(self):
+    def test_initialization_with_invalid_dataset_keyword(self) -> None:
         """Test initialization with invalid dataset keyword."""
         # Arrange
         invalid_config = _get_base_strategy_config()
@@ -520,7 +522,9 @@ class TestFederatedSimulationErrorHandling:
         assert exc_info.value.code == -1
 
     @patch("src.federated_simulation.flwr.simulation.start_simulation")
-    def test_simulation_handles_flower_exceptions(self, mock_start_simulation: Mock):
+    def test_simulation_handles_flower_exceptions(
+        self, mock_start_simulation: Mock
+    ) -> None:
         """Test that simulation properly handles Flower simulation exceptions."""
         # Arrange
         base_config = _get_base_strategy_config()
@@ -553,7 +557,7 @@ class TestFederatedSimulationErrorHandling:
         with pytest.raises(RuntimeError, match="Flower simulation failed"):
             simulation.run_simulation()
 
-    def test_client_fn_with_invalid_client_id(self):
+    def test_client_fn_with_invalid_client_id(self) -> None:
         """Test client_fn with invalid client ID."""
         # Arrange
         base_config = _get_base_strategy_config()

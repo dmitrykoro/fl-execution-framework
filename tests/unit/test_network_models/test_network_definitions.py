@@ -6,6 +6,7 @@ and state management with lightweight mock implementations.
 """
 
 from collections import OrderedDict
+from typing import Any, Dict, List, Tuple, Type, Union
 from unittest.mock import Mock, patch
 
 import numpy as np
@@ -38,10 +39,12 @@ from src.network_models.pneumoniamnist_network_definition import PneumoniamnistN
 
 
 class TestNetworkModels:
-    """Test suite for network model definitions."""
+    """Test network model definitions."""
 
-    def _create_network(self, network_class, num_classes=None):
-        """Helper method to create network with appropriate parameters."""
+    def _create_network(
+        self, network_class: Type[nn.Module], num_classes: int = None
+    ) -> nn.Module:
+        """Create network with appropriate parameters."""
         if network_class.__name__ == "LungCancerCNN" and num_classes is not None:
             return network_class(num_classes=num_classes)
         else:
@@ -58,7 +61,9 @@ class TestNetworkModels:
             (LungPhotosNetwork, (1, 224, 224), 2),
         ]
     )
-    def network_config(self, request):
+    def network_config(
+        self, request: Any
+    ) -> Dict[str, Union[Type[nn.Module], Tuple[int, ...], int, str]]:
         """Parameterized fixture for different network configurations."""
         network_class, input_shape, num_classes = request.param
         return {
@@ -68,8 +73,11 @@ class TestNetworkModels:
             "name": network_class.__name__,
         }
 
-    def test_network_initialization(self, network_config):
-        """Test that networks initialize correctly."""
+    def test_network_initialization(
+        self,
+        network_config: Dict[str, Union[Type[nn.Module], Tuple[int, ...], int, str]],
+    ) -> None:
+        """Test network initialization."""
         network_class = network_config["class"]
         num_classes = network_config["num_classes"]
         network = self._create_network(network_class, num_classes)
@@ -85,7 +93,10 @@ class TestNetworkModels:
         conv1_weights = network.conv1.weight.data
         assert not torch.allclose(conv1_weights, torch.zeros_like(conv1_weights))
 
-    def test_network_forward_pass(self, network_config):
+    def test_network_forward_pass(
+        self,
+        network_config: Dict[str, Union[Type[nn.Module], Tuple[int, ...], int, str]],
+    ) -> None:
         """Test forward pass through networks."""
         network_class = network_config["class"]
         input_shape = network_config["input_shape"]
@@ -99,29 +110,32 @@ class TestNetworkModels:
         network.eval()  # Set to evaluation mode
 
         # Create mock input
-        batch_size = 4
-        mock_input = torch.randn(batch_size, *input_shape)
+        batch_size: int = 4
+        mock_input: torch.Tensor = torch.randn(batch_size, *input_shape)
 
         # Forward pass
         with torch.no_grad():
             output = network(mock_input)
 
         # Check output shape
-        expected_shape = (batch_size, num_classes)
+        expected_shape: Tuple[int, int] = (batch_size, num_classes)
         assert output.shape == expected_shape
 
         # Check output is not all zeros or NaN
         assert not torch.allclose(output, torch.zeros_like(output))
         assert not torch.isnan(output).any()
 
-    def test_network_parameter_extraction(self, network_config):
+    def test_network_parameter_extraction(
+        self,
+        network_config: Dict[str, Union[Type[nn.Module], Tuple[int, ...], int, str]],
+    ) -> None:
         """Test parameter extraction from networks."""
         network_class = network_config["class"]
         num_classes = network_config["num_classes"]
         network = self._create_network(network_class, num_classes)
 
         # Get parameters as list
-        parameters = list(network.parameters())
+        parameters: List[torch.Tensor] = list(network.parameters())
 
         # Check that parameters exist
         assert len(parameters) > 0
@@ -132,22 +146,27 @@ class TestNetworkModels:
             assert param.requires_grad  # Should be trainable
 
         # Test state_dict extraction
-        state_dict = network.state_dict()
+        state_dict: OrderedDict[str, torch.Tensor] = network.state_dict()
         assert isinstance(state_dict, OrderedDict)
         assert len(state_dict) > 0
 
-    def test_network_parameter_setting(self, network_config):
+    def test_network_parameter_setting(
+        self,
+        network_config: Dict[str, Union[Type[nn.Module], Tuple[int, ...], int, str]],
+    ) -> None:
         """Test setting parameters in networks."""
         network_class = network_config["class"]
         num_classes = network_config["num_classes"]
         network = self._create_network(network_class, num_classes)
 
         # Get original parameters (make deep copy to avoid reference issues)
-        original_state_dict = network.state_dict()
-        original_copy = {k: v.clone() for k, v in original_state_dict.items()}
+        original_state_dict: OrderedDict[str, torch.Tensor] = network.state_dict()
+        original_copy: Dict[str, torch.Tensor] = {
+            k: v.clone() for k, v in original_state_dict.items()
+        }
 
         # Create modified parameters
-        modified_state_dict = OrderedDict()
+        modified_state_dict: OrderedDict[str, torch.Tensor] = OrderedDict()
         for key, param in original_state_dict.items():
             # Add small noise to parameters
             modified_state_dict[key] = param + torch.randn_like(param) * 0.5

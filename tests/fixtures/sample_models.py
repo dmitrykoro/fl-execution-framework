@@ -11,14 +11,9 @@ import numpy as np
 import torch
 import torch.nn as nn
 
-# Import enhanced typing from flower reference
-try:
-    from tests.type_definitions.flower_typing_reference import Config, Metrics, NDArray
-except ImportError:
-    # Fallback for development - these match the reference types
-    NDArray = np.ndarray  # type: ignore[misc]
-    Config = Dict[str, Any]  # type: ignore[misc]
-    Metrics = Dict[str, Any]  # type: ignore[misc]
+NDArray = np.ndarray
+Config = Dict[str, Any]
+Metrics = Dict[str, Any]
 
 
 class MockBaseNetwork(nn.Module):

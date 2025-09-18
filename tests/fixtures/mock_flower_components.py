@@ -6,22 +6,11 @@ from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
 import numpy as np
 
-# Flower type imports with fallbacks
-try:
-    from tests.type_definitions.flower_typing_reference import (
-        Config,
-        Metrics,
-        NDArray,
-        Parameters,
-        Scalar,
-    )
-except ImportError:
-    # Development fallbacks
-    NDArray = np.ndarray  # type: ignore[misc]
-    Config = Dict[str, Any]  # type: ignore[misc]
-    Metrics = Dict[str, Any]  # type: ignore[misc]
-    Parameters = Any  # type: ignore[misc,assignment]
-    Scalar = Union[bool, bytes, float, int, str]  # type: ignore[misc]
+NDArray = np.ndarray
+Config = Dict[str, Any]
+Metrics = Dict[str, Any]
+Parameters = Any
+Scalar = Union[bool, bytes, float, int, str]
 
 
 class MockParameters:

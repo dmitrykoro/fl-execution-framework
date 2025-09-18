@@ -22,7 +22,7 @@ from tests.fixtures.sample_models import MockNetwork
 
 
 def _create_multi_strategy_config(strategies: List[Dict[str, Any]]) -> Dict[str, Any]:
-    """Create a configuration with multiple strategies for testing."""
+    """Return configuration with multiple strategies for testing."""
     return {
         "shared_settings": {
             "dataset_keyword": "its",
@@ -54,7 +54,7 @@ def _create_multi_strategy_config(strategies: List[Dict[str, Any]]) -> Dict[str,
 def _create_attack_defense_config(
     defense_strategies: List[str], attack_type: str = "gaussian_noise"
 ) -> Dict[str, Any]:
-    """Create configuration for attack-defense scenarios."""
+    """Return configuration for attack-defense scenarios."""
     strategies = []
     for defense in defense_strategies:
         strategy_config = {
@@ -80,11 +80,11 @@ def _create_attack_defense_config(
 
 
 class TestMultiStrategyScenarios:
-    """Test complex multi-strategy scenarios."""
+    """Test multi-strategy scenarios."""
 
     @pytest.fixture
     def mock_simulation_components(self):
-        """Create mocked components for multi-strategy testing."""
+        """Create mocked components for testing."""
         with patch("src.simulation_runner.ConfigLoader") as mock_config_loader, patch(
             "src.simulation_runner.DirectoryHandler"
         ) as mock_directory_handler, patch(
@@ -142,18 +142,18 @@ class TestMultiStrategyScenarios:
     )
     def test_strategy_combination_execution(
         self,
-        mock_simulation_components,
+        mock_simulation_components: Any,
         strategy_combination: List[str],
         expected_behavior: str,
-    ):
-        """Test execution of multiple strategy combinations."""
+    ) -> None:
+        """Test multiple strategy combination execution."""
         # Arrange
         mocks = mock_simulation_components
 
         # Create strategy configurations
         strategies = []
         for strategy in strategy_combination:
-            strategy_config = {"aggregation_strategy_keyword": strategy}
+            strategy_config: Dict[str, Any] = {"aggregation_strategy_keyword": strategy}
 
             # Add strategy-specific parameters
             if strategy == "trust":
@@ -166,10 +166,10 @@ class TestMultiStrategyScenarios:
             strategies.append(strategy_config)
 
         # Configure mock to return strategy configurations
-        config_dicts = []
-        for i, strategy in enumerate(strategies):
-            config_dict = {
-                "aggregation_strategy_keyword": strategy[
+        config_dicts: List[Dict[str, Any]] = []
+        for i, strategy_dict in enumerate(strategies):
+            config_dict: Dict[str, Any] = {
+                "aggregation_strategy_keyword": strategy_dict[
                     "aggregation_strategy_keyword"
                 ],
                 "dataset_keyword": "its",
@@ -177,7 +177,7 @@ class TestMultiStrategyScenarios:
                 "num_of_clients": 10,
                 "strategy_number": i,
             }
-            config_dict.update(strategy)
+            config_dict.update(strategy_dict)
             config_dicts.append(config_dict)
 
         mocks["loader_instance"].get_usecase_config_list.return_value = config_dicts
@@ -252,7 +252,7 @@ class TestMultiStrategyScenarios:
     def test_strategy_interaction_parameter_inheritance(
         self, mock_simulation_components
     ):
-        """Test that shared parameters are properly inherited across strategies."""
+        """Test shared parameter inheritance across strategies."""
         # Arrange
         mocks = mock_simulation_components
 
@@ -310,7 +310,7 @@ class TestMultiStrategyScenarios:
         assert krum_call.kwargs["strategy_config"].num_krum_selections == 8
 
     def test_strategy_execution_order_consistency(self, mock_simulation_components):
-        """Test that strategies are executed in consistent order."""
+        """Test strategy execution order consistency."""
         # Arrange
         mocks = mock_simulation_components
 
@@ -352,11 +352,11 @@ class TestMultiStrategyScenarios:
 
 
 class TestByzantineFaultTolerance:
-    """Test Byzantine fault tolerance across strategy combinations."""
+    """Test Byzantine fault tolerance across strategies."""
 
     @pytest.fixture
     def mock_federated_simulation_with_byzantine(self):
-        """Create mock FederatedSimulation with Byzantine client simulation."""
+        """Create mock FederatedSimulation with Byzantine clients."""
         with patch("src.federated_simulation.ImageDatasetLoader") as mock_loader, patch(
             "src.federated_simulation.ITSNetwork"
         ) as mock_network, patch(
@@ -422,7 +422,7 @@ class TestByzantineFaultTolerance:
         attack_type: str,
         expected_robustness: str,
     ):
-        """Test Byzantine fault tolerance across different strategy combinations."""
+        """Test Byzantine fault tolerance across strategy combinations."""
         # Arrange
         mocks = mock_federated_simulation_with_byzantine
 
@@ -549,7 +549,7 @@ class TestByzantineFaultTolerance:
     def test_strategy_combination_byzantine_resilience(
         self, mock_federated_simulation_with_byzantine
     ):
-        """Test that strategy combinations provide better Byzantine resilience than individual strategies."""
+        """Test strategy combinations provide better Byzantine resilience."""
         # Arrange
         # Test individual strategy vs combination
         individual_strategies = ["trust", "krum", "rfa"]
@@ -624,11 +624,11 @@ class TestByzantineFaultTolerance:
 
 
 class TestAttackDefenseScenarios:
-    """Test attack-defense scenario workflows."""
+    """Test attack-defense scenarios."""
 
     @pytest.fixture
     def mock_attack_simulation_components(self):
-        """Create mocked components for attack-defense scenario testing."""
+        """Create mocked components for attack-defense testing."""
         with patch("src.simulation_runner.ConfigLoader") as mock_config_loader, patch(
             "src.simulation_runner.DirectoryHandler"
         ) as mock_directory_handler, patch(
@@ -722,7 +722,7 @@ class TestAttackDefenseScenarios:
         defense_strategies: List[str],
         expected_effectiveness: str,
     ):
-        """Test complete attack-defense scenario workflows."""
+        """Test attack-defense scenario workflows."""
         # Arrange
         mocks = mock_attack_simulation_components
 
@@ -809,7 +809,7 @@ class TestAttackDefenseScenarios:
             assert len(defense_strategies) >= 1
 
     def test_multi_attack_defense_resilience(self, mock_attack_simulation_components):
-        """Test defense resilience against multiple attack types simultaneously."""
+        """Test defense resilience against multiple attack types."""
         # Arrange
         mocks = mock_attack_simulation_components
 
@@ -907,7 +907,7 @@ class TestAttackDefenseScenarios:
     def test_attack_scenario_parameter_validation(
         self, mock_attack_simulation_components
     ):
-        """Test that attack scenario parameters are properly validated and configured."""
+        """Test attack scenario parameter validation and configuration."""
         # Arrange
         mocks = mock_attack_simulation_components
 

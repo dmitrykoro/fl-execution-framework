@@ -8,12 +8,7 @@ import numpy as np
 import torch
 from torch.utils.data import DataLoader, Dataset
 
-# Flower type imports with fallbacks
-try:
-    from tests.type_definitions.flower_typing_reference import NDArray
-except ImportError:
-    # Development fallbacks
-    NDArray = np.ndarray  # type: ignore[misc]
+NDArray = np.ndarray
 
 
 class MockDataset(Dataset[Tuple[torch.Tensor, torch.Tensor]]):

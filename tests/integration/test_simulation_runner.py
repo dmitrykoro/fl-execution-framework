@@ -17,7 +17,7 @@ from src.simulation_runner import SimulationRunner
 
 
 def _create_mock_strategy_config() -> Dict[str, Any]:
-    """Create a mock strategy configuration for testing."""
+    """Return mock strategy configuration for testing."""
     return {
         "shared_settings": {
             "aggregation_strategy_keyword": "trust",
@@ -53,7 +53,7 @@ def _create_mock_strategy_config() -> Dict[str, Any]:
 
 
 def __create_multi_strategy_config() -> Dict[str, Any]:
-    """Create a configuration with multiple different strategies."""
+    """Return configuration with multiple strategies."""
     return {
         "shared_settings": {
             "dataset_keyword": "its",
@@ -100,11 +100,11 @@ def __create_multi_strategy_config() -> Dict[str, Any]:
 
 
 class TestSimulationRunnerInitialization:
-    """Test SimulationRunner initialization and configuration loading."""
+    """Test SimulationRunner initialization."""
 
     @pytest.fixture
     def temp_config_files(self, tmp_path: Path) -> Dict[str, Path]:
-        """Create temporary configuration files for testing."""
+        """Create temporary configuration files."""
         # Create strategy config
         strategy_config = _create_mock_strategy_config()
         strategy_file = tmp_path / "test_strategy.json"
@@ -125,8 +125,8 @@ class TestSimulationRunnerInitialization:
 
     def test_simulation_runner_initialization_with_valid_config(
         self, temp_config_files: Dict[str, Path]
-    ):
-        """Test SimulationRunner initialization with valid configuration files."""
+    ) -> None:
+        """Test initialization with valid configuration files."""
         # Arrange & Act
         with patch("src.simulation_runner.ConfigLoader") as mock_config_loader, patch(
             "src.simulation_runner.DirectoryHandler"
@@ -159,8 +159,8 @@ class TestSimulationRunnerInitialization:
 
     def test_simulation_runner_initialization_with_multi_strategy_config(
         self, temp_config_files: Dict[str, Path]
-    ):
-        """Test SimulationRunner initialization with multiple strategies."""
+    ) -> None:
+        """Test initialization with multiple strategies."""
         # Arrange
 
         with patch("src.simulation_runner.ConfigLoader") as mock_config_loader, patch(
@@ -212,8 +212,8 @@ class TestSimulationRunnerInitialization:
         assert "pid" in strategies
         assert "krum" in strategies
 
-    def test_simulation_runner_logging_configuration(self):
-        """Test that SimulationRunner properly configures logging."""
+    def test_simulation_runner_logging_configuration(self) -> None:
+        """Test logging configuration."""
         # Arrange
         with patch("src.simulation_runner.ConfigLoader") as mock_config_loader, patch(
             "src.simulation_runner.logging.basicConfig"
@@ -235,11 +235,11 @@ class TestSimulationRunnerInitialization:
 
 
 class TestSimulationRunnerExecution:
-    """Test SimulationRunner execution workflows."""
+    """Test SimulationRunner execution."""
 
     @pytest.fixture
-    def mock_runner_components(self):
-        """Create mocked components for SimulationRunner testing."""
+    def mock_runner_components(self) -> Any:
+        """Create mocked components for testing."""
         with patch("src.simulation_runner.ConfigLoader") as mock_config_loader, patch(
             "src.simulation_runner.DirectoryHandler"
         ) as mock_directory_handler, patch(
@@ -297,7 +297,7 @@ class TestSimulationRunnerExecution:
             }
 
     def test_single_strategy_execution_workflow(self, mock_runner_components):
-        """Test complete execution workflow for a single strategy."""
+        """Test single strategy execution workflow."""
         # Arrange
         mocks = mock_runner_components
         runner = SimulationRunner("test_config.json")
@@ -332,7 +332,7 @@ class TestSimulationRunnerExecution:
         ].strategy_history.calculate_additional_rounds_data.assert_called_once()
 
     def test_multi_strategy_execution_workflow(self, mock_runner_components):
-        """Test execution workflow with multiple strategies."""
+        """Test multiple strategy execution workflow."""
         # Arrange
         mocks = mock_runner_components
         mocks["loader_instance"].get_usecase_config_list.return_value = [

@@ -7,6 +7,7 @@ during simulation execution.
 
 import gc
 import os
+from typing import Any, Generator, List, Optional, Tuple
 from unittest.mock import Mock, patch
 
 import numpy as np
@@ -24,37 +25,37 @@ from tests.fixtures.sample_models import create_mock_client_models
 
 
 class MemoryMonitor:
-    """Utility class for monitoring memory usage during tests."""
+    """Monitor memory usage during tests."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.process = psutil.Process(os.getpid())
         self.initial_memory = self.get_memory_usage()
         self.peak_memory = self.initial_memory
-        self.measurements = []
+        self.measurements: List[Tuple[str, float]] = []
 
     def get_memory_usage(self) -> float:
-        """Get current memory usage in MB."""
+        """Return current memory usage in MB."""
         return self.process.memory_info().rss / 1024 / 1024
 
     def record_measurement(self, label: str = "") -> float:
-        """Record a memory measurement with optional label."""
+        """Record memory measurement with optional label."""
         current_memory = self.get_memory_usage()
         self.peak_memory = max(self.peak_memory, current_memory)
         self.measurements.append((label, current_memory))
         return current_memory
 
     def get_memory_increase(self) -> float:
-        """Get memory increase since initialization."""
+        """Return memory increase since initialization."""
         return self.get_memory_usage() - self.initial_memory
 
     def get_peak_increase(self) -> float:
-        """Get peak memory increase since initialization."""
+        """Return peak memory increase since initialization."""
         return self.peak_memory - self.initial_memory
 
 
 @pytest.fixture
-def memory_monitor():
-    """Fixture providing memory monitoring capabilities."""
+def memory_monitor() -> Generator[MemoryMonitor, None, None]:
+    """Provide memory monitoring capabilities."""
     monitor = MemoryMonitor()
     yield monitor
     # Force garbage collection after test
@@ -62,14 +63,14 @@ def memory_monitor():
 
 
 class TestMemoryUsageMonitoring:
-    """Test memory consumption monitoring during simulation."""
+    """Test memory consumption monitoring."""
 
-    def test_strategy_config_memory_usage(self, memory_monitor: MemoryMonitor):
-        """Test memory usage when creating multiple StrategyConfig objects."""
+    def test_strategy_config_memory_usage(self, memory_monitor: MemoryMonitor) -> None:
+        """Test memory usage creating multiple StrategyConfig objects."""
         memory_monitor.record_measurement("before_config_creation")
 
         # Create multiple strategy configurations
-        configs = []
+        configs: List[StrategyConfig] = []
         for i in range(1000):
             config_data = {
                 "aggregation_strategy_keyword": "trust",
@@ -98,17 +99,17 @@ class TestMemoryUsageMonitoring:
             final_increase < 20
         ), f"Memory not properly cleaned up: {final_increase:.2f}MB"
 
-    def test_client_info_memory_scaling(self, memory_monitor: MemoryMonitor):
-        """Test memory usage scaling with number of clients and rounds."""
+    def test_client_info_memory_scaling(self, memory_monitor: MemoryMonitor) -> None:
+        """Test memory usage scaling with clients and rounds."""
         memory_monitor.record_measurement("initial")
 
         # Test with increasing numbers of clients
-        client_counts = [10, 50, 100, 500]
-        memory_measurements = []
+        client_counts: List[int] = [10, 50, 100, 500]
+        memory_measurements: List[Tuple[int, float]] = []
 
         for num_clients in client_counts:
             # Create client info objects
-            clients = []
+            clients: List[ClientInfo] = []
             for client_id in range(num_clients):
                 client_info = ClientInfo(client_id=client_id, num_of_rounds=10)
 
@@ -143,8 +144,10 @@ class TestMemoryUsageMonitoring:
                 memory_ratio <= client_ratio * 2
             ), f"Memory scaling issue: {client_ratio}x clients led to {memory_ratio}x memory"
 
-    def test_simulation_history_memory_usage(self, memory_monitor: MemoryMonitor):
-        """Test memory usage of simulation history tracking."""
+    def test_simulation_history_memory_usage(
+        self, memory_monitor: MemoryMonitor
+    ) -> None:
+        """Test simulation history memory usage."""
         memory_monitor.record_measurement("before_history")
 
         # Create a mock strategy config for the history
@@ -199,7 +202,7 @@ class TestMemoryUsageMonitoring:
         ), f"History memory usage too high: {memory_increase:.2f}MB"
 
         # Test memory usage when accessing history data
-        all_clients = history.get_all_clients()
+        all_clients: List[ClientInfo] = history.get_all_clients()
         for client_info in all_clients:
             _ = client_info.get_metric_by_name("loss_history")
             _ = client_info.get_metric_by_name("accuracy_history")
@@ -214,10 +217,12 @@ class TestMemoryUsageMonitoring:
 
 
 class TestMemoryLeakDetection:
-    """Test memory leak detection in long-running simulations."""
+    """Test memory leak detection."""
 
-    def test_repeated_strategy_execution_no_leaks(self, memory_monitor: MemoryMonitor):
-        """Test that repeated strategy execution doesn't cause memory leaks."""
+    def test_repeated_strategy_execution_no_leaks(
+        self, memory_monitor: MemoryMonitor
+    ) -> None:
+        """Test repeated strategy execution for memory leaks."""
         memory_monitor.record_measurement("initial")
 
         # Simulate multiple strategy executions
@@ -233,7 +238,7 @@ class TestMemoryLeakDetection:
             config = StrategyConfig.from_dict(config_data)
 
             # Create client data
-            client_params = generate_mock_client_parameters(10, 1000)
+            client_params: np.ndarray = generate_mock_client_parameters(10, 1000)
 
             # Simulate strategy processing (mock the actual strategy execution)
             with patch(
@@ -258,21 +263,23 @@ class TestMemoryLeakDetection:
             final_memory < 150
         ), f"Potential memory leak detected: {final_memory:.2f}MB increase"
 
-    def test_client_creation_cleanup_cycle(self, memory_monitor: MemoryMonitor):
-        """Test memory cleanup in client creation and destruction cycles."""
+    def test_client_creation_cleanup_cycle(self, memory_monitor: MemoryMonitor) -> None:
+        """Test memory cleanup in client creation/destruction cycles."""
         memory_monitor.record_measurement("initial")
 
-        baseline_memory = None
+        baseline_memory: Optional[float] = None
 
         # Run multiple cycles of client creation and cleanup
         for cycle in range(5):
             # Create mock clients
-            clients = create_mock_client_models(num_clients=20, dataset_type="its")
+            clients: List[Any] = create_mock_client_models(
+                num_clients=20, dataset_type="its"
+            )
 
             # Simulate some client operations
             for client in clients:
                 # Mock training data
-                mock_data = np.random.randn(100, 3, 32, 32)
+                mock_data: np.ndarray = np.random.randn(100, 3, 32, 32)
 
                 # Simulate fit operation
                 client.fit(mock_data, {"epochs": 1})
@@ -286,7 +293,7 @@ class TestMemoryLeakDetection:
             del clients
             gc.collect()
 
-            memory_after_cleanup = memory_monitor.record_measurement(
+            memory_after_cleanup: float = memory_monitor.record_measurement(
                 f"cycle_{cycle}_cleaned"
             )
 
@@ -295,13 +302,15 @@ class TestMemoryLeakDetection:
                 baseline_memory = memory_after_cleanup
             else:
                 # Memory should not continuously grow between cycles
-                memory_growth = memory_after_cleanup - baseline_memory
+                memory_growth: float = memory_after_cleanup - (baseline_memory or 0.0)
                 assert (
                     memory_growth < 20
                 ), f"Memory leak in cycle {cycle}: {memory_growth:.2f}MB growth from baseline"
 
-    def test_dataset_loading_memory_cleanup(self, memory_monitor: MemoryMonitor):
-        """Test memory cleanup when loading and unloading datasets."""
+    def test_dataset_loading_memory_cleanup(
+        self, memory_monitor: MemoryMonitor
+    ) -> None:
+        """Test memory cleanup when loading/unloading datasets."""
         memory_monitor.record_measurement("initial")
 
         # Test multiple dataset loading cycles
@@ -338,10 +347,10 @@ class TestMemoryLeakDetection:
 
 
 class TestResourceCleanup:
-    """Test resource cleanup and efficient memory usage."""
+    """Test resource cleanup."""
 
-    def test_simulation_component_cleanup(self, memory_monitor: MemoryMonitor):
-        """Test proper cleanup of simulation components."""
+    def test_simulation_component_cleanup(self, memory_monitor: MemoryMonitor) -> None:
+        """Test simulation component cleanup."""
         memory_monitor.record_measurement("initial")
 
         # Create simulation components
@@ -368,7 +377,9 @@ class TestResourceCleanup:
             dataset_handler=dataset_handler,
             rounds_history=None,  # Will be created in __post_init__
         )
-        clients = create_mock_client_models(num_clients=15, dataset_type="femnist_iid")
+        clients: List[Any] = create_mock_client_models(
+            num_clients=15, dataset_type="femnist_iid"
+        )
 
         memory_monitor.record_measurement("components_created")
 
@@ -396,7 +407,7 @@ class TestResourceCleanup:
 
             for client_id, client in enumerate(clients):
                 # Mock client training
-                mock_params = np.random.randn(1000)
+                mock_params: np.ndarray = np.random.randn(1000)
                 client.fit(mock_params, {"epochs": 1})
 
                 # Add client history entry
@@ -429,24 +440,24 @@ class TestResourceCleanup:
             final_increase < 30
         ), f"Components not properly cleaned: {final_increase:.2f}MB"
 
-    def test_large_parameter_handling(self, memory_monitor: MemoryMonitor):
-        """Test efficient handling of large parameter arrays."""
+    def test_large_parameter_handling(self, memory_monitor: MemoryMonitor) -> None:
+        """Test large parameter array handling."""
         memory_monitor.record_measurement("initial")
 
         # Create large parameter arrays (simulating large neural networks)
-        large_param_size = 1_000_000  # 1M parameters
-        num_clients = 10
+        large_param_size: int = 1_000_000  # 1M parameters
+        num_clients: int = 10
 
         # Generate parameters
-        client_params = []
+        client_params: List[np.ndarray] = []
         for client_id in range(num_clients):
-            params = np.random.randn(large_param_size).astype(np.float32)
+            params: np.ndarray = np.random.randn(large_param_size).astype(np.float32)
             client_params.append(params)
 
         memory_monitor.record_measurement("large_params_created")
 
         # Simulate parameter aggregation
-        aggregated_params = np.mean(client_params, axis=0)
+        aggregated_params: np.ndarray = np.mean(client_params, axis=0)
 
         memory_monitor.record_measurement("params_aggregated")
 
@@ -468,23 +479,25 @@ class TestResourceCleanup:
             final_increase < 50
         ), f"Large parameters not properly cleaned: {final_increase:.2f}MB"
 
-    def test_concurrent_client_memory_usage(self, memory_monitor: MemoryMonitor):
-        """Test memory usage when handling multiple clients concurrently."""
+    def test_concurrent_client_memory_usage(
+        self, memory_monitor: MemoryMonitor
+    ) -> None:
+        """Test memory usage with concurrent client handling."""
         memory_monitor.record_measurement("initial")
 
         # Create multiple client groups to simulate concurrent processing
-        client_groups = []
+        client_groups: List[List[Any]] = []
 
         for group_id in range(5):
-            group_clients = create_mock_client_models(
+            group_clients: List[Any] = create_mock_client_models(
                 num_clients=10, dataset_type="its"
             )
 
             # Simulate concurrent client operations
             for client in group_clients:
                 # Mock training with different data sizes
-                data_size = 500 + group_id * 100
-                mock_data = np.random.randn(data_size, 3, 32, 32)
+                data_size: int = 500 + group_id * 100
+                mock_data: np.ndarray = np.random.randn(data_size, 3, 32, 32)
                 client.fit(mock_data, {"epochs": 1})
 
             client_groups.append(group_clients)
@@ -514,9 +527,11 @@ class TestResourceCleanup:
 
 @pytest.mark.slow
 class TestLongRunningMemoryBehavior:
-    """Test memory behavior in long-running scenarios."""
+    """Test long-running memory behavior."""
 
-    def test_extended_simulation_memory_stability(self, memory_monitor: MemoryMonitor):
+    def test_extended_simulation_memory_stability(
+        self, memory_monitor: MemoryMonitor
+    ) -> None:
         """Test memory stability during extended simulation runs."""
         memory_monitor.record_measurement("initial")
 
@@ -542,7 +557,7 @@ class TestLongRunningMemoryBehavior:
             dataset_handler=dataset_handler,
             rounds_history=None,  # Will be created in __post_init__
         )
-        memory_samples = []
+        memory_samples: List[float] = []
 
         # Create mock dataset handler
         from tests.fixtures.mock_datasets import MockDatasetHandler
@@ -567,13 +582,13 @@ class TestLongRunningMemoryBehavior:
             )
 
             # Create clients for this round
-            round_clients = create_mock_client_models(
+            round_clients: List[Any] = create_mock_client_models(
                 num_clients=20, dataset_type="pneumoniamnist"
             )
 
             for client_id, client in enumerate(round_clients):
                 # Simulate client training
-                mock_data = np.random.randn(200, 1, 28, 28)
+                mock_data: np.ndarray = np.random.randn(200, 1, 28, 28)
                 client.fit(mock_data, {"epochs": 1})
 
                 # Add client history entry
@@ -591,13 +606,15 @@ class TestLongRunningMemoryBehavior:
 
             # Sample memory every 10 rounds
             if round_num % 10 == 0:
-                current_memory = memory_monitor.record_measurement(f"round_{round_num}")
+                current_memory: float = memory_monitor.record_measurement(
+                    f"round_{round_num}"
+                )
                 memory_samples.append(current_memory)
 
         # Memory should not continuously increase
         if len(memory_samples) > 1:
             # Check that memory doesn't grow more than 50MB over the simulation
-            memory_growth = memory_samples[-1] - memory_samples[0]
+            memory_growth: float = memory_samples[-1] - memory_samples[0]
             assert (
                 memory_growth < 50
             ), f"Memory continuously growing in long simulation: {memory_growth:.2f}MB"
