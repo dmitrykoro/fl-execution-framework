@@ -21,3 +21,4 @@ coverage.json
 .pytest_cache/
 pytest.log
 *.egg-info/
+tests/logs/
