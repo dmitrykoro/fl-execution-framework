@@ -243,7 +243,7 @@ This guide helps student researchers add tests when extending the federated lear
 
    ```bash
    # Look at how mock data is generated
-   cat tests/fixtures/mock_datasets.py
+   cat tests/conftest.py
    ```
 
 ### ✍️ Phase 2: Adding Simple Tests
@@ -753,11 +753,7 @@ def test_llm_code_integration():
 
 ```python
 # Use framework fixtures
-from tests.fixtures.mock_datasets import (
-    generate_mock_client_parameters,
-    generate_byzantine_client_parameters,
-    MockFederatedDataset
-)
+from tests.conftest import generate_mock_client_data
 
 # Create realistic test scenarios
 def test_with_realistic_data(self):
@@ -980,6 +976,32 @@ def test_strategy_edge_cases(self):
 ✅ **Right**: Add performance test in `tests/performance/test_scalability.py`
 
 ## 🔧 Troubleshooting Common Issues
+
+### 💡 Reading the Failure Analysis Log
+
+When a test fails, this framework automatically provides extra hints to help you diagnose the problem. These hints are saved in a special log file.
+
+- **File Location**: `tests/logs/test_failures.log`
+
+After a test run fails, open this file. You will see a breakdown of each failure, including:
+
+- The exact test that failed.
+- The exception that was raised.
+- A **Hint** with a likely cause and suggestions for where to look next.
+
+**Example Log Entry:**
+
+```bash
+2025-09-17 23:49:38 - ---------------------------------------------------------------------------------------------------
+2025-09-17 23:49:38 - Test Failed: tests/unit/test_failure_logging_demo.py::TestFailureLoggingDemo::test_to_fail_for_real
+2025-09-17 23:49:38 - Exception: RuntimeError
+2025-09-17 23:49:38 - Hint: A RuntimeError mentioning 'shape' or 'dimension' is a common PyTorch error.
+2025-09-17 23:49:38 -   - Your tensor dimensions might not match. Check the model's input/output shapes.
+2025-09-17 23:49:38 -   - See `tests/docs/test_data_generation.md` to verify mock data shapes.
+2025-09-17 23:49:38 - ---------------------------------------------------------------------------------------------------
+```
+
+Always check this file first when you have a failing test! It is designed to point you to the right documentation or concept, saving you debugging time.
 
 ### 🔍 Test Discovery Problems
 

@@ -6,39 +6,27 @@ This document explains the test data generation system for the federated learnin
 
 ## ⚡ Core Components
 
-### 1️⃣ Mock Dataset Generation (`tests/fixtures/mock_datasets.py`)
+### 1️⃣ Mock Dataset Generation (`tests/conftest.py`)
 
-#### 🎭 MockDataset Class
+#### 🎭 Mock Client Data Generation
 
-Lightweight dataset replacement that works with PyTorch DataLoaders for testing.
+The primary function `generate_mock_client_data()` creates realistic federated learning client results for testing.
 
 **🔧 Features:**
 
-- 📊 Configurable input dimensions: `(channels, height, width)`
+- 📊 Configurable parameter shapes: `(10, 5)` matrices + bias vectors
 - 🎲 Reproducible random data generation with seed control
-- 🏷️ Support for multi-class classification scenarios
-- 💾 Memory-efficient tensor operations
+- 🏷️ Complete ClientProxy and FitRes objects
+- 💾 Realistic metrics (accuracy, loss)
 
 ```python
-# Example usage
-dataset = MockDataset(
-    size=100,              # Number of samples
-    num_classes=10,        # Classification classes
-    input_shape=(3, 32, 32), # RGB 32x32 images
-    use_default_seed=True  # Reproducible results
+# Example usage from conftest.py
+client_results = generate_mock_client_data(
+    num_clients=5,           # Number of federated clients
+    param_shape=(10, 5)      # Parameter tensor dimensions
 )
+# Returns: List[Tuple[ClientProxy, FitRes]]
 ```
-
-#### 🌍 MockFederatedDataset Class
-
-Simulates how data would be split across different federated learning clients.
-
-Features:
-
-- Client-specific data partitioning
-- Configurable data heterogeneity through different random seeds
-- Individual DataLoader generation per client
-- Federated learning data scenarios
 
 ### 2️⃣ Dataset Type Support
 
