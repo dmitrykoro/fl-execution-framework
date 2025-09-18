@@ -20,3 +20,4 @@ coverage.xml
 coverage.json
 .pytest_cache/
 pytest.log
+*.egg-info/

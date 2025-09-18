@@ -9,9 +9,9 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT_DIR"
 
-# install dependencies from tests/requirements-test.txt
+# install dependencies from tests/pyproject.toml
 echo "📦 Installing test requirements..."
-pip install -r tests/requirements-test.txt
+pip install -e tests
 
 # sort imports
 echo "🔧 Running isort..."

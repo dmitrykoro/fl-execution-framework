@@ -24,7 +24,7 @@ jobs:
       uses: actions/cache@v4
       with:
         path: ~/.cache/pip
-        key: ${{ runner.os }}-pip-${{ steps.setup-python.outputs.python-version }}-${{ hashFiles('''tests/requirements-test.txt''') }}
+        key: ${{ runner.os }}-pip-${{ steps.setup-python.outputs.python-version }}-${{ hashFiles('''tests/pyproject.toml''') }}
         restore-keys: |
           ${{ runner.os }}-pip-${{ steps.setup-python.outputs.python-version }}-
           ${{ runner.os }}-pip-
@@ -32,7 +32,7 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install -r tests/requirements-test.txt
+        pip install -e tests
 
     - name: Run tests with coverage
       run: |
