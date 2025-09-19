@@ -189,7 +189,16 @@ class FlowerClient(fl.client.NumPyClient):
                 loss.backward()
 
         elif self.model_type == "transformer":
-            pass
+            self.net.train()
+            optimizer = torch.optim.AdamW(self.net.parameters(),lr=5e-5)
+            for epoch in range(self.num_of_client_epochs):
+                for batch in self.trainloader:
+                    batch = {k:v.to(self.training_device) for k,v in batch.items()}
+                    out = self.net(**batch)
+                    loss = out.loss
+                    loss.backward()
+                    optimizer.step()
+                    optimizer.zero_grad(set_to_none=True)
 
         else:
             raise ValueError(f"Unsupported model type: {self.model_type}. Supported types are 'cnn' and 'transformer'.")
