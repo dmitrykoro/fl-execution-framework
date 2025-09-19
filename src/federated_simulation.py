@@ -174,10 +174,10 @@ class FederatedSimulation:
             from dataset_loaders.medmentions_ner_dataset_loader import MedMentionsNERDatasetLoader
             import json,os
 
-            nclients = self.dataset_handler.get_num_of_clients()
+            # clients = self.dataset_handler.get_num_of_clients()
             dataset_loader = MedMentionsNERDatasetLoader(
                 dataset_dir=self._dataset_dir,
-                num_of_clients=nclients,
+                num_of_clients=num_of_clients,
                 batch_size=batch_size,
                 max_length=512,
             )

@@ -16,7 +16,7 @@ config_schema = {
         },
         "dataset_keyword": {
             "type": "string",
-            "enum": ["femnist_iid", "femnist_niid", "its", "pneumoniamnist", "flair", "bloodmnist", "medquad", "lung_photos"]
+            "enum": ["femnist_iid", "femnist_niid", "its", "pneumoniamnist", "flair", "bloodmnist", "medquad", "lung_photos","medmentions"]
         },
         "model_type": {
             "type": "string",
@@ -62,11 +62,11 @@ config_schema = {
         },
         "llm_model": {
             "type": "string",
-            "enum": ["microsoft/BiomedNLP-BiomedBERT-base-uncased-abstract-fulltext"]
+            "enum": ["microsoft/BiomedNLP-BiomedBERT-base-uncased-abstract-fulltext","gpt2"]
         },
         "llm_task": {
             "type": "string",
-            "enum": ["mlm"]
+            "enum": ["mlm","ner"]
         },
         "mlm_probability": {
             "type": "number"
