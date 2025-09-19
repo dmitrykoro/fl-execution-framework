@@ -170,6 +170,26 @@ class FederatedSimulation:
                 training_subset_fraction=training_subset_fraction
             )
             self._network_model = LungCancerCNN()
+        elif dataset_keyword == "medmentions":
+            from dataset_loaders.medmentions_ner_dataset_loader import MedMentionsNERDatasetLoader
+            import json,os
+
+            nclients = self.dataset_handler.get_num_of_clients()
+            dataset_loader = MedMentionsNERDatasetLoader(
+                dataset_dir=self._dataset_dir,
+                num_of_clients=nclients,
+                batch_size=batch_size,
+                max_length=512,
+            )
+
+            with open(os.path.join(self._dataset_dir,"label2id.json"),"r") as f:
+                num_labels = len(json.load(f))
+            from network_models.gpt_2_ner_model_definition import load_model
+            self._network_model = load_model(
+                model_name="gpt2",
+                num_labels = num_labels,
+                use_lora = (self.strategy_config.use_llm and self.strategy_config.llm_finetuning == "lora")
+            )
         elif dataset_keyword == "medquad":
             dataset_loader = MedQuADDatasetLoader(
                 dataset_dir=self._dataset_dir,
