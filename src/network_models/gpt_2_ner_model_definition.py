@@ -18,7 +18,6 @@ def load_model(model_name: str = "gpt2", num_labels: int = 2, use_lora: bool = T
         model = get_peft_model(model, lcfg)
     return model
 
-# LoRA helpers (work for any PEFT model)
 def get_peft_model_state(model):
     return get_peft_model_state_dict(model)
 

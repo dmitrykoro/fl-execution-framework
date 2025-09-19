@@ -10,8 +10,6 @@ def md5int(s): return int(hashlib.md5(s.encode()).hexdigest(), 16)
 def ensure_dir(p): os.makedirs(p, exist_ok=True)
 
 def get_text(ex):
-    # BigBio KB schema: passages is a list of dicts; each p["text"] is a LIST[str]
-    # We first join within a passage, then join passages with a single space.
     parts = []
     for p in ex["passages"]:
         t = p.get("text", "")
@@ -20,17 +18,15 @@ def get_text(ex):
         elif isinstance(t, str):
             parts.append(t)
         else:
-            # fallback if it's None or unexpected
             parts.append("")
     return " ".join(parts)
 
 
 def build_label_set(split):
-    # FULL uses UMLS semantic types (many more than 21). We use semantic_type_id as labels.
     stypes = set()
     for ex in split:
         for ent in ex["entities"]:
-            for t in ent.get("type", []):  # medmentions.py maps semantic_type_id -> "type"
+            for t in ent.get("type", []):  
                 stypes.add(t)
     return sorted(stypes)
 
@@ -86,9 +82,7 @@ def main():
 
     ensure_dir(args.root)
     print("Loading BigBio MedMentions FULL...")
-    ds = load_dataset("bigbio/medmentions", name="medmentions_full_bigbio_kb")  # FULL variant
-
-    # label space = ALL semantic types in FULL split
+    ds = load_dataset("bigbio/medmentions", name="medmentions_full_bigbio_kb")  
     label_set = build_label_set(ds["train"])
     bio_labels = ["O"] + [p+t for t in label_set for p in ("B-","I-")]
     label2id = {l:i for i,l in enumerate(bio_labels)}
