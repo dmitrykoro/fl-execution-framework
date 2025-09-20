@@ -44,8 +44,10 @@ tests/
 │   ├── test_config_loaders/           # Configuration parsing and validation tests
 │   ├── test_simulation_strategies/    # Aggregation strategy tests
 │   ├── test_dataset_handlers/         # Dataset management component tests
+│   ├── test_dataset_loaders/          # Dataset loading and preprocessing tests
 │   ├── test_client_models/            # FlowerClient and model interaction tests
-│   └── test_network_models/           # Neural network definition tests
+│   ├── test_network_models/           # Neural network definition tests
+│   └── test_output_handlers/          # Output processing and logging tests
 ├── integration/                       # Multi-component interaction tests
 │   ├── test_flower_mock_integration.py # Flower framework integration
 │   ├── test_simulation_flow.py        # End-to-end simulation execution
