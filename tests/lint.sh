@@ -31,7 +31,7 @@ mypy tests/conftest.py tests/fixtures/ tests/integration/ tests/unit/ tests/perf
 
 # run pytest with logging to a pytest.log file
 echo "🧪 Running pytest..."
-pytest -v --tb=short -s tests | tee pytest.log
+python -m pytest -v --tb=short -s tests | tee pytest.log
 if grep -q "FAILED" pytest.log; then
     echo "❌ Some tests failed. Check pytest.log for details."
     exit 1
