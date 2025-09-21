@@ -78,7 +78,7 @@ class MockNetwork(MockBaseNetwork):
         # Auto-flatten multi-dimensional inputs
         if len(x.shape) > 2:
             x = x.view(x.size(0), -1)
-        return self.fc(x)  # type: ignore[no-any-return]
+        return self.fc(x)
 
 
 class MockCNNNetwork(MockBaseNetwork):
@@ -156,14 +156,14 @@ class MockFlowerClient:
         self.training_history: Dict[str, List[float]] = {"loss": [], "accuracy": []}
 
     def fit(
-        self, parameters: List[NDArray], config: Config
+        self, parameters: List[NDArray], _config: Config
     ) -> Tuple[List[NDArray], int, Metrics]:
         """
         Simulate training by adding noise to parameters.
 
         Args:
             parameters: Model weights from server.
-            config: Training configuration dict.
+            _config: Training configuration dict (unused).
 
         Returns:
             Tuple of (updated_weights, dataset_size, training_metrics).
@@ -171,15 +171,15 @@ class MockFlowerClient:
         self.model.set_parameters(parameters)
 
         # Simulate training with parameter noise instead of gradients
-        np.random.seed(42 + self.client_id)
+        rng = np.random.default_rng(42 + self.client_id)
         updated_params = []
         for param in parameters:
-            noise = np.random.normal(0, 0.01, param.shape)
+            noise = rng.normal(0, 0.01, param.shape)
             updated_params.append(param + noise)
 
         # Generate random training metrics
-        mock_loss = np.random.uniform(0.1, 2.0)
-        mock_accuracy = np.random.uniform(0.5, 0.95)
+        mock_loss = rng.uniform(0.1, 2.0)
+        mock_accuracy = rng.uniform(0.5, 0.95)
 
         self.training_history["loss"].append(mock_loss)
         self.training_history["accuracy"].append(mock_accuracy)
@@ -189,14 +189,14 @@ class MockFlowerClient:
         return updated_params, self.dataset_size, metrics
 
     def evaluate(
-        self, parameters: List[NDArray], config: Config
+        self, parameters: List[NDArray], _config: Config
     ) -> Tuple[float, int, Metrics]:
         """
         Simulate model evaluation with random metrics.
 
         Args:
             parameters: Model weights from server.
-            config: Evaluation configuration dict.
+            _config: Evaluation configuration dict (unused).
 
         Returns:
             Tuple of (loss, dataset_size, evaluation_metrics).
@@ -204,10 +204,10 @@ class MockFlowerClient:
         self.model.set_parameters(parameters)
 
         # Generate random evaluation metrics
-        np.random.seed(42 + self.client_id)
-        mock_loss = np.random.uniform(0.1, 1.5)
-        mock_accuracy = np.random.uniform(0.6, 0.95)
-        mock_f1 = np.random.uniform(0.5, 0.9)
+        rng = np.random.default_rng(42 + self.client_id)
+        mock_loss = rng.uniform(0.1, 1.5)
+        mock_accuracy = rng.uniform(0.6, 0.95)
+        mock_f1 = rng.uniform(0.5, 0.9)
 
         metrics: Metrics = {"accuracy": mock_accuracy, "f1_score": mock_f1}
 
@@ -282,8 +282,8 @@ def create_mock_client_models(
         model = MockNetworkFactory.create_network(dataset_type, num_classes)
 
         # Assign random dataset size for heterogeneous simulation
-        np.random.seed(42 + client_id)
-        dataset_size = np.random.randint(50, 200)
+        rng = np.random.default_rng(42 + client_id)
+        dataset_size = int(rng.integers(50, 200))
 
         client = MockFlowerClient(client_id, model, dataset_size)
         clients.append(client)

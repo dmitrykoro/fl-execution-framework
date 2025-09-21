@@ -37,7 +37,6 @@ class MockDataset(Dataset[Tuple[torch.Tensor, torch.Tensor]]):
         # Generate reproducible data
         if use_default_seed:
             torch.manual_seed(42)
-            np.random.seed(42)
 
         # Create data and labels
         self.data = torch.randn(size, *input_shape)
@@ -84,7 +83,6 @@ class MockFederatedDataset:
         for client_id in range(self.num_clients):
             # Different seeds simulate data heterogeneity
             torch.manual_seed(42 + client_id)
-            np.random.seed(42 + client_id)
 
             client_datasets[client_id] = MockDataset(
                 size=self.samples_per_client,
@@ -106,7 +104,7 @@ class MockFederatedDataset:
     ) -> DataLoader[Tuple[torch.Tensor, torch.Tensor]]:
         """Get DataLoader for a specific client."""
         dataset = self.get_client_dataset(client_id)
-        return DataLoader(dataset, batch_size=batch_size, shuffle=True)
+        return DataLoader(dataset, batch_size=batch_size, shuffle=True, num_workers=0)
 
 
 class MockDatasetHandler:
@@ -184,8 +182,8 @@ def generate_mock_client_parameters(
     Returns:
         List of numpy arrays representing client parameters
     """
-    np.random.seed(42)
-    return [np.random.randn(param_size) for _ in range(num_clients)]
+    rng = np.random.default_rng(42)
+    return [rng.standard_normal(param_size) for _ in range(num_clients)]
 
 
 def generate_mock_client_metrics(
@@ -200,12 +198,12 @@ def generate_mock_client_metrics(
     Returns:
         Dictionary mapping client IDs to their metrics history
     """
-    np.random.seed(42)
+    rng = np.random.default_rng(42)
     return {
         client_id: {
-            "loss": np.random.uniform(0.1, 2.0, num_rounds).tolist(),
-            "accuracy": np.random.uniform(0.5, 0.95, num_rounds).tolist(),
-            "f1_score": np.random.uniform(0.4, 0.9, num_rounds).tolist(),
+            "loss": rng.uniform(0.1, 2.0, num_rounds).tolist(),
+            "accuracy": rng.uniform(0.5, 0.95, num_rounds).tolist(),
+            "f1_score": rng.uniform(0.4, 0.9, num_rounds).tolist(),
         }
         for client_id in range(num_clients)
     }
@@ -213,38 +211,44 @@ def generate_mock_client_metrics(
 
 def _create_gaussian_attack(param_size: int) -> NDArray:
     """Generate parameters with large Gaussian noise."""
-    return np.random.randn(param_size) * 10
+    rng = np.random.default_rng(123)
+    return rng.standard_normal(param_size) * 10
 
 
 def _create_model_poisoning_attack(param_size: int) -> NDArray:
     """Generate parameters with targeted manipulation."""
-    poisoned_param = np.random.randn(param_size) * 0.1
-    poison_indices = np.random.choice(param_size, size=param_size // 10, replace=False)
+    rng = np.random.default_rng(124)
+    poisoned_param = rng.standard_normal(param_size) * 0.1
+    poison_indices = rng.choice(param_size, size=param_size // 10, replace=False)
     poisoned_param[poison_indices] *= 50
     return poisoned_param
 
 
 def _create_byzantine_clients_attack(param_size: int) -> NDArray:
     """Generate parameters with adversarial behavior."""
-    return np.random.randn(param_size) * 15
+    rng = np.random.default_rng(125)
+    return rng.standard_normal(param_size) * 15
 
 
 def _create_gradient_inversion_attack(param_size: int) -> NDArray:
     """Generate parameters with scaled values."""
-    return np.random.randn(param_size) * 3
+    rng = np.random.default_rng(126)
+    return rng.standard_normal(param_size) * 3
 
 
 def _create_label_flipping_attack(param_size: int) -> NDArray:
     """Generate parameters simulating label flipping effects."""
-    flipped_param = np.random.randn(param_size) * 0.1
-    flip_indices = np.random.choice(param_size, size=param_size // 5, replace=False)
+    rng = np.random.default_rng(127)
+    flipped_param = rng.standard_normal(param_size) * 0.1
+    flip_indices = rng.choice(param_size, size=param_size // 5, replace=False)
     flipped_param[flip_indices] *= -10
     return flipped_param
 
 
 def _create_backdoor_attack(param_size: int) -> NDArray:
     """Generate parameters with a backdoor pattern."""
-    backdoor_param = np.random.randn(param_size) * 0.1
+    rng = np.random.default_rng(128)
+    backdoor_param = rng.standard_normal(param_size) * 0.1
     pattern_indices = np.arange(0, min(100, param_size), 10)
     backdoor_param[pattern_indices] = 5.0
     return backdoor_param
@@ -257,7 +261,8 @@ def _create_zero_attack(param_size: int) -> NDArray:
 
 def _create_flip_attack(param_size: int) -> NDArray:
     """Generate parameters with flipped signs."""
-    base_param = np.random.randn(param_size)
+    rng = np.random.default_rng(129)
+    base_param = rng.standard_normal(param_size)
     return -base_param * 5
 
 
@@ -291,11 +296,12 @@ def generate_byzantine_client_parameters(
     Returns:
         List of parameters with Byzantine clients included
     """
-    np.random.seed(42)
+    rng = np.random.default_rng(42)
 
     # Generate honest parameters
     honest_params = [
-        np.random.randn(param_size) * 0.1 for _ in range(num_clients - num_byzantine)
+        rng.standard_normal(param_size) * 0.1
+        for _ in range(num_clients - num_byzantine)
     ]
 
     # Get attack function with default fallback
@@ -304,6 +310,6 @@ def generate_byzantine_client_parameters(
 
     # Combine and shuffle
     all_params = honest_params + byzantine_params
-    np.random.shuffle(all_params)
+    rng.shuffle(all_params)
 
     return all_params
