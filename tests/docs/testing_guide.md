@@ -53,7 +53,11 @@ python -m pytest tests/unit/test_my_first_test.py --no-cov -v -s # Run tutorial 
 
 ### 📎 Prerequisites
 
-1. **Environment Setup**: Python 3.10+ and virtual environment activated
+1. **Environment Setup**: Python 3.9+ and virtual environment activated
+   - **Python Version Detection**: Scripts automatically detect and use available Python in preference order:
+     - `python3.11` (highest preference) → `python3.10` → `python3.9` → `python3` → `python`
+     - Windows fallback: `py -3.11` → `py -3.10` → `py -3.9` → `py -3`
+   - **Cross-Platform**: Works on macOS, Linux, and Windows with appropriate virtual environment paths
 2. **Test Suite Validation**: Run `python tests/validate_coverage_setup.py` to verify setup
 3. **Test Familiarity**: Basic knowledge of pytest and Python testing
 4. **Framework Understanding**: Read `tests/docs/README.md` for architecture overview
@@ -906,7 +910,7 @@ python -m pytest tests/unit/test_my_first_test.py --no-cov -v -s
 
 ```bash
 # Check which Python you're using
-python --version   # Should show Python 3.10+
+python --version   # Should show Python 3.9+
 python3 --version  # Alternative on some systems
 
 # If "python" shows Python 2.x or doesn't exist, use "python3" instead:
