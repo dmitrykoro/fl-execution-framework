@@ -1,35 +1,32 @@
 #!/bin/bash
+# Deletes and recreates the virtual environment from requirements.txt.
+set -e
 
+# The environment will be created in this directory.
 VENV_DIR="venv"
 
 command_exists () {
     command -v "$1" >/dev/null 2>&1 ;
 }
 
-# Check for Python 3.9+ versions in order of preference
+# Find a compatible Python 3.9+ interpreter, preferring newer versions.
 PYTHON=""
-
-# Try standard commands first (works on most systems)
-for version in python3.11 python3.10 python3.9 python3 python; do
+for version in python python3.11 python3.10 python3.9 python3; do
     if command_exists $version; then
-        # Check if version is 3.9+
         VERSION_CHECK=$($version -c "import sys; print(sys.version_info >= (3, 9))" 2>/dev/null)
         if [ "$VERSION_CHECK" = "True" ]; then
             PYTHON=$version
-            echo "Using Python version: $($version --version)"
             break
         fi
     fi
 done
 
-# If no standard commands work, try Windows Python Launcher (py.exe)
+# Fallback to 'py' launcher on Windows.
 if [ -z "$PYTHON" ] && command_exists py; then
-    # Try different Python versions with py launcher
     for version in "-3.11" "-3.10" "-3.9" "-3"; do
         VERSION_CHECK=$(py $version -c "import sys; print(sys.version_info >= (3, 9))" 2>/dev/null)
         if [ "$VERSION_CHECK" = "True" ]; then
             PYTHON="py $version"
-            echo "Using Python version: $(py $version --version)"
             break
         fi
     done
@@ -37,11 +34,6 @@ fi
 
 if [ -z "$PYTHON" ]; then
     echo "Python 3.9+ is not installed. Please install Python 3.9 or higher."
-    echo "Tried:"
-    echo "  - Standard commands: python3.11, python3.10, python3.9, python3, python"
-    echo "  - Windows Python Launcher: py -3.11, py -3.10, py -3.9, py -3"
-    echo ""
-    echo "Install Python from: https://www.python.org/downloads/"
     exit 1
 fi
 
@@ -54,16 +46,18 @@ else
     exit 1
 fi
 
-echo "Removing existing venv..."
+echo "Removing existing '$VENV_DIR'..."
 rm -rf $VENV_DIR
 
-echo "Creating new venv..."
+echo "Creating new '$VENV_DIR'..."
 $PYTHON -m venv $VENV_DIR
-# Windows vs Unix activation script paths
+
+# Activate the new environment to install packages into it.
+# Handle Windows and Unix-like activation paths.
 if [ -f "$VENV_DIR/Scripts/activate" ]; then
-    source $VENV_DIR/Scripts/activate
+    source "$VENV_DIR/Scripts/activate"
 else
-    source $VENV_DIR/bin/activate
+    source "$VENV_DIR/bin/activate"
 fi
 
 echo "Installing requirements..."

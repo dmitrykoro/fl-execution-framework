@@ -30,7 +30,7 @@ elif [ -f "venv/bin/activate" ]; then
     source venv/bin/activate
 else
     echo "⚠️  No virtual environment found."
-    echo "   Run ./reinstall_requirements.sh first to create one."
+    echo "   From the root directory, run ./reinstall_requirements.sh to create one."
     echo "   Continue without venv? (y/N)"
     read -r response
     if [[ ! "$response" =~ ^[Yy]$ ]]; then
