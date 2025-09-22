@@ -74,10 +74,10 @@ class TestFederatedSimulationInitialization:
         strategy_config = StrategyConfig.from_dict(base_config)
 
         # Act
-        with patch("src.federated_simulation.ImageDatasetLoader") as mock_loader, patch(
-            "src.federated_simulation.ITSNetwork"
-        ) as mock_network:
-
+        with (
+            patch("src.federated_simulation.ImageDatasetLoader") as mock_loader,
+            patch("src.federated_simulation.ITSNetwork") as mock_network,
+        ):
             # Mock dataset loader
             mock_loader_instance = Mock()
             mock_loader_instance.load_datasets.return_value = (
@@ -125,10 +125,10 @@ class TestFederatedSimulationInitialization:
         strategy_config = StrategyConfig.from_dict(pid_config)
 
         # Act
-        with patch("src.federated_simulation.ImageDatasetLoader") as mock_loader, patch(
-            "src.federated_simulation.ITSNetwork"
-        ) as mock_network:
-
+        with (
+            patch("src.federated_simulation.ImageDatasetLoader") as mock_loader,
+            patch("src.federated_simulation.ITSNetwork") as mock_network,
+        ):
             mock_loader_instance = Mock()
             mock_loader_instance.load_datasets.return_value = (
                 [Mock() for _ in range(5)],
@@ -165,10 +165,10 @@ class TestFederatedSimulationInitialization:
         strategy_config = StrategyConfig.from_dict(krum_config)
 
         # Act
-        with patch("src.federated_simulation.ImageDatasetLoader") as mock_loader, patch(
-            "src.federated_simulation.ITSNetwork"
-        ) as mock_network:
-
+        with (
+            patch("src.federated_simulation.ImageDatasetLoader") as mock_loader,
+            patch("src.federated_simulation.ITSNetwork") as mock_network,
+        ):
             mock_loader_instance = Mock()
             mock_loader_instance.load_datasets.return_value = (
                 [Mock() for _ in range(5)],
@@ -216,10 +216,10 @@ class TestFederatedSimulationInitialization:
         strategy_config = StrategyConfig.from_dict(config)
 
         # Act
-        with patch("src.federated_simulation.ImageDatasetLoader") as mock_loader, patch(
-            f"src.federated_simulation.{expected_network}"
-        ) as mock_network:
-
+        with (
+            patch("src.federated_simulation.ImageDatasetLoader") as mock_loader,
+            patch(f"src.federated_simulation.{expected_network}") as mock_network,
+        ):
             mock_loader_instance = Mock()
             mock_loader_instance.load_datasets.return_value = (
                 [Mock() for _ in range(5)],
@@ -251,10 +251,10 @@ class TestFederatedSimulationInitialization:
         strategy_config = StrategyConfig.from_dict(invalid_config)
 
         # Act & Assert
-        with patch("src.federated_simulation.ImageDatasetLoader") as mock_loader, patch(
-            "src.federated_simulation.ITSNetwork"
-        ) as mock_network:
-
+        with (
+            patch("src.federated_simulation.ImageDatasetLoader") as mock_loader,
+            patch("src.federated_simulation.ITSNetwork") as mock_network,
+        ):
             mock_loader_instance = Mock()
             mock_loader_instance.load_datasets.return_value = (
                 [Mock() for _ in range(5)],
@@ -282,10 +282,10 @@ class TestFederatedSimulationInitialization:
         strategy_config = StrategyConfig.from_dict(base_config)
 
         # Act
-        with patch("src.federated_simulation.ImageDatasetLoader") as mock_loader, patch(
-            "src.federated_simulation.ITSNetwork"
-        ) as mock_network:
-
+        with (
+            patch("src.federated_simulation.ImageDatasetLoader") as mock_loader,
+            patch("src.federated_simulation.ITSNetwork") as mock_network,
+        ):
             mock_loader_instance = Mock()
             mock_loader_instance.load_datasets.return_value = (
                 [Mock() for _ in range(5)],
@@ -318,10 +318,10 @@ class TestFederatedSimulationExecution:
         mock_dataset_handler = MockDatasetHandler(dataset_type="its")
         mock_dataset_handler.setup_dataset(num_clients=5)
 
-        with patch("src.federated_simulation.ImageDatasetLoader") as mock_loader, patch(
-            "src.federated_simulation.ITSNetwork"
-        ) as mock_network:
-
+        with (
+            patch("src.federated_simulation.ImageDatasetLoader") as mock_loader,
+            patch("src.federated_simulation.ITSNetwork") as mock_network,
+        ):
             mock_loader_instance = Mock()
             mock_loader_instance.load_datasets.return_value = (
                 [Mock() for _ in range(5)],
@@ -469,10 +469,10 @@ class TestFederatedSimulationExecution:
         mock_dataset_handler.setup_dataset(num_clients=5)
 
         # Act
-        with patch("src.federated_simulation.ImageDatasetLoader") as mock_loader, patch(
-            "src.federated_simulation.ITSNetwork"
-        ) as mock_network:
-
+        with (
+            patch("src.federated_simulation.ImageDatasetLoader") as mock_loader,
+            patch("src.federated_simulation.ITSNetwork") as mock_network,
+        ):
             mock_loader_instance = Mock()
             mock_loader_instance.load_datasets.return_value = (
                 [Mock() for _ in range(5)],
@@ -532,10 +532,10 @@ class TestFederatedSimulationErrorHandling:
         mock_dataset_handler = MockDatasetHandler(dataset_type="its")
         mock_dataset_handler.setup_dataset(num_clients=5)
 
-        with patch("src.federated_simulation.ImageDatasetLoader") as mock_loader, patch(
-            "src.federated_simulation.ITSNetwork"
-        ) as mock_network:
-
+        with (
+            patch("src.federated_simulation.ImageDatasetLoader") as mock_loader,
+            patch("src.federated_simulation.ITSNetwork") as mock_network,
+        ):
             mock_loader_instance = Mock()
             mock_loader_instance.load_datasets.return_value = (
                 [Mock() for _ in range(5)],
@@ -565,10 +565,10 @@ class TestFederatedSimulationErrorHandling:
         mock_dataset_handler = MockDatasetHandler(dataset_type="its")
         mock_dataset_handler.setup_dataset(num_clients=5)
 
-        with patch("src.federated_simulation.ImageDatasetLoader") as mock_loader, patch(
-            "src.federated_simulation.ITSNetwork"
-        ) as mock_network:
-
+        with (
+            patch("src.federated_simulation.ImageDatasetLoader") as mock_loader,
+            patch("src.federated_simulation.ITSNetwork") as mock_network,
+        ):
             mock_loader_instance = Mock()
             mock_loader_instance.load_datasets.return_value = (
                 [Mock() for _ in range(5)],

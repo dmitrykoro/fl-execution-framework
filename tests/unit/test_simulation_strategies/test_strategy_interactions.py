@@ -128,16 +128,18 @@ class TestStrategyInteractions:
         )
 
         # Mock the clustering and aggregation components
-        with patch(
-            "src.simulation_strategies.trust_based_removal_strategy.KMeans"
-        ) as mock_kmeans_trust, patch(
-            "src.simulation_strategies.trust_based_removal_strategy.MinMaxScaler"
-        ) as mock_scaler_trust, patch(
-            "src.simulation_strategies.pid_based_removal_strategy.KMeans"
-        ) as mock_kmeans_pid, patch(
-            "flwr.server.strategy.FedAvg.aggregate_fit"
-        ) as mock_parent_aggregate:
-
+        with (
+            patch(
+                "src.simulation_strategies.trust_based_removal_strategy.KMeans"
+            ) as mock_kmeans_trust,
+            patch(
+                "src.simulation_strategies.trust_based_removal_strategy.MinMaxScaler"
+            ) as mock_scaler_trust,
+            patch(
+                "src.simulation_strategies.pid_based_removal_strategy.KMeans"
+            ) as mock_kmeans_pid,
+            patch("flwr.server.strategy.FedAvg.aggregate_fit") as mock_parent_aggregate,
+        ):
             # Setup mocks for Trust strategy
             mock_kmeans_trust_instance = Mock()
             mock_kmeans_trust_instance.transform.return_value = np.array(
@@ -398,7 +400,6 @@ class TestStrategyInteractions:
                     else patch("builtins.len", return_value=10)
                 )
             ):  # For trimmed_mean
-
                 if "krum" in strategy_name:
                     # Mock clustering for Krum strategies
                     # Build the correct module path
@@ -555,12 +556,14 @@ class TestStrategyInteractions:
         # Test aggregation output compatibility
         for strategy_name, strategy in strategies.items():
             if strategy_name == "rfa":
-                with patch(
-                    "src.simulation_strategies.rfa_based_removal_strategy.KMeans"
-                ) as mock_kmeans, patch(
-                    "src.simulation_strategies.rfa_based_removal_strategy.MinMaxScaler"
-                ) as mock_scaler:
-
+                with (
+                    patch(
+                        "src.simulation_strategies.rfa_based_removal_strategy.KMeans"
+                    ) as mock_kmeans,
+                    patch(
+                        "src.simulation_strategies.rfa_based_removal_strategy.MinMaxScaler"
+                    ) as mock_scaler,
+                ):
                     # Setup mocks
                     mock_kmeans_instance = Mock()
                     mock_kmeans_instance.transform.return_value = np.array(

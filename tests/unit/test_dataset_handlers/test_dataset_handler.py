@@ -116,10 +116,10 @@ class TestDatasetHandler:
         self, dataset_handler: DatasetHandler
     ) -> None:
         """Test setup_dataset calls copy and poison methods."""
-        with patch.object(dataset_handler, "_copy_dataset") as mock_copy, patch.object(
-            dataset_handler, "_poison_clients"
-        ) as mock_poison:
-
+        with (
+            patch.object(dataset_handler, "_copy_dataset") as mock_copy,
+            patch.object(dataset_handler, "_poison_clients") as mock_poison,
+        ):
             dataset_handler.setup_dataset()
 
             mock_copy.assert_called_once_with(5)  # num_of_clients
@@ -252,8 +252,9 @@ class TestDatasetHandler:
         """Test _poison_clients calls _add_noise for gaussian_noise attack."""
         mock_listdir.return_value = ["client_0"]
 
-        with patch.object(dataset_handler, "_add_noise") as mock_add_noise, patch(
-            "logging.warning"
+        with (
+            patch.object(dataset_handler, "_add_noise") as mock_add_noise,
+            patch("logging.warning"),
         ):
             dataset_handler._poison_clients("gaussian_noise", 1)
 
@@ -409,16 +410,17 @@ class TestDatasetHandler:
     def test_snr_calculation_in_add_noise(self, dataset_handler):
         """Test SNR calculation in _add_noise method."""
         # Create a simple test case for SNR calculation
-        with patch("os.listdir") as mock_listdir, patch(
-            "os.path.isdir", return_value=True
-        ), patch(
-            "src.dataset_handlers.dataset_handler.cv2.imread"
-        ) as mock_imread, patch(
-            "src.dataset_handlers.dataset_handler.cv2.imwrite", return_value=True
-        ), patch(
-            "src.dataset_handlers.dataset_handler.np.random.normal"
-        ) as mock_normal:
-
+        with (
+            patch("os.listdir") as mock_listdir,
+            patch("os.path.isdir", return_value=True),
+            patch("src.dataset_handlers.dataset_handler.cv2.imread") as mock_imread,
+            patch(
+                "src.dataset_handlers.dataset_handler.cv2.imwrite", return_value=True
+            ),
+            patch(
+                "src.dataset_handlers.dataset_handler.np.random.normal"
+            ) as mock_normal,
+        ):
             mock_listdir.side_effect = [["class_0"], ["image1.png"]]
 
             # Create test image and noise
@@ -447,12 +449,11 @@ class TestDatasetHandler:
         self, attack_type, expected_method, dataset_handler
     ):
         """Test _poison_clients routes to correct method based on attack type."""
-        with patch("os.listdir", return_value=["client_0"]), patch.object(
-            dataset_handler, expected_method
-        ) as mock_method, patch(
-            "logging.warning"
+        with (
+            patch("os.listdir", return_value=["client_0"]),
+            patch.object(dataset_handler, expected_method) as mock_method,
+            patch("logging.warning"),
         ):  # For gaussian_noise logging
-
             dataset_handler._poison_clients(attack_type, 1)
 
             mock_method.assert_called_once_with("client_0")

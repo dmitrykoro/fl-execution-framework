@@ -95,9 +95,9 @@ class TestClientScalability:
         # Time should scale roughly linearly (allow some overhead)
         # Expect less than 0.1 seconds per 10 clients
         expected_max_time: float = (num_clients / 10) * 0.1
-        assert (
-            elapsed_time < expected_max_time
-        ), f"ClientInfo creation too slow for {num_clients} clients: {elapsed_time:.3f}s"
+        assert elapsed_time < expected_max_time, (
+            f"ClientInfo creation too slow for {num_clients} clients: {elapsed_time:.3f}s"
+        )
 
         # Verify all clients were created correctly
         assert len(clients) == num_clients
@@ -127,9 +127,9 @@ class TestClientScalability:
         # Aggregation should be fast and scale linearly
         # Expect less than 0.01 seconds per 50 clients for 10K parameters
         expected_max_time: float = (num_clients / 50) * 0.01
-        assert (
-            elapsed_time < expected_max_time
-        ), f"Parameter aggregation too slow for {num_clients} clients: {elapsed_time:.4f}s"
+        assert elapsed_time < expected_max_time, (
+            f"Parameter aggregation too slow for {num_clients} clients: {elapsed_time:.4f}s"
+        )
 
         # Verify aggregation correctness
         assert aggregated_params.shape == (param_size,)
@@ -213,9 +213,9 @@ class TestClientScalability:
 
         # History creation should scale reasonably
         expected_max_time = (num_clients * num_rounds) * 0.01
-        assert (
-            elapsed_time < expected_max_time
-        ), f"History creation too slow for {num_clients}x{num_rounds}: {elapsed_time:.4f}s"
+        assert elapsed_time < expected_max_time, (
+            f"History creation too slow for {num_clients}x{num_rounds}: {elapsed_time:.4f}s"
+        )
 
         # Verify history structure
         all_clients = history.get_all_clients()
@@ -287,9 +287,9 @@ class TestStrategyScalability:
         )
 
         # Strategy execution should be fast (less than 0.1 seconds for this mock)
-        assert (
-            elapsed_time < 0.1
-        ), f"Strategy {full_config['aggregation_strategy_keyword']} too slow: {elapsed_time:.4f}s"
+        assert elapsed_time < 0.1, (
+            f"Strategy {full_config['aggregation_strategy_keyword']} too slow: {elapsed_time:.4f}s"
+        )
 
     @pytest.mark.parametrize("param_size", [1000, 5000, 10000, 50000])
     def test_parameter_size_scaling(
@@ -324,9 +324,9 @@ class TestStrategyScalability:
         # Time should scale reasonably with parameter size
         # Expect roughly linear scaling (allow some overhead)
         expected_max_time = (param_size / 1000) * 0.01  # 0.01s per 1K parameters
-        assert (
-            elapsed_time < expected_max_time
-        ), f"Parameter operations too slow for size {param_size}: {elapsed_time:.4f}s"
+        assert elapsed_time < expected_max_time, (
+            f"Parameter operations too slow for size {param_size}: {elapsed_time:.4f}s"
+        )
 
         # Verify results
         assert avg_params.shape == (param_size,)
@@ -426,9 +426,9 @@ class TestComputationalComplexity:
         for num_clients, elapsed_time in execution_times:
             # Allow up to 0.01 seconds per client squared (more generous threshold)
             expected_max_time = (num_clients**2) * 0.0001
-            assert (
-                elapsed_time < expected_max_time
-            ), f"Krum strategy too slow for {num_clients} clients: {elapsed_time:.4f}s"
+            assert elapsed_time < expected_max_time, (
+                f"Krum strategy too slow for {num_clients} clients: {elapsed_time:.4f}s"
+            )
 
     def test_pid_strategy_complexity(self, performance_timer: PerformanceTimer) -> None:
         """Test computational complexity of PID-based strategy operations."""
@@ -495,9 +495,9 @@ class TestComputationalComplexity:
                 time_ratio = curr_time / prev_time
 
                 # Time ratio should not exceed client ratio by more than 2x (allowing for overhead)
-                assert (
-                    time_ratio <= client_ratio * 2
-                ), f"{strategy_name} complexity issue: {client_ratio:.1f}x clients led to {time_ratio:.1f}x time"
+                assert time_ratio <= client_ratio * 2, (
+                    f"{strategy_name} complexity issue: {client_ratio:.1f}x clients led to {time_ratio:.1f}x time"
+                )
 
 
 class TestDatasetScalability:
@@ -566,9 +566,9 @@ class TestDatasetScalability:
         expected_max_time = (total_samples * image_size) * 0.000001
         expected_max_time = max(expected_max_time, 0.5)  # Minimum 0.5 seconds
 
-        assert (
-            elapsed_time < expected_max_time
-        ), f"Dataset loading too slow: {elapsed_time:.4f}s for {total_samples} samples"
+        assert elapsed_time < expected_max_time, (
+            f"Dataset loading too slow: {elapsed_time:.4f}s for {total_samples} samples"
+        )
 
     @pytest.mark.parametrize("num_rounds", [5, 10, 20, 50])
     def test_multi_round_performance(
@@ -633,9 +633,9 @@ class TestDatasetScalability:
 
         # Time should scale roughly linearly with number of rounds
         expected_max_time = num_rounds * 0.2  # 0.2 seconds per round
-        assert (
-            elapsed_time < expected_max_time
-        ), f"Multi-round simulation too slow for {num_rounds} rounds: {elapsed_time:.4f}s"
+        assert elapsed_time < expected_max_time, (
+            f"Multi-round simulation too slow for {num_rounds} rounds: {elapsed_time:.4f}s"
+        )
 
 
 class TestByzantineScenarioPerformance:
@@ -720,20 +720,20 @@ class TestByzantineScenarioPerformance:
         expected_max_time = (
             attack_config["num_clients"] ** 2
         ) * 0.0001  # Quadratic but with small constant
-        assert (
-            elapsed_time < expected_max_time
-        ), f"Byzantine defense too slow: {elapsed_time:.4f}s for {attack_config['num_clients']} clients"
+        assert elapsed_time < expected_max_time, (
+            f"Byzantine defense too slow: {elapsed_time:.4f}s for {attack_config['num_clients']} clients"
+        )
 
         # Verify defense effectiveness (should identify some Byzantine clients)
         total_clients = attack_config["num_clients"]
 
         # At least some clients should be filtered out
-        assert (
-            len(honest_by_trust) < total_clients
-        ), "Trust-based defense should filter some clients"
-        assert (
-            len(honest_by_krum) < total_clients
-        ), "Krum-based defense should filter some clients"
+        assert len(honest_by_trust) < total_clients, (
+            "Trust-based defense should filter some clients"
+        )
+        assert len(honest_by_krum) < total_clients, (
+            "Krum-based defense should filter some clients"
+        )
 
 
 @pytest.mark.slow
@@ -771,9 +771,9 @@ class TestLargeScalePerformance:
 
         # Should complete within reasonable time (less than 1 second per round)
         expected_max_time = num_rounds * 1.0
-        assert (
-            elapsed_time < expected_max_time
-        ), f"Large-scale simulation too slow: {elapsed_time:.2f}s for {num_clients} clients"
+        assert elapsed_time < expected_max_time, (
+            f"Large-scale simulation too slow: {elapsed_time:.2f}s for {num_clients} clients"
+        )
 
     def test_large_parameter_aggregation(
         self, performance_timer: PerformanceTimer
@@ -803,9 +803,9 @@ class TestLargeScalePerformance:
         elapsed_time = performance_timer.stop(f"large_params_{param_size}")
 
         # Should complete within reasonable time (less than 5 seconds)
-        assert (
-            elapsed_time < 5.0
-        ), f"Large parameter aggregation too slow: {elapsed_time:.2f}s for {param_size} parameters"
+        assert elapsed_time < 5.0, (
+            f"Large parameter aggregation too slow: {elapsed_time:.2f}s for {param_size} parameters"
+        )
 
         # Verify results
         assert avg_params.shape == (param_size,)

@@ -284,7 +284,7 @@ class TestDirectoryHandler:
 
             # Reset class variables
             DirectoryHandler.dirname = (
-                f'out/{mock_datetime.now().strftime("%m-%d-%Y_%H-%M-%S")}'
+                f"out/{mock_datetime.now().strftime('%m-%d-%Y_%H-%M-%S')}"
             )
 
             assert "01-01-2024_12-00-00" in DirectoryHandler.dirname

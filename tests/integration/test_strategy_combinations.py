@@ -85,16 +85,15 @@ class TestMultiStrategyScenarios:
     @pytest.fixture
     def mock_simulation_components(self):
         """Create mocked components for testing."""
-        with patch("src.simulation_runner.ConfigLoader") as mock_config_loader, patch(
-            "src.simulation_runner.DirectoryHandler"
-        ) as mock_directory_handler, patch(
-            "src.simulation_runner.DatasetHandler"
-        ) as mock_dataset_handler, patch(
-            "src.simulation_runner.FederatedSimulation"
-        ) as mock_federated_simulation, patch(
-            "src.simulation_runner.new_plot_handler"
-        ) as mock_plot_handler:
-
+        with (
+            patch("src.simulation_runner.ConfigLoader") as mock_config_loader,
+            patch("src.simulation_runner.DirectoryHandler") as mock_directory_handler,
+            patch("src.simulation_runner.DatasetHandler") as mock_dataset_handler,
+            patch(
+                "src.simulation_runner.FederatedSimulation"
+            ) as mock_federated_simulation,
+            patch("src.simulation_runner.new_plot_handler") as mock_plot_handler,
+        ):
             # Configure mocks
             mock_loader_instance = Mock()
             mock_config_loader.return_value = mock_loader_instance
@@ -108,9 +107,7 @@ class TestMultiStrategyScenarios:
 
             mock_simulation_instance = Mock()
             mock_simulation_instance.strategy_history = Mock()
-            mock_simulation_instance.strategy_history.calculate_additional_rounds_data = (
-                Mock()
-            )
+            mock_simulation_instance.strategy_history.calculate_additional_rounds_data = Mock()
             mock_federated_simulation.return_value = mock_simulation_instance
 
             yield {
@@ -357,14 +354,16 @@ class TestByzantineFaultTolerance:
     @pytest.fixture
     def mock_federated_simulation_with_byzantine(self):
         """Create mock FederatedSimulation with Byzantine clients."""
-        with patch("src.federated_simulation.ImageDatasetLoader") as mock_loader, patch(
-            "src.federated_simulation.ITSNetwork"
-        ) as mock_network, patch(
-            "src.federated_simulation.flwr.simulation.start_simulation"
-        ) as mock_start_sim, patch(
-            "src.federated_simulation.FederatedSimulation._assign_aggregation_strategy"
-        ) as mock_assign_strategy:
-
+        with (
+            patch("src.federated_simulation.ImageDatasetLoader") as mock_loader,
+            patch("src.federated_simulation.ITSNetwork") as mock_network,
+            patch(
+                "src.federated_simulation.flwr.simulation.start_simulation"
+            ) as mock_start_sim,
+            patch(
+                "src.federated_simulation.FederatedSimulation._assign_aggregation_strategy"
+            ) as mock_assign_strategy,
+        ):
             mock_loader_instance = Mock()
             mock_loader_instance.load_datasets.return_value = (
                 [Mock() for _ in range(10)],  # trainloaders
@@ -629,16 +628,15 @@ class TestAttackDefenseScenarios:
     @pytest.fixture
     def mock_attack_simulation_components(self):
         """Create mocked components for attack-defense testing."""
-        with patch("src.simulation_runner.ConfigLoader") as mock_config_loader, patch(
-            "src.simulation_runner.DirectoryHandler"
-        ) as mock_directory_handler, patch(
-            "src.simulation_runner.DatasetHandler"
-        ) as mock_dataset_handler, patch(
-            "src.simulation_runner.FederatedSimulation"
-        ) as mock_federated_simulation, patch(
-            "src.simulation_runner.new_plot_handler"
-        ) as mock_plot_handler:
-
+        with (
+            patch("src.simulation_runner.ConfigLoader") as mock_config_loader,
+            patch("src.simulation_runner.DirectoryHandler") as mock_directory_handler,
+            patch("src.simulation_runner.DatasetHandler") as mock_dataset_handler,
+            patch(
+                "src.simulation_runner.FederatedSimulation"
+            ) as mock_federated_simulation,
+            patch("src.simulation_runner.new_plot_handler") as mock_plot_handler,
+        ):
             # Configure mocks for attack scenarios
             mock_loader_instance = Mock()
             mock_config_loader.return_value = mock_loader_instance
@@ -653,9 +651,7 @@ class TestAttackDefenseScenarios:
             # Mock simulation with attack metrics
             mock_simulation_instance = Mock()
             mock_simulation_instance.strategy_history = Mock()
-            mock_simulation_instance.strategy_history.calculate_additional_rounds_data = (
-                Mock()
-            )
+            mock_simulation_instance.strategy_history.calculate_additional_rounds_data = Mock()
 
             # Add attack-specific metrics to strategy history
             mock_simulation_instance.strategy_history.attack_detection_rate = 0.8

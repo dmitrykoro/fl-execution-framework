@@ -293,10 +293,12 @@ class TestFlowerClient:
         # Mock global parameters
         global_params = [torch.randn(10, 5), torch.randn(10)]
 
-        with patch("torch.optim.AdamW") as mock_optimizer_class, patch.object(
-            flower_client_transformer, "get_parameters"
-        ) as mock_get_params:
-
+        with (
+            patch("torch.optim.AdamW") as mock_optimizer_class,
+            patch.object(
+                flower_client_transformer, "get_parameters"
+            ) as mock_get_params,
+        ):
             mock_optimizer = Mock()
             mock_optimizer_class.return_value = mock_optimizer
             mock_get_params.return_value = [param.numpy() for param in global_params]
@@ -391,14 +393,15 @@ class TestFlowerClient:
         # Mock parameters
         mock_params = [np.random.randn(10, 5), np.random.randn(10)]
 
-        with patch.object(
-            flower_client_transformer, "get_parameters"
-        ) as mock_get_params, patch.object(
-            flower_client_transformer, "set_parameters"
-        ) as mock_set_params, patch.object(
-            flower_client_transformer, "train"
-        ) as mock_train:
-
+        with (
+            patch.object(
+                flower_client_transformer, "get_parameters"
+            ) as mock_get_params,
+            patch.object(
+                flower_client_transformer, "set_parameters"
+            ) as mock_set_params,
+            patch.object(flower_client_transformer, "train") as mock_train,
+        ):
             mock_get_params.return_value = mock_params
 
             result_params, dataset_size, metrics = flower_client_transformer.fit(

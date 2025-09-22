@@ -447,10 +447,10 @@ class TestPIDBasedRemovalStrategy:
         expected_threshold = pid_avg + (pid_strategy.num_std_dev * pid_std)
 
         # Manually calculate threshold using the same logic
-        with patch("numpy.mean", return_value=pid_avg), patch(
-            "numpy.std", return_value=pid_std
+        with (
+            patch("numpy.mean", return_value=pid_avg),
+            patch("numpy.std", return_value=pid_std),
         ):
-
             # Simulate the threshold calculation logic
             threshold = pid_avg + (pid_strategy.num_std_dev * pid_std)
 
@@ -480,12 +480,12 @@ class TestPIDBasedRemovalStrategy:
 
     def test_aggregate_fit_pid_calculation(self, pid_strategy, mock_client_results):
         """Test aggregate_fit calculates PID scores for all clients."""
-        with patch(
-            "src.simulation_strategies.pid_based_removal_strategy.KMeans"
-        ) as mock_kmeans, patch(
-            "flwr.server.strategy.FedAvg.aggregate_fit"
-        ) as mock_parent_aggregate:
-
+        with (
+            patch(
+                "src.simulation_strategies.pid_based_removal_strategy.KMeans"
+            ) as mock_kmeans,
+            patch("flwr.server.strategy.FedAvg.aggregate_fit") as mock_parent_aggregate,
+        ):
             # Setup mocks
             mock_kmeans_instance = Mock()
             mock_kmeans_instance.transform.return_value = np.array(
@@ -506,12 +506,12 @@ class TestPIDBasedRemovalStrategy:
         self, pid_strategy, mock_client_results
     ):
         """Test aggregate_fit calculates threshold correctly for PID variant."""
-        with patch(
-            "src.simulation_strategies.pid_based_removal_strategy.KMeans"
-        ) as mock_kmeans, patch(
-            "flwr.server.strategy.FedAvg.aggregate_fit"
-        ) as mock_parent_aggregate:
-
+        with (
+            patch(
+                "src.simulation_strategies.pid_based_removal_strategy.KMeans"
+            ) as mock_kmeans,
+            patch("flwr.server.strategy.FedAvg.aggregate_fit") as mock_parent_aggregate,
+        ):
             # Setup mocks
             mock_kmeans_instance = Mock()
             mock_kmeans_instance.transform.return_value = np.array(
@@ -531,12 +531,12 @@ class TestPIDBasedRemovalStrategy:
         self, pid_scaled_strategy, mock_client_results
     ):
         """Test aggregate_fit calculates distance-based threshold for PID scaled variant."""
-        with patch(
-            "src.simulation_strategies.pid_based_removal_strategy.KMeans"
-        ) as mock_kmeans, patch(
-            "flwr.server.strategy.FedAvg.aggregate_fit"
-        ) as mock_parent_aggregate:
-
+        with (
+            patch(
+                "src.simulation_strategies.pid_based_removal_strategy.KMeans"
+            ) as mock_kmeans,
+            patch("flwr.server.strategy.FedAvg.aggregate_fit") as mock_parent_aggregate,
+        ):
             # Setup mocks
             mock_kmeans_instance = Mock()
             mock_kmeans_instance.transform.return_value = np.array(
@@ -673,12 +673,12 @@ class TestPIDBasedRemovalStrategy:
 
     def test_strategy_history_integration(self, pid_strategy, mock_client_results):
         """Test integration with strategy history."""
-        with patch(
-            "src.simulation_strategies.pid_based_removal_strategy.KMeans"
-        ) as mock_kmeans, patch(
-            "flwr.server.strategy.FedAvg.aggregate_fit"
-        ) as mock_parent_aggregate:
-
+        with (
+            patch(
+                "src.simulation_strategies.pid_based_removal_strategy.KMeans"
+            ) as mock_kmeans,
+            patch("flwr.server.strategy.FedAvg.aggregate_fit") as mock_parent_aggregate,
+        ):
             # Setup mocks
             mock_kmeans_instance = Mock()
             mock_kmeans_instance.transform.return_value = np.array(
@@ -721,12 +721,12 @@ class TestPIDBasedRemovalStrategy:
 
         single_result = [(client_proxy, fit_res)]
 
-        with patch(
-            "src.simulation_strategies.pid_based_removal_strategy.KMeans"
-        ) as mock_kmeans, patch(
-            "flwr.server.strategy.FedAvg.aggregate_fit"
-        ) as mock_parent_aggregate:
-
+        with (
+            patch(
+                "src.simulation_strategies.pid_based_removal_strategy.KMeans"
+            ) as mock_kmeans,
+            patch("flwr.server.strategy.FedAvg.aggregate_fit") as mock_parent_aggregate,
+        ):
             # Setup mocks
             mock_kmeans_instance = Mock()
             mock_kmeans_instance.transform.return_value = np.array([[0.1]])

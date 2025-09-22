@@ -155,9 +155,9 @@ class TestDatasetVariations:
         for batch_data, batch_labels in dataloader:
             assert batch_data.shape[0] <= 16, "Batch size should not exceed 16"
             assert batch_labels.shape[0] <= 16, "Label batch size should not exceed 16"
-            assert (
-                batch_data.shape[0] == batch_labels.shape[0]
-            ), "Data and labels should have same batch size"
+            assert batch_data.shape[0] == batch_labels.shape[0], (
+                "Data and labels should have same batch size"
+            )
             batch_count += 1
             if batch_count >= 2:  # Test first few batches
                 break
@@ -275,16 +275,16 @@ class TestDatasetVariations:
             total_samples += batch_data.shape[0]
 
             # Verify batch dimensions
-            assert (
-                batch_data.shape[0] <= batch_size
-            ), f"Batch size should not exceed {batch_size}"
+            assert batch_data.shape[0] <= batch_size, (
+                f"Batch size should not exceed {batch_size}"
+            )
             assert batch_data.shape[0] > 0, "Batch should not be empty"
 
         # Verify total samples processed
         assert total_samples == len(client_data), "All samples should be processed"
-        assert (
-            batch_count >= expected_batches - 1
-        ), f"Should have approximately {expected_batches} batches"
+        assert batch_count >= expected_batches - 1, (
+            f"Should have approximately {expected_batches} batches"
+        )
 
     @pytest.mark.parametrize("dataset_name", ["its", "flair", "lung_photos"])
     def test_high_resolution_datasets(self, dataset_name):
@@ -297,9 +297,9 @@ class TestDatasetVariations:
 
         # Verify high resolution
         height, width = sample_data.shape[-2:]
-        assert (
-            height >= 224 and width >= 224
-        ), f"High-resolution dataset {dataset_name} should have dimensions >= 224x224"
+        assert height >= 224 and width >= 224, (
+            f"High-resolution dataset {dataset_name} should have dimensions >= 224x224"
+        )
 
         # Test memory efficiency with smaller batches for high-res data
         dataloader = DataLoader(client_data, batch_size=4, shuffle=True)
@@ -321,14 +321,14 @@ class TestDatasetVariations:
         sample_data, _ = client_data[0]
 
         # Verify single channel (grayscale)
-        assert (
-            sample_data.shape[0] == 1
-        ), f"Grayscale dataset {dataset_name} should have 1 channel"
+        assert sample_data.shape[0] == 1, (
+            f"Grayscale dataset {dataset_name} should have 1 channel"
+        )
 
         # Verify data range (should be in reasonable range for mock data)
-        assert (
-            sample_data.min() >= -5.0 and sample_data.max() <= 5.0
-        ), "Grayscale data should be in reasonable range for mock data"
+        assert sample_data.min() >= -5.0 and sample_data.max() <= 5.0, (
+            "Grayscale data should be in reasonable range for mock data"
+        )
 
     @pytest.mark.parametrize("dataset_name", ["its", "flair", "bloodmnist"])
     def test_color_datasets(self, dataset_name):
@@ -340,14 +340,14 @@ class TestDatasetVariations:
         sample_data, _ = client_data[0]
 
         # Verify three channels (RGB)
-        assert (
-            sample_data.shape[0] == 3
-        ), f"Color dataset {dataset_name} should have 3 channels"
+        assert sample_data.shape[0] == 3, (
+            f"Color dataset {dataset_name} should have 3 channels"
+        )
 
         # Verify data range
-        assert (
-            sample_data.min() >= -5.0 and sample_data.max() <= 5.0
-        ), "Color data should be in reasonable range for mock data"
+        assert sample_data.min() >= -5.0 and sample_data.max() <= 5.0, (
+            "Color data should be in reasonable range for mock data"
+        )
 
     def test_dataset_configuration_mapping(self):
         """Test dataset configuration mapping functionality."""
@@ -364,18 +364,18 @@ class TestDatasetVariations:
             "lung_photos",
         }
 
-        assert (
-            set(config.keys()) == expected_datasets
-        ), "All datasets should be in configuration"
+        assert set(config.keys()) == expected_datasets, (
+            "All datasets should be in configuration"
+        )
 
         # Verify paths are properly formatted
         for dataset_name, dataset_path in config.items():
-            assert dataset_path.startswith(
-                "datasets/"
-            ), f"Path for {dataset_name} should start with 'datasets/'"
-            assert (
-                dataset_name in dataset_path
-            ), f"Dataset name should be in path for {dataset_name}"
+            assert dataset_path.startswith("datasets/"), (
+                f"Path for {dataset_name} should start with 'datasets/'"
+            )
+            assert dataset_name in dataset_path, (
+                f"Dataset name should be in path for {dataset_name}"
+            )
 
     @pytest.mark.parametrize(
         "dataset_name,error_scenario",
@@ -436,6 +436,6 @@ class TestDatasetVariations:
         memory_increase = final_memory - initial_memory
 
         # Memory increase should be reasonable (less than 200MB for mock data)
-        assert (
-            memory_increase < 200 * 1024 * 1024
-        ), "Memory usage should remain reasonable"
+        assert memory_increase < 200 * 1024 * 1024, (
+            "Memory usage should remain reasonable"
+        )

@@ -240,8 +240,8 @@ class MockNumPyClient:
         Mock client evaluation.
 
         Args:
-            parameters: Model parameters from server
-            _: Evaluation configuration (unused)
+            _parameters: Model parameters from server (unused)
+            _config: Evaluation configuration (unused)
 
         Returns:
             Tuple of (loss, num_examples, metrics)
@@ -298,7 +298,7 @@ def mock_start_simulation(
     num_clients: int,
     config: MockServerConfig,
     strategy: Any,
-    **_kwargs: Any
+    **_kwargs: Any,
 ) -> Dict[str, Any]:
     """
     Mock flwr.simulation.start_simulation.

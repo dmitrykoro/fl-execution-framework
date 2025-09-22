@@ -35,7 +35,7 @@ class MockBaseNetwork(nn.Module):
         """Load model weights from numpy arrays.
 
         Args:
-            parameters: List of numpy arrays to load as model weights.
+            parameters: List of numpy arrays to load as model weights
         """
         params_dict = zip(self.parameters(), parameters)
         for param, new_param in params_dict:
@@ -52,8 +52,8 @@ class MockNetwork(MockBaseNetwork):
     def __init__(self, num_classes: int = 10, input_size: int = 3072):
         """
         Args:
-            num_classes: Number of output classes for classification.
-            input_size: Flattened input dimension (default: 3072 for CIFAR-10).
+            num_classes: Number of output classes for classification
+            input_size: Flattened input dimension (default: 3072 for CIFAR-10)
         """
         super(MockNetwork, self).__init__()
         self.num_classes = num_classes
@@ -70,7 +70,7 @@ class MockNetwork(MockBaseNetwork):
         """Forward pass with automatic input flattening.
 
         Args:
-            x: Input tensor of any shape.
+            x: Input tensor of any shape
 
         Returns:
             Class logits tensor of shape (batch_size, num_classes).
@@ -91,8 +91,8 @@ class MockCNNNetwork(MockBaseNetwork):
     def __init__(self, num_classes: int = 10, input_channels: int = 3):
         """
         Args:
-            num_classes: Number of output classes for classification.
-            input_channels: Input channels (1=grayscale, 3=RGB).
+            num_classes: Number of output classes for classification
+            input_channels: Input channels (1=grayscale, 3=RGB)
         """
         super(MockCNNNetwork, self).__init__()
         self.num_classes = num_classes
@@ -122,7 +122,7 @@ class MockCNNNetwork(MockBaseNetwork):
         """Forward pass: conv -> relu -> pool -> flatten -> linear.
 
         Args:
-            x: Input image tensor.
+            x: Input image tensor
 
         Returns:
             Class logits tensor.
@@ -144,9 +144,9 @@ class MockFlowerClient:
     def __init__(self, client_id: int, model: nn.Module, dataset_size: int = 100):
         """
         Args:
-            client_id: Unique client identifier.
-            model: PyTorch model instance.
-            dataset_size: Number of samples in client's dataset.
+            client_id: Unique client identifier
+            model: PyTorch model instance
+            dataset_size: Number of samples in client's dataset
         """
         self.client_id = client_id
         self.model: MockBaseNetwork = model  # type: ignore[assignment]
@@ -162,8 +162,8 @@ class MockFlowerClient:
         Simulate training by adding noise to parameters.
 
         Args:
-            parameters: Model weights from server.
-            _config: Training configuration dict (unused).
+            parameters: Model weights from server
+            _config: Training configuration dict (unused)
 
         Returns:
             Tuple of (updated_weights, dataset_size, training_metrics).
@@ -195,8 +195,8 @@ class MockFlowerClient:
         Simulate model evaluation with random metrics.
 
         Args:
-            parameters: Model weights from server.
-            _config: Evaluation configuration dict (unused).
+            parameters: Model weights from server
+            _config: Evaluation configuration dict (unused)
 
         Returns:
             Tuple of (loss, dataset_size, evaluation_metrics).
@@ -227,8 +227,8 @@ class MockNetworkFactory:
         Create network architecture based on dataset characteristics.
 
         Args:
-            dataset_type: Dataset identifier (e.g., 'femnist_iid', 'medquad').
-            num_classes: Number of output classes.
+            dataset_type: Dataset identifier (e.g., 'femnist_iid', 'medquad')
+            num_classes: Number of output classes
 
         Returns:
             MockCNNNetwork for image data, MockNetwork for text data.
@@ -269,9 +269,9 @@ def create_mock_client_models(
     Generate list of federated learning clients with varying dataset sizes.
 
     Args:
-        num_clients: Number of clients to create.
-        dataset_type: Dataset identifier for network selection.
-        num_classes: Number of output classes.
+        num_clients: Number of clients to create
+        dataset_type: Dataset identifier for network selection
+        num_classes: Number of output classes
 
     Returns:
         List of MockFlowerClient instances with random dataset sizes.
@@ -296,7 +296,7 @@ def generate_mock_model_parameters(model: nn.Module) -> List[NDArray]:
     Create random parameters matching model architecture.
 
     Args:
-        model: PyTorch model to extract shapes from.
+        model: PyTorch model to extract shapes from
 
     Returns:
         List of numpy arrays with matching parameter shapes.
@@ -319,8 +319,8 @@ def create_mock_aggregated_parameters(
     Aggregate client parameters using weighted averaging.
 
     Args:
-        client_parameters: Parameter lists from each client.
-        weights: Optional weights for each client (default: equal weighting).
+        client_parameters: Parameter lists from each client
+        weights: Optional weights for each client (default: equal weighting)
 
     Returns:
         Aggregated parameter list representing global model state.

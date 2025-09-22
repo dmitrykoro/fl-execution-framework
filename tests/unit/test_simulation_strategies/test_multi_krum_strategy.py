@@ -172,14 +172,15 @@ class TestMultiKrumBasedRemovalStrategy:
         self, multi_krum_strategy, mock_client_results
     ):
         """Test aggregate_fit calculates Multi-Krum scores for all clients."""
-        with patch(
-            "src.simulation_strategies.multi_krum_based_removal_strategy.KMeans"
-        ) as mock_kmeans, patch(
-            "src.simulation_strategies.multi_krum_based_removal_strategy.MinMaxScaler"
-        ) as mock_scaler, patch(
-            "flwr.server.strategy.Krum.aggregate_fit"
-        ) as mock_parent_aggregate:
-
+        with (
+            patch(
+                "src.simulation_strategies.multi_krum_based_removal_strategy.KMeans"
+            ) as mock_kmeans,
+            patch(
+                "src.simulation_strategies.multi_krum_based_removal_strategy.MinMaxScaler"
+            ) as mock_scaler,
+            patch("flwr.server.strategy.Krum.aggregate_fit") as mock_parent_aggregate,
+        ):
             # Setup mocks
             mock_kmeans_instance = Mock()
             mock_kmeans_instance.transform.return_value = np.array(
@@ -209,14 +210,15 @@ class TestMultiKrumBasedRemovalStrategy:
         self, multi_krum_strategy, mock_client_results
     ):
         """Test aggregate_fit selects top num_krum_selections clients."""
-        with patch(
-            "src.simulation_strategies.multi_krum_based_removal_strategy.KMeans"
-        ) as mock_kmeans, patch(
-            "src.simulation_strategies.multi_krum_based_removal_strategy.MinMaxScaler"
-        ) as mock_scaler, patch(
-            "flwr.server.strategy.Krum.aggregate_fit"
-        ) as mock_parent_aggregate:
-
+        with (
+            patch(
+                "src.simulation_strategies.multi_krum_based_removal_strategy.KMeans"
+            ) as mock_kmeans,
+            patch(
+                "src.simulation_strategies.multi_krum_based_removal_strategy.MinMaxScaler"
+            ) as mock_scaler,
+            patch("flwr.server.strategy.Krum.aggregate_fit") as mock_parent_aggregate,
+        ):
             # Setup mocks
             mock_kmeans_instance = Mock()
             mock_kmeans_instance.transform.return_value = np.array(
@@ -403,14 +405,15 @@ class TestMultiKrumBasedRemovalStrategy:
         self, multi_krum_strategy, mock_client_results
     ):
         """Test integration with strategy history."""
-        with patch(
-            "src.simulation_strategies.multi_krum_based_removal_strategy.KMeans"
-        ) as mock_kmeans, patch(
-            "src.simulation_strategies.multi_krum_based_removal_strategy.MinMaxScaler"
-        ) as mock_scaler, patch(
-            "flwr.server.strategy.Krum.aggregate_fit"
-        ) as mock_parent_aggregate:
-
+        with (
+            patch(
+                "src.simulation_strategies.multi_krum_based_removal_strategy.KMeans"
+            ) as mock_kmeans,
+            patch(
+                "src.simulation_strategies.multi_krum_based_removal_strategy.MinMaxScaler"
+            ) as mock_scaler,
+            patch("flwr.server.strategy.Krum.aggregate_fit") as mock_parent_aggregate,
+        ):
             # Setup mocks
             mock_kmeans_instance = Mock()
             mock_kmeans_instance.transform.return_value = np.array(
@@ -462,14 +465,15 @@ class TestMultiKrumBasedRemovalStrategy:
 
         insufficient_results = [(client_proxy1, fit_res1), (client_proxy2, fit_res2)]
 
-        with patch(
-            "src.simulation_strategies.multi_krum_based_removal_strategy.KMeans"
-        ) as mock_kmeans, patch(
-            "src.simulation_strategies.multi_krum_based_removal_strategy.MinMaxScaler"
-        ) as mock_scaler, patch(
-            "flwr.server.strategy.Krum.aggregate_fit"
-        ) as mock_parent_aggregate:
-
+        with (
+            patch(
+                "src.simulation_strategies.multi_krum_based_removal_strategy.KMeans"
+            ) as mock_kmeans,
+            patch(
+                "src.simulation_strategies.multi_krum_based_removal_strategy.MinMaxScaler"
+            ) as mock_scaler,
+            patch("flwr.server.strategy.Krum.aggregate_fit") as mock_parent_aggregate,
+        ):
             # Setup mocks
             mock_kmeans_instance = Mock()
             mock_kmeans_instance.transform.return_value = np.array([[0.1], [0.2]])

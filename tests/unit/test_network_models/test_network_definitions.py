@@ -464,12 +464,14 @@ class TestBERTModelFunctions:
         # Create mock model with state dict
         mock_model = Mock()
 
-        with patch(
-            "src.network_models.bert_model_definition.get_peft_model_state_dict"
-        ) as mock_get, patch(
-            "src.network_models.bert_model_definition.set_peft_model_state_dict"
-        ) as mock_set:
-
+        with (
+            patch(
+                "src.network_models.bert_model_definition.get_peft_model_state_dict"
+            ) as mock_get,
+            patch(
+                "src.network_models.bert_model_definition.set_peft_model_state_dict"
+            ) as mock_set,
+        ):
             # Mock state dict
             original_state_dict = OrderedDict(
                 {"lora_A": torch.randn(5, 3), "lora_B": torch.randn(3, 5)}

@@ -143,11 +143,14 @@ class TestFederatedSimulation:
 
     def test_assign_all_properties_calls_sub_methods(self, federated_simulation):
         """Test _assign_all_properties calls dataset, network, and strategy assignment."""
-        with patch.object(
-            federated_simulation, "_assign_dataset_loaders_and_network_model"
-        ) as mock_assign_dataset, patch.object(
-            federated_simulation, "_assign_aggregation_strategy"
-        ) as mock_assign_strategy:
+        with (
+            patch.object(
+                federated_simulation, "_assign_dataset_loaders_and_network_model"
+            ) as mock_assign_dataset,
+            patch.object(
+                federated_simulation, "_assign_aggregation_strategy"
+            ) as mock_assign_strategy,
+        ):
             federated_simulation._assign_all_properties()
             mock_assign_dataset.assert_called_once()
             mock_assign_strategy.assert_called_once()
@@ -157,11 +160,10 @@ class TestFederatedSimulation:
     ):
         """Test assignment for ITS dataset."""
         federated_simulation.strategy_config.dataset_keyword = "its"
-        with patch(
-            "src.federated_simulation.ImageDatasetLoader"
-        ) as mock_loader_class, patch(
-            "src.federated_simulation.ITSNetwork"
-        ) as mock_network_class:
+        with (
+            patch("src.federated_simulation.ImageDatasetLoader") as mock_loader_class,
+            patch("src.federated_simulation.ITSNetwork") as mock_network_class,
+        ):
             mock_loader, mock_network = Mock(), Mock()
             mock_trainloaders, mock_valloaders = [Mock()], [Mock()]
             mock_loader.load_datasets.return_value = (
