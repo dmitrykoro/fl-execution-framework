@@ -1,9 +1,11 @@
 #!/bin/bash
-# Run: ./lint.sh [--full]
+# Enhanced lint script with ruff and pyright
+# Run: ./lint.sh [--full] [--sonar]
 # Prerequisites: ./reinstall_requirements.sh
 #
-# Default: isort, black, flake8, mypy
+# Default: ruff (linting + formatting), mypy, pyright
 # --full: adds pytest, reinstall test, simulation test
+# --sonar: adds SonarQube analysis
 
 # fail fast
 set -euo pipefail
@@ -38,9 +40,18 @@ fi
 
 # parse args
 FULL_MODE=false
-if [[ "${1:-}" == "--full" ]]; then
-    FULL_MODE=true
-fi
+SONAR_MODE=false
+
+for arg in "$@"; do
+    case $arg in
+        --full)
+            FULL_MODE=true
+            ;;
+        --sonar)
+            SONAR_MODE=true
+            ;;
+    esac
+done
 
 # install test deps in full mode
 if [[ "$FULL_MODE" == true ]]; then
@@ -48,21 +59,63 @@ if [[ "$FULL_MODE" == true ]]; then
     pip install -e tests
 fi
 
-# import sorting
-echo "🔧 Running isort..."
-isort tests
+# check tool availability
+check_tool() {
+    if ! command -v "$1" &> /dev/null; then
+        echo "⚠️  $1 not found. Install with: $2"
+        return 1
+    fi
+    return 0
+}
 
-# code formatting
-echo "⚫ Running black..."
-black tests
+# Install ruff if needed
+if ! check_tool "ruff" "pip install ruff"; then
+    echo "Installing ruff..."
+    pip install ruff
+fi
 
-# linting
-echo "🔍 Running flake8..."
-flake8 tests --config=tests/.flake8
+# Ruff linting and formatting (replaces isort + flake8 + black)
+echo "⚡ Running ruff check..."
+ruff check --fix tests/
 
-# type checking
+echo "⚡ Running ruff format..."
+ruff format tests/
+
+# type checking with mypy
 echo "🔍 Running mypy..."
 mypy tests/conftest.py tests/fixtures/ tests/integration/ tests/unit/ tests/performance/ --config-file=tests/pyproject.toml
+
+# additional type checking with pyright
+if check_tool "pyright" "npm install -g pyright"; then
+    echo "🔍 Running pyright..."
+    pyright tests/
+else
+    echo "⚠️  Pyright not available. Install with: npm install -g pyright"
+fi
+
+# SonarQube analysis
+if [[ "$SONAR_MODE" == true ]]; then
+    if check_tool "sonar-scanner" "npm install -g sonar-scanner"; then
+        echo "🔍 Running SonarQube analysis..."
+
+        # Create basic sonar-project.properties if it doesn't exist
+        if [[ ! -f "sonar-project.properties" ]]; then
+            cat > sonar-project.properties << EOF
+sonar.projectKey=fl-execution-framework
+sonar.projectName=FL Execution Framework
+sonar.projectVersion=1.0
+sonar.sources=tests
+sonar.python.coverage.reportPaths=coverage.xml
+sonar.exclusions=**/logs/**,**/temp/**,**/__pycache__/**
+EOF
+            echo "📄 Created sonar-project.properties"
+        fi
+
+        sonar-scanner
+    else
+        echo "⚠️  SonarQube Scanner not available. Install with: npm install -g sonar-scanner"
+    fi
+fi
 
 # pytest in full mode
 if [[ "$FULL_MODE" == true ]]; then
@@ -85,3 +138,16 @@ if [[ "$FULL_MODE" == true ]]; then
 else
     echo "✅ Linting and formatting completed!"
 fi
+
+# Print summary
+echo ""
+echo "🏁 Summary:"
+echo "   ⚡ Used ruff for linting and formatting"
+echo "   🔍 Ran mypy for type checking"
+if check_tool "pyright" "npm install -g pyright" > /dev/null 2>&1; then
+    echo "   🔍 Ran pyright for additional type checking"
+fi
+if [[ "$SONAR_MODE" == true ]]; then
+    echo "   🔍 Ran SonarQube analysis"
+fi
+echo "   📝 Log saved to: $LOG_FILE"
