@@ -51,7 +51,7 @@ class FederatedSimulation:
     def __init__(
             self,
             strategy_config: StrategyConfig,
-            dataset_dir: os.path,
+            dataset_dir: str,
             dataset_handler: DatasetHandler
     ):
         self.strategy_config = strategy_config

@@ -225,6 +225,18 @@ Testing revealed several issues that could lead to runtime errors. These have be
 - **Purpose**: Correctly handle `None` or missing metric values for a given round.
 - **Risk Assessment**: Low - improves the correctness and reliability of output logging.
 
+#### **Type Annotation Correction**
+
+- **Problem:** `dataset_dir: os.path` used an invalid type annotation - `os.path` is a module, not a type.
+- **Fix:** Changed to `dataset_dir: str` which is the correct type for directory paths.
+- **Benefit:** Fixes type checking errors and improves code clarity for static analysis tools.
+
+#### Type Annotation Details
+
+- **File**: `src/federated_simulation.py`
+- **Purpose**: Correct invalid type annotation that would cause mypy/pyright errors.
+- **Risk Assessment**: Very low - standard type annotation correction.
+
 ---
 
 ## 📈 Summary of Impact
