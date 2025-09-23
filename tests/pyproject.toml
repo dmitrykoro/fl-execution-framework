@@ -12,6 +12,8 @@ dependencies = [
     "pytest-xdist==3.5.0",
     "mypy==1.13.0",
     "ruff==0.13.1",
+    "numpy>=1.21.0",
+    "flwr>=1.0.0",
 ]
 
 [tool.setuptools]
