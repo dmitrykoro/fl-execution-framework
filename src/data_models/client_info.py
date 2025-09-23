@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import List, Union
+from typing import List, Union, Optional
 
 
 @dataclass
@@ -49,11 +49,11 @@ class ClientInfo:
     def add_history_entry(
             self,
             current_round: int,
-            removal_criterion: float = None,
-            absolute_distance: float = None,
-            loss: float = None,
-            accuracy: float = None,
-            aggregation_participation: int = None
+            removal_criterion: Optional[float] = None,
+            absolute_distance: Optional[float] = None,
+            loss: Optional[float] = None,
+            accuracy: Optional[float] = None,
+            aggregation_participation: Optional[int] = None
     ) -> None:
         """
         Add client metrics history entry for a new round.

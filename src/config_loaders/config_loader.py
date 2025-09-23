@@ -60,7 +60,7 @@ class ConfigLoader:
             sys.exit(-1)
 
     @staticmethod
-    def _set_config(config_path: str) -> list:
+    def _set_config(config_path: str) -> dict:
         """Set config by loading it from the specified JSON file"""
         try:
             with open(config_path) as f:
