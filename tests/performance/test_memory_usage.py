@@ -14,6 +14,7 @@ import numpy as np
 import psutil
 import pytest
 from src.data_models.client_info import ClientInfo
+from src.data_models.round_info import RoundsInfo
 from src.data_models.simulation_strategy_config import StrategyConfig
 from src.data_models.simulation_strategy_history import SimulationStrategyHistory
 
@@ -168,10 +169,11 @@ class TestMemoryUsageMonitoring:
         dataset_handler.setup_dataset(num_clients=50)
 
         # Create history with proper initialization
+        rounds_history = RoundsInfo(simulation_strategy_config=config)
         history = SimulationStrategyHistory(
             strategy_config=config,
             dataset_handler=dataset_handler,
-            rounds_history=None,  # Will be created in __post_init__
+            rounds_history=rounds_history,
         )
 
         # Simulate 100 rounds with client data
@@ -238,7 +240,7 @@ class TestMemoryLeakDetection:
             config = StrategyConfig.from_dict(config_data)
 
             # Create client data
-            client_params: np.ndarray = generate_mock_client_parameters(10, 1000)
+            client_params: List[np.ndarray] = generate_mock_client_parameters(10, 1000)
 
             # Simulate strategy processing (mock the actual strategy execution)
             with patch(
@@ -372,10 +374,11 @@ class TestResourceCleanup:
         dataset_handler.setup_dataset(num_clients=15)
 
         # Create history with proper initialization
+        rounds_history = RoundsInfo(simulation_strategy_config=config)
         history = SimulationStrategyHistory(
             strategy_config=config,
             dataset_handler=dataset_handler,
-            rounds_history=None,  # Will be created in __post_init__
+            rounds_history=rounds_history,
         )
         clients: List[Any] = create_mock_client_models(
             num_clients=15, dataset_type="femnist_iid"
@@ -390,10 +393,11 @@ class TestResourceCleanup:
         dataset_handler.setup_dataset(num_clients=15)
 
         # Create history with proper initialization
+        rounds_history = RoundsInfo(simulation_strategy_config=config)
         history = SimulationStrategyHistory(
             strategy_config=config,
             dataset_handler=dataset_handler,
-            rounds_history=None,  # Will be created in __post_init__
+            rounds_history=rounds_history,
         )
 
         # Simulate rounds of training
@@ -552,10 +556,11 @@ class TestLongRunningMemoryBehavior:
         dataset_handler.setup_dataset(num_clients=20)
 
         # Create history with proper initialization
+        rounds_history = RoundsInfo(simulation_strategy_config=config)
         history = SimulationStrategyHistory(
             strategy_config=config,
             dataset_handler=dataset_handler,
-            rounds_history=None,  # Will be created in __post_init__
+            rounds_history=rounds_history,
         )
         memory_samples: List[float] = []
 
@@ -566,10 +571,11 @@ class TestLongRunningMemoryBehavior:
         dataset_handler.setup_dataset(num_clients=20)
 
         # Create history with proper initialization
+        rounds_history = RoundsInfo(simulation_strategy_config=config)
         history = SimulationStrategyHistory(
             strategy_config=config,
             dataset_handler=dataset_handler,
-            rounds_history=None,  # Will be created in __post_init__
+            rounds_history=rounds_history,
         )
 
         # Run simulation for many rounds

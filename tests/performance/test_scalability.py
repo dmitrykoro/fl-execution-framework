@@ -13,6 +13,7 @@ from unittest.mock import Mock
 import numpy as np
 import pytest
 from src.data_models.client_info import ClientInfo
+from src.data_models.round_info import RoundsInfo
 from src.data_models.simulation_strategy_config import StrategyConfig
 from src.data_models.simulation_strategy_history import SimulationStrategyHistory
 
@@ -113,7 +114,7 @@ class TestClientScalability:
         param_size: int = 10000  # 10K parameters
 
         # Generate client parameters
-        client_params: np.ndarray = generate_mock_client_parameters(
+        client_params: List[np.ndarray] = generate_mock_client_parameters(
             num_clients, param_size
         )
 
@@ -185,10 +186,11 @@ class TestClientScalability:
         dataset_handler.setup_dataset(num_clients=num_clients)
 
         # Create history with proper initialization
+        rounds_history = RoundsInfo(simulation_strategy_config=config)
         history = SimulationStrategyHistory(
             strategy_config=config,
             dataset_handler=dataset_handler,
-            rounds_history=None,  # Will be created in __post_init__
+            rounds_history=rounds_history,
         )
 
         # Create history for multiple rounds
@@ -222,6 +224,7 @@ class TestClientScalability:
         assert len(all_clients) == num_clients
 
         # Verify round history
+        assert history.rounds_history is not None
         assert len(history.rounds_history.aggregated_loss_history) == num_rounds
 
 
@@ -346,7 +349,7 @@ class TestComputationalComplexity:
 
         for num_clients in client_counts:
             # Generate client parameters and trust scores
-            client_params: np.ndarray = generate_mock_client_parameters(
+            client_params: List[np.ndarray] = generate_mock_client_parameters(
                 num_clients, 1000
             )
             trust_scores: np.ndarray = np.random.uniform(0.3, 1.0, num_clients)
@@ -389,7 +392,7 @@ class TestComputationalComplexity:
         execution_times: List[Tuple[int, float]] = []
 
         for num_clients in client_counts:
-            client_params: np.ndarray = generate_mock_client_parameters(
+            client_params: List[np.ndarray] = generate_mock_client_parameters(
                 num_clients, 1000
             )
 
@@ -602,10 +605,11 @@ class TestDatasetScalability:
         dataset_handler.setup_dataset(num_clients=num_clients)
 
         # Create history with proper initialization
+        rounds_history = RoundsInfo(simulation_strategy_config=config)
         history = SimulationStrategyHistory(
             strategy_config=config,
             dataset_handler=dataset_handler,
-            rounds_history=None,  # Will be created in __post_init__
+            rounds_history=rounds_history,
         )
 
         # Simulate multiple rounds
