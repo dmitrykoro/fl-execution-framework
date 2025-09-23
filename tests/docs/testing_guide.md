@@ -871,15 +871,8 @@ pytest tests/performance/test_scalability.py::test_strategy_scalability[your_str
 ### ✨ Code quality checks
 
 ```bash
-# Check code formatting and style
-flake8 --ignore=E501,W503,E203 tests
-
-# Sort imports properly
-isort tests
-
-# Check specific test file
-flake8 --ignore=E501,W503,E203 tests/unit/test_simulation_strategies/test_your_strategy.py
-isort tests/unit/test_simulation_strategies/test_your_strategy.py
+# Run all quality checks (linting, formatting, type-checking)
+./tests/lint.sh
 ```
 
 ## 🚨 Common Beginner Mistakes
@@ -1077,8 +1070,7 @@ python -c "from tests.fixtures.mock_datasets import *; print('Fixtures loaded!')
 ### 📤 Before Submitting
 
 - [ ] All new tests pass: `python -m pytest tests/unit/your_test_file.py -v`
-- [ ] Code style check: `flake8 --ignore=E501,W503,E203 tests/unit/your_test_file.py`
-- [ ] Import sorting: `isort tests/unit/your_test_file.py`
+- [ ] Code quality checks pass: `./tests/lint.sh`
 - [ ] Edge cases covered (empty inputs, invalid data, etc.)
 
 This systematic approach maintains the framework's quality standards while providing validation for federated learning scenarios.
