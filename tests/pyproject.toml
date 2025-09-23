@@ -22,6 +22,7 @@ dependencies = [
     "matplotlib==3.5.2",
     "transformers==4.56.1",
     "peft==0.17.1",
+    "datasets==2.20.0",
 ]
 
 [tool.setuptools]
