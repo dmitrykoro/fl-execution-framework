@@ -1,15 +1,26 @@
 #!/bin/bash
 # Deletes and recreates the virtual environment from requirements.txt.
+
+# Exit immediately on error.
 set -e
 
-# The environment will be created in this directory.
-VENV_DIR="venv"
+# Determine virtual environment directory
+# Check for existing naming convention, default to .venv for new installations
+VENV_DIR=""
+if [ -d "venv" ]; then
+    VENV_DIR="venv"
+elif [ -d ".venv" ]; then
+    VENV_DIR=".venv"
+else
+    # Default to .venv for new installations
+    VENV_DIR=".venv"
+fi
 
 command_exists () {
     command -v "$1" >/dev/null 2>&1 ;
 }
 
-# Find a compatible Python 3.9+ interpreter, preferring newer versions.
+# Find a compatible Python 3.9+ interpreter, checking newer versions first.
 PYTHON=""
 for version in python python3.11 python3.10 python3.9 python3; do
     if command_exists $version; then
@@ -59,6 +70,9 @@ if [ -f "$VENV_DIR/Scripts/activate" ]; then
 else
     source "$VENV_DIR/bin/activate"
 fi
+
+echo "Upgrading pip..."
+$PYTHON -m pip install --upgrade pip
 
 echo "Installing requirements..."
 $PIP install -r requirements.txt

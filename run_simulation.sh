@@ -1,4 +1,6 @@
 #!/bin/bash
+# Runs the simulation, setting up the environment if needed.
+
 # Exit immediately on error.
 set -e
 
@@ -17,9 +19,9 @@ activate_venv () {
     fi
 }
 
-# Find a compatible Python 3.9+ interpreter, preferring newer versions.
+# Find a compatible Python 3.9+ interpreter, checking newer versions first.
 PYTHON=""
-for version in python3.11 python3.10 python3.9 python3 python; do
+for version in python python3.11 python3.10 python3.9 python3; do
     if command_exists $version; then
         VERSION_CHECK=$($version -c "import sys; print(sys.version_info >= (3, 9))" 2>/dev/null)
         if [ "$VERSION_CHECK" = "True" ]; then
@@ -45,14 +47,14 @@ if [ -z "$PYTHON" ]; then
     exit 1
 fi
 
-# Prefer wget for downloads, but fall back to Python for portability.
+# Use wget for downloads, fall back to Python for portability.
 DOWNLOAD_METHOD="python"
 if command_exists wget; then
   DOWNLOAD_METHOD="wget"
 fi
 
 # Find and activate virtual environment.
-# Prefers .venv, falls back to venv, or creates venv if neither exists.
+# Checks .venv first, then venv, creates .venv if neither exists.
 if [ -d ".venv" ]; then
     VENV_DIR=".venv"
 elif [ -d "venv" ]; then
@@ -63,9 +65,9 @@ if [ -n "$VENV_DIR" ]; then
     echo "Found existing venv in '$VENV_DIR', activating..."
     activate_venv
 else
-    echo "Virtual environment not found, creating 'venv'..."
+    echo "Virtual environment not found, creating '.venv'..."
     sh reinstall_requirements.sh
-    VENV_DIR="venv"
+    VENV_DIR=".venv"
     activate_venv
 fi
 
