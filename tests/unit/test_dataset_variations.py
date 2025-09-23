@@ -392,7 +392,8 @@ class TestDatasetVariations:
         if error_scenario == "invalid_client_id":
             handler.setup_dataset(num_clients=3)
             with pytest.raises(ValueError, match="Client .* not found"):
-                handler.federated_dataset.get_client_dataset(client_id=10)
+                if handler.federated_dataset is not None:
+                    handler.federated_dataset.get_client_dataset(client_id=10)
 
         elif error_scenario == "not_setup":
             with pytest.raises(RuntimeError, match="Dataset not setup"):

@@ -280,18 +280,20 @@ class TestStrategyVariations:
 
             # Verify strategy-specific parameters
             if strategy_name == "trust":
-                assert strategy.beta_value == params["beta_value"]
-                assert strategy.trust_threshold == params["trust_threshold"]
+                assert strategy.beta_value == pytest.approx(params["beta_value"])
+                assert strategy.trust_threshold == pytest.approx(
+                    params["trust_threshold"]
+                )
             elif strategy_name == "trimmed_mean":
-                assert strategy.trim_ratio == params["trim_ratio"]
+                assert strategy.trim_ratio == pytest.approx(params["trim_ratio"])
             elif strategy_name == "pid":
                 assert (
                     strategy.aggregation_strategy_keyword
                     == params["aggregation_strategy_keyword"]
                 )
-                assert strategy.kp == params["kp"]
-                assert strategy.ki == params["ki"]
-                assert strategy.kd == params["kd"]
+                assert strategy.kp == pytest.approx(params["kp"])
+                assert strategy.ki == pytest.approx(params["ki"])
+                assert strategy.kd == pytest.approx(params["kd"])
             elif strategy_name == "krum":
                 assert strategy.num_krum_selections == params["num_krum_selections"]
                 assert strategy.num_malicious_clients == params["num_malicious_clients"]
@@ -301,10 +303,6 @@ class TestStrategyVariations:
                     strategy.num_of_malicious_clients
                     == params["num_of_malicious_clients"]
                 )
-            elif strategy_name == "krum":
-                assert strategy.num_krum_selections == params["num_krum_selections"]
-            elif strategy_name == "multi_krum":
-                assert strategy.num_krum_selections == params["num_krum_selections"]
 
     @pytest.mark.parametrize(
         "strategy_name,strategy_class",
@@ -496,18 +494,20 @@ class TestStrategyVariations:
 
             # Verify extreme values are handled
             if strategy_name == "trust":
-                assert strategy.beta_value == params["beta_value"]
-                assert strategy.trust_threshold == params["trust_threshold"]
+                assert strategy.beta_value == pytest.approx(params["beta_value"])
+                assert strategy.trust_threshold == pytest.approx(
+                    params["trust_threshold"]
+                )
             elif strategy_name == "trimmed_mean":
-                assert strategy.trim_ratio == params["trim_ratio"]
+                assert strategy.trim_ratio == pytest.approx(params["trim_ratio"])
             elif strategy_name == "pid":
                 assert (
                     strategy.aggregation_strategy_keyword
                     == params["aggregation_strategy_keyword"]
                 )
-                assert strategy.kp == params["kp"]
-                assert strategy.ki == params["ki"]
-                assert strategy.kd == params["kd"]
+                assert strategy.kp == pytest.approx(params["kp"])
+                assert strategy.ki == pytest.approx(params["ki"])
+                assert strategy.kd == pytest.approx(params["kd"])
             elif strategy_name == "krum":
                 assert strategy.num_krum_selections == params["num_krum_selections"]
                 assert strategy.num_malicious_clients == params["num_malicious_clients"]
@@ -625,9 +625,9 @@ class TestStrategyVariations:
 
         # Verify variant-specific initialization
         assert strategy.aggregation_strategy_keyword == pid_variant
-        assert strategy.kp == 1.0
-        assert strategy.ki == 0.1
-        assert strategy.kd == 0.01
+        assert strategy.kp == pytest.approx(1.0)
+        assert strategy.ki == pytest.approx(0.1)
+        assert strategy.kd == pytest.approx(0.01)
 
     @pytest.mark.parametrize(
         "krum_selections,client_count,expected_valid",
@@ -790,7 +790,7 @@ class TestStrategyVariations:
         )
 
         # Verify parameter setting
-        assert strategy.num_std_dev == num_std_dev
+        assert strategy.num_std_dev == pytest.approx(num_std_dev)
         assert strategy.aggregation_strategy_keyword == "pid_standardized"
 
     def test_strategy_combination_compatibility(
@@ -801,6 +801,7 @@ class TestStrategyVariations:
         krum_fit_metrics_fn,
     ):
         """Test that different strategies can be used in combination scenarios."""
+        _ = mock_output_directory
         # Test creating multiple strategies that could work together
         strategies = []
 
@@ -850,12 +851,12 @@ class TestStrategyVariations:
             pass
 
         # Verify at least some strategies are available
-        assert (
-            len(strategies) >= 1
-        ), "At least one strategy should be available for testing"
+        assert len(strategies) >= 1, (
+            "At least one strategy should be available for testing"
+        )
 
         # Verify all strategies have compatible interfaces
-        for strategy_name, strategy in strategies:
+        for _strategy_name, strategy in strategies:
             assert hasattr(strategy, "remove_clients")
             assert hasattr(strategy, "begin_removing_from_round")
             assert strategy.remove_clients is True
@@ -864,6 +865,7 @@ class TestStrategyVariations:
         self, mock_strategy_history, mock_network_model, mock_output_directory
     ):
         """Test edge cases for strategy parameters across all strategies."""
+        _ = mock_output_directory
         edge_cases = [
             # Trust strategy edge cases
             {
@@ -925,6 +927,7 @@ class TestStrategyVariations:
         self, mock_strategy_history, mock_output_directory
     ):
         """Test how strategies behave with different begin_removing_from_round values."""
+        _ = mock_output_directory
         round_variations = [0, 1, 2, 5, 10]
 
         for begin_round in round_variations:

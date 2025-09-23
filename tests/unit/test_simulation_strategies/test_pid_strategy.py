@@ -806,7 +806,7 @@ class TestPIDBasedRemovalStrategy:
                 )
             elif variant == "pid_standardized":
                 pid_scores[variant] = strategy.calculate_single_client_pid_standardized(
-                    client_id, distance, 1.0, 0.2
+                    client_id, distance, int(1.0), int(0.2)
                 )
 
         # Verify that different variants produce different results
