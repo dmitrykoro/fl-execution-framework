@@ -1,5 +1,5 @@
 #!/bin/bash
-# Enhanced lint script with ruff and pyright
+# Lint script with ruff and pyright
 # Run: ./lint.sh [--full] [--sonar]
 # Prerequisites: ./reinstall_requirements.sh
 #
@@ -21,15 +21,32 @@ LOG_FILE="$LOG_DIR/lint_$(date +%Y%m%d_%H%M%S).log"
 echo "📝 Logging to: $LOG_FILE"
 exec > >(tee "$LOG_FILE") 2>&1
 
-# activate venv
-if [ -f "venv/Scripts/activate" ]; then
-    echo "🔌 Activating virtual environment..."
-    source venv/Scripts/activate
-elif [ -f "venv/bin/activate" ]; then
-    echo "🔌 Activating virtual environment..."
-    source venv/bin/activate
-else
-    echo "⚠️  No virtual environment found."
+# Dynamic virtual environment detection and activation
+VENV_ACTIVATED=false
+
+# Check for .venv first, then venv
+if [ -d ".venv" ]; then
+    echo "🔌 Found .venv directory, activating virtual environment..."
+    if [ -f ".venv/Scripts/activate" ]; then
+        source ".venv/Scripts/activate"
+        VENV_ACTIVATED=true
+    elif [ -f ".venv/bin/activate" ]; then
+        source ".venv/bin/activate"
+        VENV_ACTIVATED=true
+    fi
+elif [ -d "venv" ]; then
+    echo "🔌 Found venv directory, activating virtual environment..."
+    if [ -f "venv/Scripts/activate" ]; then
+        source "venv/Scripts/activate"
+        VENV_ACTIVATED=true
+    elif [ -f "venv/bin/activate" ]; then
+        source "venv/bin/activate"
+        VENV_ACTIVATED=true
+    fi
+fi
+
+if [ "$VENV_ACTIVATED" = false ]; then
+    echo "⚠️  No virtual environment found (.venv or venv)."
     echo "   From the root directory, run ./reinstall_requirements.sh to create one."
     echo "   Continue without venv? (y/N)"
     read -r response
@@ -68,10 +85,15 @@ check_tool() {
     return 0
 }
 
-# Install ruff if needed
+# Install tools if needed
 if ! check_tool "ruff" "pip install ruff"; then
-    echo "Installing ruff..."
+    echo "📦 Installing ruff..."
     pip install ruff
+fi
+
+if ! check_tool "mypy" "pip install mypy"; then
+    echo "📦 Installing mypy..."
+    pip install mypy
 fi
 
 # Ruff linting and formatting (replaces isort + flake8 + black)
@@ -91,6 +113,18 @@ if check_tool "pyright" "npm install -g pyright"; then
     pyright tests/
 else
     echo "⚠️  Pyright not available. Install with: npm install -g pyright"
+    echo "📦 Attempting to install pyright via npm..."
+    if command -v npm &> /dev/null; then
+        npm install -g pyright
+        if check_tool "pyright" "npm install -g pyright"; then
+            echo "🔍 Running pyright..."
+            pyright tests/
+        else
+            echo "⚠️  Pyright installation failed. Skipping pyright check."
+        fi
+    else
+        echo "⚠️  npm not available. Skipping pyright installation."
+    fi
 fi
 
 # SonarQube analysis

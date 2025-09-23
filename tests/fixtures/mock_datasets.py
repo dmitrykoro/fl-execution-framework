@@ -8,6 +8,8 @@ import numpy as np
 import torch
 from torch.utils.data import DataLoader, Dataset
 
+from src.dataset_handlers.dataset_handler import DatasetHandler
+
 NDArray = np.ndarray
 
 
@@ -107,22 +109,36 @@ class MockFederatedDataset:
         return DataLoader(dataset, batch_size=batch_size, shuffle=True, num_workers=0)
 
 
-class MockDatasetHandler:
+class MockDatasetHandler(DatasetHandler):
     """Mock dataset handler for setup and teardown operations."""
 
-    def __init__(self, dataset_type: str = "mock", dataset_path: str = "/tmp/mock"):
+    def __init__(
+        self,
+        strategy_config=None,
+        directory_handler=None,
+        dataset_config_list=None,
+        dataset_type: str = "mock",
+        dataset_path: str = "/tmp/mock",
+    ):
         """
         Initialize mock dataset handler.
 
         Args:
-            dataset_type: Type of dataset (for compatibility)
-            dataset_path: Path to dataset (mocked)
+            strategy_config: Strategy configuration
+            directory_handler: Directory handler
+            dataset_config_list: Dataset config list
+            dataset_type: Type of dataset
+            dataset_path: Path to dataset
         """
+        if strategy_config is not None:
+            super().__init__(strategy_config, directory_handler, dataset_config_list)
+
         self.dataset_type = dataset_type
         self.dataset_path = dataset_path
         self.is_setup = False
         self.federated_dataset: Optional[MockFederatedDataset] = None
-        self.poisoned_client_ids: set[int] = set()
+        if not hasattr(self, "poisoned_client_ids"):
+            self.poisoned_client_ids: set[int] = set()
 
     def setup_dataset(self, num_clients: int = 10) -> None:
         """Setup dataset without file operations."""

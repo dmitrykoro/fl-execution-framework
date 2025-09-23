@@ -1,6 +1,0 @@
-; Flake8 configuration file
-[flake8]
-ignore = E501,W503,E203
-; E501 = line too long (82 > 79 characters)
-; W503 = line break before binary operator
-; E203 = whitespace before ':'
