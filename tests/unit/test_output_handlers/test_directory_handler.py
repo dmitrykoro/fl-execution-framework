@@ -100,6 +100,7 @@ class TestDirectoryHandler:
 
         handler.assign_dataset_dir(1)
 
+        assert handler.dataset_dir is not None
         assert handler.dataset_dir.endswith("/dataset_1")
         mock_makedirs.assert_called_once_with(handler.dataset_dir)
 

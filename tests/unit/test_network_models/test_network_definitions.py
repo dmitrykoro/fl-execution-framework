@@ -6,7 +6,7 @@ and state management with lightweight mock implementations.
 """
 
 from collections import OrderedDict
-from typing import Any, Dict, List, Tuple, Type, Union
+from typing import Any, Dict, List, Optional, Tuple, Type, Union, cast
 from unittest.mock import Mock, patch
 
 import numpy as np
@@ -42,7 +42,7 @@ class TestNetworkModels:
     """Test network model definitions."""
 
     def _create_network(
-        self, network_class: Type[nn.Module], num_classes: int = None
+        self, network_class: Type[nn.Module], num_classes: Optional[int] = None
     ) -> nn.Module:
         """Create network with appropriate parameters."""
         if network_class.__name__ == "LungCancerCNN" and num_classes is not None:
@@ -78,8 +78,10 @@ class TestNetworkModels:
         network_config: Dict[str, Union[Type[nn.Module], Tuple[int, ...], int, str]],
     ) -> None:
         """Test network initialization."""
-        network_class = network_config["class"]
-        num_classes = network_config["num_classes"]
+        network_class = cast(Type[nn.Module], network_config["class"])
+        num_classes = cast(int, network_config["num_classes"])
+        assert isinstance(network_class, type) and issubclass(network_class, nn.Module)
+        assert isinstance(num_classes, int)
         network = self._create_network(network_class, num_classes)
 
         # Check that network is a PyTorch module
@@ -90,7 +92,9 @@ class TestNetworkModels:
         assert hasattr(network, "fc1")
 
         # Check that weights are initialized (not all zeros)
-        conv1_weights = network.conv1.weight.data
+        conv1_layer = network.conv1
+        assert isinstance(conv1_layer, (nn.Conv2d, nn.Conv1d))
+        conv1_weights = conv1_layer.weight.data
         assert not torch.allclose(conv1_weights, torch.zeros_like(conv1_weights))
 
     def test_network_forward_pass(
@@ -98,27 +102,31 @@ class TestNetworkModels:
         network_config: Dict[str, Union[Type[nn.Module], Tuple[int, ...], int, str]],
     ) -> None:
         """Test forward pass through networks."""
-        network_class = network_config["class"]
-        input_shape = network_config["input_shape"]
-        num_classes = network_config["num_classes"]
+        network_class = cast(Type[nn.Module], network_config["class"])
+        input_shape = cast(Tuple[int, ...], network_config["input_shape"])
+        num_classes = cast(int, network_config["num_classes"])
 
         # Create network instance with appropriate parameters
-        if network_class.__name__ == "LungCancerCNN":
-            network = network_class(num_classes=num_classes)
+        network_class_typed = cast(Type[nn.Module], network_class)
+        num_classes_typed = cast(int, num_classes)
+        input_shape_typed = cast(Tuple[int, ...], input_shape)
+
+        if network_class_typed.__name__ == "LungCancerCNN":
+            network = network_class_typed(num_classes=num_classes_typed)
         else:
-            network = network_class()
+            network = network_class_typed()
         network.eval()  # Set to evaluation mode
 
         # Create mock input
         batch_size: int = 4
-        mock_input: torch.Tensor = torch.randn(batch_size, *input_shape)
+        mock_input: torch.Tensor = torch.randn(batch_size, *input_shape_typed)
 
         # Forward pass
         with torch.no_grad():
             output = network(mock_input)
 
         # Check output shape
-        expected_shape: Tuple[int, int] = (batch_size, num_classes)
+        expected_shape: Tuple[int, int] = (batch_size, num_classes_typed)
         assert output.shape == expected_shape
 
         # Check output is not all zeros or NaN
@@ -130,8 +138,8 @@ class TestNetworkModels:
         network_config: Dict[str, Union[Type[nn.Module], Tuple[int, ...], int, str]],
     ) -> None:
         """Test parameter extraction from networks."""
-        network_class = network_config["class"]
-        num_classes = network_config["num_classes"]
+        network_class = cast(Type[nn.Module], network_config["class"])
+        num_classes = cast(int, network_config["num_classes"])
         network = self._create_network(network_class, num_classes)
 
         # Get parameters as list
@@ -146,7 +154,7 @@ class TestNetworkModels:
             assert param.requires_grad  # Should be trainable
 
         # Test state_dict extraction
-        state_dict: OrderedDict[str, torch.Tensor] = network.state_dict()
+        state_dict = network.state_dict()
         assert isinstance(state_dict, OrderedDict)
         assert len(state_dict) > 0
 
@@ -155,18 +163,18 @@ class TestNetworkModels:
         network_config: Dict[str, Union[Type[nn.Module], Tuple[int, ...], int, str]],
     ) -> None:
         """Test setting parameters in networks."""
-        network_class = network_config["class"]
-        num_classes = network_config["num_classes"]
+        network_class = cast(Type[nn.Module], network_config["class"])
+        num_classes = cast(int, network_config["num_classes"])
         network = self._create_network(network_class, num_classes)
 
         # Get original parameters (make deep copy to avoid reference issues)
-        original_state_dict: OrderedDict[str, torch.Tensor] = network.state_dict()
+        original_state_dict = network.state_dict()
         original_copy: Dict[str, torch.Tensor] = {
             k: v.clone() for k, v in original_state_dict.items()
         }
 
         # Create modified parameters
-        modified_state_dict: OrderedDict[str, torch.Tensor] = OrderedDict()
+        modified_state_dict: Dict[str, torch.Tensor] = {}
         for key, param in original_state_dict.items():
             # Add small noise to parameters
             modified_state_dict[key] = param + torch.randn_like(param) * 0.5
@@ -181,31 +189,43 @@ class TestNetworkModels:
 
     def test_network_weight_initialization(self, network_config):
         """Test that weight initialization methods work correctly."""
-        network_class = network_config["class"]
+        network_class = cast(Type[nn.Module], network_config["class"])
 
         # Create two networks to compare initialization
-        num_classes = network_config["num_classes"]
+        num_classes = cast(int, network_config["num_classes"])
         network1 = self._create_network(network_class, num_classes)
         network2 = self._create_network(network_class, num_classes)
 
         # Check that weights are different (random initialization)
-        conv1_weights1 = network1.conv1.weight.data
-        conv1_weights2 = network2.conv1.weight.data
+        conv1_layer1 = getattr(network1, "conv1", None)
+        conv1_layer2 = getattr(network2, "conv1", None)
+
+        if conv1_layer1 is None or conv1_layer2 is None:
+            pytest.skip("Network does not have conv1 layer")
+
+        conv1_layer1 = cast(nn.Conv2d, conv1_layer1)
+        conv1_layer2 = cast(nn.Conv2d, conv1_layer2)
+        conv1_weights1 = conv1_layer1.weight.data
+        conv1_weights2 = conv1_layer2.weight.data
 
         # Should not be identical (very low probability with random init)
         assert not torch.allclose(conv1_weights1, conv1_weights2)
 
-        # Check that biases are initialized to zero
-        conv1_bias1 = network1.conv1.bias.data
-        assert torch.allclose(conv1_bias1, torch.zeros_like(conv1_bias1))
+        # Check that biases are initialized to zero (if bias exists)
+        if conv1_layer1.bias is not None:
+            conv1_bias1 = conv1_layer1.bias.data
+            assert torch.allclose(conv1_bias1, torch.zeros_like(conv1_bias1))
 
     def test_network_gradient_computation(self, network_config):
         """Test that networks can compute gradients."""
-        network_class = network_config["class"]
-        input_shape = network_config["input_shape"]
-        num_classes = network_config["num_classes"]
+        network_class = cast(Type[nn.Module], network_config["class"])
+        input_shape = cast(Tuple[int, ...], network_config["input_shape"])
+        num_classes = cast(int, network_config["num_classes"])
 
-        network = network_class()
+        if network_class.__name__ == "LungCancerCNN":
+            network = network_class(num_classes=2)  # Default for this class
+        else:
+            network = network_class()
         network.train()  # Set to training mode
 
         # Create mock input and target
@@ -231,10 +251,13 @@ class TestNetworkModels:
 
     def test_network_training_evaluation_modes(self, network_config):
         """Test switching between training and evaluation modes."""
-        network_class = network_config["class"]
-        input_shape = network_config["input_shape"]
+        network_class = cast(Type[nn.Module], network_config["class"])
+        input_shape = cast(Tuple[int, ...], network_config["input_shape"])
 
-        network = network_class()
+        if network_class.__name__ == "LungCancerCNN":
+            network = network_class(num_classes=2)  # Default for this class
+        else:
+            network = network_class()
         batch_size = 2
         mock_input = torch.randn(batch_size, *input_shape)
 
@@ -259,10 +282,13 @@ class TestNetworkModels:
 
     def test_network_dropout_behavior(self, network_config):
         """Test dropout behavior in training vs evaluation mode."""
-        network_class = network_config["class"]
-        input_shape = network_config["input_shape"]
+        network_class = cast(Type[nn.Module], network_config["class"])
+        input_shape = cast(Tuple[int, ...], network_config["input_shape"])
 
-        network = network_class()
+        if network_class.__name__ == "LungCancerCNN":
+            network = network_class(num_classes=2)  # Default for this class
+        else:
+            network = network_class()
         batch_size = 10
         mock_input = torch.randn(batch_size, *input_shape)
 
@@ -291,9 +317,9 @@ class TestNetworkModels:
     @pytest.mark.parametrize("batch_size", [1, 4, 8])
     def test_network_batch_size_handling(self, network_config, batch_size):
         """Test networks handle different batch sizes correctly."""
-        network_class = network_config["class"]
-        input_shape = network_config["input_shape"]
-        num_classes = network_config["num_classes"]
+        network_class = cast(Type[nn.Module], network_config["class"])
+        input_shape = cast(Tuple[int, ...], network_config["input_shape"])
+        num_classes = cast(int, network_config["num_classes"])
 
         network = self._create_network(network_class, num_classes)
         network.eval()
@@ -308,10 +334,13 @@ class TestNetworkModels:
 
     def test_network_memory_efficiency(self, network_config):
         """Test that networks don't have memory leaks."""
-        network_class = network_config["class"]
-        input_shape = network_config["input_shape"]
+        network_class = cast(Type[nn.Module], network_config["class"])
+        input_shape = cast(Tuple[int, ...], network_config["input_shape"])
 
-        network = network_class()
+        if network_class.__name__ == "LungCancerCNN":
+            network = network_class(num_classes=2)  # Default for this class
+        else:
+            network = network_class()
         network.eval()
 
         # Run multiple forward passes
@@ -327,8 +356,11 @@ class TestNetworkModels:
 
     def test_network_parameter_count(self, network_config):
         """Test that networks have reasonable parameter counts."""
-        network_class = network_config["class"]
-        network = network_class()
+        network_class = cast(Type[nn.Module], network_config["class"])
+        if network_class.__name__ == "LungCancerCNN":
+            network = network_class(num_classes=2)  # Default for this class
+        else:
+            network = network_class()
 
         total_params = sum(p.numel() for p in network.parameters())
         trainable_params = sum(
@@ -345,10 +377,13 @@ class TestNetworkModels:
 
     def test_network_device_compatibility(self, network_config):
         """Test that networks work on different devices."""
-        network_class = network_config["class"]
-        input_shape = network_config["input_shape"]
+        network_class = cast(Type[nn.Module], network_config["class"])
+        input_shape = cast(Tuple[int, ...], network_config["input_shape"])
 
-        network = network_class()
+        if network_class.__name__ == "LungCancerCNN":
+            network = network_class(num_classes=2)  # Default for this class
+        else:
+            network = network_class()
 
         # Test CPU
         network = network.to("cpu")

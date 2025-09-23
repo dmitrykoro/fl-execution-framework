@@ -372,6 +372,7 @@ class TestFlowerClient:
         new_params = [param + 0.1 for param in initial_params]
 
         with patch.object(flower_client_cnn, "train") as mock_train:
+            mock_train.return_value = (0.5, 0.8)
             result_params, dataset_size, metrics = flower_client_cnn.fit(
                 new_params, config={}
             )
@@ -403,6 +404,7 @@ class TestFlowerClient:
             patch.object(flower_client_transformer, "train") as mock_train,
         ):
             mock_get_params.return_value = mock_params
+            mock_train.return_value = (0.3, 0.9)
 
             result_params, dataset_size, metrics = flower_client_transformer.fit(
                 mock_params, config={}
@@ -426,7 +428,8 @@ class TestFlowerClient:
         flower_client_cnn.model_type = "unsupported"
         initial_params = flower_client_cnn.get_parameters(config={})
 
-        with patch.object(flower_client_cnn, "train"):
+        with patch.object(flower_client_cnn, "train") as mock_train:
+            mock_train.return_value = (0.4, 0.7)
             with pytest.raises(ValueError, match="Unsupported model type: unsupported"):
                 flower_client_cnn.fit(initial_params, config={})
 

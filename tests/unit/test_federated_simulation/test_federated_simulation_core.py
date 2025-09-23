@@ -112,7 +112,7 @@ class TestFederatedSimulationCore:
         )
 
         # Mock required attributes
-        simulation.aggregation_strategy = Mock()
+        simulation._aggregation_strategy = Mock()
 
         simulation.run_simulation()
 
@@ -328,7 +328,7 @@ class TestFederatedSimulationCore:
         )
 
         # Mock required components
-        simulation.dataset_loader = Mock()
+        simulation._dataset_loader = Mock()
         simulation._network_model = Mock()
         simulation._network_model.to.return_value = simulation._network_model
         simulation._trainloaders = [Mock(), Mock(), Mock()]
@@ -357,7 +357,7 @@ class TestFederatedSimulationCore:
             mock_strategy_config, tmp_path, mock_dataset_handler
         )
 
-        simulation.dataset_loader = Mock()
+        simulation._dataset_loader = Mock()
         simulation._network_model = Mock()
         simulation._network_model.to.return_value = simulation._network_model
         simulation._trainloaders = [Mock(), Mock(), Mock()]
@@ -386,7 +386,7 @@ class TestFederatedSimulationCore:
             mock_strategy_config, tmp_path, mock_dataset_handler
         )
 
-        simulation.dataset_loader = Mock()
+        simulation._dataset_loader = Mock()
         simulation._network_model = Mock()
         simulation._network_model.to.return_value = simulation._network_model
         simulation._trainloaders = [Mock(), Mock(), Mock()]
