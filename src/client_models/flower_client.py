@@ -76,6 +76,8 @@ class FlowerClient(fl.client.NumPyClient):
                 if verbose:
                     print(f"Epoch {epoch + 1}: train loss {epoch_loss}, accuracy {epoch_acc}")
 
+            return float(epoch_loss), float(epoch_acc)
+
         elif self.model_type == "transformer":
             optimizer = torch.optim.AdamW(net.parameters(), lr=5e-5)
             net.train()
@@ -114,6 +116,8 @@ class FlowerClient(fl.client.NumPyClient):
 
                 if verbose:
                     print(f"Epoch {epoch + 1}: train loss {epoch_loss}, accuracy {epoch_acc}")
+
+            return float(epoch_loss), float(epoch_acc)
 
         else:
             raise ValueError(f"Unsupported model type: {self.model_type}. Supported types are 'cnn' and 'mlm'.")
@@ -174,7 +178,7 @@ class FlowerClient(fl.client.NumPyClient):
         if self.model_type == "transformer" and self.use_lora and self.client_id >= self.num_malicious_clients:
             global_params = [torch.tensor(p, device=self.training_device) for p in self.get_parameters(config=None)]
 
-        self.train(self.net, self.trainloader, epochs=self.num_of_client_epochs, global_params=global_params)
+        epoch_loss, epoch_acc = self.train(self.net, self.trainloader, epochs=self.num_of_client_epochs, global_params=global_params)
 
         # calculate gradients
         optimizer = torch.optim.Adam(self.net.parameters())
@@ -194,7 +198,7 @@ class FlowerClient(fl.client.NumPyClient):
         else:
             raise ValueError(f"Unsupported model type: {self.model_type}. Supported types are 'cnn' and 'transformer'.")
 
-        return self.get_parameters(self.net), len(self.trainloader), {}
+        return self.get_parameters(self.net), len(self.trainloader), {"loss": epoch_loss, "accuracy": epoch_acc}
 
     def evaluate(self, parameters, config):
         self.set_parameters(self.net, parameters)
