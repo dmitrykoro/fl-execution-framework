@@ -19,7 +19,9 @@ class SimulationRunner:
             config_filename: str
     ) -> None:
 
-        logging.basicConfig(level=logging.INFO)
+        # Configure logging only if not already configured
+        if not logging.getLogger().hasHandlers():
+            logging.basicConfig(level=logging.INFO)
 
         self._config_loader = ConfigLoader(
             usecase_config_path=f"config/simulation_strategies/{config_filename}",
