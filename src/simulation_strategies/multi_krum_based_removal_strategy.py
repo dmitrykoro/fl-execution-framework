@@ -44,7 +44,7 @@ class MultiKrumBasedRemovalStrategy(Krum):
         self.current_round = 0
 
         # Create a logger
-        self.logger = logging.getLogger("my_logger")
+        self.logger = logging.getLogger(f"multi_krum_removal_{id(self)}")
         self.logger.setLevel(logging.INFO)  # Set the logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL)
 
         # Create handlers
@@ -56,13 +56,14 @@ class MultiKrumBasedRemovalStrategy(Krum):
         # Add the handlers to the logger
         self.logger.addHandler(file_handler)
         self.logger.addHandler(console_handler)
+        self.logger.propagate = False
 
         self.strategy_history = strategy_history
 
     def _calculate_multi_krum_scores(
             self,
             results: List[Tuple[ClientProxy, FitRes]],
-            distances: List[float]
+            distances: np.ndarray
     ) -> List[float]:
 
         """

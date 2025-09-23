@@ -43,7 +43,7 @@ class MultiKrumStrategy(fl.server.strategy.FedAvg):
         self.current_round = 0
 
         # Create a logger
-        self.logger = logging.getLogger("my_logger")
+        self.logger = logging.getLogger(f"multi_krum_{id(self)}")
         self.logger.setLevel(logging.INFO)  # Set the logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL)
 
         # Create handlers
@@ -55,6 +55,7 @@ class MultiKrumStrategy(fl.server.strategy.FedAvg):
         # Add the handlers to the logger
         self.logger.addHandler(file_handler)
         self.logger.addHandler(console_handler)
+        self.logger.propagate = False
 
         self.strategy_history = strategy_history
 
