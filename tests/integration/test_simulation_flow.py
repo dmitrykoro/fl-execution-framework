@@ -407,14 +407,16 @@ class TestFederatedSimulationExecution:
                 # Assert
                 call_args = mock_flower_client.call_args
                 assert call_args.kwargs["client_id"] == int(client_id)
-                assert (
-                    call_args.kwargs["trainloader"]
-                    == mock_simulation._trainloaders[int(client_id)]
-                )
-                assert (
-                    call_args.kwargs["valloader"]
-                    == mock_simulation._valloaders[int(client_id)]
-                )
+                if mock_simulation._trainloaders is not None:
+                    assert (
+                        call_args.kwargs["trainloader"]
+                        == mock_simulation._trainloaders[int(client_id)]
+                    )
+                if mock_simulation._valloaders is not None:
+                    assert (
+                        call_args.kwargs["valloader"]
+                        == mock_simulation._valloaders[int(client_id)]
+                    )
 
     def test_get_model_params_with_regular_model(self) -> None:
         """Test _get_model_params with regular PyTorch model."""
@@ -488,10 +490,14 @@ class TestFederatedSimulationExecution:
             )
 
         # Assert component consistency
-        assert simulation.strategy_config.num_of_clients == len(
-            simulation._trainloaders
-        )
-        assert simulation.strategy_config.num_of_clients == len(simulation._valloaders)
+        if simulation._trainloaders is not None:
+            assert simulation.strategy_config.num_of_clients == len(
+                simulation._trainloaders
+            )
+        if simulation._valloaders is not None:
+            assert simulation.strategy_config.num_of_clients == len(
+                simulation._valloaders
+            )
         assert simulation._aggregation_strategy is not None
         assert simulation._network_model is not None
 

@@ -220,8 +220,13 @@ class TestSimulationRunnerInitialization:
         with (
             patch("src.simulation_runner.ConfigLoader") as mock_config_loader,
             patch("src.simulation_runner.logging.basicConfig") as mock_logging_config,
+            patch("src.simulation_runner.logging.getLogger") as mock_get_logger,
             patch("src.simulation_runner.DirectoryHandler") as mock_directory_handler,
         ):
+            mock_logger = Mock()
+            mock_logger.hasHandlers.return_value = False
+            mock_get_logger.return_value = mock_logger
+
             mock_loader_instance = Mock()
             mock_loader_instance.get_usecase_config_list.return_value = []
             mock_loader_instance.get_dataset_config_list.return_value = []

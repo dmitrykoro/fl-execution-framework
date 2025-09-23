@@ -57,7 +57,7 @@ def _create_attack_defense_config(
     """Return configuration for attack-defense scenarios."""
     strategies = []
     for defense in defense_strategies:
-        strategy_config = {
+        strategy_config: Dict[str, Any] = {
             "aggregation_strategy_keyword": defense,
             "attack_type": attack_type,
         }
@@ -475,8 +475,8 @@ class TestByzantineFaultTolerance:
             )
 
             # Simulate Byzantine client behavior by mocking client_fn
-            def mock_client_fn_with_byzantine(client_id: str):
-                client_id_int = int(client_id)
+            def mock_client_fn_with_byzantine(cid: str):
+                client_id_int = int(cid)
 
                 # Mock Byzantine clients (first 3 clients are malicious)
                 if client_id_int < 3:
