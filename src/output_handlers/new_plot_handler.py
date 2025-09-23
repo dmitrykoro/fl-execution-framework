@@ -143,12 +143,13 @@ def show_inter_strategy_plots(
                     metric_values,
                     label=_generate_single_string_strategy_label(simulation_strategy.strategy_config)
                 )
-
         plt.xlabel('round #')
         plt.ylabel(metric_name)
         plt.title(f'{metric_name} across strategies')
-        plt.legend(title='strategies', loc='upper center', bbox_to_anchor=(0.5, -0.1))
         ax = plt.gca()
+        # Only show legend if there are labeled artists
+        if any(ax.get_legend_handles_labels()):
+            plt.legend(title='strategies', loc='upper center', bbox_to_anchor=(0.5, -0.1))
         ax.xaxis.set_major_locator(MaxNLocator(integer=True, steps=[2, 5]))
         plt.tight_layout()
 
@@ -183,8 +184,10 @@ def show_inter_strategy_plots(
         plt.xlabel('round #')
         plt.ylabel(metric_name)
         plt.title(f'{metric_name} across strategies')
-        plt.legend(title='strategies', loc='upper center', bbox_to_anchor=(0.5, -0.1))
         ax = plt.gca()
+        # Only show legend if there are labeled artists
+        if any(ax.get_legend_handles_labels()):
+            plt.legend(title='strategies', loc='upper center', bbox_to_anchor=(0.5, -0.1))
         ax.xaxis.set_major_locator(MaxNLocator(integer=True, steps=[2, 5]))
         ax.set_xticks(rounds_array + (num_strategies - 1) * bar_width / 2)  # Adjust x-ticks to align
         ax.set_xticklabels(rounds)

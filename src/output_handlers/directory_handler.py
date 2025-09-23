@@ -145,8 +145,8 @@ class DirectoryHandler:
                     self.simulation_strategy_history.rounds_history.get_metric_by_name(metric_name)[started_removing_from:-1-1]
                 )
 
-                metric_mean = np.mean(collected_history)
-                metric_std = np.std(collected_history)
+                metric_mean = np.mean(collected_history) if collected_history else 0.0
+                metric_std = np.std(collected_history) if collected_history else 0.0
 
                 if metric_name in (
                         "average_accuracy_history",
