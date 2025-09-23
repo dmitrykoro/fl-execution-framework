@@ -17,6 +17,10 @@ dependencies = [
     "torch==2.6.0",
     "opencv-python==4.11.0.86",
     "jsonschema==4.22.0",
+    "scikit-learn==1.5.0",
+    "matplotlib==3.5.2",
+    "transformers==4.56.1",
+    "peft==0.17.1",
 ]
 
 [tool.setuptools]
