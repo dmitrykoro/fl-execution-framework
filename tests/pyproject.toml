@@ -12,8 +12,11 @@ dependencies = [
     "pytest-xdist==3.5.0",
     "mypy==1.13.0",
     "ruff==0.13.1",
-    "numpy>=1.21.0",
-    "flwr>=1.0.0",
+    "numpy==1.26.4",
+    "flwr==1.9.0",
+    "torch==2.6.0",
+    "opencv-python==4.11.0.86",
+    "jsonschema==4.22.0",
 ]
 
 [tool.setuptools]
