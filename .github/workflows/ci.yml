@@ -38,6 +38,14 @@ jobs:
         python -m pip install --upgrade pip
         pip install -e tests
 
-    - name: Run tests with coverage
+    - name: Run unit tests (parallel)
       run: |
-        pytest --cov=src --cov-report=xml --cov-report=term-missing
+        pytest -n 2 tests/unit/ --cov=src --cov-report=xml --cov-report=term-missing --tb=short
+
+    - name: Run integration tests (serial)
+      run: |
+        pytest -n 0 tests/integration/ --tb=short
+
+    - name: Run performance tests
+      run: |
+        pytest tests/performance/ --tb=short
