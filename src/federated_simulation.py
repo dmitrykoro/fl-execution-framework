@@ -18,6 +18,7 @@ from dataset_loaders.image_transformers.pneumoniamnist_image_transformer import 
 from dataset_loaders.image_transformers.bloodmnist_image_transformer import bloodmnist_image_transformer
 from dataset_loaders.image_transformers.lung_photos_image_transformer import lung_cancer_image_transformer
 from dataset_loaders.medquad_dataset_loader import MedQuADDatasetLoader
+from dataset_loaders.medmentions_dataset_loader import MedMentionsNERDatasetLoader
 
 from network_models.its_network_definition import ITSNetwork
 from network_models.femnist_reduced_iid_network_definition import FemnistReducedIIDNetwork
@@ -28,6 +29,7 @@ from network_models.bloodmnist_network_definition import BloodmnistNetwork
 from network_models.lung_photos_network_definition import LungCancerCNN
 
 from network_models.bert_model_definition import load_model, load_model_with_lora
+from network_models.gpt2_model_definition import load_gpt2_ner_model, load_gpt2_ner_with_lora
 
 from client_models.flower_client import FlowerClient
 
@@ -192,6 +194,29 @@ class FederatedSimulation:
             else:
                 self._network_model = load_model(
                     model_name=self.strategy_config.llm_model,
+                )
+        elif dataset_keyword == "medmentions":
+            dataset_loader = MedMentionsNERDatasetLoader(
+                dataset_dir=self._dataset_dir,
+                num_of_clients= num_of_clients,
+                batch_size=batch_size,
+                training_subset_fraction=training_subset_fraction,
+                model_name=self.strategy_config.llm_model,
+            )
+            if self.strategy_config.use_llm and self.strategy_config.llm_finetuning == "lora":
+                self._network_model = load_gpt2_ner_with_lora(
+                    num_labels=len(dataset_loader.label_list),
+                    id2label=dataset_loader.id2label,
+                    label2id=dataset_loader.label2id,
+                    r = self.strategy_config.lora_rank,
+                    alpha=self.strategy_config.lora_alpha,
+                    dropout=self.strategy_config.lora_dropout,
+                )
+            else:
+                self._network_model = load_gpt2_ner_model(
+                    num_labels=len(dataset_loader.label_list),
+                    id2label=dataset_loader.id2label,
+                    label2id=dataset_loader.label2id,
                 )
         else:
             logging.error(

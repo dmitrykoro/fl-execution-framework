@@ -6,5 +6,6 @@
   "pneumoniamnist": "datasets/pneumoniamnist",
   "bloodmnist": "datasets/bloodmnist",
   "medquad": "datasets/medquad",
-  "lung_photos": "datasets/lung_photos"
+  "lung_photos": "datasets/lung_photos",
+  "medmentions":"datasets/medmentions_st21pv_ner"
 }
