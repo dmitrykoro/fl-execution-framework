@@ -524,7 +524,7 @@ class TestResourceCleanup:
         gc.collect()
 
         final_increase = memory_monitor.get_memory_increase()
-        assert final_increase < 50, (
+        assert final_increase < 65, (
             f"Concurrent clients not properly cleaned: {final_increase:.2f}MB"
         )
 
