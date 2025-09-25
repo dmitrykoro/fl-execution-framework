@@ -4,6 +4,7 @@ import logging
 import sys
 
 from src.config_loaders.validate_strategy_config import validate_strategy_config
+from src.config_loaders.strategy_client_config import apply_client_config, validate_client_config
 
 
 class ConfigLoader:
@@ -23,7 +24,7 @@ class ConfigLoader:
 
         return self.usecase_config_list
 
-    def get_dataset_config_list(self) -> list:
+    def get_dataset_config_list(self) -> dict:
         """Get config of dataset folders based on dataset keywords"""
 
         return self.dataset_config_list
@@ -50,7 +51,18 @@ class ConfigLoader:
                 strategy.update(shared_settings)
 
             for strategy in raw_config['simulation_strategies']:
+                # Apply client configuration before validation
+                strategy = apply_client_config(strategy, verbose=True)
+
+                # Validate the strategy configuration
                 validate_strategy_config(strategy)
+
+                # Validate client configuration and show warnings
+                client_issues = validate_client_config(strategy)
+                for issue in client_issues:
+                    logging.warning(issue)
+                    print(issue)
+
                 logging.info(f"Successfully validated config from {config_path}.")
 
             return raw_config["simulation_strategies"]
