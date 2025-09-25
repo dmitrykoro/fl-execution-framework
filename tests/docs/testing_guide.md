@@ -28,7 +28,7 @@ cd tests && ./lint.sh --sonar   # Adds code quality analysis
 # Parallel execution (recommended)
 pytest -n auto tests/unit/ -v          # Unit tests in parallel
 pytest -n 0 tests/integration/ -v      # Integration tests serial (required)
-pytest tests/performance/ -v           # Performance benchmarks
+pytest -n 0 tests/performance/ -v       # Performance benchmarks (serial)
 ```
 
 ---
@@ -248,7 +248,7 @@ cd tests && ./lint.sh --test
 **Execution Guidelines:**
 
 - ✅ **Unit tests**: Safe for parallel (`-n auto`)
-- ✅ **Performance tests**: Can benefit from parallel
+- ❌ **Performance tests**: Must run serial (`-n 0`) for timing accuracy
 - ❌ **Integration tests**: Must run serial (`-n 0`) to prevent conflicts
 
 ### 📈 Scalability Testing

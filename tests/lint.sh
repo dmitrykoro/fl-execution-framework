@@ -135,10 +135,10 @@ fi
 # pytest in test mode
 if [[ "$TEST_MODE" == true ]]; then
     echo "🧪 Running pytest..."
-    # Run unit tests in parallel, integration tests serially
+    # Run unit tests in parallel, integration and performance tests serially
     pytest -n auto tests/unit/ -v --tb=short | tee tests/logs/pytest_unit.log
     pytest -n 0 tests/integration/ -v --tb=short -s | tee tests/logs/pytest_integration.log
-    pytest tests/performance/ -v --tb=short | tee tests/logs/pytest_performance.log
+    pytest -n 0 tests/performance/ -v --tb=short | tee tests/logs/pytest_performance.log
     pytest tests/test_setup.py -v --tb=short | tee tests/logs/pytest_setup.log
     # Check all pytest logs for failures
     if grep -q "FAILED" tests/logs/pytest_*.log; then

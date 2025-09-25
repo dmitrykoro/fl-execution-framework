@@ -40,15 +40,15 @@ jobs:
 
     - name: Run unit tests (parallel)
       run: |
-        pytest -n 2 tests/unit/ --cov=src --cov-report=term-missing --tb=short
+        pytest -n auto tests/unit/ --cov=src --cov-report=term-missing --tb=short
 
     - name: Run integration tests (serial)
       run: |
         pytest -n 0 tests/integration/ --cov=src --cov-append --tb=short
 
-    - name: Run performance tests
+    - name: Run performance tests (serial)
       run: |
-        pytest tests/performance/ --cov=src --cov-append --tb=short
+        pytest -n 0 tests/performance/ --cov=src --cov-append --tb=short
 
     - name: Generate coverage report
       run: |
