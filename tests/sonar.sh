@@ -141,6 +141,7 @@ SONAR_OUTPUT=$(mktemp)
 if sonar-scanner 2>&1 | tee "$SONAR_OUTPUT"; then
     # Extract dashboard URL from sonar-scanner output
     DASHBOARD_URL=$(grep -o "http://localhost:9000/dashboard?id=[^[:space:]]*" "$SONAR_OUTPUT" || echo "")
+    echo
     if [[ -n "$DASHBOARD_URL" ]]; then
         echo "✅ SonarQube analysis completed successfully: $DASHBOARD_URL"
     else
@@ -153,5 +154,3 @@ else
 fi
 rm -f "$SONAR_OUTPUT"
 cd ..
-
-echo "✅ SonarQube analysis completed!"
