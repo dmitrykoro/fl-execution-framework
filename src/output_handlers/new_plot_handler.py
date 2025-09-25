@@ -58,7 +58,7 @@ def show_plots_within_strategy(
 
         removal_threshold_history = simulation_strategy.strategy_history.rounds_history.removal_threshold_history
 
-        if metric_name == "removal_criterion_history" and removal_threshold_history:  # if threshold was collected
+        if metric_name == "removal_criterion_history" and removal_threshold_history:  # Only plot if threshold was collected
             # Ensure rounds and removal_threshold_history have matching dimensions
             client_rounds = list_of_client_histories[0].rounds
             min_length = min(len(client_rounds), len(removal_threshold_history))
