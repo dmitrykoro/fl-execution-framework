@@ -59,9 +59,12 @@ def show_plots_within_strategy(
         removal_threshold_history = simulation_strategy.strategy_history.rounds_history.removal_threshold_history
 
         if metric_name == "removal_criterion_history" and removal_threshold_history:  # if threshold was collected
+            # Ensure rounds and removal_threshold_history have matching dimensions
+            client_rounds = list_of_client_histories[0].rounds
+            min_length = min(len(client_rounds), len(removal_threshold_history))
             plt.plot(
-                list_of_client_histories[0].rounds,
-                removal_threshold_history,
+                client_rounds[:min_length],
+                removal_threshold_history[:min_length],
                 label=f"removal threshold",
                 linestyle="--",
                 color="red"
@@ -70,9 +73,11 @@ def show_plots_within_strategy(
         for client_info in list_of_client_histories:
             metric_values = client_info.get_metric_by_name(metric_name)
 
+            # Ensure rounds and metric_values have matching dimensions
+            min_length = min(len(client_info.rounds), len(metric_values))
             plt.plot(
-                client_info.rounds,
-                metric_values,
+                client_info.rounds[:min_length],
+                metric_values[:min_length],
                 label=f"client_{client_info.client_id}"
                 if not client_info.is_malicious else f"client_{client_info.client_id}_bad"
             )
@@ -80,10 +85,10 @@ def show_plots_within_strategy(
             # to put X on values of clients that were excluded
             excluded_values = [
                 metric if participated == 0 else None for metric, participated in zip(
-                    metric_values, client_info.aggregation_participation_history
+                    metric_values[:min_length], client_info.aggregation_participation_history[:min_length]
                 )
             ]
-            plt.plot(client_info.rounds, excluded_values, 'kx')
+            plt.plot(client_info.rounds[:min_length], excluded_values, 'kx')
 
         plt.xlabel('round #')
         plt.ylabel(metric_name)
@@ -138,9 +143,11 @@ def show_inter_strategy_plots(
             metric_values = round_info.get_metric_by_name(metric_name)
 
             if metric_values:  # plot only if metrics were actually collected
+                # Ensure rounds and metric_values have matching dimensions
+                min_length = min(len(rounds), len(metric_values))
                 plt.plot(
-                    rounds,
-                    metric_values,
+                    rounds[:min_length],
+                    metric_values[:min_length],
                     label=_generate_single_string_strategy_label(simulation_strategy.strategy_config)
                 )
         plt.xlabel('round #')
