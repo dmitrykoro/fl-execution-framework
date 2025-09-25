@@ -100,6 +100,7 @@ class TestDirectoryHandler:
 
         handler.assign_dataset_dir(1)
 
+        assert handler.dataset_dir is not None
         assert handler.dataset_dir.endswith("/dataset_1")
         mock_makedirs.assert_called_once_with(handler.dataset_dir)
 
@@ -284,7 +285,7 @@ class TestDirectoryHandler:
 
             # Reset class variables
             DirectoryHandler.dirname = (
-                f'out/{mock_datetime.now().strftime("%m-%d-%Y_%H-%M-%S")}'
+                f"out/{mock_datetime.now().strftime('%m-%d-%Y_%H-%M-%S')}"
             )
 
             assert "01-01-2024_12-00-00" in DirectoryHandler.dirname

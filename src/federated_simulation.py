@@ -6,6 +6,8 @@ import flwr
 
 from flwr.client import Client, ClientApp, NumPyClient
 from flwr.common import ndarrays_to_parameters
+from flwr.server.strategy.aggregate import weighted_loss_avg
+from typing import List, Tuple
 
 from peft import PeftModel, get_peft_model_state_dict
 
@@ -47,11 +49,38 @@ from src.data_models.round_info import RoundsInfo
 from src.dataset_handlers.dataset_handler import DatasetHandler
 
 
+def weighted_average(metrics: List[Tuple[int, dict]]) -> dict:
+    """Compute weighted average of metrics from multiple clients."""
+    if not metrics:
+        return {}
+
+    # Extract metric names from the first client
+    metric_names = set()
+    for _, client_metrics in metrics:
+        metric_names.update(client_metrics.keys())
+
+    # Calculate weighted average for each metric
+    weighted_metrics = {}
+    for metric_name in metric_names:
+        total_samples = 0
+        weighted_sum = 0.0
+
+        for num_samples, client_metrics in metrics:
+            if metric_name in client_metrics:
+                weighted_sum += num_samples * client_metrics[metric_name]
+                total_samples += num_samples
+
+        if total_samples > 0:
+            weighted_metrics[metric_name] = weighted_sum / total_samples
+
+    return weighted_metrics
+
+
 class FederatedSimulation:
     def __init__(
             self,
             strategy_config: StrategyConfig,
-            dataset_dir: os.path,
+            dataset_dir: str,
             dataset_handler: DatasetHandler
     ):
         self.strategy_config = strategy_config
@@ -216,6 +245,7 @@ class FederatedSimulation:
                 min_evaluate_clients=self.strategy_config.min_evaluate_clients,
                 min_available_clients=self.strategy_config.min_available_clients,
                 evaluate_metrics_aggregation_fn=self.strategy_config.evaluate_metrics_aggregation_fn,
+                fit_metrics_aggregation_fn=weighted_average,
                 remove_clients=self.strategy_config.remove_clients,
                 beta_value=self.strategy_config.beta_value,
                 trust_threshold=self.strategy_config.trust_threshold,
@@ -229,6 +259,7 @@ class FederatedSimulation:
                 min_evaluate_clients=self.strategy_config.min_evaluate_clients,
                 min_available_clients=self.strategy_config.min_available_clients,
                 evaluate_metrics_aggregation_fn=self.strategy_config.evaluate_metrics_aggregation_fn,
+                fit_metrics_aggregation_fn=weighted_average,
                 remove_clients=self.strategy_config.remove_clients,
                 begin_removing_from_round=self.strategy_config.begin_removing_from_round,
                 ki=self.strategy_config.Ki,
@@ -247,6 +278,7 @@ class FederatedSimulation:
                 min_evaluate_clients=self.strategy_config.min_evaluate_clients,
                 min_available_clients=self.strategy_config.min_available_clients,
                 evaluate_metrics_aggregation_fn=self.strategy_config.evaluate_metrics_aggregation_fn,
+                fit_metrics_aggregation_fn=weighted_average,
                 remove_clients=self.strategy_config.remove_clients,
                 begin_removing_from_round=self.strategy_config.begin_removing_from_round,
                 num_malicious_clients=self.strategy_config.num_of_malicious_clients,
@@ -260,6 +292,7 @@ class FederatedSimulation:
                 min_evaluate_clients=self.strategy_config.min_evaluate_clients,
                 min_available_clients=self.strategy_config.min_available_clients,
                 evaluate_metrics_aggregation_fn=self.strategy_config.evaluate_metrics_aggregation_fn,
+                fit_metrics_aggregation_fn=weighted_average,
                 remove_clients=self.strategy_config.remove_clients,
                 begin_removing_from_round=self.strategy_config.begin_removing_from_round,
                 num_of_malicious_clients=self.strategy_config.num_of_malicious_clients,
@@ -273,6 +306,7 @@ class FederatedSimulation:
                 min_evaluate_clients=self.strategy_config.min_evaluate_clients,
                 min_available_clients=self.strategy_config.min_available_clients,
                 evaluate_metrics_aggregation_fn=self.strategy_config.evaluate_metrics_aggregation_fn,
+                fit_metrics_aggregation_fn=weighted_average,
                 remove_clients=self.strategy_config.remove_clients,
                 begin_removing_from_round=self.strategy_config.begin_removing_from_round,
                 num_of_malicious_clients=self.strategy_config.num_of_malicious_clients,
@@ -286,6 +320,7 @@ class FederatedSimulation:
                 min_evaluate_clients=self.strategy_config.min_evaluate_clients,
                 min_available_clients=self.strategy_config.min_available_clients,
                 evaluate_metrics_aggregation_fn=self.strategy_config.evaluate_metrics_aggregation_fn,
+                fit_metrics_aggregation_fn=weighted_average,
                 remove_clients=self.strategy_config.remove_clients,
                 begin_removing_from_round=self.strategy_config.begin_removing_from_round,
                 strategy_history=self.strategy_history,
@@ -299,6 +334,7 @@ class FederatedSimulation:
                 min_evaluate_clients=self.strategy_config.min_evaluate_clients,
                 min_available_clients=self.strategy_config.min_available_clients,
                 evaluate_metrics_aggregation_fn=self.strategy_config.evaluate_metrics_aggregation_fn,
+                fit_metrics_aggregation_fn=weighted_average,
                 remove_clients=self.strategy_config.remove_clients,
                 begin_removing_from_round=self.strategy_config.begin_removing_from_round,
                 strategy_history=self.strategy_history,
@@ -311,6 +347,8 @@ class FederatedSimulation:
                 min_fit_clients=self.strategy_config.min_fit_clients,
                 min_evaluate_clients=self.strategy_config.min_evaluate_clients,
                 min_available_clients=self.strategy_config.min_available_clients,
+                evaluate_metrics_aggregation_fn=self.strategy_config.evaluate_metrics_aggregation_fn,
+                fit_metrics_aggregation_fn=weighted_average,
                 remove_clients=self.strategy_config.remove_clients,
                 begin_removing_from_round=self.strategy_config.begin_removing_from_round,
                 strategy_history=self.strategy_history,

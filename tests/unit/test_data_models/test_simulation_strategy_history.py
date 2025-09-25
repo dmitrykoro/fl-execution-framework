@@ -56,6 +56,7 @@ class TestSimulationStrategyHistory:
 
         # Verify RoundsInfo was created with correct config
         assert isinstance(history.rounds_history, RoundsInfo)
+        assert history.rounds_history is not None
         assert history.rounds_history.simulation_strategy_config == config
 
     def test_post_init_clients_dict_creation(self):
@@ -203,6 +204,7 @@ class TestSimulationStrategyHistory:
         )
 
         rounds_info = history.rounds_history
+        assert rounds_info is not None
         assert rounds_info.score_calculation_time_nanos_history == [1500000]
         assert rounds_info.removal_threshold_history == [0.6]
         assert rounds_info.aggregated_loss_history == [0.25]
@@ -226,6 +228,7 @@ class TestSimulationStrategyHistory:
         )
 
         rounds_info = history.rounds_history
+        assert rounds_info is not None
         assert rounds_info.score_calculation_time_nanos_history == [2000000]
         assert rounds_info.aggregated_loss_history == [0.35]
         # removal_threshold should not be updated
@@ -310,6 +313,7 @@ class TestSimulationStrategyHistory:
         history.calculate_additional_rounds_data()
 
         rounds_info = history.rounds_history
+        assert rounds_info is not None
 
         # Round 1: TP=2 (clients 0,2), TN=1 (client 1), FP=0, FN=1 (client 3)
         # Round 2: TP=1 (client 0), TN=2 (clients 1,3), FP=1 (client 2), FN=0
@@ -362,6 +366,7 @@ class TestSimulationStrategyHistory:
         history.calculate_additional_rounds_data()
 
         rounds_info = history.rounds_history
+        assert rounds_info is not None
 
         # When remove_clients=False, TP/TN/FP/FN should still be calculated but all zeros
         # since no removal logic is applied
@@ -399,6 +404,7 @@ class TestSimulationStrategyHistory:
         )
 
         # Mock the calculate_additional_metrics method to verify it's called
+        assert history.rounds_history is not None
         original_method = history.rounds_history.calculate_additional_metrics
         history.rounds_history.calculate_additional_metrics = Mock()
 
@@ -457,6 +463,7 @@ class TestSimulationStrategyHistory:
         assert history._clients_dict[1].accuracy_history[0] == 0.85
         assert history._clients_dict[2].aggregation_participation_history[0] == 0
 
+        assert history.rounds_history is not None
         assert history.rounds_history.score_calculation_time_nanos_history == [1000000]
         assert history.rounds_history.removal_threshold_history == [0.5]
         assert history.rounds_history.aggregated_loss_history == [0.275]
@@ -520,4 +527,5 @@ class TestSimulationStrategyHistory:
 
         # Should work without errors
         assert len(history._clients_dict) == 1
+        assert history.rounds_history is not None
         assert history.rounds_history.average_accuracy_history[0] == 0.9

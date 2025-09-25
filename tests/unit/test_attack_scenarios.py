@@ -1,9 +1,4 @@
-"""
-Parameterized tests for attack scenarios in federated learning.
-
-Tests various attack types and defense mechanism effectiveness
-across different aggregation strategies and client configurations.
-"""
+"""Parameterized tests for attack scenarios in federated learning."""
 
 from unittest.mock import Mock
 
@@ -68,8 +63,6 @@ DEFENSE_STRATEGIES = {
 
 
 class TestAttackScenarios:
-    """Test suite for attack scenarios and defense mechanisms."""
-
     @pytest.mark.parametrize(
         "attack_type,defense_strategies,expected_robustness",
         ATTACK_SCENARIOS,
@@ -77,7 +70,7 @@ class TestAttackScenarios:
     def test_defense_mechanism_effectiveness(
         self, attack_type, defense_strategies, expected_robustness
     ):
-        """Test how different defense strategies handle various attack scenarios."""
+        """Verify defense strategy effectiveness against attack types."""
         num_clients = 10
         num_byzantine = 3
         param_size = 1000
@@ -91,9 +84,9 @@ class TestAttackScenarios:
         )
 
         # Verify attack parameters were generated correctly
-        assert (
-            len(attack_params) == num_clients
-        ), "Should generate parameters for all clients"
+        assert len(attack_params) == num_clients, (
+            "Should generate parameters for all clients"
+        )
 
         # Test each defense strategy
         for strategy_name in defense_strategies:
@@ -137,16 +130,16 @@ class TestAttackScenarios:
                     f"Strategy {strategy_name} should detect at least half of Byzantine clients "
                     f"for {attack_type} attack"
                 )
-                assert (
-                    np.linalg.norm(aggregated_params) < 0.5
-                ), f"Strategy {strategy_name} should produce stable aggregation for {attack_type}"
+                assert np.linalg.norm(aggregated_params) < 0.5, (
+                    f"Strategy {strategy_name} should produce stable aggregation for {attack_type}"
+                )
             elif expected_robustness == "medium":
-                assert (
-                    len(detected_byzantine) >= 1
-                ), f"Strategy {strategy_name} should detect some Byzantine clients for {attack_type}"
-                assert (
-                    np.linalg.norm(aggregated_params) < 1.0
-                ), f"Strategy {strategy_name} should maintain reasonable stability for {attack_type}"
+                assert len(detected_byzantine) >= 1, (
+                    f"Strategy {strategy_name} should detect some Byzantine clients for {attack_type}"
+                )
+                assert np.linalg.norm(aggregated_params) < 1.0, (
+                    f"Strategy {strategy_name} should maintain reasonable stability for {attack_type}"
+                )
 
     @pytest.mark.parametrize(
         "attack_type",
@@ -158,7 +151,7 @@ class TestAttackScenarios:
         ],
     )
     def test_attack_parameter_generation(self, attack_type):
-        """Test generation of attack parameters for different attack types."""
+        """Verify attack parameter generation for different attack types."""
         num_clients = 8
         num_byzantine = 2
         param_size = 500
@@ -171,15 +164,15 @@ class TestAttackScenarios:
         )
 
         # Verify parameter structure
-        assert (
-            len(attack_params) == num_clients
-        ), "Should generate parameters for all clients"
+        assert len(attack_params) == num_clients, (
+            "Should generate parameters for all clients"
+        )
 
         for params in attack_params:
             assert isinstance(params, np.ndarray), "Parameters should be numpy arrays"
-            assert params.shape == (
-                param_size,
-            ), f"Parameters should have shape ({param_size},)"
+            assert params.shape == (param_size,), (
+                f"Parameters should have shape ({param_size},)"
+            )
 
         # Verify attack characteristics
         param_norms = [np.linalg.norm(params) for params in attack_params]
@@ -187,15 +180,15 @@ class TestAttackScenarios:
         if attack_type in ["gaussian_noise", "model_poisoning", "byzantine_clients"]:
             # These attacks should produce some parameters with large norms
             max_norm = max(param_norms)
-            assert (
-                max_norm > 5.0
-            ), f"Attack {attack_type} should produce large parameter norms"
+            assert max_norm > 5.0, (
+                f"Attack {attack_type} should produce large parameter norms"
+            )
 
         # Verify parameter diversity (not all identical)
         param_means = [params.mean() for params in attack_params]
-        assert (
-            len(set(np.round(param_means, 2))) > 1
-        ), "Parameters should be diverse across clients"
+        assert len(set(np.round(param_means, 2))) > 1, (
+            "Parameters should be diverse across clients"
+        )
 
     @pytest.mark.parametrize(
         "num_byzantine,total_clients",
@@ -207,7 +200,7 @@ class TestAttackScenarios:
         ],
     )
     def test_byzantine_client_ratios(self, num_byzantine, total_clients):
-        """Test defense mechanisms with different Byzantine client ratios."""
+        """Verify defense effectiveness varies with Byzantine client ratios."""
         param_size = 800
 
         # Test with different attack types
@@ -313,9 +306,9 @@ class TestAttackScenarios:
                 f"for {attack_type} attack"
             )
 
-            assert (
-                np.linalg.norm(combined_aggregation) < 1.0
-            ), f"Multi-strategy {strategy_combination} should produce stable aggregation"
+            assert np.linalg.norm(combined_aggregation) < 1.0, (
+                f"Multi-strategy {strategy_combination} should produce stable aggregation"
+            )
 
     @pytest.mark.parametrize(
         "attack_intensity,expected_detection_difficulty",
@@ -379,12 +372,12 @@ class TestAttackScenarios:
             aggregation_quality = 1.0 / (1.0 + np.linalg.norm(aggregated_params))
 
             if expected_detection_difficulty == "easy":
-                assert (
-                    detection_rate >= 0.8
-                ), f"Strategy {strategy_name} should easily detect low-intensity attacks"
-                assert (
-                    aggregation_quality >= 0.5
-                ), f"Strategy {strategy_name} should maintain good aggregation quality"
+                assert detection_rate >= 0.8, (
+                    f"Strategy {strategy_name} should easily detect low-intensity attacks"
+                )
+                assert aggregation_quality >= 0.5, (
+                    f"Strategy {strategy_name} should maintain good aggregation quality"
+                )
 
     @pytest.mark.parametrize(
         "dataset_type,attack_effectiveness",
@@ -448,12 +441,12 @@ class TestAttackScenarios:
         aggregation_quality = 1.0 / (1.0 + np.linalg.norm(aggregated_params))
 
         if attack_effectiveness == "low":
-            assert (
-                detection_success >= 0.7
-            ), f"Attacks should be less effective on {dataset_type} dataset"
-            assert (
-                aggregation_quality >= 0.6
-            ), f"Aggregation should be more stable on {dataset_type} dataset"
+            assert detection_success >= 0.7, (
+                f"Attacks should be less effective on {dataset_type} dataset"
+            )
+            assert aggregation_quality >= 0.6, (
+                f"Aggregation should be more stable on {dataset_type} dataset"
+            )
 
     def test_coordinated_attack_scenarios(self):
         """Test defense against coordinated attacks where Byzantine clients collaborate."""
@@ -498,9 +491,9 @@ class TestAttackScenarios:
             detection_success = len(detected_byzantine) / num_byzantine
 
             if strategy_name in ["krum", "multi-krum", "bulyan"]:
-                assert (
-                    detection_success >= 0.7
-                ), f"Strategy {strategy_name} should detect coordinated attacks effectively"
+                assert detection_success >= 0.7, (
+                    f"Strategy {strategy_name} should detect coordinated attacks effectively"
+                )
 
                 assert np.linalg.norm(aggregated_params) < 0.8, (
                     f"Strategy {strategy_name} should maintain aggregation quality "
@@ -571,13 +564,13 @@ class TestAttackScenarios:
                 # Verify timing-aware detection
                 if is_attack_round:
                     if pattern_name != "early_attack" or current_round > 1:
-                        assert (
-                            len(detected_byzantine) >= 1
-                        ), f"Should detect attacks in {pattern_name} pattern at round {round_num}"
+                        assert len(detected_byzantine) >= 1, (
+                            f"Should detect attacks in {pattern_name} pattern at round {round_num}"
+                        )
                 else:
-                    assert (
-                        len(detected_byzantine) == 0
-                    ), f"Should not detect attacks in normal rounds for {pattern_name}"
+                    assert len(detected_byzantine) == 0, (
+                        f"Should not detect attacks in normal rounds for {pattern_name}"
+                    )
 
     def test_attack_robustness_thresholds(self):
         """Test strategy robustness against different attack magnitudes."""
@@ -638,6 +631,6 @@ class TestAttackScenarios:
 
                 # Aggregation should remain stable for detected attacks
                 if detection_success > 0.5:
-                    assert (
-                        np.linalg.norm(aggregated_params) < 2.0
-                    ), f"Strategy {strategy_name} should maintain stability when detecting attacks"
+                    assert np.linalg.norm(aggregated_params) < 2.0, (
+                        f"Strategy {strategy_name} should maintain stability when detecting attacks"
+                    )

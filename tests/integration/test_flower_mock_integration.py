@@ -12,6 +12,7 @@ import pytest
 
 from tests.fixtures.mock_flower_components import (
     MockClient,
+    MockFitRes,
     MockParameters,
     MockServerConfig,
     create_mock_flower_client,
@@ -52,9 +53,10 @@ class TestFlowerMockIntegration:
         """Test mock client-server interaction patterns."""
         client = create_mock_flower_client(client_id=1)
 
+        rng = np.random.default_rng(42)
         initial_params: List[NDArray] = [
-            np.random.randn(10, 5).astype(np.float32),
-            np.random.randn(5).astype(np.float32),
+            rng.standard_normal((10, 5)).astype(np.float32),
+            rng.standard_normal(5).astype(np.float32),
         ]
         mock_params = mock_ndarrays_to_parameters(initial_params)
 
@@ -157,14 +159,15 @@ class TestFlowerMockIntegration:
             if int(cid) >= 3:  # Last 2 clients are Byzantine
                 original_fit = client.fit
 
-                def byzantine_fit(params: MockParameters, config: Config) -> Any:
-                    result = original_fit(params, config)
+                def byzantine_fit(parameters: MockParameters, config: Config) -> Any:
+                    result = original_fit(parameters, config)
                     corrupted_tensors = []
                     for tensor_bytes in result.parameters.tensors:
                         tensor = np.frombuffer(tensor_bytes, dtype=np.float32)
-                        corrupted = tensor + np.random.normal(
-                            0, 10, tensor.shape
-                        ).astype(np.float32)
+                        rng = np.random.default_rng(42)
+                        corrupted = tensor + rng.normal(0, 10, tensor.shape).astype(
+                            np.float32
+                        )
                         corrupted_tensors.append(corrupted.tobytes())
 
                     result.parameters.tensors = corrupted_tensors
@@ -196,7 +199,10 @@ class TestFlowerMockIntegration:
             # Make client 2 fail during training
             if int(cid) == 2:  # Client 2 drops out
 
-                def dropout_fit(params: MockParameters, config: Config) -> None:
+                def dropout_fit(
+                    parameters: MockParameters, config: Config
+                ) -> MockFitRes:
+                    _ = parameters, config
                     raise ConnectionError("Client dropped out")
 
                 client.fit = dropout_fit
@@ -224,8 +230,10 @@ class TestFlowerMockIntegration:
             if client_id < 2:
                 original_fit = client.fit
 
-                def high_capability_fit(params: MockParameters, config: Config) -> Any:
-                    result = original_fit(params, config)
+                def high_capability_fit(
+                    parameters: MockParameters, config: Config
+                ) -> MockFitRes:
+                    result = original_fit(parameters, config)
                     result.metrics["accuracy"] = min(
                         0.95, result.metrics["accuracy"] + 0.1
                     )
@@ -255,9 +263,10 @@ class TestMockConsistencyWithRealFlower:
         """Test that mock parameters maintain consistent shapes."""
         client = create_mock_flower_client(0)
 
+        rng = np.random.default_rng(42)
         initial_params: List[NDArray] = [
-            np.random.randn(10, 5).astype(np.float32),
-            np.random.randn(5).astype(np.float32),
+            rng.standard_normal((10, 5)).astype(np.float32),
+            rng.standard_normal(5).astype(np.float32),
         ]
         mock_params = mock_ndarrays_to_parameters(initial_params)
 
@@ -274,7 +283,10 @@ class TestMockConsistencyWithRealFlower:
         """Test that mock metrics follow expected Flower format."""
         client = create_mock_flower_client(0)
 
-        params = mock_ndarrays_to_parameters([np.random.randn(10).astype(np.float32)])
+        rng = np.random.default_rng(42)
+        params = mock_ndarrays_to_parameters(
+            [rng.standard_normal(10).astype(np.float32)]
+        )
 
         fit_result = client.fit(params, {})
         assert isinstance(fit_result.metrics, dict)

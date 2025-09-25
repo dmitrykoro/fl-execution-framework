@@ -160,12 +160,12 @@ class TestBulyanStrategy:
 
     def test_aggregate_fit_bulyan_algorithm(self, bulyan_strategy, mock_client_results):
         """Test aggregate_fit implements Bulyan algorithm correctly."""
-        with patch(
-            "src.simulation_strategies.bulyan_strategy.KMeans"
-        ) as mock_kmeans, patch(
-            "src.simulation_strategies.bulyan_strategy.MinMaxScaler"
-        ) as mock_scaler:
-
+        with (
+            patch("src.simulation_strategies.bulyan_strategy.KMeans") as mock_kmeans,
+            patch(
+                "src.simulation_strategies.bulyan_strategy.MinMaxScaler"
+            ) as mock_scaler,
+        ):
             # Setup mocks
             mock_kmeans_instance = Mock()
             mock_kmeans_instance.transform.return_value = np.array(
@@ -239,14 +239,13 @@ class TestBulyanStrategy:
             fit_res.num_examples = 100
             insufficient_results.append((client_proxy, fit_res))
 
-        with patch(
-            "src.simulation_strategies.bulyan_strategy.KMeans"
-        ) as mock_kmeans, patch(
-            "src.simulation_strategies.bulyan_strategy.MinMaxScaler"
-        ) as mock_scaler, patch(
-            "flwr.server.strategy.FedAvg.aggregate_fit"
-        ) as mock_parent_aggregate:
-
+        with (
+            patch("src.simulation_strategies.bulyan_strategy.KMeans") as mock_kmeans,
+            patch(
+                "src.simulation_strategies.bulyan_strategy.MinMaxScaler"
+            ) as mock_scaler,
+            patch("flwr.server.strategy.FedAvg.aggregate_fit") as mock_parent_aggregate,
+        ):
             # Setup mocks
             mock_kmeans_instance = Mock()
             mock_kmeans_instance.transform.return_value = np.array(
@@ -298,12 +297,12 @@ class TestBulyanStrategy:
             fit_res.num_examples = 100
             results.append((client_proxy, fit_res))
 
-        with patch(
-            "src.simulation_strategies.bulyan_strategy.KMeans"
-        ) as mock_kmeans, patch(
-            "src.simulation_strategies.bulyan_strategy.MinMaxScaler"
-        ) as mock_scaler:
-
+        with (
+            patch("src.simulation_strategies.bulyan_strategy.KMeans") as mock_kmeans,
+            patch(
+                "src.simulation_strategies.bulyan_strategy.MinMaxScaler"
+            ) as mock_scaler,
+        ):
             # Setup mocks
             mock_kmeans_instance = Mock()
             mock_kmeans_instance.transform.return_value = np.array(
@@ -451,12 +450,12 @@ class TestBulyanStrategy:
 
     def test_strategy_history_integration(self, bulyan_strategy, mock_client_results):
         """Test integration with strategy history."""
-        with patch(
-            "src.simulation_strategies.bulyan_strategy.KMeans"
-        ) as mock_kmeans, patch(
-            "src.simulation_strategies.bulyan_strategy.MinMaxScaler"
-        ) as mock_scaler:
-
+        with (
+            patch("src.simulation_strategies.bulyan_strategy.KMeans") as mock_kmeans,
+            patch(
+                "src.simulation_strategies.bulyan_strategy.MinMaxScaler"
+            ) as mock_scaler,
+        ):
             # Setup mocks
             mock_kmeans_instance = Mock()
             mock_kmeans_instance.transform.return_value = np.array(
@@ -502,12 +501,12 @@ class TestBulyanStrategy:
             fit_res.num_examples = 100
             results.append((client_proxy, fit_res))
 
-        with patch(
-            "src.simulation_strategies.bulyan_strategy.KMeans"
-        ) as mock_kmeans, patch(
-            "src.simulation_strategies.bulyan_strategy.MinMaxScaler"
-        ) as mock_scaler:
-
+        with (
+            patch("src.simulation_strategies.bulyan_strategy.KMeans") as mock_kmeans,
+            patch(
+                "src.simulation_strategies.bulyan_strategy.MinMaxScaler"
+            ) as mock_scaler,
+        ):
             # Setup mocks
             mock_kmeans_instance = Mock()
             mock_kmeans_instance.transform.return_value = np.array(
@@ -563,12 +562,12 @@ class TestBulyanStrategy:
             fit_res.num_examples = 100
             results.append((client_proxy, fit_res))
 
-        with patch(
-            "src.simulation_strategies.bulyan_strategy.KMeans"
-        ) as mock_kmeans, patch(
-            "src.simulation_strategies.bulyan_strategy.MinMaxScaler"
-        ) as mock_scaler:
-
+        with (
+            patch("src.simulation_strategies.bulyan_strategy.KMeans") as mock_kmeans,
+            patch(
+                "src.simulation_strategies.bulyan_strategy.MinMaxScaler"
+            ) as mock_scaler,
+        ):
             # Setup mocks
             mock_kmeans_instance = Mock()
             mock_kmeans_instance.transform.return_value = np.array(
@@ -610,12 +609,12 @@ class TestBulyanStrategy:
             fit_res.num_examples = 100
             min_results.append((client_proxy, fit_res))
 
-        with patch(
-            "src.simulation_strategies.bulyan_strategy.KMeans"
-        ) as mock_kmeans, patch(
-            "src.simulation_strategies.bulyan_strategy.MinMaxScaler"
-        ) as mock_scaler:
-
+        with (
+            patch("src.simulation_strategies.bulyan_strategy.KMeans") as mock_kmeans,
+            patch(
+                "src.simulation_strategies.bulyan_strategy.MinMaxScaler"
+            ) as mock_scaler,
+        ):
             # Setup mocks
             mock_kmeans_instance = Mock()
             mock_kmeans_instance.transform.return_value = np.array(

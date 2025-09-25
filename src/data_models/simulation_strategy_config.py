@@ -1,6 +1,7 @@
 import json
 
 from dataclasses import dataclass, asdict
+from typing import Any
 
 
 @dataclass
@@ -55,6 +56,10 @@ class StrategyConfig:
                 setattr(self, key, value == "true")
             else:
                 setattr(self, key, value)
+
+    def __getattr__(self, name: str) -> Any:
+        """Allow access to dynamically set attributes"""
+        raise AttributeError(f"'{self.__class__.__name__}' object has no attribute '{name}'")
 
     @classmethod
     def from_dict(cls, strategy_config: dict):

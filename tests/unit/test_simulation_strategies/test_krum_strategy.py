@@ -55,13 +55,15 @@ class TestKrumBasedRemovalStrategy:
     @pytest.fixture
     def mock_clustering(self):
         """Mock clustering components (KMeans, MinMaxScaler) and parent aggregate_fit."""
-        with patch(
-            "src.simulation_strategies.krum_based_removal_strategy.KMeans"
-        ) as mock_kmeans, patch(
-            "src.simulation_strategies.krum_based_removal_strategy.MinMaxScaler"
-        ) as mock_scaler, patch(
-            "flwr.server.strategy.Krum.aggregate_fit"
-        ) as mock_parent_aggregate:
+        with (
+            patch(
+                "src.simulation_strategies.krum_based_removal_strategy.KMeans"
+            ) as mock_kmeans,
+            patch(
+                "src.simulation_strategies.krum_based_removal_strategy.MinMaxScaler"
+            ) as mock_scaler,
+            patch("flwr.server.strategy.Krum.aggregate_fit") as mock_parent_aggregate,
+        ):
             # Setup mocks
             mock_kmeans_instance = Mock()
             mock_kmeans_instance.transform.return_value = np.array(

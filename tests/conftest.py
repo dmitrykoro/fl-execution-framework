@@ -4,6 +4,7 @@ Global pytest configuration and fixtures for federated learning simulation tests
 
 import logging
 import os
+from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Tuple
 from unittest.mock import Mock
@@ -109,8 +110,8 @@ def temp_dataset_dir(tmp_path: Path) -> Path:
 @pytest.fixture
 def mock_client_parameters() -> List[NDArray]:
     """Generate mock client parameters."""
-    np.random.seed(42)
-    return [np.random.randn(100) for _ in range(5)]
+    rng = np.random.default_rng(42)
+    return [rng.standard_normal(100) for _ in range(5)]
 
 
 def generate_mock_client_data(
@@ -118,7 +119,7 @@ def generate_mock_client_data(
 ) -> List[Tuple[ClientProxy, FitRes]]:
     """Generate mock client results (ClientProxy, FitRes)."""
     results: List[Tuple[ClientProxy, FitRes]] = []
-    np.random.seed(42)
+    rng = np.random.default_rng(42)
 
     for i in range(num_clients):
         client_proxy = Mock(spec=ClientProxy)
@@ -127,13 +128,13 @@ def generate_mock_client_data(
         # Create varied mock parameters
         if i < 2:  # Similar parameters for first two clients
             mock_params = [
-                np.random.randn(*param_shape) * 0.1,
-                np.random.randn(param_shape[1]) * 0.1,
+                rng.standard_normal(param_shape) * 0.1,
+                rng.standard_normal(param_shape[1]) * 0.1,
             ]
         else:  # Different parameters for remaining clients
             mock_params = [
-                np.random.randn(*param_shape) * (i + 1),
-                np.random.randn(param_shape[1]) * (i + 1),
+                rng.standard_normal(param_shape) * (i + 1),
+                rng.standard_normal(param_shape[1]) * (i + 1),
             ]
 
         fit_res = Mock(spec=FitRes)
@@ -149,24 +150,28 @@ def generate_mock_client_data(
 # Test failure logging setup
 failure_logger = logging.getLogger("test_failure_helper")
 
-if not failure_logger.handlers:
-    failure_logger.setLevel(logging.INFO)
-    failure_logger.propagate = False
 
-    # Create logs directory if it doesn't exist
-    log_dir = Path("tests/logs")
-    log_dir.mkdir(parents=True, exist_ok=True)
-    log_file = log_dir / "test_failures.log"
+def _setup_failure_logger():
+    """Setup the failure logger only when needed."""
+    if not failure_logger.handlers:
+        failure_logger.setLevel(logging.INFO)
+        failure_logger.propagate = False
 
-    fh = logging.FileHandler(log_file, mode="w")
-    fh.setLevel(logging.INFO)
+        # Create logs directory if it doesn't exist
+        log_dir = Path("tests/logs")
+        log_dir.mkdir(parents=True, exist_ok=True)
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        log_file = log_dir / f"test_failures_{timestamp}.log"
 
-    formatter = logging.Formatter(
-        "%(asctime)s - %(message)s", datefmt="%Y-%m-%d %H:%M:%S"
-    )
-    fh.setFormatter(formatter)
+        fh = logging.FileHandler(log_file, mode="w")
+        fh.setLevel(logging.INFO)
 
-    failure_logger.addHandler(fh)
+        formatter = logging.Formatter(
+            "%(asctime)s - %(message)s", datefmt="%Y-%m-%d %H:%M:%S"
+        )
+        fh.setFormatter(formatter)
+
+        failure_logger.addHandler(fh)
 
 
 @pytest.hookimpl(tryfirst=True, hookwrapper=True)
@@ -184,6 +189,8 @@ def pytest_runtest_makereport(item, call):
 
     # Only analyze test call phase failures
     if report.when == "call" and report.failed:
+        # Setup logger only when we have a failure to log
+        _setup_failure_logger()
         # --- Heuristic-based failure analysis logic --- #
 
         # Get exception info from the call object

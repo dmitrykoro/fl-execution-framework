@@ -56,7 +56,7 @@ class PIDBasedRemovalStrategy(fl.server.strategy.FedAvg):
         self.aggregation_strategy_keyword = aggregation_strategy_keyword
 
         # Create a logger
-        self.logger = logging.getLogger("my_logger")
+        self.logger = logging.getLogger(f"pid_strategy_{id(self)}")
         self.logger.setLevel(logging.INFO)  # Set the logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL)
 
         # Create handlers
@@ -68,6 +68,7 @@ class PIDBasedRemovalStrategy(fl.server.strategy.FedAvg):
         # Add the handlers to the logger
         self.logger.addHandler(file_handler)
         self.logger.addHandler(console_handler)
+        self.logger.propagate = False
 
     def calculate_single_client_pid_scaled(self, client_id, distance):
         """Calculate pid."""

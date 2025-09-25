@@ -5,7 +5,6 @@ from src.dataset_loaders.medquad_dataset_loader import MedQuADDatasetLoader
 
 
 class TestMedQuADDatasetLoader:
-
     @pytest.fixture
     def temp_dataset_dir(self, tmp_path):
         """Return a temporary MedQuAD-style dataset with JSON files for clients."""

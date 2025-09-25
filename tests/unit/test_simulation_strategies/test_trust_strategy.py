@@ -222,14 +222,15 @@ class TestTrustBasedRemovalStrategy:
 
     def test_aggregate_fit_trust_calculation(self, trust_strategy, mock_client_results):
         """Test aggregate_fit calculates trust scores for all clients."""
-        with patch(
-            "src.simulation_strategies.trust_based_removal_strategy.KMeans"
-        ) as mock_kmeans, patch(
-            "src.simulation_strategies.trust_based_removal_strategy.MinMaxScaler"
-        ) as mock_scaler, patch(
-            "flwr.server.strategy.FedAvg.aggregate_fit"
-        ) as mock_parent_aggregate:
-
+        with (
+            patch(
+                "src.simulation_strategies.trust_based_removal_strategy.KMeans"
+            ) as mock_kmeans,
+            patch(
+                "src.simulation_strategies.trust_based_removal_strategy.MinMaxScaler"
+            ) as mock_scaler,
+            patch("flwr.server.strategy.FedAvg.aggregate_fit") as mock_parent_aggregate,
+        ):
             # Setup mocks
             mock_kmeans_instance = Mock()
             mock_kmeans_instance.transform.return_value = np.array(
@@ -435,14 +436,15 @@ class TestTrustBasedRemovalStrategy:
 
     def test_strategy_history_integration(self, trust_strategy, mock_client_results):
         """Test integration with strategy history."""
-        with patch(
-            "src.simulation_strategies.trust_based_removal_strategy.KMeans"
-        ) as mock_kmeans, patch(
-            "src.simulation_strategies.trust_based_removal_strategy.MinMaxScaler"
-        ) as mock_scaler, patch(
-            "flwr.server.strategy.FedAvg.aggregate_fit"
-        ) as mock_parent_aggregate:
-
+        with (
+            patch(
+                "src.simulation_strategies.trust_based_removal_strategy.KMeans"
+            ) as mock_kmeans,
+            patch(
+                "src.simulation_strategies.trust_based_removal_strategy.MinMaxScaler"
+            ) as mock_scaler,
+            patch("flwr.server.strategy.FedAvg.aggregate_fit") as mock_parent_aggregate,
+        ):
             # Setup mocks
             mock_kmeans_instance = Mock()
             mock_kmeans_instance.transform.return_value = np.array(
@@ -491,14 +493,15 @@ class TestTrustBasedRemovalStrategy:
 
         single_result = [(client_proxy, fit_res)]
 
-        with patch(
-            "src.simulation_strategies.trust_based_removal_strategy.KMeans"
-        ) as mock_kmeans, patch(
-            "src.simulation_strategies.trust_based_removal_strategy.MinMaxScaler"
-        ) as mock_scaler, patch(
-            "flwr.server.strategy.FedAvg.aggregate_fit"
-        ) as mock_parent_aggregate:
-
+        with (
+            patch(
+                "src.simulation_strategies.trust_based_removal_strategy.KMeans"
+            ) as mock_kmeans,
+            patch(
+                "src.simulation_strategies.trust_based_removal_strategy.MinMaxScaler"
+            ) as mock_scaler,
+            patch("flwr.server.strategy.FedAvg.aggregate_fit") as mock_parent_aggregate,
+        ):
             # Setup mocks
             mock_kmeans_instance = Mock()
             mock_kmeans_instance.transform.return_value = np.array([[0.1]])

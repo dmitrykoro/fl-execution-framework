@@ -43,7 +43,7 @@ class KrumBasedRemovalStrategy(Krum):
     def _calculate_krum_scores(
             self,
             results: List[Tuple[ClientProxy, FitRes]],
-            distances: List[float]
+            distances: np.ndarray
     ) -> List[float]:
 
         """

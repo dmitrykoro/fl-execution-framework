@@ -293,10 +293,12 @@ class TestFlowerClient:
         # Mock global parameters
         global_params = [torch.randn(10, 5), torch.randn(10)]
 
-        with patch("torch.optim.AdamW") as mock_optimizer_class, patch.object(
-            flower_client_transformer, "get_parameters"
-        ) as mock_get_params:
-
+        with (
+            patch("torch.optim.AdamW") as mock_optimizer_class,
+            patch.object(
+                flower_client_transformer, "get_parameters"
+            ) as mock_get_params,
+        ):
             mock_optimizer = Mock()
             mock_optimizer_class.return_value = mock_optimizer
             mock_get_params.return_value = [param.numpy() for param in global_params]
@@ -370,6 +372,7 @@ class TestFlowerClient:
         new_params = [param + 0.1 for param in initial_params]
 
         with patch.object(flower_client_cnn, "train") as mock_train:
+            mock_train.return_value = (0.5, 0.8)
             result_params, dataset_size, metrics = flower_client_cnn.fit(
                 new_params, config={}
             )
@@ -391,15 +394,17 @@ class TestFlowerClient:
         # Mock parameters
         mock_params = [np.random.randn(10, 5), np.random.randn(10)]
 
-        with patch.object(
-            flower_client_transformer, "get_parameters"
-        ) as mock_get_params, patch.object(
-            flower_client_transformer, "set_parameters"
-        ) as mock_set_params, patch.object(
-            flower_client_transformer, "train"
-        ) as mock_train:
-
+        with (
+            patch.object(
+                flower_client_transformer, "get_parameters"
+            ) as mock_get_params,
+            patch.object(
+                flower_client_transformer, "set_parameters"
+            ) as mock_set_params,
+            patch.object(flower_client_transformer, "train") as mock_train,
+        ):
             mock_get_params.return_value = mock_params
+            mock_train.return_value = (0.3, 0.9)
 
             result_params, dataset_size, metrics = flower_client_transformer.fit(
                 mock_params, config={}
@@ -423,7 +428,8 @@ class TestFlowerClient:
         flower_client_cnn.model_type = "unsupported"
         initial_params = flower_client_cnn.get_parameters(config={})
 
-        with patch.object(flower_client_cnn, "train"):
+        with patch.object(flower_client_cnn, "train") as mock_train:
+            mock_train.return_value = (0.4, 0.7)
             with pytest.raises(ValueError, match="Unsupported model type: unsupported"):
                 flower_client_cnn.fit(initial_params, config={})
 

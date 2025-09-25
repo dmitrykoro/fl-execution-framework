@@ -59,7 +59,7 @@ class BulyanStrategy(fl.server.strategy.FedAvg):
         self.strategy_history = strategy_history
 
         # --- Logger (matches MultiKrum style) -------------------------
-        self.logger = logging.getLogger("my_logger")
+        self.logger = logging.getLogger(f"bulyan_{id(self)}")
         self.logger.setLevel(logging.INFO)
         out_dir = DirectoryHandler.dirname
         os.makedirs(out_dir, exist_ok=True)
@@ -67,6 +67,7 @@ class BulyanStrategy(fl.server.strategy.FedAvg):
         console_handler = logging.StreamHandler()
         self.logger.addHandler(file_handler)
         self.logger.addHandler(console_handler)
+        self.logger.propagate = False
 
     # ------------------------------------------------------------------
     # Helper: pairwise distances (cached) ------------------------------

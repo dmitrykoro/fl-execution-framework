@@ -14,7 +14,6 @@
 # ==============================================================================
 """Flower type definitions for testing purposes."""
 
-
 from dataclasses import dataclass
 from enum import Enum
 from typing import Any, Callable, Optional, Union
@@ -318,11 +317,11 @@ class Fab:
     content: bytes
 
 
-class RunNotRunningException(BaseException):
+class RunNotRunningException(Exception):
     """Raised when a run is not running."""
 
 
-class InvalidRunStatusException(BaseException):
+class InvalidRunStatusException(Exception):
     """Raised when an RPC is invalidated by the RunStatus."""
 
     def __init__(self, message: str) -> None:
