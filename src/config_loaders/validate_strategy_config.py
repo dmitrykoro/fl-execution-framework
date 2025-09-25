@@ -38,7 +38,8 @@ config_schema = {
                 "tissuemnist",
                 "organamnist",
                 "organcmnist",
-                "organsmnist"
+                "organsmnist",
+                "medmentions"
             ]
         },
         "model_type": {
@@ -85,7 +86,7 @@ config_schema = {
         },
         "llm_model": {
             "type": "string",
-            "enum": ["microsoft/BiomedNLP-BiomedBERT-base-uncased-abstract-fulltext"]
+            "enum": ["microsoft/BiomedNLP-BiomedBERT-base-uncased-abstract-fulltext","gpt2"]
         },
         "llm_task": {
             "type": "string",
