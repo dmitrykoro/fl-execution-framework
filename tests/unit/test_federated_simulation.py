@@ -1,9 +1,4 @@
-"""
-Unit tests for FederatedSimulation class.
-
-Tests initialization, component assignment, and core functionality
-with mocked dependencies.
-"""
+"""Unit tests for FederatedSimulation class."""
 
 from pathlib import Path
 from typing import Any, Dict, List
@@ -21,7 +16,7 @@ NDArray = np.ndarray
 
 
 def _get_base_strategy_config_dict() -> Dict[str, Any]:
-    """Return a base strategy configuration dictionary for testing."""
+    """Base strategy configuration dictionary."""
     return {
         "aggregation_strategy_keyword": "trust",
         "dataset_keyword": "its",

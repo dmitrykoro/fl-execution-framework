@@ -1,9 +1,4 @@
-"""
-Parameterized tests for attack scenarios in federated learning.
-
-Tests various attack types and defense mechanism effectiveness
-across different aggregation strategies and client configurations.
-"""
+"""Parameterized tests for attack scenarios in federated learning."""
 
 from unittest.mock import Mock
 
@@ -68,8 +63,6 @@ DEFENSE_STRATEGIES = {
 
 
 class TestAttackScenarios:
-    """Test suite for attack scenarios and defense mechanisms."""
-
     @pytest.mark.parametrize(
         "attack_type,defense_strategies,expected_robustness",
         ATTACK_SCENARIOS,
@@ -77,7 +70,7 @@ class TestAttackScenarios:
     def test_defense_mechanism_effectiveness(
         self, attack_type, defense_strategies, expected_robustness
     ):
-        """Test how different defense strategies handle various attack scenarios."""
+        """Verify defense strategy effectiveness against attack types."""
         num_clients = 10
         num_byzantine = 3
         param_size = 1000
@@ -158,7 +151,7 @@ class TestAttackScenarios:
         ],
     )
     def test_attack_parameter_generation(self, attack_type):
-        """Test generation of attack parameters for different attack types."""
+        """Verify attack parameter generation for different attack types."""
         num_clients = 8
         num_byzantine = 2
         param_size = 500
@@ -207,7 +200,7 @@ class TestAttackScenarios:
         ],
     )
     def test_byzantine_client_ratios(self, num_byzantine, total_clients):
-        """Test defense mechanisms with different Byzantine client ratios."""
+        """Verify defense effectiveness varies with Byzantine client ratios."""
         param_size = 800
 
         # Test with different attack types
