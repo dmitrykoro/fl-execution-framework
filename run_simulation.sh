@@ -53,6 +53,8 @@ if command_exists wget; then
   DOWNLOAD_METHOD="wget"
 fi
 
+DATASET_URL="https://fl-dataset-storage.s3.us-east-1.amazonaws.com/datasets.tar"
+
 # Find and activate virtual environment.
 # Checks .venv first, then venv, creates .venv if neither exists.
 if [ -d ".venv" ]; then
@@ -77,9 +79,9 @@ if [ ! -d "datasets/bloodmnist" ]; then
   pushd datasets > /dev/null
 
   if [ "$DOWNLOAD_METHOD" = "wget" ]; then
-    wget https://fl-dataset-storage.s3.us-east-1.amazonaws.com/datasets.tar
+    wget "$DATASET_URL"
   else
-    $PYTHON -c "import urllib.request; urllib.request.urlretrieve('https://fl-dataset-storage.s3.us-east-1.amazonaws.com/datasets.tar', 'datasets.tar')"
+    $PYTHON -c "import urllib.request; urllib.request.urlretrieve('$DATASET_URL', 'datasets.tar')"
   fi
 
   tar -xf datasets.tar
