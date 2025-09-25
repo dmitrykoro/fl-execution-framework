@@ -129,34 +129,19 @@ fi
 
 # SonarQube analysis
 if [[ "$SONAR_MODE" == true ]]; then
-    if check_tool "sonar-scanner" "npm install -g sonar-scanner"; then
-        echo "🔍 Running SonarQube analysis..."
-
-        # Create basic sonar-project.properties if it doesn't exist
-        if [[ ! -f "sonar-project.properties" ]]; then
-            cat > sonar-project.properties << EOF
-sonar.projectKey=fl-execution-framework
-sonar.projectName=FL Execution Framework
-sonar.projectVersion=1.0
-sonar.sources=tests
-sonar.python.coverage.reportPaths=coverage.xml
-sonar.exclusions=**/logs/**,**/temp/**,**/__pycache__/**
-EOF
-            echo "📄 Created sonar-project.properties"
-        fi
-
-        sonar-scanner
-    else
-        echo "⚠️  SonarQube Scanner not available. Install with: npm install -g sonar-scanner"
-    fi
+    ./tests/sonar.sh
 fi
 
 # pytest in full mode
 if [[ "$FULL_MODE" == true ]]; then
     echo "🧪 Running pytest..."
-    pytest -v --tb=short -s tests | tee pytest.log
-    if grep -q "FAILED" pytest.log; then
-        echo "❌ Some tests failed. Check pytest.log for details."
+    # Run unit tests in parallel, integration tests serially
+    pytest -n auto tests/unit/ -v --tb=short | tee tests/logs/pytest_unit.log
+    pytest -n 0 tests/integration/ -v --tb=short -s | tee tests/logs/pytest_integration.log
+    pytest tests/performance/ -v --tb=short | tee tests/logs/pytest_performance.log
+    # Check all pytest logs for failures
+    if grep -q "FAILED" tests/logs/pytest_*.log; then
+        echo "❌ Some tests failed. Check tests/logs/pytest_*.log for details."
         exit 1
     fi
 
@@ -168,9 +153,14 @@ if [[ "$FULL_MODE" == true ]]; then
     echo "🚀 Testing run_simulation.sh..."
     ./run_simulation.sh
 
+    echo
     echo "✅ All linting, formatting, and tests completed!"
 else
-    echo "✅ Linting and formatting completed!"
+    if [[ "$SONAR_MODE" == true ]]; then
+        echo "✅ Linting, type checking, and SonarQube analysis completed!"
+    else
+        echo "✅ Linting, formatting, and type checking completed!"
+    fi
 fi
 
 # Print summary
