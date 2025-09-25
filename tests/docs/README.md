@@ -24,7 +24,7 @@ cd tests && ./lint.sh
 python -m pytest tests/unit/ -n auto -x --tb=line
 
 # Development workflow
-cd tests && ./lint.sh --full    # Full quality check + tests
+cd tests && ./lint.sh --test    # Full quality check + tests
 pytest -n auto tests/unit/ -v   # Parallel unit tests
 pytest -n 0 tests/integration/ -v # Serial integration tests
 ```

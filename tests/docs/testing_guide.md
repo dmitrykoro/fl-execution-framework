@@ -22,7 +22,7 @@ python -m pytest tests/unit/test_module.py::test_name -v # Single test
 
 ```bash
 # Comprehensive testing
-cd tests && ./lint.sh --full    # Adds pytest, all checks
+cd tests && ./lint.sh --test    # Adds pytest, all checks
 cd tests && ./lint.sh --sonar   # Adds code quality analysis
 
 # Parallel execution (recommended)
@@ -128,7 +128,7 @@ PYTHONPATH=. python tests/demo/strategy_config_demo.py
 
 **Directory Structure:**
 
-```
+```text
 tests/
 ├── unit/                     # Fast isolated tests
 │   ├── test_data_models/    # Model validation
@@ -222,7 +222,7 @@ python -m pytest tests/unit/ -n auto -x --tb=line
 cd tests && ./lint.sh
 
 # 4. Full validation (session end)
-cd tests && ./lint.sh --full
+cd tests && ./lint.sh --test
 ```
 
 ### 🚨 Session End Checklist
