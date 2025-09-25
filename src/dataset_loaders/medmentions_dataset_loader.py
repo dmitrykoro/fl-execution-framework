@@ -2,14 +2,16 @@ import os, glob, json
 from typing import List, Tuple
 from datasets import load_dataset, DatasetDict
 from torch.utils.data import DataLoader
-from transformers import AutoTokenizer, DataCollatorForTokenClassification
-from transformers import GPT2TokenizerFast
+from transformers import GPT2TokenizerFast, DataCollatorForTokenClassification
 
 class MedMentionsNERDatasetLoader:
     """
     Expects JSON arrays with fields: id, document_id, text (optional), tokens, ner_tags (BIO)
     Returns per-client DataLoaders with GPT-2 tokenization + aligned labels.
     """
+
+    IGNORE_LABEL = -100  # for subword tokens
+    MAX_LEN = 512        # change if you plan to window to 1024 later
 
     def __init__(
         self,
@@ -30,15 +32,22 @@ class MedMentionsNERDatasetLoader:
         self.label2id = {l: i for i, l in enumerate(self.label_list)}
         self.id2label = {i: l for l, i in self.label2id.items()}
 
+        # Tokenizer (GPT-2 has no PAD by default)
         self.tokenizer = GPT2TokenizerFast.from_pretrained(
             "gpt2",
-            add_prefix_space=True,      
-            padding_side="right"
+            add_prefix_space=True,
+            padding_side="right",
+            use_fast=True,
         )
         if self.tokenizer.pad_token is None:
             self.tokenizer.pad_token = self.tokenizer.eos_token
 
-        self.collator = DataCollatorForTokenClassification(tokenizer=self.tokenizer, padding="longest",label_pad_token_id=-100)
+        # Let the collator pad dynamically
+        self.collator = DataCollatorForTokenClassification(
+            tokenizer=self.tokenizer,
+            pad_to_multiple_of=8,
+            label_pad_token_id=self.IGNORE_LABEL,
+        )
 
     def _scan_all_labels(self) -> List[str]:
         labels = set(["O"])
@@ -55,27 +64,41 @@ class MedMentionsNERDatasetLoader:
                         pass
         return sorted(labels)
 
-    IGNORE_LABEL = -100  # for subword tokens
-
     def _encode_align(self, batch):
-        # batch['tokens'] is a list[list[str]], batch['ner_tags'] is list[list[str]]
-        enc = self.tokenizer(batch["tokens"], is_split_into_words=True, truncation=True, padding="max_length", max_length=512,return_attention_mask=True)
-        aligned_labels = []
+        """
+        Convert word-level tokens/tags to subword-aligned tensors.
+        IMPORTANT: we do NOT keep 'tokens'/'ner_tags' in the mapped dataset.
+        """
+        enc = self.tokenizer(
+            batch["tokens"],
+            is_split_into_words=True,
+            truncation=True,
+            padding=False,            # <-- collator will pad
+            max_length=self.MAX_LEN,
+            return_attention_mask=True,
+        )
+
+        labels = []
         for i, tags in enumerate(batch["ner_tags"]):
             word_ids = enc.word_ids(batch_index=i)
-            prev = None
-            lab = []
+            aligned = []
+            prev_wid = None
             for wid in word_ids:
                 if wid is None:
-                    lab.append(-100)
-                elif wid != prev:
-                    lab.append(self.label2id[tags[wid]])
+                    aligned.append(self.IGNORE_LABEL)             # special/pad tokens
+                elif wid != prev_wid:
+                    aligned.append(self.label2id[tags[wid]])      # first subword gets tag
                 else:
-                    lab.append(-100)  # ignore non-first subword
-                prev = wid
-            aligned_labels.append(lab)
-        enc["labels"] = aligned_labels
-        return enc
+                    aligned.append(self.IGNORE_LABEL)             # ignore non-first subwords
+                prev_wid = wid
+            labels.append(aligned)
+
+        # Return ONLY model fields so collator never sees 'tokens'/'text'
+        return {
+            "input_ids": enc["input_ids"],
+            "attention_mask": enc["attention_mask"],
+            "labels": labels,
+        }
 
     def _load_one_client(self, client_dir: str) -> Tuple[DataLoader, DataLoader]:
         files_train = glob.glob(os.path.join(client_dir, "train*.json"))
@@ -93,9 +116,16 @@ class MedMentionsNERDatasetLoader:
             n = int(len(ds["train"]) * self.training_subset_fraction)
             ds["train"] = ds["train"].select(range(n))
 
-        ds_tok = ds.map(self._encode_align, batched=True, remove_columns=list(set(ds["train"].column_names) - {"tokens","ner_tags"}))
-        trainloader = DataLoader(ds_tok["train"], batch_size=self.batch_size, shuffle=True, collate_fn=self.collator)
-        valloader   = DataLoader(ds_tok["validation"], batch_size=self.batch_size, shuffle=False, collate_fn=self.collator)
+        # --- CRITICAL: drop ALL original columns so the collator only sees tensors ---
+        orig_cols = ds["train"].column_names  # e.g., ['id','document_id','text','tokens','ner_tags']
+        ds_tok = ds.map(self._encode_align, batched=True, remove_columns=orig_cols)
+
+        trainloader = DataLoader(
+            ds_tok["train"], batch_size=self.batch_size, shuffle=True, collate_fn=self.collator
+        )
+        valloader   = DataLoader(
+            ds_tok["validation"], batch_size=self.batch_size, shuffle=False, collate_fn=self.collator
+        )
         return trainloader, valloader
 
     def load_datasets(self):
