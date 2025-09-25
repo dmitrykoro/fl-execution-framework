@@ -139,6 +139,7 @@ if [[ "$FULL_MODE" == true ]]; then
     pytest -n auto tests/unit/ -v --tb=short | tee tests/logs/pytest_unit.log
     pytest -n 0 tests/integration/ -v --tb=short -s | tee tests/logs/pytest_integration.log
     pytest tests/performance/ -v --tb=short | tee tests/logs/pytest_performance.log
+    pytest tests/test_setup.py -v --tb=short | tee tests/logs/pytest_setup.log
     # Check all pytest logs for failures
     if grep -q "FAILED" tests/logs/pytest_*.log; then
         echo "❌ Some tests failed. Check tests/logs/pytest_*.log for details."
