@@ -1,10 +1,10 @@
 #!/bin/bash
 # Lint script with ruff and pyright
-# Run: ./lint.sh [--full] [--sonar]
+# Run: ./lint.sh [--test] [--sonar]
 # Prerequisites: ./reinstall_requirements.sh
 #
 # Default: ruff (linting + formatting), mypy, pyright
-# --full: adds pytest, reinstall test, simulation test
+# --test: adds pytest, reinstall test, simulation test
 # --sonar: adds SonarQube analysis
 
 # fail fast
@@ -56,13 +56,13 @@ if [ "$VENV_ACTIVATED" = false ]; then
 fi
 
 # parse args
-FULL_MODE=false
+TEST_MODE=false
 SONAR_MODE=false
 
 for arg in "$@"; do
     case $arg in
-        --full)
-            FULL_MODE=true
+        --test)
+            TEST_MODE=true
             ;;
         --sonar)
             SONAR_MODE=true
@@ -71,7 +71,7 @@ for arg in "$@"; do
 done
 
 # install test deps in full mode
-if [[ "$FULL_MODE" == true ]]; then
+if [[ "$TEST_MODE" == true ]]; then
     echo "📦 Installing test requirements..."
     pip install -e tests
 fi
@@ -132,8 +132,8 @@ if [[ "$SONAR_MODE" == true ]]; then
     ./tests/sonar.sh
 fi
 
-# pytest in full mode
-if [[ "$FULL_MODE" == true ]]; then
+# pytest in test mode
+if [[ "$TEST_MODE" == true ]]; then
     echo "🧪 Running pytest..."
     # Run unit tests in parallel, integration tests serially
     pytest -n auto tests/unit/ -v --tb=short | tee tests/logs/pytest_unit.log
