@@ -61,7 +61,6 @@ class ConfigLoader:
                 client_issues = validate_client_config(strategy)
                 for issue in client_issues:
                     logging.warning(issue)
-                    print(issue)
 
                 logging.info(f"Successfully validated config from {config_path}.")
 
