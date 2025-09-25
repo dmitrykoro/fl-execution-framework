@@ -1,11 +1,16 @@
 #!/bin/bash
-# Lint script with ruff and pyright
-# Run: ./lint.sh [--test] [--sonar]
-# Prerequisites: ./reinstall_requirements.sh
+# Python code quality and testing script
+# 
+# Usage: ./lint.sh [--test] [--sonar]
+# Prerequisites: run ./reinstall_requirements.sh in root first
 #
-# Default: ruff (linting + formatting), mypy, pyright
-# --test: adds pytest, reinstall test, simulation test
-# --sonar: adds SonarQube analysis
+# Default behavior:
+#   - code linting and formatting (ruff)
+#   - static type checking (mypy, pyright)
+#
+# Options:
+#   --test  includes pytest, requirement reinstall, and simulation tests
+#   --sonar includes pytest and SonarQube static analysis
 
 # fail fast
 set -euo pipefail
@@ -21,10 +26,10 @@ LOG_FILE="$LOG_DIR/lint_$(date +%Y%m%d_%H%M%S).log"
 echo "📝 Logging to: $LOG_FILE"
 exec > >(tee "$LOG_FILE") 2>&1
 
-# Dynamic virtual environment detection and activation
+# virtual environment detection and activation
 VENV_ACTIVATED=false
 
-# Check for .venv first, then venv
+# check for .venv first, then venv
 if [ -d ".venv" ]; then
     echo "🔌 Found .venv directory, activating virtual environment..."
     if [ -f ".venv/Scripts/activate" ]; then
@@ -70,8 +75,8 @@ for arg in "$@"; do
     esac
 done
 
-# install test deps in full mode
-if [[ "$TEST_MODE" == true ]]; then
+# install test deps in test mode or sonar mode
+if [[ "$TEST_MODE" == true || "$SONAR_MODE" == true ]]; then
     echo "📦 Installing test requirements..."
     pip install -e tests
 fi
@@ -85,7 +90,7 @@ check_tool() {
     return 0
 }
 
-# Install tools if needed
+# install tools if needed
 if ! check_tool "ruff" "pip install ruff"; then
     echo "📦 Installing ruff..."
     pip install ruff
@@ -96,7 +101,7 @@ if ! check_tool "mypy" "pip install mypy"; then
     pip install mypy
 fi
 
-# Ruff linting and formatting (replaces isort + flake8 + black)
+# ruff linting and formatting
 echo "⚡ Running ruff check..."
 ruff check --fix tests/
 
@@ -127,20 +132,24 @@ else
     fi
 fi
 
-# SonarQube analysis
-if [[ "$SONAR_MODE" == true ]]; then
-    ./tests/sonar.sh
-fi
-
-# pytest in test mode
+# pytest with coverage
 if [[ "$TEST_MODE" == true ]]; then
     echo "🧪 Running pytest..."
-    # Run unit tests in parallel, integration and performance tests serially
-    pytest -n auto tests/unit/ -v --tb=short | tee tests/logs/pytest_unit.log
-    pytest -n 0 tests/integration/ -v --tb=short -s | tee tests/logs/pytest_integration.log
-    pytest -n 0 tests/performance/ -v --tb=short | tee tests/logs/pytest_performance.log
-    pytest tests/test_setup.py -v --tb=short | tee tests/logs/pytest_setup.log
-    # Check all pytest logs for failures
+    # clear any existing coverage data
+    coverage erase
+
+    # run tests with coverage accumulation
+    PYTHONPATH=. coverage run --source=src -m pytest tests/unit/ | tee tests/logs/pytest_unit.log
+    PYTHONPATH=. coverage run --source=src --append -m pytest tests/integration/ -s | tee tests/logs/pytest_integration.log
+    PYTHONPATH=. coverage run --source=src --append -m pytest tests/performance/ | tee tests/logs/pytest_performance.log
+    PYTHONPATH=. coverage run --source=src --append -m pytest tests/test_setup.py | tee tests/logs/pytest_setup.log
+
+    # generate combined coverage reports
+    coverage xml
+    coverage html
+    coverage report --skip-covered
+
+    # check all pytest logs for failures
     if grep -q "FAILED" tests/logs/pytest_*.log; then
         echo "❌ Some tests failed. Check tests/logs/pytest_*.log for details."
         exit 1
@@ -156,15 +165,43 @@ if [[ "$TEST_MODE" == true ]]; then
 
     echo
     echo "✅ All linting, formatting, and tests completed!"
-else
-    if [[ "$SONAR_MODE" == true ]]; then
-        echo "✅ Linting, type checking, and SonarQube analysis completed!"
-    else
-        echo "✅ Linting, formatting, and type checking completed!"
-    fi
 fi
 
-# Print summary
+# pytest with coverage for SonarQube analysis
+if [[ "$SONAR_MODE" == true ]]; then
+    echo "🧪 Running pytest with coverage for SonarQube analysis..."
+    # clear any existing coverage data
+    coverage erase
+
+    # run tests with coverage accumulation
+    PYTHONPATH=. coverage run --source=src -m pytest tests/unit/ | tee tests/logs/pytest_unit.log
+    PYTHONPATH=. coverage run --source=src --append -m pytest tests/integration/ -s | tee tests/logs/pytest_integration.log
+    PYTHONPATH=. coverage run --source=src --append -m pytest tests/performance/ | tee tests/logs/pytest_performance.log
+    PYTHONPATH=. coverage run --source=src --append -m pytest tests/test_setup.py | tee tests/logs/pytest_setup.log
+
+    # generate combined coverage reports
+    coverage xml
+    coverage html
+    coverage report --skip-covered
+
+    # check all pytest logs for failures
+    if grep -q "FAILED" tests/logs/pytest_*.log; then
+        echo "❌ Some tests failed. Check tests/logs/pytest_*.log for details."
+        exit 1
+    fi
+
+    # run SonarQube analysis
+    ./tests/sonar.sh
+fi
+
+# final status message
+if [[ "$TEST_MODE" == false && "$SONAR_MODE" == true ]]; then
+    echo "✅ Linting, type checking, and SonarQube analysis completed!"
+elif [[ "$TEST_MODE" == false && "$SONAR_MODE" == false ]]; then
+    echo "✅ Linting, formatting, and type checking completed!"
+fi
+
+# print summary
 echo ""
 echo "🏁 Summary:"
 echo "   ⚡ Used ruff for linting and formatting"
