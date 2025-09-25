@@ -22,3 +22,5 @@ coverage.json
 pytest.log
 *.egg-info/
 tests/logs/
+.sonarwork/
+*sonar-project.properties
