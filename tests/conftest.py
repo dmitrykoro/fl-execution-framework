@@ -212,7 +212,7 @@ def pytest_runtest_makereport(item, call):
                     "Hint: An ImportError often means a problem with your environment."
                 )
                 failure_logger.warning(
-                    "  - Did you forget to activate the virtual environment? (`source .venv/Scripts/activate`)"
+                    "  - Did you forget to activate the virtual environment? (`source venv/Scripts/activate`)"
                 )
                 failure_logger.warning(
                     "  - Are you running pytest from the project root directory?"
