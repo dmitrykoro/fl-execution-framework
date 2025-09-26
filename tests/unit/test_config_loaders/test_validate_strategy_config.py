@@ -2,7 +2,7 @@
 Unit tests for strategy configuration validation.
 
 Tests strategy parameter validation, error handling for invalid JSON and missing parameters,
-and clear error message generation according to requirements 2.2, 2.3, 2.5.
+and clear error message generation.
 """
 
 import pytest
@@ -37,12 +37,13 @@ class TestValidateStrategyConfig:
             "training_device": "cpu",
             "cpus_per_client": 1,
             "gpus_per_client": 0.0,
-            "min_fit_clients": 8,
-            "min_evaluate_clients": 8,
+            "min_fit_clients": 10,
+            "min_evaluate_clients": 10,
             "min_available_clients": 10,
             "evaluate_metrics_aggregation_fn": "weighted_average",
             "num_of_client_epochs": 3,
             "batch_size": 32,
+            "strict_mode": "true",
             # Trust-specific parameters
             "begin_removing_from_round": 2,
             "trust_threshold": 0.7,
@@ -73,12 +74,13 @@ class TestValidateStrategyConfig:
             "training_device": "gpu",
             "cpus_per_client": 2,
             "gpus_per_client": 0.5,
-            "min_fit_clients": 6,
-            "min_evaluate_clients": 6,
+            "min_fit_clients": 8,
+            "min_evaluate_clients": 8,
             "min_available_clients": 8,
             "evaluate_metrics_aggregation_fn": "weighted_average",
             "num_of_client_epochs": 5,
             "batch_size": 64,
+            "strict_mode": "true",
             # PID-specific parameters
             "num_std_dev": 2.0,
             "Kp": 1.0,
@@ -381,6 +383,12 @@ class TestValidateStrategyConfigInvalidValues:
             "evaluate_metrics_aggregation_fn": "weighted_average",
             "num_of_client_epochs": 3,
             "batch_size": 32,
+            "strict_mode": "true",
+            # Trust-specific parameters
+            "begin_removing_from_round": 2,
+            "trust_threshold": 0.7,
+            "beta_value": 0.5,
+            "num_of_clusters": 1,
         }
 
         with pytest.raises(ValidationError) as exc_info:
@@ -1235,6 +1243,254 @@ class TestCheckLlmSpecificParameters:
         check_llm_specific_parameters(config)
 
 
+class TestStrictModeValidation:
+    """Test suite for strict_mode validation functionality."""
+
+    def test_strict_mode_defaults_to_true(self):
+        """Test that strict_mode defaults to 'true' when not specified."""
+        config = {
+            "aggregation_strategy_keyword": "trust",
+            "remove_clients": "true",
+            "dataset_keyword": "femnist_iid",
+            "model_type": "cnn",
+            "use_llm": "false",
+            "num_of_rounds": 5,
+            "num_of_clients": 10,
+            "num_of_malicious_clients": 2,
+            "attack_type": "label_flipping",
+            "show_plots": "false",
+            "save_plots": "true",
+            "save_csv": "true",
+            "preserve_dataset": "false",
+            "training_subset_fraction": 0.8,
+            "training_device": "cpu",
+            "cpus_per_client": 1,
+            "gpus_per_client": 0.0,
+            "min_fit_clients": 8,
+            "min_evaluate_clients": 8,
+            "min_available_clients": 10,
+            "evaluate_metrics_aggregation_fn": "weighted_average",
+            "num_of_client_epochs": 3,
+            "batch_size": 32,
+            # Trust-specific parameters
+            "begin_removing_from_round": 2,
+            "trust_threshold": 0.7,
+            "beta_value": 0.5,
+            "num_of_clusters": 1,
+            # strict_mode not specified - should default to "true"
+        }
+
+        # Should not raise exception and auto-configure clients
+        validate_strategy_config(config)
+        assert config["strict_mode"] == "true"
+        assert config["min_fit_clients"] == 10
+        assert config["min_evaluate_clients"] == 10
+        assert config["min_available_clients"] == 10
+
+    def test_strict_mode_enabled_auto_configures_clients(self):
+        """Test that strict_mode=true forces all min_* values to equal num_of_clients."""
+        config = {
+            "aggregation_strategy_keyword": "trust",
+            "remove_clients": "true",
+            "dataset_keyword": "femnist_iid",
+            "model_type": "cnn",
+            "use_llm": "false",
+            "num_of_rounds": 5,
+            "num_of_clients": 10,
+            "num_of_malicious_clients": 2,
+            "attack_type": "label_flipping",
+            "show_plots": "false",
+            "save_plots": "true",
+            "save_csv": "true",
+            "preserve_dataset": "false",
+            "training_subset_fraction": 0.8,
+            "training_device": "cpu",
+            "cpus_per_client": 1,
+            "gpus_per_client": 0.0,
+            "min_fit_clients": 5,  # Will be auto-configured to 10
+            "min_evaluate_clients": 7,  # Will be auto-configured to 10
+            "min_available_clients": 8,  # Will be auto-configured to 10
+            "evaluate_metrics_aggregation_fn": "weighted_average",
+            "num_of_client_epochs": 3,
+            "batch_size": 32,
+            "strict_mode": "true",
+            # Trust-specific parameters
+            "begin_removing_from_round": 2,
+            "trust_threshold": 0.7,
+            "beta_value": 0.5,
+            "num_of_clusters": 1,
+        }
+
+        # Should not raise exception and auto-configure all client values
+        validate_strategy_config(config)
+        assert config["min_fit_clients"] == 10
+        assert config["min_evaluate_clients"] == 10
+        assert config["min_available_clients"] == 10
+
+    def test_strict_mode_disabled_preserves_client_config(self):
+        """Test that strict_mode=false preserves original client configuration."""
+        config = {
+            "aggregation_strategy_keyword": "trust",
+            "remove_clients": "true",
+            "dataset_keyword": "femnist_iid",
+            "model_type": "cnn",
+            "use_llm": "false",
+            "num_of_rounds": 5,
+            "num_of_clients": 10,
+            "num_of_malicious_clients": 2,
+            "attack_type": "label_flipping",
+            "show_plots": "false",
+            "save_plots": "true",
+            "save_csv": "true",
+            "preserve_dataset": "false",
+            "training_subset_fraction": 0.8,
+            "training_device": "cpu",
+            "cpus_per_client": 1,
+            "gpus_per_client": 0.0,
+            "min_fit_clients": 5,
+            "min_evaluate_clients": 7,
+            "min_available_clients": 8,
+            "evaluate_metrics_aggregation_fn": "weighted_average",
+            "num_of_client_epochs": 3,
+            "batch_size": 32,
+            "strict_mode": "false",
+            # Trust-specific parameters
+            "begin_removing_from_round": 2,
+            "trust_threshold": 0.7,
+            "beta_value": 0.5,
+            "num_of_clusters": 1,
+        }
+
+        # Should not raise exception and preserve original values
+        validate_strategy_config(config)
+        assert config["min_fit_clients"] == 5
+        assert config["min_evaluate_clients"] == 7
+        assert config["min_available_clients"] == 8
+
+    def test_strict_mode_fails_when_min_clients_exceed_total(self):
+        """Test that validation fails when min_* > num_of_clients regardless of strict_mode."""
+        config = {
+            "aggregation_strategy_keyword": "trust",
+            "remove_clients": "true",
+            "dataset_keyword": "femnist_iid",
+            "model_type": "cnn",
+            "use_llm": "false",
+            "num_of_rounds": 5,
+            "num_of_clients": 5,
+            "num_of_malicious_clients": 2,
+            "attack_type": "label_flipping",
+            "show_plots": "false",
+            "save_plots": "true",
+            "save_csv": "true",
+            "preserve_dataset": "false",
+            "training_subset_fraction": 0.8,
+            "training_device": "cpu",
+            "cpus_per_client": 1,
+            "gpus_per_client": 0.0,
+            "min_fit_clients": 8,  # > num_of_clients
+            "min_evaluate_clients": 6,  # > num_of_clients
+            "min_available_clients": 5,
+            "evaluate_metrics_aggregation_fn": "weighted_average",
+            "num_of_client_epochs": 3,
+            "batch_size": 32,
+            "strict_mode": "false",
+            # Trust-specific parameters
+            "begin_removing_from_round": 2,
+            "trust_threshold": 0.7,
+            "beta_value": 0.5,
+            "num_of_clusters": 1,
+        }
+
+        with pytest.raises(ValidationError) as exc_info:
+            validate_strategy_config(config)
+
+        error_message = str(exc_info.value)
+        assert "EXPERIMENT STOPPED: Client configuration error" in error_message
+        assert "Cannot require more clients than available" in error_message
+        assert "Total clients: 5" in error_message
+        assert "min_fit_clients: 8" in error_message
+        assert "min_evaluate_clients: 6" in error_message
+
+    def test_strict_mode_with_already_configured_clients(self):
+        """Test that strict_mode=true does not modify already correct client config."""
+        config = {
+            "aggregation_strategy_keyword": "trust",
+            "remove_clients": "true",
+            "dataset_keyword": "femnist_iid",
+            "model_type": "cnn",
+            "use_llm": "false",
+            "num_of_rounds": 5,
+            "num_of_clients": 10,
+            "num_of_malicious_clients": 2,
+            "attack_type": "label_flipping",
+            "show_plots": "false",
+            "save_plots": "true",
+            "save_csv": "true",
+            "preserve_dataset": "false",
+            "training_subset_fraction": 0.8,
+            "training_device": "cpu",
+            "cpus_per_client": 1,
+            "gpus_per_client": 0.0,
+            "min_fit_clients": 10,  # Already correct
+            "min_evaluate_clients": 10,  # Already correct
+            "min_available_clients": 10,  # Already correct
+            "evaluate_metrics_aggregation_fn": "weighted_average",
+            "num_of_client_epochs": 3,
+            "batch_size": 32,
+            "strict_mode": "true",
+            # Trust-specific parameters
+            "begin_removing_from_round": 2,
+            "trust_threshold": 0.7,
+            "beta_value": 0.5,
+            "num_of_clusters": 1,
+        }
+
+        # Should not raise exception and preserve correct values
+        validate_strategy_config(config)
+        assert config["min_fit_clients"] == 10
+        assert config["min_evaluate_clients"] == 10
+        assert config["min_available_clients"] == 10
+
+    def test_strict_mode_invalid_value_fails_schema_validation(self):
+        """Test that invalid strict_mode values fail schema validation."""
+        config = {
+            "aggregation_strategy_keyword": "trust",
+            "remove_clients": "true",
+            "dataset_keyword": "femnist_iid",
+            "model_type": "cnn",
+            "use_llm": "false",
+            "num_of_rounds": 5,
+            "num_of_clients": 10,
+            "num_of_malicious_clients": 2,
+            "attack_type": "label_flipping",
+            "show_plots": "false",
+            "save_plots": "true",
+            "save_csv": "true",
+            "preserve_dataset": "false",
+            "training_subset_fraction": 0.8,
+            "training_device": "cpu",
+            "cpus_per_client": 1,
+            "gpus_per_client": 0.0,
+            "min_fit_clients": 10,
+            "min_evaluate_clients": 10,
+            "min_available_clients": 10,
+            "evaluate_metrics_aggregation_fn": "weighted_average",
+            "num_of_client_epochs": 3,
+            "batch_size": 32,
+            "strict_mode": "maybe",  # Invalid value
+            # Trust-specific parameters
+            "begin_removing_from_round": 2,
+            "trust_threshold": 0.7,
+            "beta_value": 0.5,
+            "num_of_clusters": 1,
+        }
+
+        with pytest.raises(ValidationError) as exc_info:
+            validate_strategy_config(config)
+
+        assert "'maybe' is not one of ['true', 'false']" in str(exc_info.value)
+
+
 class TestValidateStrategyConfigLlmIntegration:
     """Test LLM integration in the main validation function."""
 
@@ -1353,7 +1609,4 @@ class TestValidateStrategyConfigLlmIntegration:
 
         # Should fail due to insufficient clients
         error_message = str(exc_info.value)
-        assert (
-            "Number of clients for fit, evaluate or available cannot be greater than total number of clients"
-            in error_message
-        )
+        assert "EXPERIMENT STOPPED: Client configuration error" in error_message
