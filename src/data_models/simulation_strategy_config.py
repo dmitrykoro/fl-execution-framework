@@ -48,6 +48,8 @@ class StrategyConfig:
 
     trim_ratio: float = None
 
+    strict_mode: bool = None
+
     strategy_number: int = None
 
     def __init__(self, **kwargs):

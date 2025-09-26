@@ -35,6 +35,7 @@ Defines the aggregation strategy. Options:
   - `rfa`: RFA (Robust Federated Averaging) aggregation strategy. Provides Byzantine fault tolerance through weighted median-based aggregation.
   - `trimmed_mean`: Trimmed-Mean aggregation strategy. Aggregates updates by removing a fixed fraction of the largest and smallest values for each parameter dimension before averaging. Robust against outliers and certain types of attacks.
   - `bulyan`: Bulyan aggregation strategy. Uses Multi-Krum as the first step of filtering and Trimmed-Mean as the second step to ensure robustness.
+  - `strict_mode`: ensures that Flower trains and aggregates all available clients at every round. 
 
 
 - **`remove_clients`**: attempt to remove malicious clients using strategy-specific mechanisms.

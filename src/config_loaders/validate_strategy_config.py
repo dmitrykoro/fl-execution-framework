@@ -10,6 +10,9 @@ config_schema = {
                     "multi-krum", "krum", "multi-krum-based", "trimmed_mean",
                     "rfa", "bulyan"]
         },
+        "strict_mode": {
+            "type": "string"
+        },
         "remove_clients": {
             "type": "string",
             "enum": ["true", "false"]
