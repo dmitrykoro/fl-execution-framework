@@ -62,7 +62,8 @@ config_schema = {
         },
         "llm_model": {
             "type": "string",
-            "enum": ["microsoft/BiomedNLP-BiomedBERT-base-uncased-abstract-fulltext"]
+            "enum": ["microsoft/BiomedNLP-BiomedBERT-base-uncased-abstract-fulltext", 
+                     "microsoft/BiomedNLP-PubMedBERT-base-uncased-abstract-fulltext"]
         },
         "llm_task": {
             "type": "string",
