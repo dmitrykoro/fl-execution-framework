@@ -1,93 +1,41 @@
 #!/bin/bash
-# Runs the simulation, setting up the environment if needed.
+# Runs the simulation, setting up the environment if needed
 
-# Exit immediately on error.
-set -e
+# Source common utilities
+source "$(dirname "$0")/tests/scripts/common.sh"
 
-VENV_DIR=""
-
-command_exists () {
-    command -v "$1" >/dev/null 2>&1 ;
-}
-
-activate_venv () {
-    # Handle Windows and Unix-like activation paths.
-    if [ -f "$VENV_DIR/Scripts/activate" ]; then
-        source "$VENV_DIR/Scripts/activate"
-    else
-        source "$VENV_DIR/bin/activate"
-    fi
-}
-
-# Find a compatible Python 3.9+ interpreter, checking newer versions first.
-PYTHON=""
-for version in python python3.11 python3.10 python3.9 python3; do
-    if command_exists $version; then
-        VERSION_CHECK=$($version -c "import sys; print(sys.version_info >= (3, 9))" 2>/dev/null)
-        if [ "$VERSION_CHECK" = "True" ]; then
-            PYTHON=$version
-            break
-        fi
-    fi
-done
-
-# Fallback to 'py' launcher on Windows.
-if [ -z "$PYTHON" ] && command_exists py; then
-    for version in "-3.11" "-3.10" "-3.9" "-3"; do
-        VERSION_CHECK=$(py $version -c "import sys; print(sys.version_info >= (3, 9))" 2>/dev/null)
-        if [ "$VERSION_CHECK" = "True" ]; then
-            PYTHON="py $version"
-            break
-        fi
-    done
+# Set up the virtual environment
+if [[ -z "${VIRTUAL_ENV:-}" ]] && ! [ -d "venv" ] && ! [ -d ".venv" ]; then
+    log_warning "Virtual environment not found. Running reinstall_requirements.sh to create 'venv'..."
+    ./reinstall_requirements.sh
 fi
 
-if [ -z "$PYTHON" ]; then
-    echo "Python 3.9+ is not installed. Please install Python 3.9 or higher."
-    exit 1
-fi
+# Activate environment and find python
+setup_virtual_environment
+find_python_interpreter
 
-# Use wget for downloads, fall back to Python for portability.
-DOWNLOAD_METHOD="python"
-if command_exists wget; then
-  DOWNLOAD_METHOD="wget"
-fi
-
-DATASET_URL="https://fl-dataset-storage.s3.us-east-1.amazonaws.com/datasets.tar"
-
-# Find and activate virtual environment.
-# Checks .venv first, then venv, creates .venv if neither exists.
-if [ -d ".venv" ]; then
-    VENV_DIR=".venv"
-elif [ -d "venv" ]; then
-    VENV_DIR="venv"
-fi
-
-if [ -n "$VENV_DIR" ]; then
-    echo "Found existing venv in '$VENV_DIR', activating..."
-    activate_venv
-else
-    echo "Virtual environment not found, creating '.venv'..."
-    sh reinstall_requirements.sh
-    VENV_DIR=".venv"
-    activate_venv
-fi
-
-# Check for a sample dataset to see if download is needed.
+# Check for datasets and download if missing
 if [ ! -d "datasets/bloodmnist" ]; then
-  echo "Datasets not found. Starting download..."
+  log_info "Datasets not found. Starting download..."
+  DATASET_URL="https://fl-dataset-storage.s3.us-east-1.amazonaws.com/datasets.tar"
+  
+  # Create datasets directory
+  mkdir -p datasets
   pushd datasets > /dev/null
 
-  if [ "$DOWNLOAD_METHOD" = "wget" ]; then
+  if command_exists wget; then
+    log_info "Downloading with wget..."
     wget "$DATASET_URL"
   else
-    $PYTHON -c "import urllib.request; urllib.request.urlretrieve('$DATASET_URL', 'datasets.tar')"
+    log_info "Downloading with Python..."
+    $PYTHON_CMD -c "import urllib.request; print('Downloading datasets.tar...'); urllib.request.urlretrieve('$DATASET_URL', 'datasets.tar')"
   fi
 
+  log_info "Extracting datasets..."
   tar -xf datasets.tar
   rm datasets.tar
   popd > /dev/null
 fi
 
-echo "Initializing simulation..."
-$PYTHON -m src.simulation_runner
+log_info "🚀 Initializing simulation..."
+$PYTHON_CMD -m src.simulation_runner
