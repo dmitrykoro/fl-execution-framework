@@ -2,7 +2,7 @@
 
 ## 📚 Complete Developer Guide
 
-**For comprehensive testing and development documentation, see:**
+**For testing and development documentation, see:**
 
 ### 🎯 [`TESTING_GUIDE.md`](TESTING_GUIDE.md)
 
@@ -10,7 +10,7 @@
 
 - ⚡ Quick start commands & development workflow
 - 🔧 Strategy client configuration system
-- 🧠 FL fundamentals & Byzantine-robust strategies
+- 🧠 FL fundamentals & Byzantine defense strategies
 - 🧪 Test development standards & patterns
 - 🚀 Performance optimization & parallel execution
 - 📊 Quality assurance & scalability testing
@@ -19,7 +19,7 @@
 
 ```bash
 # Essential validation
-PYTHONPATH=. python tests/demo/strategy_config_demo.py
+python tests/demo/strategy_config_demo.py
 cd tests && ./lint.sh
 python -m pytest tests/unit/ -n auto -x --tb=line
 
