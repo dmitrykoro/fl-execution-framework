@@ -4,10 +4,10 @@ Mock dataset generators for federated learning tests.
 
 from typing import Callable, Dict, List, Optional, Tuple
 
-import numpy as np
 import torch
 from torch.utils.data import DataLoader, Dataset
 
+from tests.common import np
 from src.dataset_handlers.dataset_handler import DatasetHandler
 
 NDArray = np.ndarray
@@ -23,8 +23,7 @@ class MockDataset(Dataset[Tuple[torch.Tensor, torch.Tensor]]):
         input_shape: Tuple[int, ...] = (3, 32, 32),
         use_default_seed: bool = True,
     ):
-        """
-        Initialize mock dataset with specified parameters.
+        """Initialize mock dataset.
 
         Args:
             size: Number of samples in the dataset
@@ -96,7 +95,7 @@ class MockFederatedDataset:
         return client_datasets
 
     def get_client_dataset(self, client_id: int) -> MockDataset:
-        """Get dataset for a specific client."""
+        """Get client dataset."""
         if client_id not in self.client_datasets:
             raise ValueError(f"Client {client_id} not found")
         return self.client_datasets[client_id]
@@ -104,7 +103,7 @@ class MockFederatedDataset:
     def get_client_dataloader(
         self, client_id: int, batch_size: int = 32
     ) -> DataLoader[Tuple[torch.Tensor, torch.Tensor]]:
-        """Get DataLoader for a specific client."""
+        """Get client DataLoader."""
         dataset = self.get_client_dataset(client_id)
         return DataLoader(dataset, batch_size=batch_size, shuffle=True, num_workers=0)
 
@@ -167,7 +166,7 @@ class MockDatasetHandler(DatasetHandler):
         self.is_setup = False
 
     def get_client_data(self, client_id: int) -> MockDataset:
-        """Get data for a specific client."""
+        """Get client data."""
         if not self.is_setup or self.federated_dataset is None:
             raise RuntimeError("Dataset not setup. Call setup_dataset() first.")
         return self.federated_dataset.get_client_dataset(client_id)

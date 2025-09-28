@@ -1,6 +1,6 @@
-from unittest.mock import Mock, patch
+from unittest.mock import patch
 
-import pytest
+from tests.common import Mock, pytest
 from src.dataset_loaders.medquad_dataset_loader import MedQuADDatasetLoader
 
 

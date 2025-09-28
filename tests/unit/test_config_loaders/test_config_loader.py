@@ -8,7 +8,7 @@ and error handling with mocked file operations.
 import json
 from unittest.mock import mock_open, patch
 
-import pytest
+from tests.common import pytest
 from src.config_loaders.config_loader import ConfigLoader
 
 

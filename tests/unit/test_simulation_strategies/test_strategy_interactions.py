@@ -4,12 +4,17 @@ Unit tests for strategy interactions and combinations.
 Tests Trust + PID strategy combinations, Krum variant interactions, and Byzantine-robust strategy combinations.
 """
 
-from unittest.mock import Mock, patch
+from unittest.mock import patch
 
-import numpy as np
-import pytest
-from flwr.common import FitRes, ndarrays_to_parameters, parameters_to_ndarrays
-from flwr.server.client_proxy import ClientProxy
+from tests.common import (
+    Mock,
+    np,
+    pytest,
+    FitRes,
+    ndarrays_to_parameters,
+    parameters_to_ndarrays,
+    ClientProxy,
+)
 from src.data_models.simulation_strategy_history import SimulationStrategyHistory
 from src.simulation_strategies.bulyan_strategy import BulyanStrategy
 from src.simulation_strategies.krum_based_removal_strategy import (
@@ -27,7 +32,7 @@ from src.simulation_strategies.trust_based_removal_strategy import (
     TrustBasedRemovalStrategy,
 )
 
-from tests.conftest import generate_mock_client_data
+from tests.common import generate_mock_client_data
 
 
 class TestStrategyInteractions:

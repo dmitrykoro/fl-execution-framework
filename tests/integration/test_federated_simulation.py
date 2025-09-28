@@ -7,10 +7,9 @@ cross-system interactions with mocked external dependencies.
 
 from pathlib import Path
 from typing import Any, Dict
-from unittest.mock import Mock, patch
+from unittest.mock import patch
 
-import numpy as np
-import pytest
+from tests.common import Mock, np, pytest
 from src.data_models.simulation_strategy_config import StrategyConfig
 from src.federated_simulation import FederatedSimulation
 
@@ -81,14 +80,14 @@ class TestFederatedSimulationIntegration:
 
     @pytest.fixture
     def mock_dataset_handler(self) -> MockDatasetHandler:
-        """Create a mock dataset handler for testing."""
+        """Mock dataset handler."""
         handler = MockDatasetHandler(dataset_type="its")
         handler.setup_dataset(num_clients=5)
         return handler
 
     @pytest.fixture
     def temp_dataset_dir(self, tmp_path: Path) -> str:
-        """Create a temporary dataset directory for testing."""
+        """Temporary dataset directory."""
         dataset_dir = tmp_path / "datasets" / "its"
         dataset_dir.mkdir(parents=True)
         return str(dataset_dir)

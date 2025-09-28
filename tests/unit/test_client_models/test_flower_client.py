@@ -7,10 +7,9 @@ with mocked PyTorch operations and data.
 
 from collections import OrderedDict
 from typing import Any, Dict
-from unittest.mock import Mock, patch
+from unittest.mock import patch
 
-import numpy as np
-import pytest
+from tests.common import Mock, np, pytest
 import torch
 from src.client_models.flower_client import FlowerClient
 

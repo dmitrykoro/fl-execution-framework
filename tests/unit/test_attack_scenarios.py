@@ -1,9 +1,6 @@
 """Parameterized tests for attack scenarios in federated learning."""
 
-from unittest.mock import Mock
-
-import numpy as np
-import pytest
+from tests.common import Mock, np, pytest
 
 from tests.fixtures.mock_datasets import (
     MockDatasetHandler,

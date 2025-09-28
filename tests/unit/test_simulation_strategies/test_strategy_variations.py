@@ -6,9 +6,9 @@ Verifies each strategy's specific behavior across different configurations.
 """
 
 import importlib
-from unittest.mock import Mock, patch
+from unittest.mock import patch
 
-import pytest
+from tests.common import Mock, pytest
 from src.data_models.simulation_strategy_history import SimulationStrategyHistory
 from src.simulation_strategies.krum_based_removal_strategy import (
     KrumBasedRemovalStrategy,
@@ -18,7 +18,7 @@ from src.simulation_strategies.trust_based_removal_strategy import (
     TrustBasedRemovalStrategy,
 )
 
-from tests.conftest import generate_mock_client_data
+from tests.common import generate_mock_client_data
 
 
 class TestStrategyVariations:
@@ -718,8 +718,6 @@ class TestStrategyVariations:
         """Test initialization of advanced aggregation strategies."""
         # Import the strategy class dynamically
         module_path, class_name = strategy_class.rsplit(".", 1)
-
-        import importlib
 
         try:
             module = importlib.import_module(module_path)

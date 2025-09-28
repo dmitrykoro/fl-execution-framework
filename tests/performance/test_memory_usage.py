@@ -8,17 +8,17 @@ during simulation execution.
 import gc
 import os
 from typing import Any, Generator, List, Optional, Tuple
-from unittest.mock import Mock, patch
+from unittest.mock import patch
 
-import numpy as np
+from tests.common import Mock, np, pytest
 import psutil
-import pytest
 from src.data_models.client_info import ClientInfo
 from src.data_models.round_info import RoundsInfo
 from src.data_models.simulation_strategy_config import StrategyConfig
 from src.data_models.simulation_strategy_history import SimulationStrategyHistory
 
 from tests.fixtures.mock_datasets import (
+    MockDatasetHandler,
     MockFederatedDataset,
     generate_mock_client_parameters,
 )
@@ -163,7 +163,6 @@ class TestMemoryUsageMonitoring:
         )
 
         # Create mock dataset handler
-        from tests.fixtures.mock_datasets import MockDatasetHandler
 
         dataset_handler = MockDatasetHandler()
         dataset_handler.setup_dataset(num_clients=50)
@@ -368,7 +367,6 @@ class TestResourceCleanup:
         )
 
         # Create mock dataset handler
-        from tests.fixtures.mock_datasets import MockDatasetHandler
 
         dataset_handler = MockDatasetHandler()
         dataset_handler.setup_dataset(num_clients=15)
@@ -387,7 +385,6 @@ class TestResourceCleanup:
         memory_monitor.record_measurement("components_created")
 
         # Create mock dataset handler
-        from tests.fixtures.mock_datasets import MockDatasetHandler
 
         dataset_handler = MockDatasetHandler()
         dataset_handler.setup_dataset(num_clients=15)
@@ -555,7 +552,6 @@ class TestLongRunningMemoryBehavior:
         )
 
         # Create mock dataset handler
-        from tests.fixtures.mock_datasets import MockDatasetHandler
 
         dataset_handler = MockDatasetHandler()
         dataset_handler.setup_dataset(num_clients=20)
@@ -570,7 +566,6 @@ class TestLongRunningMemoryBehavior:
         memory_samples: List[float] = []
 
         # Create mock dataset handler
-        from tests.fixtures.mock_datasets import MockDatasetHandler
 
         dataset_handler = MockDatasetHandler()
         dataset_handler.setup_dataset(num_clients=20)

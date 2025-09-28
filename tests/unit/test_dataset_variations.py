@@ -5,12 +5,14 @@ Tests dataset loading, transformation operations, and dataset-specific
 characteristics across all supported dataset types.
 """
 
-from unittest.mock import Mock, patch
+import os
+from unittest.mock import patch
 
-import pytest
+import psutil
 import torch
 from torch.utils.data import DataLoader
 
+from tests.common import Mock, pytest
 from tests.fixtures.mock_datasets import (
     MockDatasetHandler,
     MockFederatedDataset,
@@ -409,10 +411,6 @@ class TestDatasetVariations:
 
     def test_dataset_memory_efficiency(self):
         """Test memory efficiency across different dataset types."""
-        import os
-
-        import psutil
-
         process = psutil.Process(os.getpid())
         initial_memory = process.memory_info().rss
 

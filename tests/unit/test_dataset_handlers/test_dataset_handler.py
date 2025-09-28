@@ -8,10 +8,9 @@ and dataset configuration handling and validation.
 import os
 from pathlib import Path
 from typing import Dict, List, Set
-from unittest.mock import Mock, call, patch
+from unittest.mock import call, patch
 
-import numpy as np
-import pytest
+from tests.common import Mock, np, pytest
 from src.data_models.simulation_strategy_config import StrategyConfig
 from src.dataset_handlers.dataset_handler import DatasetHandler
 from src.output_handlers.directory_handler import DirectoryHandler

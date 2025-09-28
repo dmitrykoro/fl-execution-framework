@@ -1,7 +1,7 @@
 import sys
-from unittest.mock import MagicMock, Mock
+from unittest.mock import MagicMock
 
-import pytest
+from tests.common import Mock, pytest
 from src.data_models.client_info import ClientInfo
 from src.data_models.round_info import RoundsInfo
 from src.data_models.simulation_strategy_config import StrategyConfig

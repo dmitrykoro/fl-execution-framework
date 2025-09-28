@@ -1,9 +1,9 @@
 """Integration tests for strategy combination scenarios."""
 
 from typing import Any, Dict, List
-from unittest.mock import Mock, patch
+from unittest.mock import patch
 
-import pytest
+from tests.common import Mock, pytest
 from src.data_models.simulation_strategy_config import StrategyConfig
 from src.federated_simulation import FederatedSimulation
 from src.simulation_runner import SimulationRunner

@@ -8,16 +8,14 @@ and performance scaling across different configurations.
 import statistics
 import time
 from typing import Any, Dict, List, Optional, Tuple
-from unittest.mock import Mock
-
-import numpy as np
-import pytest
+from tests.common import Mock, np, pytest
 from src.data_models.client_info import ClientInfo
 from src.data_models.round_info import RoundsInfo
 from src.data_models.simulation_strategy_config import StrategyConfig
 from src.data_models.simulation_strategy_history import SimulationStrategyHistory
 
 from tests.fixtures.mock_datasets import (
+    MockDatasetHandler,
     MockFederatedDataset,
     generate_byzantine_client_parameters,
     generate_mock_client_parameters,
@@ -161,7 +159,6 @@ class TestClientScalability:
                 "beta_value": 0.5,
             }
         )
-        from tests.fixtures.mock_datasets import MockDatasetHandler
 
         warmup_handler = MockDatasetHandler()
         warmup_handler.setup_dataset(num_clients=5)
@@ -555,7 +552,6 @@ class TestDatasetScalability:
         num_clients = 20
 
         # Warmup run to stabilize timing
-        from tests.fixtures.mock_datasets import MockDatasetHandler
 
         warmup_handler = MockDatasetHandler()
         warmup_handler.setup_dataset(num_clients=5)

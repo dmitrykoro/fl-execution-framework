@@ -5,7 +5,7 @@ Tests strategy parameter validation, error handling for invalid JSON and missing
 and clear error message generation.
 """
 
-import pytest
+from tests.common import pytest
 from jsonschema import ValidationError
 from src.config_loaders.validate_strategy_config import (
     check_llm_specific_parameters,

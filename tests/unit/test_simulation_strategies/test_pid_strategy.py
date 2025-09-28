@@ -4,16 +4,14 @@ Unit tests for PIDBasedRemovalStrategy.
 Tests PID controller logic implementation, PID variants behavior, and parameter handling.
 """
 
-from unittest.mock import Mock, patch
+from unittest.mock import patch
 
-import numpy as np
-import pytest
-from flwr.common import FitRes, ndarrays_to_parameters
-from flwr.server.client_proxy import ClientProxy
+import torch
+from tests.common import Mock, np, pytest, FitRes, ndarrays_to_parameters, ClientProxy
 from src.data_models.simulation_strategy_history import SimulationStrategyHistory
 from src.simulation_strategies.pid_based_removal_strategy import PIDBasedRemovalStrategy
 
-from tests.conftest import generate_mock_client_data
+from tests.common import generate_mock_client_data
 
 
 class TestPIDBasedRemovalStrategy:
@@ -649,7 +647,6 @@ class TestPIDBasedRemovalStrategy:
 
     def test_cosine_similarity_static_method(self):
         """Test cosine similarity calculation."""
-        import torch
 
         tensor1 = torch.tensor([1.0, 2.0, 3.0])
         tensor2 = torch.tensor([2.0, 4.0, 6.0])
@@ -661,7 +658,6 @@ class TestPIDBasedRemovalStrategy:
 
     def test_cosine_similarity_orthogonal_vectors(self):
         """Test cosine similarity with orthogonal vectors."""
-        import torch
 
         tensor1 = torch.tensor([1.0, 0.0])
         tensor2 = torch.tensor([0.0, 1.0])

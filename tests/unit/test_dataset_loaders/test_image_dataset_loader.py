@@ -1,6 +1,6 @@
-from unittest.mock import Mock, patch
+from unittest.mock import patch
 
-import pytest
+from tests.common import Mock, pytest
 import torch
 from src.dataset_loaders.image_dataset_loader import ImageDatasetLoader
 from torchvision import transforms

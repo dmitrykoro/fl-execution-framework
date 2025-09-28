@@ -1,8 +1,7 @@
-from unittest.mock import Mock, patch
+from unittest.mock import patch
 
 import matplotlib
-import numpy as np
-import pytest
+from tests.common import Mock, np, pytest
 from src.data_models.client_info import ClientInfo
 from src.data_models.round_info import RoundsInfo
 from src.data_models.simulation_strategy_config import StrategyConfig

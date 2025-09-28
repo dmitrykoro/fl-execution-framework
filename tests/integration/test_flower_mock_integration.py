@@ -7,8 +7,7 @@ Tests mock implementations as drop-in replacements for real Flower components.
 from typing import Any, Dict, List
 from unittest.mock import MagicMock, patch
 
-import numpy as np
-import pytest
+from tests.common import np, pytest
 
 from tests.fixtures.mock_flower_components import (
     MockClient,

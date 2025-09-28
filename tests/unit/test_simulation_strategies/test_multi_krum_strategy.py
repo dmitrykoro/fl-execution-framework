@@ -4,18 +4,15 @@ Unit tests for MultiKrumBasedRemovalStrategy.
 Tests Multi-Krum client selection algorithms and removal logic.
 """
 
-from unittest.mock import Mock, patch
+from unittest.mock import patch
 
-import numpy as np
-import pytest
-from flwr.common import FitRes, ndarrays_to_parameters
-from flwr.server.client_proxy import ClientProxy
+from tests.common import Mock, np, pytest, FitRes, ndarrays_to_parameters, ClientProxy
 from src.data_models.simulation_strategy_history import SimulationStrategyHistory
 from src.simulation_strategies.multi_krum_based_removal_strategy import (
     MultiKrumBasedRemovalStrategy,
 )
 
-from tests.conftest import generate_mock_client_data
+from tests.common import generate_mock_client_data
 
 
 class TestMultiKrumBasedRemovalStrategy:

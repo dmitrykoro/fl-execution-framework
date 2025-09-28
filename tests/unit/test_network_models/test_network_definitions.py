@@ -7,10 +7,9 @@ and state management with lightweight mock implementations.
 
 from collections import OrderedDict
 from typing import Any, Dict, List, Optional, Tuple, Type, Union, cast
-from unittest.mock import Mock, patch
+from unittest.mock import patch
 
-import numpy as np
-import pytest
+from tests.common import Mock, np, pytest
 import torch
 import torch.nn as nn
 

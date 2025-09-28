@@ -7,8 +7,7 @@ results for federated learning simulation testing.
 
 from unittest.mock import MagicMock
 
-import numpy as np
-import pytest
+from tests.common import np, pytest
 
 from tests.fixtures.mock_flower_components import (
     MockClient,
