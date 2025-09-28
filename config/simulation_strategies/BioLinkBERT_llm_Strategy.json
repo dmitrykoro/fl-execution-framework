@@ -1,0 +1,58 @@
+{
+  "shared_settings": {
+    "aggregation_strategy_keyword": "pid",
+    "remove_clients": "true",
+    "dataset_keyword": "medquad",
+    "use_llm": "true",
+    "num_of_rounds": 4,
+    "num_of_clients": 5,
+    "num_of_malicious_clients": 1,
+    "attack_ratio": 1.0,
+    "gaussian_noise_mean": 0,
+    "gaussian_noise_std": 75,
+    "show_plots": "false",
+    "save_plots": "true",
+    "save_csv": "true",
+    "training_device": "cuda",
+    "cpus_per_client": 1,
+    "gpus_per_client": 0.0,
+    "trust_threshold": 0.15,
+    "reputation_threshold": 0.15,
+    "beta_value": 0.75,
+    "num_of_clusters": 1,
+    "model_type": "transformer",
+    "llm_model": "microsoft/BiomedNLP-BioLinkBERT-base",
+    "llm_finetuning": "lora",
+    "llm_task": "mlm",
+    "llm_chunk_size": 256,
+    "mlm_probability": 0.15,
+    "lora_rank": 8,
+    "lora_alpha": 16,
+    "lora_dropout": 0.05,
+    "lora_target_modules": ["query", "value"],
+    "Kp": 1,
+    "Ki": 0.05,
+    "Kd": 0.05,
+    "num_krum_selections": 3,
+    "training_subset_fraction": 0.9,
+    "min_fit_clients": 5,
+    "min_evaluate_clients": 5,
+    "min_available_clients": 5,
+    "evaluate_metrics_aggregation_fn": "weighted_average",
+    "num_of_client_epochs": 1,
+    "batch_size": 20,
+    "preserve_dataset": "true",
+    "begin_removing_from_round": 2
+  },
+  "simulation_strategies": [
+    {
+      "attack_type": "gaussian_noise",
+      "num_std_dev": 2
+    },
+    {
+      "attack_type": "label_flipping",
+      "num_std_dev": 3
+    }
+  ]
+}
+
