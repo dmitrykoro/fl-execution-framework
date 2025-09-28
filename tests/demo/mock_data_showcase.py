@@ -1,35 +1,29 @@
 #!/usr/bin/env python3
 """
-Showcase of the comprehensive mock data generation system.
+Mock data generation demo.
 
-This demonstrates the realistic mock data capabilities built into the testing
-framework, showing how to generate federated learning data for testing without
-slow real datasets.
-
-USAGE:
-------
-To run this showcase:
-
-    PYTHONPATH=. python tests/demo/mock_data_showcase.py
-
-Or as a test:
-
-    PYTHONPATH=. python -m pytest tests/demo/mock_data_showcase.py -v -s
-
-WHAT THIS DEMONSTRATES:
------------------------
-- Realistic FL client data generation
-- Heterogeneous vs homogeneous client distributions
-- Byzantine attack simulation
-- Dataset-agnostic testing patterns
-- Performance benefits of mock data
+Usage:
+  python -m tests.demo.mock_data_showcase
+  python -m pytest tests/demo/mock_data_showcase.py -v -s
 """
 
 import time
-import numpy as np
-from unittest.mock import Mock
-from flwr.common import parameters_to_ndarrays
-from tests.conftest import generate_mock_client_data
+import logging
+import os
+
+# Set environment variables before importing joblib-dependent libraries
+os.environ.setdefault("LOKY_MAX_CPU_COUNT", "1")
+os.environ.setdefault("JOBLIB_START_METHOD", "spawn")
+
+from tests.common import (
+    Mock,
+    np,
+    parameters_to_ndarrays,
+    ndarrays_to_parameters,
+    generate_mock_client_data,
+    init_demo_output,
+    init_test_environment,
+)
 from src.simulation_strategies.trust_based_removal_strategy import (
     TrustBasedRemovalStrategy,
 )
@@ -38,150 +32,168 @@ from src.simulation_strategies.krum_based_removal_strategy import (
 )
 from src.data_models.simulation_strategy_history import SimulationStrategyHistory
 
+logger = logging.getLogger(__name__)
+
 
 def demonstrate_basic_mock_data():
-    """Show basic mock data generation capabilities."""
-    print("🎭 BASIC MOCK DATA GENERATION")
-    print("=" * 50)
+    """Show basic mock data generation."""
+    logger.info("🎭 BASIC MOCK DATA GENERATION")
+    logger.info("=" * 50)
 
-    # Generate simple mock data
     client_results = generate_mock_client_data(num_clients=5, param_shape=(10, 5))
 
-    print(f"Generated {len(client_results)} clients")
+    logger.info(f"Generated {len(client_results)} clients")
     for i, (client_proxy, fit_res) in enumerate(client_results):
-        print(f"Client {i}: {client_proxy.cid} examples={fit_res.num_examples}")
-        print(f"  Metrics: {fit_res.metrics}")
+        logger.info(f"Client {i}: {client_proxy.cid} examples={fit_res.num_examples}")
+        logger.info(f"  Metrics: {fit_res.metrics}")
         param_arrays = parameters_to_ndarrays(fit_res.parameters)
         param_shapes = [p.shape for p in param_arrays]
-        print(f"  Parameter shapes: {param_shapes}")
+        logger.info(f"  Parameter shapes: {param_shapes}")
 
-    print("✅ Mock data matches real FL structure!\n")
+    logger.info("Mock data matches real FL structure\n")
 
 
 def demonstrate_heterogeneous_vs_homogeneous():
     """Show different client data distributions."""
-    print("🌐 HETEROGENEOUS vs HOMOGENEOUS DATA")
-    print("=" * 50)
+    logger.info("🌐 HETEROGENEOUS vs HOMOGENEOUS DATA")
+    logger.info("=" * 50)
 
-    # The mock data generator creates heterogeneous data by design
     client_results = generate_mock_client_data(num_clients=6, param_shape=(20, 10))
 
-    print("📊 Parameter diversity analysis:")
+    logger.info("Parameter diversity:")
     param_norms = []
     for i, (client_proxy, fit_res) in enumerate(client_results):
-        # Get first parameter layer for analysis
         param_arrays = parameters_to_ndarrays(fit_res.parameters)
         first_layer = param_arrays[0]
         norm = np.linalg.norm(first_layer)
         param_norms.append(norm)
-        print(f"Client {i}: Parameter norm = {norm:.3f}")
+        logger.info(f"Client {i}: Parameter norm = {norm:.3f}")
 
     variance = np.var(param_norms)
-    print(f"\n📈 Parameter variance: {variance:.3f}")
+    logger.info(f"\nParameter variance: {variance:.3f}")
     if variance > 1.0:
-        print("✅ Data is heterogeneous (realistic FL scenario)")
+        logger.info("Data is heterogeneous (realistic FL scenario)")
     else:
-        print("ℹ️  Data is homogeneous (simplified scenario)")
+        logger.info("ℹ️  Data is homogeneous (simplified scenario)")
 
-    print("💡 First 2 clients are similar, others are varied by design\n")
+    logger.info("First 2 clients are similar, others are varied by design\n")
 
 
 def demonstrate_byzantine_attack_simulation():
-    """Show how to simulate Byzantine attacks with mock data."""
-    print("🛡️ BYZANTINE ATTACK SIMULATION")
-    print("=" * 50)
+    """Show Byzantine attack simulation with mock data."""
+    logger.info("🛡️ BYZANTINE ATTACK SIMULATION")
+    logger.info("=" * 50)
 
-    def create_byzantine_client(client_id: str, attack_intensity: float = 5.0):
+    # First generate honest clients to determine max magnitude
+    honest_clients = generate_mock_client_data(num_clients=7, param_shape=(10, 5))
+
+    # Calculate max honest client magnitude
+    max_honest_magnitude = 0.0
+    for _, fit_res in honest_clients:
+        param_arrays = parameters_to_ndarrays(fit_res.parameters)
+        first_layer = param_arrays[0]
+        magnitude = np.mean(np.abs(first_layer))
+        max_honest_magnitude = max(max_honest_magnitude, magnitude)
+
+    def create_byzantine_client(client_id: str, base_magnitude: float):
         """Create a mock Byzantine client with malicious parameters."""
-        from unittest.mock import Mock
-        from flwr.common import ndarrays_to_parameters
-
         client_proxy = Mock()
         client_proxy.cid = client_id
 
-        # Create malicious parameters (much larger values)
-        rng = np.random.default_rng(42 + int(client_id))
+        # Extract numeric part from client_id (e.g., "malicious_0" -> 0)
+        numeric_part = int(client_id.split("_")[-1]) if "_" in client_id else 0
+        rng = np.random.default_rng(42 + numeric_part)
+
+        # Ensure Byzantine magnitude is significantly higher than honest clients
+        attack_intensity = base_magnitude * (2.0 + numeric_part)  # 2x to 3x multiplier
         malicious_params = [
-            rng.standard_normal((10, 5)) * attack_intensity,  # 5x normal intensity
+            rng.standard_normal((10, 5)) * attack_intensity,
             rng.standard_normal(5) * attack_intensity,
         ]
 
         fit_res = Mock()
         fit_res.parameters = ndarrays_to_parameters(malicious_params)
         fit_res.num_examples = 100
-        fit_res.metrics = {"accuracy": 0.1, "loss": 10.0}  # Suspicious metrics
+        fit_res.metrics = {"accuracy": 0.1, "loss": 10.0}
 
         return (client_proxy, fit_res)
 
-    # Mix honest and Byzantine clients
-    honest_clients = generate_mock_client_data(num_clients=7, param_shape=(10, 5))
     byzantine_clients = [
-        create_byzantine_client("malicious_0", 5.0),
-        create_byzantine_client("malicious_1", 3.0),
+        create_byzantine_client("malicious_0", float(max_honest_magnitude)),
+        create_byzantine_client("malicious_1", float(max_honest_magnitude)),
     ]
 
     all_clients = honest_clients + byzantine_clients
 
-    print(
+    logger.info(
         f"Created {len(honest_clients)} honest + {len(byzantine_clients)} Byzantine clients"
     )
 
-    # Analyze parameter magnitudes
-    print("\n📊 Parameter magnitude analysis:")
+    logger.info("\nParameter magnitude analysis:")
+    honest_magnitudes = []
+    byzantine_magnitudes = []
+
     for i, (client_proxy, fit_res) in enumerate(all_clients):
         param_arrays = parameters_to_ndarrays(fit_res.parameters)
         first_layer = param_arrays[0]
         magnitude = np.mean(np.abs(first_layer))
         client_type = "Byzantine" if "malicious" in client_proxy.cid else "Honest"
-        print(
+        logger.info(
             f"{client_type:>9} Client {client_proxy.cid}: Avg magnitude = {magnitude:.3f}"
         )
 
-    print("✅ Byzantine clients have much higher parameter magnitudes\n")
+        if "malicious" in client_proxy.cid:
+            byzantine_magnitudes.append(magnitude)
+        else:
+            honest_magnitudes.append(magnitude)
+
+    # Dynamic comparison message
+    avg_honest = np.mean(honest_magnitudes)
+    avg_byzantine = np.mean(byzantine_magnitudes)
+    ratio = avg_byzantine / avg_honest if avg_honest > 0 else float("inf")
+
+    logger.info(f"\nAvg honest magnitude: {avg_honest:.3f}")
+    logger.info(f"Avg Byzantine magnitude: {avg_byzantine:.3f}")
+    logger.info(f"Byzantine clients have {ratio:.1f}x higher parameter magnitudes\n")
 
 
 def demonstrate_performance_benefits():
-    """Show performance benefits of mock data vs real data."""
-    print("⚡ PERFORMANCE BENEFITS")
-    print("=" * 50)
+    """Show performance benefits of mock data."""
+    logger.info("PERFORMANCE BENEFITS")
+    logger.info("=" * 50)
 
-    # Time mock data generation
     start_time = time.time()
     mock_clients = generate_mock_client_data(num_clients=100, param_shape=(1000, 500))
     mock_time = time.time() - start_time
 
-    # Calculate data size
     total_params = 0
     for _, fit_res in mock_clients:
         param_arrays = parameters_to_ndarrays(fit_res.parameters)
         for param in param_arrays:
             total_params += param.size
 
-    print("🚀 Mock data generation:")
-    print("   • 100 clients with 1000x500 parameters")
-    print(f"   • Total parameters: {total_params:,}")
-    print(f"   • Generation time: {mock_time:.4f} seconds")
-    print("   • Memory efficient: Generated on-demand")
+    logger.info("Mock data generation:")
+    logger.info("   • 100 clients with 1000x500 parameters")
+    logger.info(f"   • Total parameters: {total_params:,}")
+    logger.info(f"   • Generation time: {mock_time:.4f} seconds")
+    logger.info("   • Memory efficient: Generated on-demand")
+    logger.info("\nReal data loading typically:")
+    logger.info("   • Take 10-30 seconds to load from disk")
+    logger.info("   • Require gigabytes of storage")
+    logger.info("   • Need network downloads for public datasets")
+    logger.info("   • Have inconsistent formats across datasets")
 
-    print("\n🐌 Real data loading would typically:")
-    print("   • Take 10-30 seconds to load from disk")
-    print("   • Require gigabytes of storage")
-    print("   • Need network downloads for public datasets")
-    print("   • Have inconsistent formats across datasets")
-
-    speedup = 20 / mock_time  # Assuming 20s for real data
-    print(f"\n📈 Mock data is ~{speedup:.0f}x faster than real data loading!")
-    print("✅ Perfect for rapid development and CI/CD\n")
+    speedup = 20 / mock_time if mock_time > 0 else float("inf")
+    logger.info(f"\nMock data is ~{speedup:.0f}x faster than real data loading")
+    logger.info("Suitable for development and CI/CD\n")
 
 
 def demonstrate_strategy_testing():
-    """Show mock data integration with strategy testing."""
-    print("🧪 STRATEGY TESTING WITH MOCK DATA")
-    print("=" * 50)
+    """Show mock data with strategy testing."""
+    logger.info("🧪 STRATEGY TESTING WITH MOCK DATA")
+    logger.info("=" * 50)
 
-    # Test multiple strategies with the same mock data
     mock_clients = generate_mock_client_data(num_clients=10, param_shape=(50, 25))
-
     mock_strategy_history = Mock(spec=SimulationStrategyHistory)
     strategies = [
         (
@@ -206,7 +218,7 @@ def demonstrate_strategy_testing():
         ),
     ]
 
-    print("Testing strategies with identical mock data:")
+    logger.info("Testing strategies with identical mock data:")
     for name, strategy in strategies:
         try:
             start_time = time.time()
@@ -217,23 +229,23 @@ def demonstrate_strategy_testing():
 
             if result:
                 params, metrics = result
-                print(
+                logger.info(
                     f"✅ {name:>12}: {test_time:.4f}s, params={len(params)}, metrics={len(metrics)}"
                 )
             else:
-                print(f"⚠️  {name:>12}: No result returned")
+                logger.info(f"⚠️  {name:>12}: No result returned")
 
         except Exception as e:
-            print(f"❌ {name:>12}: Failed - {str(e)[:50]}...")
+            logger.info(f"❌ {name:>12}: Failed - {str(e)[:50]}...")
 
-    print("\n💡 Same mock data tests multiple strategies consistently")
-    print("🎯 Enables comparative analysis and regression testing\n")
+    logger.info("\nSame mock data tests multiple strategies consistently")
+    logger.info("Enables comparative analysis and regression testing\n")
 
 
 def demonstrate_edge_case_testing():
     """Show edge case testing with mock data."""
-    print("🔍 EDGE CASE TESTING")
-    print("=" * 50)
+    logger.info("🔍 EDGE CASE TESTING")
+    logger.info("=" * 50)
 
     edge_cases = [
         ("Empty clients", []),
@@ -258,11 +270,11 @@ def demonstrate_edge_case_testing():
                 server_round=1, results=mock_data, failures=[]
             )
             status = "✅ Handled" if result else "⚠️  No result"
-            print(f"{status} {case_name:>15}: {len(mock_data)} clients")
+            logger.info(f"{status} {case_name:>15}: {len(mock_data)} clients")
         except Exception as e:
-            print(f"❌ Failed {case_name:>15}: {str(e)[:40]}...")
+            logger.info(f"❌ Failed {case_name:>15}: {str(e)[:40]}...")
 
-    print("\n🎯 Mock data makes edge case testing fast and systematic\n")
+    logger.info("\nMock data makes edge case testing fast and systematic\n")
 
 
 class TestMockDataShowcase:
@@ -270,9 +282,10 @@ class TestMockDataShowcase:
 
     def test_run_all_demonstrations(self):
         """Run all demonstrations as a test."""
-        print("\n" + "=" * 60)
-        print("🎭 COMPREHENSIVE MOCK DATA SHOWCASE")
-        print("=" * 60)
+        init_demo_output()
+        logger.info("\n" + "=" * 60)
+        logger.info("🎭 COMPREHENSIVE MOCK DATA SHOWCASE")
+        logger.info("=" * 60)
 
         demonstrate_basic_mock_data()
         demonstrate_heterogeneous_vs_homogeneous()
@@ -281,19 +294,29 @@ class TestMockDataShowcase:
         demonstrate_strategy_testing()
         demonstrate_edge_case_testing()
 
-        print("🏆 MOCK DATA BENEFITS SUMMARY:")
-        print("• ⚡ 20x faster than real data")
-        print("• 🎯 Deterministic and reproducible")
-        print("• 🌐 Supports heterogeneous FL scenarios")
-        print("• 🛡️ Enables Byzantine attack testing")
-        print("• 🔍 Perfect for edge case coverage")
-        print("• 🧪 Consistent across all strategies")
-        print("• 💾 No storage requirements")
-        print("• 🔧 Highly configurable")
-        print("=" * 60)
+        logger.info("MOCK DATA BENEFITS:")
+        logger.info("• 20x faster than real data")
+        logger.info("• Deterministic and reproducible")
+        logger.info("• Supports heterogeneous FL scenarios")
+        logger.info("• Enables Byzantine attack testing")
+        logger.info("• Perfect for edge case coverage")
+        logger.info("• Consistent across all strategies")
+        logger.info("• No storage requirements")
+        logger.info("• Highly configurable")
+        logger.info("=" * 50)
 
 
 if __name__ == "__main__":
-    # Run as standalone script
-    showcase = TestMockDataShowcase()
-    showcase.test_run_all_demonstrations()
+    try:
+        logger = init_test_environment(include_timestamp=True)
+        logger.info("🎭 Mock Data Showcase initialized successfully")
+        showcase = TestMockDataShowcase()
+        showcase.test_run_all_demonstrations()
+        logger.info("✅ Mock Data Showcase completed successfully")
+    except Exception as e:
+        import logging
+
+        logging.error(f"❌ Error running showcase: {e}")
+        import traceback
+
+        traceback.print_exc()

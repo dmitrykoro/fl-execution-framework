@@ -1,37 +1,27 @@
 #!/usr/bin/env python3
 """
-Demo showcasing the intelligent test failure logging system.
+Test failure logging demo.
 
-This demonstrates the custom pytest hooks in tests/conftest.py that provide
-context-aware failure analysis and debugging hints.
+Demonstrates pytest hooks for failure analysis.
 
-USAGE:
-------
-To run this demo and see the logging in action:
-
-    PYTHONPATH=. python -m pytest tests/demo/failure_logging_demo.py -v
-
-Then check the generated log file in tests/logs/ for intelligent failure analysis.
-
-WHAT THIS DEMONSTRATES:
------------------------
-- Automatic failure detection and logging
-- Context-aware debugging hints based on error types
-- Heuristic analysis of common testing issues
-- Timestamped failure logs for debugging sessions
+Usage: python -m pytest tests/demo/failure_logging_demo.py -v
 """
 
+import logging
 from unittest.mock import Mock
 
 from flwr.common import parameters_to_ndarrays
+from tests.common import generate_mock_client_data
 from src.simulation_strategies.trust_based_removal_strategy import (
     TrustBasedRemovalStrategy,
 )
 from src.data_models.simulation_strategy_history import SimulationStrategyHistory
 
+logger = logging.getLogger(__name__)
+
 
 class TestFailureLoggingDemo:
-    """Demo class showing different types of test failures and logging responses."""
+    """Demo test failures and logging responses."""
 
     def test_success_example(self):
         """This test passes - no logging triggered."""
@@ -44,151 +34,131 @@ class TestFailureLoggingDemo:
             strategy_history=mock_strategy_history,
         )
         assert strategy.trust_threshold == 0.7
-        print("✅ This test passes - no failure logging")
+        logger.info("✅ This test passes - no failure logging")
 
     def test_import_error_demo(self):
-        """Demo of ImportError logging (commented out to avoid actual failure)."""
-        # Uncomment this to see ImportError logging in action:
-        # from non_existent_module import something
-        print("🔍 ImportError demo (commented out - uncomment to trigger)")
+        """Demo ImportError logging."""
+        # Uncomment to trigger: from non_existent_module import something
+        logger.info("🔍 ImportError demo (commented out)")
 
     def test_file_not_found_demo(self):
-        """Demo of FileNotFoundError logging (commented out to avoid actual failure)."""
-        # Uncomment this to see FileNotFoundError logging:
-        # with open("non_existent_file.txt") as f:
-        #     content = f.read()
-        print("🔍 FileNotFoundError demo (commented out - uncomment to trigger)")
+        """Demo FileNotFoundError logging."""
+        # Uncomment to trigger: with open("non_existent_file.txt") as f: content = f.read()
+        logger.info("🔍 FileNotFoundError demo (commented out)")
 
     def test_pytorch_shape_error_demo(self):
-        """Demo of PyTorch shape error logging (commented out to avoid actual failure)."""
-        # Uncomment this to see RuntimeError shape logging:
-        # import torch
-        # x = torch.randn(5, 10)
-        # y = torch.randn(3, 8)
-        # result = torch.matmul(x, y)  # Shape mismatch!
-        print("🔍 PyTorch shape error demo (commented out - uncomment to trigger)")
+        """Demo PyTorch shape error logging."""
+        # Uncomment to trigger: torch.matmul(torch.randn(5,10), torch.randn(3,8))
+        logger.info("🔍 PyTorch shape error demo (commented out)")
 
     def test_assertion_error_demo(self):
-        """Demo of AssertionError logging (commented out to avoid actual failure)."""
-        # Uncomment this to see AssertionError logging:
-        # expected = 42
-        # actual = 24
-        # assert expected == actual, f"Expected {expected}, got {actual}"
-        print("🔍 AssertionError demo (commented out - uncomment to trigger)")
+        """Demo AssertionError logging."""
+        # Uncomment to trigger: assert 42 == 24, "Expected 42, got 24"
+        logger.info("🔍 AssertionError demo (commented out)")
 
     def test_strategy_assertion_demo(self):
-        """Demo of strategy-specific assertion logging (commented out to avoid actual failure)."""
-        # This would trigger the strategy-specific logging heuristics:
-        # strategy = TrustBasedRemovalStrategy(trust_threshold=0.7)
-        # mock_results = []  # Empty results
-        # aggregated = strategy.aggregate_fit(1, mock_results, [])
-        # assert len(aggregated) > 0, "Should have aggregated parameters"
-        print("🔍 Strategy assertion demo (commented out - uncomment to trigger)")
+        """Demo strategy-specific assertion logging."""
+        # Uncomment to trigger strategy logging heuristics
+        logger.info("🔍 Strategy assertion demo (commented out)")
 
     def test_show_logging_features(self):
         """Show the key features of the logging system."""
-        print("\n" + "=" * 60)
-        print("🚀 INTELLIGENT TEST FAILURE LOGGING FEATURES")
-        print("=" * 60)
+        logger.info("\n" + "=" * 60)
+        logger.info("🚀 INTELLIGENT TEST FAILURE LOGGING FEATURES")
+        logger.info("=" * 60)
 
-        print("\n📋 What gets logged automatically:")
-        print("• Test name and location")
-        print("• Exception type and message")
-        print("• Timestamp for debugging sessions")
-        print("• Context-aware debugging hints")
+        logger.info("\n📋 What gets logged automatically:")
+        logger.info("• Test name and location")
+        logger.info("• Exception type and message")
+        logger.info("• Timestamp for debugging sessions")
+        logger.info("• Context-aware debugging hints")
 
-        print("\n🧠 Smart heuristics detect:")
-        print("• ImportError → Environment/path issues")
-        print("• FileNotFoundError → Missing files/incorrect paths")
-        print("• RuntimeError (shape/dimension) → PyTorch tensor mismatches")
-        print("• AssertionError in strategies → Algorithmic problems")
-        print("• General AssertionErrors → Value comparison issues")
+        logger.info("\n🧠 Smart heuristics detect:")
+        logger.info("• ImportError → Environment/path issues")
+        logger.info("• FileNotFoundError → Missing files/incorrect paths")
+        logger.info("• RuntimeError (shape/dimension) → PyTorch tensor mismatches")
+        logger.info("• AssertionError in strategies → Algorithmic problems")
+        logger.info("• General AssertionErrors → Value comparison issues")
 
-        print("\n📁 Log files are saved to:")
-        print("• tests/logs/test_failures_YYYYMMDD_HHMMSS.log")
-        print("• Separate log per test session")
-        print("• Only created when failures occur (no clutter)")
+        logger.info("\n📁 Log files are saved to:")
+        logger.info("• tests/logs/test_failures_YYYYMMDD_HHMMSS.log")
+        logger.info("• Separate log per test session")
+        logger.info("• Only created when failures occur (no clutter)")
 
-        print("\n💡 Benefits:")
-        print("• Faster debugging with targeted hints")
-        print("• Reduces time spent on common issues")
-        print("• Helps new developers understand test failures")
-        print("• Maintains detailed failure history")
+        logger.info("\n💡 Benefits:")
+        logger.info("• Faster debugging with targeted hints")
+        logger.info("• Reduces time spent on common issues")
+        logger.info("• Helps new developers understand test failures")
+        logger.info("• Maintains detailed failure history")
 
-        print("\n🎯 To see it in action:")
-        print("1. Uncomment one of the demo methods above")
-        print("2. Run: python -m pytest tests/demo/failure_logging_demo.py -v")
-        print("3. Check tests/logs/ for the generated failure analysis")
+        logger.info("\n🎯 To see it in action:")
+        logger.info("1. Uncomment one of the demo methods above")
+        logger.info("2. Run: python -m pytest tests/demo/failure_logging_demo.py -v")
+        logger.info("3. Check tests/logs/ for the generated failure analysis")
 
-        print("=" * 60)
+        logger.info("=" * 60)
 
     def test_mock_data_showcase(self):
-        """Show the mock data generation capabilities."""
-        from tests.conftest import generate_mock_client_data
+        """Show mock data generation."""
 
-        print("\n" + "=" * 60)
-        print("🎭 MOCK DATA GENERATION SHOWCASE")
-        print("=" * 60)
+        logger.info("\n" + "=" * 50)
+        logger.info("🎭 MOCK DATA GENERATION")
+        logger.info("=" * 50)
 
         # Generate realistic FL client data
         client_results = generate_mock_client_data(num_clients=5, param_shape=(20, 10))
 
-        print(f"\n📊 Generated {len(client_results)} mock clients")
+        logger.info(f"\n📊 Generated {len(client_results)} mock clients")
 
         for i, (client_proxy, fit_res) in enumerate(client_results[:3]):  # Show first 3
-            print(f"\n🔍 Client {i}:")
-            print(f"   • ID: {client_proxy.cid}")
-            print(f"   • Examples: {fit_res.num_examples}")
-            print(f"   • Metrics: {fit_res.metrics}")
+            logger.info(f"\n🔍 Client {i}:")
+            logger.info(f"   • ID: {client_proxy.cid}")
+            logger.info(f"   • Examples: {fit_res.num_examples}")
+            logger.info(f"   • Metrics: {fit_res.metrics}")
             param_arrays = parameters_to_ndarrays(fit_res.parameters)
-            print(f"   • Parameter shapes: {[p.shape for p in param_arrays]}")
+            logger.info(f"   • Parameter shapes: {[p.shape for p in param_arrays]}")
 
-        print("\n💫 Features of mock data:")
-        print("• Realistic federated learning structure")
-        print("• Varied parameters per client (heterogeneous)")
-        print("• Proper FitRes format for framework compatibility")
-        print("• Deterministic (seed=42) for reproducible tests")
-        print("• Configurable client count and parameter shapes")
-
-        print("=" * 60)
+        logger.info("\nFeatures:")
+        logger.info("• Realistic FL structure")
+        logger.info("• Heterogeneous parameters")
+        logger.info("• Deterministic (seed=42)")
+        logger.info("• Configurable shapes")
+        logger.info("=" * 50)
 
     def test_fixture_ecosystem_demo(self):
-        """Show the comprehensive fixture ecosystem available."""
-        print("\n" + "=" * 60)
-        print("🏗️ TESTING FIXTURE ECOSYSTEM")
-        print("=" * 60)
+        """Show fixture ecosystem."""
+        logger.info("\n" + "=" * 50)
+        logger.info("🏗️ TESTING FIXTURES")
+        logger.info("=" * 50)
 
-        print("\n📦 Available fixtures in tests/conftest.py:")
-        print("• mock_output_directory - Temporary test output dirs")
-        print("• mock_strategy_configs - Pre-configured strategy parameters")
-        print("• strategy_config - Parameterized testing across strategies")
-        print("• dataset_type - Parameterized testing across datasets")
-        print("• temp_dataset_dir - Temporary dataset directories")
-        print("• mock_client_parameters - Simple mock FL parameters")
+        logger.info("\nFixtures:")
+        logger.info("• mock_output_directory")
+        logger.info("• mock_strategy_configs")
+        logger.info("• strategy_config")
+        logger.info("• dataset_type")
+        logger.info("• temp_dataset_dir")
+        logger.info("• mock_client_parameters")
 
-        print("\n🎯 Strategy configurations available:")
+        logger.info("\nStrategy configs:")
         strategies = ["trust", "pid", "krum", "multi-krum", "trimmed_mean"]
         for strategy in strategies:
-            print(f"• {strategy} - Ready-to-use config with appropriate parameters")
+            logger.info(f"• {strategy}")
 
-        print("\n📊 Dataset types supported:")
+        logger.info("\nDataset types:")
         datasets = ["its", "femnist_iid", "pneumoniamnist", "bloodmnist"]
         for dataset in datasets:
-            print(f"• {dataset} - Parameterized testing across dataset types")
+            logger.info(f"• {dataset}")
 
-        print("\n💡 Usage patterns:")
-        print("• Use @pytest.fixture for reusable test data")
-        print("• Use @pytest.mark.parametrize for testing variations")
-        print("• Combine fixtures for complex test scenarios")
-        print("• Mock real components to isolate units under test")
-
-        print("=" * 60)
+        logger.info("\nUsage:")
+        logger.info("• @pytest.fixture for reusable data")
+        logger.info("• @pytest.mark.parametrize for variations")
+        logger.info("• Mock components for isolation")
+        logger.info("=" * 50)
 
 
 if __name__ == "__main__":
-    # Run the demo as a regular script to see the showcase
     demo = TestFailureLoggingDemo()
     demo.test_show_logging_features()
     demo.test_mock_data_showcase()
     demo.test_fixture_ecosystem_demo()
-    print("\n🚀 Run with pytest to see failure logging in action!")
+    logger.info("\n🚀 Run with pytest to see failure logging in action!")
