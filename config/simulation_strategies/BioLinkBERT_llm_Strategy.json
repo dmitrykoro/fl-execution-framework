@@ -15,7 +15,7 @@
     "save_csv": "true",
     "training_device": "cuda",
     "cpus_per_client": 1,
-    "gpus_per_client": 0.0,
+    "gpus_per_client": 1,
     "trust_threshold": 0.15,
     "reputation_threshold": 0.15,
     "beta_value": 0.75,
