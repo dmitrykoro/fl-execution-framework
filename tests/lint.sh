@@ -7,11 +7,7 @@ source "$(dirname "$0")/scripts/common.sh"
 navigate_to_root
 
 # Logging setup
-LOG_DIR="tests/logs"
-mkdir -p "$LOG_DIR"
-LOG_FILE="$LOG_DIR/lint_$(date +%Y%m%d_%H%M%S).log"
-log_info "📝 Logging to: $LOG_FILE"
-exec > >(tee "$LOG_FILE") 2>&1
+setup_logging_with_file "tests/logs" "lint"
 
 # Environment setup
 setup_virtual_environment
@@ -32,8 +28,7 @@ done
 
 # Install dependencies if running tests or sonar
 if [[ "$TEST_MODE" == true || "$SONAR_MODE" == true ]]; then
-    log_info "📦 Installing requirements..."
-    pip install -r requirements.txt
+    install_requirements
 fi
 
 # Code quality checks
@@ -57,7 +52,7 @@ fi
 run_pytest_suite() {
     log_info "🧪 Running pytest suite with coverage..."
     coverage erase
-    PYTHONPATH=. coverage run --source=src -m pytest tests/
+    coverage run --source=src -m pytest tests/
 
     log_info "📊 Generating coverage reports..."
     coverage xml -o "$LOG_DIR/coverage.xml"
