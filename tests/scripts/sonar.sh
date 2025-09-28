@@ -45,15 +45,15 @@ if [ "$CONTAINER_NEEDS_WAIT" = true ]; then
 fi
 
 # Sonar scanner
-if ! command_exists sonar-scanner; then
-    log_warning "sonar-scanner not found. Attempting to install via npm..."
-    if command_exists npm; then
-        npm install -g sonar-scanner
-    else
-        log_error "npm not found. Please install sonar-scanner manually."
-        exit 1
-    fi
+if ! command_exists npm; then
+    log_error "npm not found. Please install npm first to install sonar-scanner."
+    exit 1
 fi
+
+check_and_install_tool "sonar-scanner" "npm install -g sonar-scanner" || {
+    log_error "Failed to install sonar-scanner. Please install manually."
+    exit 1
+}
 
 
 # Analysis
