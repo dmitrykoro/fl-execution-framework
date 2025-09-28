@@ -1,28 +1,22 @@
 """
 Global pytest configuration and fixtures for federated learning simulation tests.
+
+This module contains only pytest-specific fixtures and configuration.
+General utilities, imports, and FL helpers are in tests.common module.
 """
 
 import logging
 import os
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Tuple
-from unittest.mock import Mock
+from typing import Any, Dict
 
-import numpy as np
 import pytest
-from flwr.common import FitRes, ndarrays_to_parameters
-from flwr.server.client_proxy import ClientProxy
+from tests.common import STRATEGY_CONFIGS, np
 
 # Deterministic test environment
 os.environ["LOKY_MAX_CPU_COUNT"] = "1"  # Single-threaded
 os.environ["OMP_NUM_THREADS"] = "1"  # Limit OpenMP
-
-# Type definitions
-NDArray = np.ndarray
-Config = Dict[str, Any]
-Metrics = Dict[str, Any]
-Parameters = Any
 
 
 # Output directory fixture
@@ -46,41 +40,7 @@ def mock_output_directory(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Pa
 @pytest.fixture(scope="session")
 def mock_strategy_configs() -> Dict[str, Dict[str, Any]]:
     """Strategy configurations for parameterized tests."""
-    return {
-        "trust": {
-            "aggregation_strategy_keyword": "trust",
-            "num_of_rounds": 5,
-            "num_of_clients": 10,
-            "trust_threshold": 0.7,
-            "beta_value": 0.5,
-        },
-        "pid": {
-            "aggregation_strategy_keyword": "pid",
-            "num_of_rounds": 3,
-            "num_of_clients": 8,
-            "Kp": 1.0,
-            "Ki": 0.1,
-            "Kd": 0.01,
-        },
-        "krum": {
-            "aggregation_strategy_keyword": "krum",
-            "num_of_rounds": 4,
-            "num_of_clients": 12,
-            "num_krum_selections": 8,
-        },
-        "multi-krum": {
-            "aggregation_strategy_keyword": "multi-krum",
-            "num_of_rounds": 4,
-            "num_of_clients": 12,
-            "num_krum_selections": 8,
-        },
-        "trimmed_mean": {
-            "aggregation_strategy_keyword": "trimmed_mean",
-            "num_of_rounds": 4,
-            "num_of_clients": 10,
-            "trim_ratio": 0.2,
-        },
-    }
+    return STRATEGY_CONFIGS
 
 
 @pytest.fixture(params=["trust", "pid", "krum", "multi-krum", "trimmed_mean"])
@@ -108,43 +68,10 @@ def temp_dataset_dir(tmp_path: Path) -> Path:
 
 
 @pytest.fixture
-def mock_client_parameters() -> List[NDArray]:
+def mock_client_parameters():
     """Generate mock client parameters."""
     rng = np.random.default_rng(42)
     return [rng.standard_normal(100) for _ in range(5)]
-
-
-def generate_mock_client_data(
-    num_clients: int, param_shape: Tuple[int, int] = (10, 5)
-) -> List[Tuple[ClientProxy, FitRes]]:
-    """Generate mock client results (ClientProxy, FitRes)."""
-    results: List[Tuple[ClientProxy, FitRes]] = []
-    rng = np.random.default_rng(42)
-
-    for i in range(num_clients):
-        client_proxy = Mock(spec=ClientProxy)
-        client_proxy.cid = str(i)
-
-        # Create varied mock parameters
-        if i < 2:  # Similar parameters for first two clients
-            mock_params = [
-                rng.standard_normal(param_shape) * 0.1,
-                rng.standard_normal(param_shape[1]) * 0.1,
-            ]
-        else:  # Different parameters for remaining clients
-            mock_params = [
-                rng.standard_normal(param_shape) * (i + 1),
-                rng.standard_normal(param_shape[1]) * (i + 1),
-            ]
-
-        fit_res = Mock(spec=FitRes)
-        fit_res.parameters = ndarrays_to_parameters(mock_params)
-        fit_res.num_examples = 100
-        fit_res.metrics = {"accuracy": 0.8 + i * 0.01, "loss": 0.5 - i * 0.02}
-
-        results.append((client_proxy, fit_res))
-
-    return results
 
 
 # Test failure logging setup
