@@ -108,6 +108,8 @@ def show_plots_within_strategy(
         plt.legend(
             title='clients', bbox_to_anchor=(1.05, 1),
             loc='upper left',
+            borderaxespad=0.,
+            fontsize = 'small',
             ncol=math.ceil(simulation_strategy.strategy_config.num_of_clients / 20)
         )
         ax = plt.gca()
@@ -159,7 +161,7 @@ def show_inter_strategy_plots(
         plt.xlabel('round #')
         plt.ylabel(metric_name)
         plt.title(f'{metric_name} across strategies')
-        plt.legend(title='strategies', loc='upper center', bbox_to_anchor=(0.5, -0.1))
+        plt.legend(title='strategies', loc='upper center', bbox_to_anchor=(0.5, -0.22), fontsize='small')
         ax = plt.gca()
         ax.xaxis.set_major_locator(MaxNLocator(integer=True, steps=[2, 5]))
         plt.tight_layout()
@@ -195,7 +197,7 @@ def show_inter_strategy_plots(
         plt.xlabel('round #')
         plt.ylabel(metric_name)
         plt.title(f'{metric_name} across strategies')
-        plt.legend(title='strategies', loc='upper center', bbox_to_anchor=(0.5, -0.1))
+        plt.legend(title='strategies', loc='upper center', bbox_to_anchor=(0.5, -0.22),fontsize='small')
         ax = plt.gca()
         ax.xaxis.set_major_locator(MaxNLocator(integer=True, steps=[2, 5]))
         ax.set_xticks(rounds_array + (num_strategies - 1) * bar_width / 2)  # Adjust x-ticks to align
