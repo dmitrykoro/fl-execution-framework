@@ -16,31 +16,31 @@ bar_width = 0.2
 def _generate_single_string_strategy_label(strategy_config: StrategyConfig) -> str:
     """Generate single-string label for strategy (better to use as legend)"""
 
-    # return (
-    #     f"strategy: {strategy_config.aggregation_strategy_keyword}, "
-    #     f"dataset: {strategy_config.dataset_keyword}, "
-    #     f"remove: {strategy_config.remove_clients}, "
-    #     f"remove_from: {strategy_config.begin_removing_from_round if strategy_config.remove_clients else 'n/a'}, "
-    #     f"total clients: {strategy_config.num_of_clients}, "
-    #     f"bad_clients: {strategy_config.num_of_malicious_clients}, "
-    #     f"client_epochs: {strategy_config.num_of_client_epochs}, "
-    #     f"batch_size: {strategy_config.batch_size}"
-    # )
-    parts = [
-        f"strategy: {strategy_config.aggregation_strategy_keyword}",
-        f"dataset: {strategy_config.dataset_keyword}",
-        f"remove: {strategy_config.remove_clients}",
-        f"remove_from: {strategy_config.begin_removing_from_round if strategy_config.remove_clients else 'n/a'}",
-        f"total clients: {strategy_config.num_of_clients}",
-        f"bad_clients: {strategy_config.num_of_malicious_clients}",
-        f"client_epochs: {strategy_config.num_of_client_epochs}",
-        f"batch_size: {strategy_config.batch_size}",
-    ]
+    return (
+        f"strategy: {strategy_config.aggregation_strategy_keyword}, "
+        f"dataset: {strategy_config.dataset_keyword}, "
+        f"remove: {strategy_config.remove_clients}, "
+        f"remove_from: {strategy_config.begin_removing_from_round if strategy_config.remove_clients else 'n/a'}, "
+        f"total clients: {strategy_config.num_of_clients}, "
+        f"bad_clients: {strategy_config.num_of_malicious_clients}, "
+        f"client_epochs: {strategy_config.num_of_client_epochs}, "
+        f"batch_size: {strategy_config.batch_size}"
+    )
+    # parts = [
+    #     f"strategy: {strategy_config.aggregation_strategy_keyword}",
+    #     f"dataset: {strategy_config.dataset_keyword}",
+    #     f"remove: {strategy_config.remove_clients}",
+    #     f"remove_from: {strategy_config.begin_removing_from_round if strategy_config.remove_clients else 'n/a'}",
+    #     f"total clients: {strategy_config.num_of_clients}",
+    #     f"bad_clients: {strategy_config.num_of_malicious_clients}",
+    #     f"client_epochs: {strategy_config.num_of_client_epochs}",
+    #     f"batch_size: {strategy_config.batch_size}",
+    # ]
 
-    if strategy_config.use_llm and strategy_config.llm_model:
-        parts.append(f"llm_model: {strategy_config.llm_model}")
+    # if strategy_config.use_llm and strategy_config.llm_model:
+    #     parts.append(f"llm_model: {strategy_config.llm_model}")
 
-    return ", ".join(parts)
+    # return ", ".join(parts)
 
 
 def _generate_multi_string_strategy_label(strategy_config: StrategyConfig) -> str:
@@ -108,8 +108,6 @@ def show_plots_within_strategy(
         plt.legend(
             title='clients', bbox_to_anchor=(1.05, 1),
             loc='upper left',
-            borderaxespad=0.,
-            fontsize = 'small',
             ncol=math.ceil(simulation_strategy.strategy_config.num_of_clients / 20)
         )
         ax = plt.gca()
@@ -161,7 +159,7 @@ def show_inter_strategy_plots(
         plt.xlabel('round #')
         plt.ylabel(metric_name)
         plt.title(f'{metric_name} across strategies')
-        plt.legend(title='strategies', loc='upper center', bbox_to_anchor=(0.5, -0.22), fontsize='small')
+        plt.legend(title='strategies', loc='upper center', bbox_to_anchor=(0.5, -0.1))
         ax = plt.gca()
         ax.xaxis.set_major_locator(MaxNLocator(integer=True, steps=[2, 5]))
         plt.tight_layout()
@@ -197,7 +195,7 @@ def show_inter_strategy_plots(
         plt.xlabel('round #')
         plt.ylabel(metric_name)
         plt.title(f'{metric_name} across strategies')
-        plt.legend(title='strategies', loc='upper center', bbox_to_anchor=(0.5, -0.22),fontsize='small')
+        plt.legend(title='strategies', loc='upper center', bbox_to_anchor=(0.5, -0.1))
         ax = plt.gca()
         ax.xaxis.set_major_locator(MaxNLocator(integer=True, steps=[2, 5]))
         ax.set_xticks(rounds_array + (num_strategies - 1) * bar_width / 2)  # Adjust x-ticks to align
