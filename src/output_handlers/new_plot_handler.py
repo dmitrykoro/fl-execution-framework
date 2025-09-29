@@ -16,16 +16,31 @@ bar_width = 0.2
 def _generate_single_string_strategy_label(strategy_config: StrategyConfig) -> str:
     """Generate single-string label for strategy (better to use as legend)"""
 
-    return (
-        f"strategy: {strategy_config.aggregation_strategy_keyword}, "
-        f"dataset: {strategy_config.dataset_keyword}, "
-        f"remove: {strategy_config.remove_clients}, "
-        f"remove_from: {strategy_config.begin_removing_from_round if strategy_config.remove_clients else 'n/a'}, "
-        f"total clients: {strategy_config.num_of_clients}, "
-        f"bad_clients: {strategy_config.num_of_malicious_clients}, "
-        f"client_epochs: {strategy_config.num_of_client_epochs}, "
-        f"batch_size: {strategy_config.batch_size}"
-    )
+    # return (
+    #     f"strategy: {strategy_config.aggregation_strategy_keyword}, "
+    #     f"dataset: {strategy_config.dataset_keyword}, "
+    #     f"remove: {strategy_config.remove_clients}, "
+    #     f"remove_from: {strategy_config.begin_removing_from_round if strategy_config.remove_clients else 'n/a'}, "
+    #     f"total clients: {strategy_config.num_of_clients}, "
+    #     f"bad_clients: {strategy_config.num_of_malicious_clients}, "
+    #     f"client_epochs: {strategy_config.num_of_client_epochs}, "
+    #     f"batch_size: {strategy_config.batch_size}"
+    # )
+    parts = [
+        f"strategy: {strategy_config.aggregation_strategy_keyword}",
+        f"dataset: {strategy_config.dataset_keyword}",
+        f"remove: {strategy_config.remove_clients}",
+        f"remove_from: {strategy_config.begin_removing_from_round if strategy_config.remove_clients else 'n/a'}",
+        f"total clients: {strategy_config.num_of_clients}",
+        f"bad_clients: {strategy_config.num_of_malicious_clients}",
+        f"client_epochs: {strategy_config.num_of_client_epochs}",
+        f"batch_size: {strategy_config.batch_size}",
+    ]
+
+    if strategy_config.use_llm and strategy_config.llm_model:
+        parts.append(f"llm_model: {strategy_config.llm_model}")
+
+    return ", ".join(parts)
 
 
 def _generate_multi_string_strategy_label(strategy_config: StrategyConfig) -> str:

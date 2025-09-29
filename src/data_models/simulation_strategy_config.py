@@ -24,6 +24,9 @@ class StrategyConfig:
     cpus_per_client: int = None
     gpus_per_client: float = None
 
+    use_llm: bool = None
+    llm_model: str = None
+
     trust_threshold: float = None
     reputation_threshold: float = None
     beta_value: float = None
