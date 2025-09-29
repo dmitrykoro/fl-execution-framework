@@ -225,7 +225,17 @@ pytest tests/unit/test_file.py -v -s  # Verbose with print statements
 cd tests && ./lint.sh              # Format, lint, type check
 cd tests && ./lint.sh --test       # Add full test run
 cd tests && ./lint.sh --sonar      # Advanced quality analysis
+```
 
+> **Note on SonarQube:**
+> After running the analysis, view the report at `http://localhost:9000`. The first time you access it, log in with the default credentials:
+>
+> - **Username:** `admin`
+> - **Password:** `admin`
+>
+> You will be prompted to change the password immediately.
+
+```bash
 # Coverage
 pytest --cov=src --cov-report=html tests/
 ```
