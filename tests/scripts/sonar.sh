@@ -1,8 +1,7 @@
-#!/bin/bash
+#!/bin/sh
 # SonarQube analysis script
 
-# Source common utilities and navigate to project root
-source "$(dirname "$0")/common.sh"
+. "$(dirname "$0")/common.sh"
 navigate_to_root
 
 log_info "🔍 Starting SonarQube Analysis"
@@ -31,12 +30,14 @@ fi
 
 if [ "$CONTAINER_NEEDS_WAIT" = true ]; then
     log_info "⏳ Waiting for SonarQube to start (this may take up to 60 seconds)..."
-    for i in {1..30}; do
+    _counter=0
+    while [ $_counter -lt 30 ]; do
         if curl -s http://localhost:9000/api/system/status | grep -q "UP"; then
             log_info "✅ SonarQube is ready!"
             break
         fi
         sleep 2
+        _counter=$((_counter + 1))
     done
     if ! curl -s http://localhost:9000/api/system/status | grep -q "UP"; then
         log_error "SonarQube failed to start. Check Docker logs: docker logs sonarqube"
@@ -56,10 +57,8 @@ check_and_install_tool "sonar-scanner" "npm install -g sonar-scanner" || {
 }
 
 
-# Analysis
 log_info "🚀 Running SonarQube scanner..."
 
-# Run scanner with explicit parameters
 if sonar-scanner \
     -Dsonar.projectKey=fl-execution-framework \
     -Dsonar.projectName="FL Execution Framework" \

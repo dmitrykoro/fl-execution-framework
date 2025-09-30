@@ -1,9 +1,9 @@
-#!/bin/bash
+#!/bin/sh
 # Runs the simulation, setting up the environment if needed
 
-source "$(dirname "$0")/tests/scripts/common.sh"
+. "$(dirname "$0")/tests/scripts/common.sh"
 
-if [[ -z "${VIRTUAL_ENV:-}" ]] && ! [ -d "venv" ] && ! [ -d ".venv" ]; then
+if [ -z "${VIRTUAL_ENV:-}" ] && ! [ -d "venv" ] && ! [ -d ".venv" ]; then
     log_warning "Virtual environment not found. Running reinstall_requirements.sh to create 'venv'..."
     ./reinstall_requirements.sh
 fi
@@ -15,9 +15,10 @@ setup_joblib_env
 if [ ! -d "datasets/bloodmnist" ]; then
   log_info "Datasets not found. Starting download..."
   DATASET_URL="https://fl-dataset-storage.s3.us-east-1.amazonaws.com/datasets.tar"
-  
+
   mkdir -p datasets
-  pushd datasets > /dev/null
+  _orig_dir="$(pwd)"
+  cd datasets || exit 1
 
   if command_exists wget; then
     log_info "Downloading with wget..."
@@ -30,13 +31,11 @@ if [ ! -d "datasets/bloodmnist" ]; then
   log_info "Extracting datasets..."
   tar -xf datasets.tar
   rm datasets.tar
-  popd > /dev/null
+  cd "$_orig_dir" || exit 1
 fi
 
 log_info "🚀 Initializing simulation..."
-"$PYTHON_CMD" -m src.simulation_runner
-
-if [ $? -eq 0 ]; then
+if "$PYTHON_CMD" -m src.simulation_runner; then
     echo ""
     show_simulation_output_info "out/"
 else

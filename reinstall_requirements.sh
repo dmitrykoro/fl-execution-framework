@@ -1,7 +1,7 @@
-#!/bin/bash
+#!/bin/sh
 # Deletes and recreates the virtual environment from requirements.txt
 
-source "$(dirname "$0")/tests/scripts/common.sh"
+. "$(dirname "$0")/tests/scripts/common.sh"
 
 find_python_interpreter
 

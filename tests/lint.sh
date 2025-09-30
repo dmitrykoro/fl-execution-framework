@@ -1,22 +1,18 @@
-#!/bin/bash
+#!/bin/sh
 # Python code quality and testing script
 # Usage: ./lint.sh [--test] [--sonar]
 
-# Source common utilities and navigate to project root
-source "$(dirname "$0")/scripts/common.sh"
+. "$(dirname "$0")/scripts/common.sh"
 navigate_to_root
 
-# Logging setup
 setup_logging_with_file "tests/logs" "lint"
 
-# Environment setup
 setup_virtual_environment
-if [[ -z "${VIRTUAL_ENV:-}" ]]; then
+if [ -z "${VIRTUAL_ENV:-}" ]; then
     log_error "No virtual environment activated. Please run ./reinstall_requirements.sh first."
     exit 1
 fi
 
-# Argument parsing
 TEST_MODE=false
 SONAR_MODE=false
 for arg in "$@"; do
@@ -26,12 +22,10 @@ for arg in "$@"; do
     esac
 done
 
-# Install dependencies if running tests or sonar
-if [[ "$TEST_MODE" == true || "$SONAR_MODE" == true ]]; then
+if [ "$TEST_MODE" = true ] || [ "$SONAR_MODE" = true ]; then
     install_requirements
 fi
 
-# Code quality checks
 log_info "⚡ Running ruff check..."
 ruff check --fix tests/
 
@@ -48,7 +42,6 @@ else
     log_warning "Pyright not found. Skipping. To install: npm install -g pyright"
 fi
 
-# Test execution function
 run_pytest_suite() {
     log_info "🧪 Running pytest suite with coverage..."
     coverage erase
@@ -60,21 +53,19 @@ run_pytest_suite() {
     coverage report --skip-covered
 }
 
-# Main logic
-if [[ "$TEST_MODE" == true ]]; then
+if [ "$TEST_MODE" = true ]; then
     run_pytest_suite
 fi
 
-if [[ "$SONAR_MODE" == true ]]; then
-    [[ "$TEST_MODE" == false ]] && run_pytest_suite
+if [ "$SONAR_MODE" = true ]; then
+    [ "$TEST_MODE" = false ] && run_pytest_suite
     log_info "🔍 Running SonarQube analysis..."
     ./tests/scripts/sonar.sh
 fi
 
-# Final summary
 echo ""
 log_info "🏁 Linting and testing process finished."
 log_info "📝 Full log saved to: $LOG_FILE"
-if [[ "$TEST_MODE" == true || "$SONAR_MODE" == true ]]; then
+if [ "$TEST_MODE" = true ] || [ "$SONAR_MODE" = true ]; then
     log_info "📊 Coverage reports saved to: $LOG_DIR/coverage.xml and $LOG_DIR/coverage_html/"
 fi

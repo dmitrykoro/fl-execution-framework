@@ -1,7 +1,7 @@
-#!/bin/bash
+#!/bin/sh
 # Shell utilities for FL execution framework
 
-set -euo pipefail
+set -eu
 
 # ============================================================================
 # Logging
@@ -20,16 +20,26 @@ log_error() {
 }
 
 setup_logging_with_file() {
-    local log_dir="${1:-tests/logs}"
-    local log_prefix="${2:-script}"
+    _log_dir="${1:-tests/logs}"
+    _log_prefix="${2:-script}"
 
-    mkdir -p "$log_dir"
-    local log_file="$log_dir/${log_prefix}_$(date +%Y%m%d_%H%M%S).log"
-    log_info "📝 Logging to: $log_file"
-    exec > >(tee "$log_file") 2>&1
+    mkdir -p "$_log_dir"
+    LOG_FILE="$_log_dir/${_log_prefix}_$(date +%Y%m%d_%H%M%S).log"
+    : > "$LOG_FILE"
 
-    export LOG_FILE="$log_file"
-    export LOG_DIR="$log_dir"
+    log_info "📝 Logging to: $LOG_FILE"
+
+    export LOG_FILE
+    LOG_DIR="$_log_dir"
+    export LOG_DIR
+}
+
+log_and_tee() {
+    if [ -n "${LOG_FILE:-}" ]; then
+        printf "%s\n" "$*" | tee -a "$LOG_FILE"
+    else
+        printf "%s\n" "$*"
+    fi
 }
 
 # ============================================================================
@@ -44,20 +54,23 @@ navigate_to_root() {
     if [ -f "requirements.txt" ] && [ -d "src" ]; then
         return
     fi
-    local script_dir
-    script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    script_dir="$(cd "$(dirname "$0")" && pwd)"
 
-    if [[ "$script_dir" == *"/tests/scripts" ]]; then
-        cd "$script_dir/../.."
-    elif [[ "$script_dir" == *"/tests" ]]; then
-        cd "$script_dir/.."
-    else
-        log_warning "Could not determine project root. Staying in $(pwd)."
-    fi
+    case "$script_dir" in
+        *"/tests/scripts")
+            cd "$script_dir/../.."
+            ;;
+        *"/tests")
+            cd "$script_dir/.."
+            ;;
+        *)
+            log_warning "Could not determine project root. Staying in $(pwd)."
+            ;;
+    esac
 }
 
 get_physical_cores() {
-    if [[ -z "${PYTHON_CMD:-}" ]]; then
+    if [ -z "${PYTHON_CMD:-}" ]; then
         find_python_interpreter
     fi
     "$PYTHON_CMD" -c "import psutil; print(psutil.cpu_count(logical=False) or psutil.cpu_count(logical=True) or 1)"
@@ -68,7 +81,7 @@ get_physical_cores() {
 # ============================================================================
 
 find_python_interpreter() {
-    if [[ -n "${PYTHON_CMD:-}" ]] && command_exists "$PYTHON_CMD"; then
+    if [ -n "${PYTHON_CMD:-}" ] && command_exists "$PYTHON_CMD"; then
         return 0
     fi
 
@@ -100,7 +113,7 @@ find_python_interpreter() {
 }
 
 setup_virtual_environment() {
-    if [[ -n "${VIRTUAL_ENV:-}" ]]; then
+    if [ -n "${VIRTUAL_ENV:-}" ]; then
         VENV_DIR="$VIRTUAL_ENV"
         export VENV_DIR
         return 0
@@ -112,7 +125,7 @@ setup_virtual_environment() {
     fi
 
     log_info "🔌 Searching for virtual environment..."
-    local venv_path=""
+    venv_path=""
     if [ -d "venv" ]; then
         venv_path="venv"
     elif [ -d ".venv" ]; then
@@ -124,13 +137,13 @@ setup_virtual_environment() {
         VENV_DIR="$venv_path"
         export VENV_DIR
         if [ -f "$VENV_DIR/Scripts/activate" ]; then
-            source "$VENV_DIR/Scripts/activate"
+            . "$VENV_DIR/Scripts/activate"
             if [ -f "$VENV_DIR/Scripts/python.exe" ]; then
                 PYTHON_CMD="$VENV_DIR/Scripts/python.exe"
                 export PYTHON_CMD
             fi
         else
-            source "$VENV_DIR/bin/activate"
+            . "$VENV_DIR/bin/activate"
             if [ -f "$VENV_DIR/bin/python" ]; then
                 PYTHON_CMD="$VENV_DIR/bin/python"
                 export PYTHON_CMD
@@ -151,7 +164,7 @@ get_venv_name() {
 }
 
 ensure_virtual_environment() {
-    if [[ -z "${VIRTUAL_ENV:-}" ]] && ! [ -d "venv" ] && ! [ -d ".venv" ]; then
+    if [ -z "${VIRTUAL_ENV:-}" ] && ! [ -d "venv" ] && ! [ -d ".venv" ]; then
         log_warning "Virtual environment not found. You may need to run './reinstall_requirements.sh' to create one."
         return 1
     fi
@@ -164,7 +177,8 @@ setup_unicode_env() {
 }
 
 setup_joblib_env() {
-    export LOKY_MAX_CPU_COUNT=$(get_physical_cores)
+    LOKY_MAX_CPU_COUNT=$(get_physical_cores)
+    export LOKY_MAX_CPU_COUNT
 }
 
 # ============================================================================
@@ -172,7 +186,7 @@ setup_joblib_env() {
 # ============================================================================
 
 install_requirements() {
-    local requirements_file="${1:-requirements.txt}"
+    requirements_file="${1:-requirements.txt}"
     if [ -f "$requirements_file" ]; then
         log_info "📦 Installing requirements from $requirements_file..."
         if pip install -r "$requirements_file"; then
@@ -187,9 +201,9 @@ install_requirements() {
 }
 
 check_and_install_tool() {
-    local tool_name="$1"
-    local install_command="$2"
-    local check_command="${3:-command_exists}"
+    tool_name="$1"
+    install_command="$2"
+    check_command="${3:-command_exists}"
 
     if ! $check_command "$tool_name"; then
         log_warning "$tool_name not found. Attempting to install..."
@@ -207,16 +221,16 @@ check_and_install_tool() {
 # ============================================================================
 
 run_python_with_unicode() {
-    local script_path="$1"
+    script_path="$1"
     shift
 
     setup_unicode_env
 
-    if [[ -n "${VIRTUAL_ENV:-}" ]] || [ -d "venv" ] || [ -d ".venv" ]; then
+    if [ -n "${VIRTUAL_ENV:-}" ] || [ -d "venv" ] || [ -d ".venv" ]; then
         setup_virtual_environment
     fi
 
-    if [[ -z "${PYTHON_CMD:-}" ]]; then
+    if [ -z "${PYTHON_CMD:-}" ]; then
         find_python_interpreter
     fi
 
@@ -224,16 +238,16 @@ run_python_with_unicode() {
 }
 
 run_pytest_with_unicode() {
-    local test_path="${1:-.}"
+    test_path="${1:-.}"
     shift
 
     setup_unicode_env
 
-    if [[ -n "${VIRTUAL_ENV:-}" ]] || [ -d "venv" ] || [ -d ".venv" ]; then
+    if [ -n "${VIRTUAL_ENV:-}" ] || [ -d "venv" ] || [ -d ".venv" ]; then
         setup_virtual_environment
     fi
 
-    if [[ -z "${PYTHON_CMD:-}" ]]; then
+    if [ -z "${PYTHON_CMD:-}" ]; then
         find_python_interpreter
     fi
 
@@ -245,15 +259,16 @@ run_pytest_with_unicode() {
 # ============================================================================
 
 show_simulation_output_info() {
-    local output_dir="${1:-out/}"
+    output_dir="${1:-out/}"
+    _pwd="$(pwd)"
 
-    local rel_output_dir="${output_dir#$(pwd)/}"
+    rel_output_dir="${output_dir#"$_pwd"/}"
 
-    local latest_dir=""
+    latest_dir=""
     if [ -d "$output_dir" ]; then
         latest_dir=$(find "$output_dir" -maxdepth 1 -type d -name "*-*-*_*-*-*" | sort | tail -1)
         if [ -n "$latest_dir" ]; then
-            latest_dir="${latest_dir#$(pwd)/}"
+            latest_dir="${latest_dir#"$_pwd"/}"
         fi
     fi
 
