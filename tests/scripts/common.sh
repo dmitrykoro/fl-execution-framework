@@ -179,6 +179,8 @@ setup_unicode_env() {
 setup_joblib_env() {
     LOKY_MAX_CPU_COUNT=$(get_physical_cores)
     export LOKY_MAX_CPU_COUNT
+    export KMP_DUPLICATE_LIB_OK=TRUE
+    export PYTHONWARNINGS="ignore::RuntimeWarning:threadpoolctl"
 }
 
 # ============================================================================
