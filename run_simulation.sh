@@ -10,6 +10,7 @@ fi
 
 setup_virtual_environment
 find_python_interpreter
+setup_joblib_env
 
 if [ ! -d "datasets/bloodmnist" ]; then
   log_info "Datasets not found. Starting download..."

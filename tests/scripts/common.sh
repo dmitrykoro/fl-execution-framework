@@ -1,7 +1,12 @@
 #!/bin/bash
-# Common shell utilities
+# Shell utilities for FL execution framework
 
 set -euo pipefail
+
+# ============================================================================
+# Logging
+# ============================================================================
+
 log_info() {
     echo "✅ $1"
 }
@@ -12,6 +17,27 @@ log_warning() {
 
 log_error() {
     echo "❌ $1" >&2
+}
+
+setup_logging_with_file() {
+    local log_dir="${1:-tests/logs}"
+    local log_prefix="${2:-script}"
+
+    mkdir -p "$log_dir"
+    local log_file="$log_dir/${log_prefix}_$(date +%Y%m%d_%H%M%S).log"
+    log_info "📝 Logging to: $log_file"
+    exec > >(tee "$log_file") 2>&1
+
+    export LOG_FILE="$log_file"
+    export LOG_DIR="$log_dir"
+}
+
+# ============================================================================
+# System
+# ============================================================================
+
+command_exists() {
+    command -v "$1" >/dev/null 2>&1
 }
 
 navigate_to_root() {
@@ -30,9 +56,16 @@ navigate_to_root() {
     fi
 }
 
-command_exists() {
-    command -v "$1" >/dev/null 2>&1
+get_physical_cores() {
+    if [[ -z "${PYTHON_CMD:-}" ]]; then
+        find_python_interpreter
+    fi
+    "$PYTHON_CMD" -c "import psutil; print(psutil.cpu_count(logical=False) or psutil.cpu_count(logical=True) or 1)"
 }
+
+# ============================================================================
+# Python Environment
+# ============================================================================
 
 find_python_interpreter() {
     if [[ -n "${PYTHON_CMD:-}" ]] && command_exists "$PYTHON_CMD"; then
@@ -73,7 +106,7 @@ setup_virtual_environment() {
         return 0
     fi
 
-    # Windows timing fix: venv creation may not be atomic
+    # Windows: venv creation may not be atomic
     if [ ! -d "venv/Scripts" ] && [ ! -d "venv/bin" ] && [ -d "venv" ]; then
         sleep 1
     fi
@@ -92,14 +125,12 @@ setup_virtual_environment() {
         export VENV_DIR
         if [ -f "$VENV_DIR/Scripts/activate" ]; then
             source "$VENV_DIR/Scripts/activate"
-            # Update PYTHON_CMD to use venv python on Windows
             if [ -f "$VENV_DIR/Scripts/python.exe" ]; then
                 PYTHON_CMD="$VENV_DIR/Scripts/python.exe"
                 export PYTHON_CMD
             fi
         else
             source "$VENV_DIR/bin/activate"
-            # Update PYTHON_CMD to use venv python on Unix
             if [ -f "$VENV_DIR/bin/python" ]; then
                 PYTHON_CMD="$VENV_DIR/bin/python"
                 export PYTHON_CMD
@@ -127,19 +158,18 @@ ensure_virtual_environment() {
     setup_virtual_environment
 }
 
-setup_logging_with_file() {
-    local log_dir="${1:-tests/logs}"
-    local log_prefix="${2:-script}"
-
-    mkdir -p "$log_dir"
-    local log_file="$log_dir/${log_prefix}_$(date +%Y%m%d_%H%M%S).log"
-    log_info "📝 Logging to: $log_file"
-    exec > >(tee "$log_file") 2>&1
-
-    # Export for other functions to use
-    export LOG_FILE="$log_file"
-    export LOG_DIR="$log_dir"
+setup_unicode_env() {
+    export PYTHONIOENCODING="utf-8"
+    log_info "Unicode environment configured (PYTHONIOENCODING=utf-8)"
 }
+
+setup_joblib_env() {
+    export LOKY_MAX_CPU_COUNT=$(get_physical_cores)
+}
+
+# ============================================================================
+# Dependencies
+# ============================================================================
 
 install_requirements() {
     local requirements_file="${1:-requirements.txt}"
@@ -172,13 +202,53 @@ check_and_install_tool() {
     fi
 }
 
+# ============================================================================
+# Python Execution
+# ============================================================================
+
+run_python_with_unicode() {
+    local script_path="$1"
+    shift
+
+    setup_unicode_env
+
+    if [[ -n "${VIRTUAL_ENV:-}" ]] || [ -d "venv" ] || [ -d ".venv" ]; then
+        setup_virtual_environment
+    fi
+
+    if [[ -z "${PYTHON_CMD:-}" ]]; then
+        find_python_interpreter
+    fi
+
+    PYTHONIOENCODING=utf-8 $PYTHON_CMD "$script_path" "$@"
+}
+
+run_pytest_with_unicode() {
+    local test_path="${1:-.}"
+    shift
+
+    setup_unicode_env
+
+    if [[ -n "${VIRTUAL_ENV:-}" ]] || [ -d "venv" ] || [ -d ".venv" ]; then
+        setup_virtual_environment
+    fi
+
+    if [[ -z "${PYTHON_CMD:-}" ]]; then
+        find_python_interpreter
+    fi
+
+    PYTHONIOENCODING=utf-8 $PYTHON_CMD -m pytest "$test_path" "$@"
+}
+
+# ============================================================================
+# Simulation
+# ============================================================================
+
 show_simulation_output_info() {
     local output_dir="${1:-out/}"
 
-    # Convert to relative path
     local rel_output_dir="${output_dir#$(pwd)/}"
 
-    # Find the most recent timestamped directory
     local latest_dir=""
     if [ -d "$output_dir" ]; then
         latest_dir=$(find "$output_dir" -maxdepth 1 -type d -name "*-*-*_*-*-*" | sort | tail -1)
@@ -197,47 +267,9 @@ show_simulation_output_info() {
     fi
 }
 
-# Environment setup utilities
-setup_unicode_env() {
-    export PYTHONIOENCODING="utf-8"
-    log_info "Unicode environment configured (PYTHONIOENCODING=utf-8)"
-}
-
-run_python_with_unicode() {
-    local script_path="$1"
-    shift  # Remove first argument, keep the rest
-
-    setup_unicode_env
-
-    if [[ -n "${VIRTUAL_ENV:-}" ]] || [ -d "venv" ] || [ -d ".venv" ]; then
-        setup_virtual_environment
-    fi
-
-    if [[ -z "${PYTHON_CMD:-}" ]]; then
-        find_python_interpreter
-    fi
-
-    # Run with proper environment
-    PYTHONIOENCODING=utf-8 $PYTHON_CMD "$script_path" "$@"
-}
-
-run_pytest_with_unicode() {
-    local test_path="${1:-.}"
-    shift
-
-    setup_unicode_env
-
-    if [[ -n "${VIRTUAL_ENV:-}" ]] || [ -d "venv" ] || [ -d ".venv" ]; then
-        setup_virtual_environment
-    fi
-
-    if [[ -z "${PYTHON_CMD:-}" ]]; then
-        find_python_interpreter
-    fi
-
-    # Run pytest with proper environment
-    PYTHONIOENCODING=utf-8 $PYTHON_CMD -m pytest "$test_path" "$@"
-}
+# ============================================================================
+# Globals
+# ============================================================================
 
 PYTHON_CMD=""
 export PYTHON_CMD
