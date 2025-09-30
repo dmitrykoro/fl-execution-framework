@@ -22,7 +22,7 @@ class SimulationRunner:
         logging.basicConfig(level=logging.INFO)
 
         self._config_loader = ConfigLoader(
-            usecase_config_path=f"config/simulation_strategies/{config_filename}",
+            usecase_config_path=f"config/simulation_strategies/examples/{config_filename}",
             dataset_config_path=f"config/dataset_keyword_to_dataset_dir.json"
         )
         self._simulation_strategy_config_dicts = self._config_loader.get_usecase_config_list()
@@ -78,5 +78,5 @@ class SimulationRunner:
 
 
 """Put the filename of the json strategy from config/simulation_strategies here"""
-simulation_runner = SimulationRunner("example_strategy_config.json")
+simulation_runner = SimulationRunner("krum_config.json")
 simulation_runner.run()
