@@ -1,10 +1,11 @@
 from dataclasses import dataclass, field
+from typing import Optional
 
-from data_models.client_info import ClientInfo
-from data_models.round_info import RoundsInfo
-from data_models.simulation_strategy_config import StrategyConfig
+from src.data_models.client_info import ClientInfo
+from src.data_models.round_info import RoundsInfo
+from src.data_models.simulation_strategy_config import StrategyConfig
 
-from dataset_handlers.dataset_handler import DatasetHandler
+from src.dataset_handlers.dataset_handler import DatasetHandler
 
 
 @dataclass
@@ -12,7 +13,7 @@ class SimulationStrategyHistory:
 
     strategy_config: StrategyConfig
     dataset_handler: DatasetHandler
-    rounds_history: RoundsInfo
+    rounds_history: Optional[RoundsInfo] = None
     _clients_dict: dict = field(default_factory=dict)
 
     def __post_init__(self):
@@ -140,7 +141,9 @@ class SimulationStrategyHistory:
                     sum_aggregated_accuracies += client_info.accuracy_history[round_num]
 
             self.rounds_history.append_tp_tn_fp_fn(round_tp_count, round_tn_count, round_fp_count, round_fn_count)
-            self.rounds_history.average_accuracy_history.append(sum_aggregated_accuracies / num_aggregated_clients)
+            self.rounds_history.average_accuracy_history.append(
+                sum_aggregated_accuracies / num_aggregated_clients if num_aggregated_clients > 0 else 0
+            )
 
         if self.strategy_config.remove_clients:
             self.rounds_history.calculate_additional_metrics()

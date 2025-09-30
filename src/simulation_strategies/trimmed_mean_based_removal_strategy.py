@@ -12,7 +12,7 @@ from flwr.common import parameters_to_ndarrays, ndarrays_to_parameters, FitRes
 from flwr.server.client_proxy import ClientProxy
 from flwr.server.strategy.fedavg import FedAvg
 
-from data_models.simulation_strategy_history import SimulationStrategyHistory
+from src.data_models.simulation_strategy_history import SimulationStrategyHistory
 
 
 class TrimmedMeanBasedRemovalStrategy(FedAvg):

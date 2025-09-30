@@ -3,6 +3,7 @@ import flwr as fl
 import torch
 import logging
 import time
+import os
 
 from typing import Dict, List, Optional, Tuple, Union
 from sklearn.cluster import KMeans
@@ -11,8 +12,8 @@ from flwr.server.strategy.aggregate import weighted_loss_avg
 from flwr.common import EvaluateRes, Scalar, ndarrays_to_parameters, FitRes, Parameters
 from flwr.server.client_proxy import ClientProxy
 
-from output_handlers.directory_handler import DirectoryHandler
-from data_models.simulation_strategy_history import SimulationStrategyHistory
+from src.output_handlers.directory_handler import DirectoryHandler
+from src.data_models.simulation_strategy_history import SimulationStrategyHistory
 
 class PIDBasedRemovalStrategy(fl.server.strategy.FedAvg):
     def __init__(
@@ -55,17 +56,19 @@ class PIDBasedRemovalStrategy(fl.server.strategy.FedAvg):
         self.aggregation_strategy_keyword = aggregation_strategy_keyword
 
         # Create a logger
-        self.logger = logging.getLogger("my_logger")
+        self.logger = logging.getLogger(f"pid_strategy_{id(self)}")
         self.logger.setLevel(logging.INFO)  # Set the logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL)
 
         # Create handlers
         out_dir = DirectoryHandler.dirname
+        os.makedirs(out_dir, exist_ok=True)
         file_handler = logging.FileHandler(f"{out_dir}/output.log")
         console_handler = logging.StreamHandler()
 
         # Add the handlers to the logger
         self.logger.addHandler(file_handler)
         self.logger.addHandler(console_handler)
+        self.logger.propagate = False
 
     def calculate_single_client_pid_scaled(self, client_id, distance):
         """Calculate pid."""
@@ -157,6 +160,10 @@ class PIDBasedRemovalStrategy(fl.server.strategy.FedAvg):
     ) -> Tuple[Optional[Parameters], Dict[str, Scalar]]:
 
         self.current_round += 1
+
+        # Handle empty results
+        if not results:
+            return super().aggregate_fit(server_round, results, failures)
 
         aggregate_clients = []
 

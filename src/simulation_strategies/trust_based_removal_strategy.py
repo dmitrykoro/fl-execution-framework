@@ -14,7 +14,7 @@ from flwr.server.strategy.aggregate import weighted_loss_avg
 from flwr.common import EvaluateRes, Scalar
 from flwr.server.client_proxy import ClientProxy
 
-from data_models.simulation_strategy_history import SimulationStrategyHistory
+from src.data_models.simulation_strategy_history import SimulationStrategyHistory
 
 
 class TrustBasedRemovalStrategy(fl.server.strategy.FedAvg):
@@ -79,6 +79,13 @@ class TrustBasedRemovalStrategy(fl.server.strategy.FedAvg):
 
     def update_trust(self, prev_trust, reputation, d):
         """Calculates trust based on reputation value of a client."""
+        # Convert numpy arrays to scalars if needed
+        if hasattr(d, 'item'):
+            d = d.item()
+        if hasattr(reputation, 'item'):
+            reputation = reputation.item()
+        if hasattr(prev_trust, 'item'):
+            prev_trust = prev_trust.item()
 
         trust = m.sqrt(m.pow(reputation, 2) + m.pow(d, 2)) - m.sqrt(m.pow(1 - reputation, 2) + m.pow(1 - d, 2))
         trust = self.beta_value * trust + (1 - self.beta_value) * prev_trust
@@ -96,6 +103,9 @@ class TrustBasedRemovalStrategy(fl.server.strategy.FedAvg):
             failures: List[Union[Tuple[ClientProxy, FitRes], BaseException]],
     ) -> Tuple[Optional[Parameters], Dict[str, Scalar]]:
 
+        if not results:
+            return super().aggregate_fit(server_round, results, failures)
+
         self.current_round += 1
         aggregate_clients = []
 
@@ -103,6 +113,9 @@ class TrustBasedRemovalStrategy(fl.server.strategy.FedAvg):
             client_id = result[0].cid
             if client_id not in self.removed_client_ids:
                 aggregate_clients.append(result)
+
+        if not aggregate_clients:
+            return super().aggregate_fit(server_round, results, failures)
 
         aggregated_parameters, aggregated_metrics = super().aggregate_fit(server_round, aggregate_clients, failures)
 
@@ -139,8 +152,8 @@ class TrustBasedRemovalStrategy(fl.server.strategy.FedAvg):
             self.strategy_history.insert_single_client_history_entry(
                 current_round=self.current_round,
                 client_id=int(client_id),
-                removal_criterion=float(new_trust),
-                absolute_distance=float(distances[i][0])
+                removal_criterion=float(new_trust.item()) if hasattr(new_trust, 'item') else float(new_trust),
+                absolute_distance=float(distances[i][0].item()) if hasattr(distances[i][0], 'item') else float(distances[i][0])
             )
 
             logging.info(

@@ -5,7 +5,7 @@ import torch
 from collections import OrderedDict
 from typing import List
 
-from network_models.bert_model_definition import get_peft_model_state_dict, set_peft_model_state_dict
+from src.network_models.bert_model_definition import get_peft_model_state_dict, set_peft_model_state_dict
 
 
 class FlowerClient(fl.client.NumPyClient):
@@ -71,10 +71,12 @@ class FlowerClient(fl.client.NumPyClient):
                     epoch_loss += loss
                     total += labels.size(0)
                     correct += (torch.max(outputs.data, 1)[1] == labels).sum().item()
-                epoch_loss /= len(trainloader.dataset)
-                epoch_acc = correct / total
+                epoch_loss /= len(trainloader.dataset) if len(trainloader.dataset) > 0 else 1
+                epoch_acc = correct / total if total > 0 else 0.0
                 if verbose:
                     print(f"Epoch {epoch + 1}: train loss {epoch_loss}, accuracy {epoch_acc}")
+
+            return float(epoch_loss), float(epoch_acc)
 
         elif self.model_type == "transformer":
             optimizer = torch.optim.AdamW(net.parameters(), lr=5e-5)
@@ -95,7 +97,7 @@ class FlowerClient(fl.client.NumPyClient):
                     if global_params is not None and self.client_id >= self.num_malicious_clients:
                         local_params = [torch.tensor(p, device=self.training_device) for p in self.get_parameters(config=None)]
                         prox_term = sum(torch.norm(lp - gp) ** 2 for lp, gp in zip(local_params, global_params))
-                        loss += (mu / 2) * prox_term
+                        loss = loss + (mu / 2) * prox_term
 
                     loss.backward()
 
@@ -114,6 +116,8 @@ class FlowerClient(fl.client.NumPyClient):
 
                 if verbose:
                     print(f"Epoch {epoch + 1}: train loss {epoch_loss}, accuracy {epoch_acc}")
+
+            return float(epoch_loss), float(epoch_acc)
 
         else:
             raise ValueError(f"Unsupported model type: {self.model_type}. Supported types are 'cnn' and 'mlm'.")
@@ -134,8 +138,8 @@ class FlowerClient(fl.client.NumPyClient):
                     _, predicted = torch.max(outputs.data, 1)
                     total += labels.size(0)
                     correct += (predicted == labels).sum().item()
-            loss /= len(testloader.dataset)
-            accuracy = correct / total
+            loss /= len(testloader.dataset) if len(testloader.dataset) > 0 else 1
+            accuracy = correct / total if total > 0 else 0.0
             return loss, accuracy
 
         # add check for mlm as well
@@ -174,7 +178,7 @@ class FlowerClient(fl.client.NumPyClient):
         if self.model_type == "transformer" and self.use_lora and self.client_id >= self.num_malicious_clients:
             global_params = [torch.tensor(p, device=self.training_device) for p in self.get_parameters(config=None)]
 
-        self.train(self.net, self.trainloader, epochs=self.num_of_client_epochs, global_params=global_params)
+        epoch_loss, epoch_acc = self.train(self.net, self.trainloader, epochs=self.num_of_client_epochs, global_params=global_params)
 
         # calculate gradients
         optimizer = torch.optim.Adam(self.net.parameters())
@@ -194,7 +198,7 @@ class FlowerClient(fl.client.NumPyClient):
         else:
             raise ValueError(f"Unsupported model type: {self.model_type}. Supported types are 'cnn' and 'transformer'.")
 
-        return self.get_parameters(self.net), len(self.trainloader), {}
+        return self.get_parameters(self.net), len(self.trainloader), {"loss": epoch_loss, "accuracy": epoch_acc}
 
     def evaluate(self, parameters, config):
         self.set_parameters(self.net, parameters)

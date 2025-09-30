@@ -1,3 +1,4 @@
+[![codecov](https://codecov.io/github/dmitrykoro/fl-execution-framework/graph/badge.svg?token=HJFASRJ43T)](https://codecov.io/github/dmitrykoro/fl-execution-framework)
 # Knowledge Management Framework for Federated Learning
 ### A framework for Federated Learning simulation configuration and execution
 
@@ -30,10 +31,13 @@ Defines the aggregation strategy. Options:
   - `pid_standardized`: PID-based aggregation with the Integral part standardized based on the distribution parameters of all Integral parts.
   - `multi-krum`: Multi-Krum aggregation. Clients are removed from aggregation only in current round.
   - `krum`: Krum aggregation works like Multi-Krum, but uses only a single client. 
-  - `multi-krum-based`: Multi-Krum-based aggregation where removed clients are excluded from aggregation permanently. 
+  - `multi-krum-based`: Multi-Krum-based aggregation where removed clients are excluded from aggregation permanently.
+  - `rfa`: RFA (Robust Federated Averaging) aggregation strategy. Provides Byzantine fault tolerance through weighted median-based aggregation.
   - `trimmed_mean`: Trimmed-Mean aggregation strategy. Aggregates updates by removing a fixed fraction of the largest and smallest values for each parameter dimension before averaging. Robust against outliers and certain types of attacks.
   - `bulyan`: Bulyan aggregation strategy. Uses Multi-Krum as the first step of filtering and Trimmed-Mean as the second step to ensure robustness.
 
+
+- **`strict_mode`**: ensures that Flower trains and aggregates all available clients at every round. When enabled (default), automatically sets `min_fit_clients`, `min_evaluate_clients`, and `min_available_clients` to equal `num_of_clients`. Options: `"true"`, `"false"`.
 
 - **`remove_clients`**: attempt to remove malicious clients using strategy-specific mechanisms.
 

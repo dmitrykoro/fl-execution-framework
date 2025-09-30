@@ -3,7 +3,7 @@ import json
 import logging
 import sys
 
-from config_loaders.validate_strategy_config import validate_strategy_config
+from src.config_loaders.validate_strategy_config import validate_strategy_config
 
 
 class ConfigLoader:
@@ -23,7 +23,7 @@ class ConfigLoader:
 
         return self.usecase_config_list
 
-    def get_dataset_config_list(self) -> list:
+    def get_dataset_config_list(self) -> dict:
         """Get config of dataset folders based on dataset keywords"""
 
         return self.dataset_config_list
@@ -50,6 +50,7 @@ class ConfigLoader:
                 strategy.update(shared_settings)
 
             for strategy in raw_config['simulation_strategies']:
+                # Validate the strategy configuration
                 validate_strategy_config(strategy)
                 logging.info(f"Successfully validated config from {config_path}.")
 
@@ -60,7 +61,7 @@ class ConfigLoader:
             sys.exit(-1)
 
     @staticmethod
-    def _set_config(config_path: str) -> list:
+    def _set_config(config_path: str) -> dict:
         """Set config by loading it from the specified JSON file"""
         try:
             with open(config_path) as f:

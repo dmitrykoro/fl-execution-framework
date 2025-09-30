@@ -1,16 +1,16 @@
 import json
 import logging
 
-from config_loaders.config_loader import ConfigLoader
+from src.config_loaders.config_loader import ConfigLoader
 
-from output_handlers.directory_handler import DirectoryHandler
-from output_handlers import new_plot_handler
+from src.output_handlers.directory_handler import DirectoryHandler
+from src.output_handlers import new_plot_handler
 
-from federated_simulation import FederatedSimulation
+from src.federated_simulation import FederatedSimulation
 
-from data_models.simulation_strategy_config import StrategyConfig
+from src.data_models.simulation_strategy_config import StrategyConfig
 
-from dataset_handlers.dataset_handler import DatasetHandler
+from src.dataset_handlers.dataset_handler import DatasetHandler
 
 
 class SimulationRunner:
@@ -19,7 +19,9 @@ class SimulationRunner:
             config_filename: str
     ) -> None:
 
-        logging.basicConfig(level=logging.INFO)
+        # Configure logging only if not already configured
+        if not logging.getLogger().hasHandlers():
+            logging.basicConfig(level=logging.INFO)
 
         self._config_loader = ConfigLoader(
             usecase_config_path=f"config/simulation_strategies/{config_filename}",
@@ -77,6 +79,7 @@ class SimulationRunner:
         new_plot_handler.show_inter_strategy_plots(executed_simulation_strategies, self._directory_handler)
 
 
-"""Put the filename of the json strategy from config/simulation_strategies here"""
-simulation_runner = SimulationRunner("example_strategy_config.json")
-simulation_runner.run()
+if __name__ == "__main__":
+    """Put the filename of the json strategy from config/simulation_strategies here"""
+    simulation_runner = SimulationRunner("example_strategy_config.json")
+    simulation_runner.run()

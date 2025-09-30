@@ -4,7 +4,7 @@ import json
 import csv
 import numpy as np
 
-from data_models.simulation_strategy_history import SimulationStrategyHistory
+from src.data_models.simulation_strategy_history import SimulationStrategyHistory
 
 
 class DirectoryHandler:
@@ -19,8 +19,8 @@ class DirectoryHandler:
         self.new_plots_dirname = DirectoryHandler.new_plots_dirname
         self.dataset_dir = None
 
-        os.makedirs(self.dirname)
-        os.makedirs(self.new_csv_dirname)
+        os.makedirs(self.dirname, exist_ok=True)
+        os.makedirs(self.new_csv_dirname, exist_ok=True)
 
         self.simulation_strategy_history: SimulationStrategyHistory
 
@@ -79,11 +79,10 @@ class DirectoryHandler:
 
                 for metric_name in savable_metrics:
                     for client_info in self.simulation_strategy_history.get_all_clients():
-                        collected_history = client_info.get_metric_by_name(metric_name)
-
-                        if collected_history:
-                            row.append(client_info.get_metric_by_name(metric_name)[round_num - 1])
-                        else:
+                        try:
+                            value = client_info.get_metric_by_name(metric_name)[round_num - 1]
+                            row.append(value if value is not None else "not collected")
+                        except IndexError:
                             row.append("not collected")
 
                 writer.writerow(row)
@@ -108,10 +107,10 @@ class DirectoryHandler:
 
                 for metric_name in savable_metrics:
                     collected_history = self.simulation_strategy_history.rounds_history.get_metric_by_name(metric_name)
-
-                    if collected_history:
-                        row.append(collected_history[round_num - 1])
-                    else:
+                    try:
+                        value = collected_history[round_num - 1]
+                        row.append(value if value is not None else "not collected")
+                    except IndexError:
                         row.append("not collected")
 
                 writer.writerow(row)
@@ -146,8 +145,8 @@ class DirectoryHandler:
                     self.simulation_strategy_history.rounds_history.get_metric_by_name(metric_name)[started_removing_from:-1-1]
                 )
 
-                metric_mean = np.mean(collected_history)
-                metric_std = np.std(collected_history)
+                metric_mean = np.mean(collected_history) if collected_history else 0.0
+                metric_std = np.std(collected_history) if collected_history else 0.0
 
                 if metric_name in (
                         "average_accuracy_history",

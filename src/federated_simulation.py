@@ -6,52 +6,81 @@ import flwr
 
 from flwr.client import Client, ClientApp, NumPyClient
 from flwr.common import ndarrays_to_parameters
+from flwr.server.strategy.aggregate import weighted_loss_avg
+from typing import List, Tuple
 
 from peft import PeftModel, get_peft_model_state_dict
 
 
-from dataset_loaders.image_dataset_loader import ImageDatasetLoader
-from dataset_loaders.image_transformers.its_image_transformer import its_image_transformer
-from dataset_loaders.image_transformers.femnist_image_transformer import femnist_image_transformer
-from dataset_loaders.image_transformers.flair_image_transformer import flair_image_transformer
-from dataset_loaders.image_transformers.pneumoniamnist_image_transformer import pneumoniamnist_image_transformer
-from dataset_loaders.image_transformers.bloodmnist_image_transformer import bloodmnist_image_transformer
-from dataset_loaders.image_transformers.lung_photos_image_transformer import lung_cancer_image_transformer
-from dataset_loaders.medquad_dataset_loader import MedQuADDatasetLoader
+from src.dataset_loaders.image_dataset_loader import ImageDatasetLoader
+from src.dataset_loaders.image_transformers.its_image_transformer import its_image_transformer
+from src.dataset_loaders.image_transformers.femnist_image_transformer import femnist_image_transformer
+from src.dataset_loaders.image_transformers.flair_image_transformer import flair_image_transformer
+from src.dataset_loaders.image_transformers.pneumoniamnist_image_transformer import pneumoniamnist_image_transformer
+from src.dataset_loaders.image_transformers.bloodmnist_image_transformer import bloodmnist_image_transformer
+from src.dataset_loaders.image_transformers.lung_photos_image_transformer import lung_cancer_image_transformer
+from src.dataset_loaders.medquad_dataset_loader import MedQuADDatasetLoader
 
-from network_models.its_network_definition import ITSNetwork
-from network_models.femnist_reduced_iid_network_definition import FemnistReducedIIDNetwork
-from network_models.femnist_full_niid_network_definition import FemnistFullNIIDNetwork
-from network_models.flair_network_definition import FlairNetwork
-from network_models.pneumoniamnist_network_definition import PneumoniamnistNetwork
-from network_models.bloodmnist_network_definition import BloodmnistNetwork
-from network_models.lung_photos_network_definition import LungCancerCNN
+from src.network_models.its_network_definition import ITSNetwork
+from src.network_models.femnist_reduced_iid_network_definition import FemnistReducedIIDNetwork
+from src.network_models.femnist_full_niid_network_definition import FemnistFullNIIDNetwork
+from src.network_models.flair_network_definition import FlairNetwork
+from src.network_models.pneumoniamnist_network_definition import PneumoniamnistNetwork
+from src.network_models.bloodmnist_network_definition import BloodmnistNetwork
+from src.network_models.lung_photos_network_definition import LungCancerCNN
 
-from network_models.bert_model_definition import load_model, load_model_with_lora
+from src.network_models.bert_model_definition import load_model, load_model_with_lora
 
-from client_models.flower_client import FlowerClient
+from src.client_models.flower_client import FlowerClient
 
-from simulation_strategies.trust_based_removal_srategy import TrustBasedRemovalStrategy
-from simulation_strategies.pid_based_removal_strategy import PIDBasedRemovalStrategy
-from simulation_strategies.krum_based_removal_strategy import KrumBasedRemovalStrategy
-from simulation_strategies.multi_krum_based_removal_strategy import MultiKrumBasedRemovalStrategy
-from simulation_strategies.trimmed_mean_based_removal_strategy import TrimmedMeanBasedRemovalStrategy
-from simulation_strategies.mutli_krum_strategy import MultiKrumStrategy
-from simulation_strategies.rfa_based_removal_strategy import RFABasedRemovalStrategy
-from simulation_strategies.bulyan_strategy import BulyanStrategy
+from src.simulation_strategies.trust_based_removal_strategy import TrustBasedRemovalStrategy
+from src.simulation_strategies.pid_based_removal_strategy import PIDBasedRemovalStrategy
+from src.simulation_strategies.krum_based_removal_strategy import KrumBasedRemovalStrategy
+from src.simulation_strategies.multi_krum_based_removal_strategy import MultiKrumBasedRemovalStrategy
+from src.simulation_strategies.trimmed_mean_based_removal_strategy import TrimmedMeanBasedRemovalStrategy
+from src.simulation_strategies.mutli_krum_strategy import MultiKrumStrategy
+from src.simulation_strategies.rfa_based_removal_strategy import RFABasedRemovalStrategy
+from src.simulation_strategies.bulyan_strategy import BulyanStrategy
 
-from data_models.simulation_strategy_config import StrategyConfig
-from data_models.simulation_strategy_history import SimulationStrategyHistory
-from data_models.round_info import RoundsInfo
+from src.data_models.simulation_strategy_config import StrategyConfig
+from src.data_models.simulation_strategy_history import SimulationStrategyHistory
+from src.data_models.round_info import RoundsInfo
 
-from dataset_handlers.dataset_handler import DatasetHandler
+from src.dataset_handlers.dataset_handler import DatasetHandler
+
+
+def weighted_average(metrics: List[Tuple[int, dict]]) -> dict:
+    """Compute weighted average of metrics from multiple clients."""
+    if not metrics:
+        return {}
+
+    # Extract metric names from the first client
+    metric_names = set()
+    for _, client_metrics in metrics:
+        metric_names.update(client_metrics.keys())
+
+    # Calculate weighted average for each metric
+    weighted_metrics = {}
+    for metric_name in metric_names:
+        total_samples = 0
+        weighted_sum = 0.0
+
+        for num_samples, client_metrics in metrics:
+            if metric_name in client_metrics:
+                weighted_sum += num_samples * client_metrics[metric_name]
+                total_samples += num_samples
+
+        if total_samples > 0:
+            weighted_metrics[metric_name] = weighted_sum / total_samples
+
+    return weighted_metrics
 
 
 class FederatedSimulation:
     def __init__(
             self,
             strategy_config: StrategyConfig,
-            dataset_dir: os.path,
+            dataset_dir: str,
             dataset_handler: DatasetHandler
     ):
         self.strategy_config = strategy_config
@@ -69,6 +98,7 @@ class FederatedSimulation:
 
         self._network_model = None
         self._aggregation_strategy = None
+        self._dataset_loader = None
 
         self._trainloaders = None
         self._valloaders = None
@@ -200,6 +230,7 @@ class FederatedSimulation:
             )
             sys.exit(-1)
 
+        self._dataset_loader = dataset_loader
         self._trainloaders, self._valloaders = dataset_loader.load_datasets()
 
     def _assign_aggregation_strategy(self) -> None:
@@ -214,6 +245,7 @@ class FederatedSimulation:
                 min_evaluate_clients=self.strategy_config.min_evaluate_clients,
                 min_available_clients=self.strategy_config.min_available_clients,
                 evaluate_metrics_aggregation_fn=self.strategy_config.evaluate_metrics_aggregation_fn,
+                fit_metrics_aggregation_fn=weighted_average,
                 remove_clients=self.strategy_config.remove_clients,
                 beta_value=self.strategy_config.beta_value,
                 trust_threshold=self.strategy_config.trust_threshold,
@@ -227,6 +259,7 @@ class FederatedSimulation:
                 min_evaluate_clients=self.strategy_config.min_evaluate_clients,
                 min_available_clients=self.strategy_config.min_available_clients,
                 evaluate_metrics_aggregation_fn=self.strategy_config.evaluate_metrics_aggregation_fn,
+                fit_metrics_aggregation_fn=weighted_average,
                 remove_clients=self.strategy_config.remove_clients,
                 begin_removing_from_round=self.strategy_config.begin_removing_from_round,
                 ki=self.strategy_config.Ki,
@@ -245,6 +278,7 @@ class FederatedSimulation:
                 min_evaluate_clients=self.strategy_config.min_evaluate_clients,
                 min_available_clients=self.strategy_config.min_available_clients,
                 evaluate_metrics_aggregation_fn=self.strategy_config.evaluate_metrics_aggregation_fn,
+                fit_metrics_aggregation_fn=weighted_average,
                 remove_clients=self.strategy_config.remove_clients,
                 begin_removing_from_round=self.strategy_config.begin_removing_from_round,
                 num_malicious_clients=self.strategy_config.num_of_malicious_clients,
@@ -258,6 +292,7 @@ class FederatedSimulation:
                 min_evaluate_clients=self.strategy_config.min_evaluate_clients,
                 min_available_clients=self.strategy_config.min_available_clients,
                 evaluate_metrics_aggregation_fn=self.strategy_config.evaluate_metrics_aggregation_fn,
+                fit_metrics_aggregation_fn=weighted_average,
                 remove_clients=self.strategy_config.remove_clients,
                 begin_removing_from_round=self.strategy_config.begin_removing_from_round,
                 num_of_malicious_clients=self.strategy_config.num_of_malicious_clients,
@@ -271,6 +306,7 @@ class FederatedSimulation:
                 min_evaluate_clients=self.strategy_config.min_evaluate_clients,
                 min_available_clients=self.strategy_config.min_available_clients,
                 evaluate_metrics_aggregation_fn=self.strategy_config.evaluate_metrics_aggregation_fn,
+                fit_metrics_aggregation_fn=weighted_average,
                 remove_clients=self.strategy_config.remove_clients,
                 begin_removing_from_round=self.strategy_config.begin_removing_from_round,
                 num_of_malicious_clients=self.strategy_config.num_of_malicious_clients,
@@ -284,6 +320,7 @@ class FederatedSimulation:
                 min_evaluate_clients=self.strategy_config.min_evaluate_clients,
                 min_available_clients=self.strategy_config.min_available_clients,
                 evaluate_metrics_aggregation_fn=self.strategy_config.evaluate_metrics_aggregation_fn,
+                fit_metrics_aggregation_fn=weighted_average,
                 remove_clients=self.strategy_config.remove_clients,
                 begin_removing_from_round=self.strategy_config.begin_removing_from_round,
                 strategy_history=self.strategy_history,
@@ -297,6 +334,7 @@ class FederatedSimulation:
                 min_evaluate_clients=self.strategy_config.min_evaluate_clients,
                 min_available_clients=self.strategy_config.min_available_clients,
                 evaluate_metrics_aggregation_fn=self.strategy_config.evaluate_metrics_aggregation_fn,
+                fit_metrics_aggregation_fn=weighted_average,
                 remove_clients=self.strategy_config.remove_clients,
                 begin_removing_from_round=self.strategy_config.begin_removing_from_round,
                 strategy_history=self.strategy_history,
@@ -309,6 +347,8 @@ class FederatedSimulation:
                 min_fit_clients=self.strategy_config.min_fit_clients,
                 min_evaluate_clients=self.strategy_config.min_evaluate_clients,
                 min_available_clients=self.strategy_config.min_available_clients,
+                evaluate_metrics_aggregation_fn=self.strategy_config.evaluate_metrics_aggregation_fn,
+                fit_metrics_aggregation_fn=weighted_average,
                 remove_clients=self.strategy_config.remove_clients,
                 begin_removing_from_round=self.strategy_config.begin_removing_from_round,
                 strategy_history=self.strategy_history,

@@ -43,9 +43,8 @@ class MedQuADDatasetLoader:
         for i in range(self.num_poisoned_clients):
             poisoned_client_ids.append(i)
 
-        for client_folder in sorted(os.listdir(self.dataset_dir), key=lambda string: int(string.split("_")[1])):
-            if client_folder.startswith("."):  # .DS_store
-                continue
+        client_folders = [d for d in os.listdir(self.dataset_dir) if d.startswith("client_")]
+        for client_folder in sorted(client_folders, key=lambda string: int(string.split("_")[1])):
             
             json_files = glob.glob(os.path.join(self.dataset_dir, client_folder, "*.json"))
 

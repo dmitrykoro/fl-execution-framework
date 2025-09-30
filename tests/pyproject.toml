@@ -1,0 +1,47 @@
+[build-system]
+requires = ["setuptools>=45", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "fl-execution-framework-tests"
+version = "0.1.0"
+
+[tool.setuptools]
+packages = []
+
+[tool.mypy]
+# Test-focused type checking
+warn_return_any = false
+warn_unused_configs = true
+show_error_codes = true
+no_implicit_optional = false
+
+# Third-party library handling
+ignore_missing_imports = true
+
+# Skip src/ imports - tests only
+follow_imports = "skip"
+ignore_errors = true
+
+# Lenient checking for test code
+disallow_untyped_defs = false
+disallow_incomplete_defs = false
+check_untyped_defs = false
+
+# Disable style warnings
+warn_redundant_casts = false
+warn_unused_ignores = false
+
+# Check test directories only
+files = [
+    "tests/conftest.py",
+    "tests/fixtures/",
+    "tests/integration/",
+    "tests/unit/",
+    "tests/performance/"
+]
+
+# Skip type reference files
+exclude = [
+    "tests/type_definitions/"
+]

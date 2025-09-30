@@ -71,8 +71,8 @@ sympy==1.13.1
 threadpoolctl==3.5.0
 tokenizers==0.22.0
 tomli==2.0.1
-torch==2.6.0
-torchvision==0.21.0
+torch==2.2.2
+torchvision==0.17.2
 tqdm==4.66.4
 transformers==4.56.1
 typer==0.9.4
@@ -82,3 +82,11 @@ urllib3==2.2.2
 xxhash==3.4.1
 yarl==1.9.4
 zipp==3.19.2
+
+# Testing dependencies
+pytest==8.3.3
+pytest-cov==5.0.0
+pytest-mock==3.14.0
+pytest-xdist==3.5.0
+mypy==1.13.0
+ruff==0.13.1
