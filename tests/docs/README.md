@@ -4,7 +4,7 @@
 
 **For testing and development documentation, see:**
 
-### 🎯 [`TESTING_GUIDE.md`](TESTING_GUIDE.md)
+### 🎯 [`TESTING_GUIDE.md`](testing_guide.md)
 
 **Everything you need in one place:**
 
