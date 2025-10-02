@@ -48,6 +48,18 @@ class MedMentionsNERDatasetLoader:
             pad_to_multiple_of=8,
             label_pad_token_id=self.IGNORE_LABEL,
         )
+        # Wrapper to keep non-tensor metadata out of the HF collator
+        def _collate_with_meta(features):
+            doc_ids = [f.pop("doc_id") for f in features]
+            word_lengths = [f.pop("word_length") for f in features]
+            batch = self.collator(features)  # pads/tensorizes only model fields
+            batch["doc_id"] = doc_ids
+            batch["word_length"] = word_lengths
+            return batch
+
+        self.collate_with_meta = _collate_with_meta
+
+
 
     def _scan_all_labels(self) -> List[str]:
         labels = set(["O"])
@@ -131,10 +143,10 @@ class MedMentionsNERDatasetLoader:
         ds_tok = ds.map(self._encode_align, batched=True, remove_columns=orig_cols)
 
         trainloader = DataLoader(
-            ds_tok["train"], batch_size=self.batch_size, shuffle=True, collate_fn=self.collator
+            ds_tok["train"], batch_size=self.batch_size, shuffle=True, collate_fn=self.collate_with_meta
         )
         valloader   = DataLoader(
-            ds_tok["validation"], batch_size=self.batch_size, shuffle=False, collate_fn=self.collator
+            ds_tok["validation"], batch_size=self.batch_size, shuffle=False, collate_fn=self.collate_with_meta
         )
         return trainloader, valloader
 
