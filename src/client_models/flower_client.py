@@ -7,7 +7,8 @@ import torch
 from collections import OrderedDict
 from typing import List
 
-from src.network_models.bert_model_definition import get_peft_model_state_dict, set_peft_model_state_dict
+from network_models.bert_model_definition import get_peft_model_state_dict, set_peft_model_state_dict
+from utils.legacy.ner_metrics_medmentions import StrictMentionAndDocEvaluator
 
 
 class FlowerClient(fl.client.NumPyClient):
@@ -32,6 +33,10 @@ class FlowerClient(fl.client.NumPyClient):
         self.num_of_client_epochs = num_of_client_epochs
         self.use_lora = use_lora
         self.num_malicious_clients = num_malicious_clients
+
+    def _to_device_only_tensors(self, batch):
+        return {k: (v.to(self.training_device) if torch.is_tensor(v) else v) for k, v in batch.items()}
+
 
     def set_parameters(self, net, parameters: List[np.ndarray]):
         if self.use_lora:
@@ -90,10 +95,13 @@ class FlowerClient(fl.client.NumPyClient):
                 correct, total = 0, 0
 
                 for batch in trainloader:
-                    batch = {k: v.to(self.training_device) for k, v in batch.items()}
-                    labels = batch["labels"]
-
-                    outputs = net(**batch)
+                    batch = self._to_device_only_tensors(batch)
+                    model_inputs = {
+                        "input_ids": batch["input_ids"],
+                        "attention_mask": batch.get("attention_mask"),
+                        "labels": batch["labels"],
+                    }
+                    outputs = net(**model_inputs)
                     loss = outputs.loss
 
                     # Apply FedProx only if global_params are provided
@@ -110,6 +118,7 @@ class FlowerClient(fl.client.NumPyClient):
 
                     if hasattr(outputs, "logits"):
                         preds = torch.argmax(outputs.logits, dim=-1)
+                        labels = model_inputs["labels"]
                         mask = labels != -100
                         correct += (preds[mask] == labels[mask]).sum().item()
                         total += mask.sum().item()
@@ -151,24 +160,39 @@ class FlowerClient(fl.client.NumPyClient):
             total_loss = 0
             correct, total = 0, 0
 
+            evaluator = StrictMentionAndDocEvaluator(id2label=self.net.config.id2label, label_only=True)
+
             with torch.no_grad():
                 for batch in testloader:
-                    batch = {k: v.to(self.training_device) for k, v in batch.items()}
-                    labels = batch["labels"]
+                    batch_dev = self._to_device_only_tensors(batch)
+                    model_inputs = {
+                        "input_ids": batch_dev["input_ids"],
+                        "attention_mask": batch_dev.get("attention_mask"),
+                        "labels": batch_dev["labels"],
+                    }
 
-                    outputs = net(**batch)
+                    outputs = net(**model_inputs)
                     loss = outputs.loss.item()
                     total_loss += loss
 
                     if hasattr(outputs, "logits"):
                         preds = torch.argmax(outputs.logits, dim=-1)
+                        labels = model_inputs["labels"]
                         mask = labels != -100
                         correct += (preds[mask] == labels[mask]).sum().item()
                         total += mask.sum().item()
 
+                        evaluator.update_batch(
+                            outputs.logits.detach().cpu(),
+                            labels.detach().cpu(),
+                            batch["doc_id"],          # List[str] from the dataset (do NOT .to(device))
+                            batch["word_length"],     # List[int]
+                        )
+
             loss = total_loss / len(testloader)
             accuracy = correct / total if total > 0 else 0
-            return loss, accuracy
+            mm = evaluator.finalize()
+            return loss, accuracy, mm
 
         else:
             raise ValueError(f"Unsupported model type: {self.model_type}. Supported types are 'cnn' and 'mlm'.")
@@ -187,5 +211,21 @@ class FlowerClient(fl.client.NumPyClient):
 
     def evaluate(self, parameters, config):
         self.set_parameters(self.net, parameters)
-        loss, accuracy = self.test(self.net, self.valloader)
-        return float(loss), len(self.valloader), {"accuracy": float(accuracy)}
+        if self.model_type == "transformer":
+            loss, accuracy,mm = self.test(self.net,self.valloader)
+            metrics = {
+                "accuracy": float(accuracy),
+                "mention_precision": mm["mention_precision"],
+                "mention_recall": mm["mention_recall"],
+                "mention_f1": mm["mention_f1"],
+                "document_precision": mm["document_precision"],
+                "document_recall": mm["document_recall"],
+                "document_f1": mm["document_f1"],
+                # raw counts for micro-averaging on the server
+                "tp_m": mm["tp_m"], "fp_m": mm["fp_m"], "fn_m": mm["fn_m"],
+                "tp_d": mm["tp_d"], "fp_d": mm["fp_d"], "fn_d": mm["fn_d"],
+            }
+            return float(loss), len(self.valloader), metrics
+        else:
+            loss, accuracy = self.test(self.net, self.valloader)
+            return float(loss), len(self.valloader), {"accuracy": float(accuracy)}
