@@ -72,14 +72,7 @@ class RoundsInfo:
             "removal_recall_history",
             "removal_f1_history",
         ]
-        self.barable_metrics += [
-        "mention_precision_history",
-        "mention_recall_history",
-        "mention_f1_history",
-        "document_precision_history",
-        "document_recall_history",
-        "document_f1_history",
-        ]
+        
         self.savable_metrics += [
             "mention_precision_history",
             "mention_recall_history",
@@ -89,6 +82,14 @@ class RoundsInfo:
             "document_f1_history",
         ]
 
+        self.plottable_metrics += [
+            "mention_precision_history",
+            "mention_recall_history",
+            "mention_f1_history",
+            "document_precision_history",
+            "document_recall_history",
+            "document_f1_history",
+        ]
 
         if self.simulation_strategy_config.remove_clients:
             self.savable_metrics += self.statsable_metrics
