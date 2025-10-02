@@ -66,14 +66,16 @@ class MedMentionsNERDatasetLoader:
 
     def _encode_align(self, batch):
         """
-        Convert word-level tokens/tags to subword-aligned tensors.
-        IMPORTANT: we do NOT keep 'tokens'/'ner_tags' in the mapped dataset.
+        Convert word-level tokens/tags to subword-aligned tensors AND
+        also carry:
+        - doc_id        (str per example)
+        - word_length   (# of original word tokens per example)
         """
         enc = self.tokenizer(
             batch["tokens"],
             is_split_into_words=True,
             truncation=True,
-            padding=False,            # <-- collator will pad
+            padding=False,            # collator pads
             max_length=self.MAX_LEN,
             return_attention_mask=True,
         )
@@ -85,20 +87,28 @@ class MedMentionsNERDatasetLoader:
             prev_wid = None
             for wid in word_ids:
                 if wid is None:
-                    aligned.append(self.IGNORE_LABEL)             # special/pad tokens
+                    aligned.append(self.IGNORE_LABEL)          # special/pad tokens
                 elif wid != prev_wid:
-                    aligned.append(self.label2id[tags[wid]])      # first subword gets tag
+                    aligned.append(self.label2id[tags[wid]])   # first subword gets tag
                 else:
-                    aligned.append(self.IGNORE_LABEL)             # ignore non-first subwords
+                    aligned.append(self.IGNORE_LABEL)          # ignore non-first subwords
                 prev_wid = wid
             labels.append(aligned)
 
-        # Return ONLY model fields so collator never sees 'tokens'/'text'
+        # NEW: carry these through for strict mention/doc metrics
+        doc_ids = [str(d) for d in batch["document_id"]]
+        word_lengths = [len(toks) for toks in batch["tokens"]]
+
+        # Return ONLY model fields + the two extras.
+        # (We will still remove the original columns in .map(..., remove_columns=orig_cols))
         return {
             "input_ids": enc["input_ids"],
             "attention_mask": enc["attention_mask"],
             "labels": labels,
+            "doc_id": doc_ids,               # <-- added
+            "word_length": word_lengths,     # <-- added
         }
+
 
     def _load_one_client(self, client_dir: str) -> Tuple[DataLoader, DataLoader]:
         files_train = glob.glob(os.path.join(client_dir, "train*.json"))
