@@ -157,14 +157,24 @@ class FlowerClient(fl.client.NumPyClient):
         # add check for mlm as well
         elif self.model_type == "transformer":
             net.eval()
-            total_loss = 0
+            total_loss = 0.0
             correct, total = 0, 0
 
-            evaluator = StrictMentionAndDocEvaluator(id2label=self.net.config.id2label, label_only=True)
+            evaluator = None
+            strict_enabled = None  # decide on first batch
 
             with torch.no_grad():
                 for batch in testloader:
                     batch_dev = self._to_device_only_tensors(batch)
+
+                    # Decide once whether we can run MedMentions strict metrics
+                    if strict_enabled is None:
+                        strict_enabled = ("doc_id" in batch) and ("word_length" in batch)
+                        if strict_enabled:
+                            evaluator = StrictMentionAndDocEvaluator(
+                                id2label=self.net.config.id2label, label_only=True
+                            )
+
                     model_inputs = {
                         "input_ids": batch_dev["input_ids"],
                         "attention_mask": batch_dev.get("attention_mask"),
@@ -172,27 +182,34 @@ class FlowerClient(fl.client.NumPyClient):
                     }
 
                     outputs = net(**model_inputs)
-                    loss = outputs.loss.item()
-                    total_loss += loss
+                    total_loss += outputs.loss.item()
 
                     if hasattr(outputs, "logits"):
                         preds = torch.argmax(outputs.logits, dim=-1)
                         labels = model_inputs["labels"]
                         mask = labels != -100
                         correct += (preds[mask] == labels[mask]).sum().item()
-                        total += mask.sum().item()
+                        total   += mask.sum().item()
 
-                        evaluator.update_batch(
-                            outputs.logits.detach().cpu(),
-                            labels.detach().cpu(),
-                            batch["doc_id"],          # List[str] from the dataset (do NOT .to(device))
-                            batch["word_length"],     # List[int]
-                        )
+                        # Only update strict metrics if this is a MedMentions NER batch
+                        if strict_enabled and evaluator is not None:
+                            evaluator.update_batch(
+                                outputs.logits.detach().cpu(),
+                                labels.detach().cpu(),
+                                batch["doc_id"],       # python list
+                                batch["word_length"],  # python list
+                            )
 
-            loss = total_loss / len(testloader)
-            accuracy = correct / total if total > 0 else 0
-            mm = evaluator.finalize()
-            return loss, accuracy, mm
+            loss = total_loss / max(len(testloader), 1)
+            accuracy = (correct / total) if total > 0 else 0.0
+
+            if strict_enabled and evaluator is not None:
+                mm = evaluator.finalize()
+                return loss, accuracy, mm
+            else:
+                # fall back to old two-tuple result for non-NER transformer tasks
+                return loss, accuracy
+
 
         else:
             raise ValueError(f"Unsupported model type: {self.model_type}. Supported types are 'cnn' and 'mlm'.")
