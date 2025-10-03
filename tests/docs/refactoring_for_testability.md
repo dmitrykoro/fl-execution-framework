@@ -227,4 +227,38 @@ These modifications make the federated learning framework more reliable and feat
 
 ---
 
-Happy researching! 🎓🚀
+## Web UI API Integration
+
+### DirectoryHandler Output Path Configuration
+
+#### File: `src/output_handlers/directory_handler.py`
+
+- **Change**: Added optional `output_dir` parameter to `__init__()`
+- **Purpose**: Allow API to specify output directory instead of using timestamp-based default
+- **Risk Assessment**: Low
+  - Backward compatible: defaults to existing timestamp-based directory when `output_dir=None`
+  - Enables API runs to save results in their designated directories
+  - No impact on command-line usage
+
+#### File: `src/simulation_runner.py`
+
+- **Change**: Pass output directory to DirectoryHandler when config path is absolute
+- **Purpose**: API-initiated simulations save results to `out/api_run_*` directories
+- **Risk Assessment**: Low
+  - Only affects absolute config paths (API use case)
+  - Relative paths continue using default behavior
+  - Fixes results not appearing in API responses
+
+### API Status Detection Improvements
+
+#### File: `src/api/main.py`
+
+- **Changes**:
+  1. Updated result file detection from PNG/CSV to PDF/CSV (line 310, 316)
+  2. Check for result files before treating non-zero exit as failure (line 295-298)
+  3. Added `http://localhost:5174` to CORS origins (line 27-28)
+- **Purpose**: Fix false failure detection for successful simulations
+- **Risk Assessment**: Low
+  - Simulations save PDFs not PNGs - status now checks correct file types
+  - Non-zero exit codes don't always mean failure - check for results first
+  - CORS addition supports frontend development on alternate ports

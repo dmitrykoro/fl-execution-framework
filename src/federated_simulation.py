@@ -1,29 +1,44 @@
 import logging
 import sys
-import os
 
 import flwr
 
-from flwr.client import Client, ClientApp, NumPyClient
+from flwr.client import Client
 from flwr.common import ndarrays_to_parameters
-from flwr.server.strategy.aggregate import weighted_loss_avg
+from flwr.server.strategy.fedavg import FedAvg
 from typing import List, Tuple
 
 from peft import PeftModel, get_peft_model_state_dict
 
 
 from src.dataset_loaders.image_dataset_loader import ImageDatasetLoader
-from src.dataset_loaders.image_transformers.its_image_transformer import its_image_transformer
-from src.dataset_loaders.image_transformers.femnist_image_transformer import femnist_image_transformer
-from src.dataset_loaders.image_transformers.flair_image_transformer import flair_image_transformer
-from src.dataset_loaders.image_transformers.pneumoniamnist_image_transformer import pneumoniamnist_image_transformer
-from src.dataset_loaders.image_transformers.bloodmnist_image_transformer import bloodmnist_image_transformer
-from src.dataset_loaders.image_transformers.lung_photos_image_transformer import lung_cancer_image_transformer
+from src.dataset_loaders.image_transformers.its_image_transformer import (
+    its_image_transformer,
+)
+from src.dataset_loaders.image_transformers.femnist_image_transformer import (
+    femnist_image_transformer,
+)
+from src.dataset_loaders.image_transformers.flair_image_transformer import (
+    flair_image_transformer,
+)
+from src.dataset_loaders.image_transformers.pneumoniamnist_image_transformer import (
+    pneumoniamnist_image_transformer,
+)
+from src.dataset_loaders.image_transformers.bloodmnist_image_transformer import (
+    bloodmnist_image_transformer,
+)
+from src.dataset_loaders.image_transformers.lung_photos_image_transformer import (
+    lung_cancer_image_transformer,
+)
 from src.dataset_loaders.medquad_dataset_loader import MedQuADDatasetLoader
 
 from src.network_models.its_network_definition import ITSNetwork
-from src.network_models.femnist_reduced_iid_network_definition import FemnistReducedIIDNetwork
-from src.network_models.femnist_full_niid_network_definition import FemnistFullNIIDNetwork
+from src.network_models.femnist_reduced_iid_network_definition import (
+    FemnistReducedIIDNetwork,
+)
+from src.network_models.femnist_full_niid_network_definition import (
+    FemnistFullNIIDNetwork,
+)
 from src.network_models.flair_network_definition import FlairNetwork
 from src.network_models.pneumoniamnist_network_definition import PneumoniamnistNetwork
 from src.network_models.bloodmnist_network_definition import BloodmnistNetwork
@@ -33,11 +48,19 @@ from src.network_models.bert_model_definition import load_model, load_model_with
 
 from src.client_models.flower_client import FlowerClient
 
-from src.simulation_strategies.trust_based_removal_strategy import TrustBasedRemovalStrategy
+from src.simulation_strategies.trust_based_removal_strategy import (
+    TrustBasedRemovalStrategy,
+)
 from src.simulation_strategies.pid_based_removal_strategy import PIDBasedRemovalStrategy
-from src.simulation_strategies.krum_based_removal_strategy import KrumBasedRemovalStrategy
-from src.simulation_strategies.multi_krum_based_removal_strategy import MultiKrumBasedRemovalStrategy
-from src.simulation_strategies.trimmed_mean_based_removal_strategy import TrimmedMeanBasedRemovalStrategy
+from src.simulation_strategies.krum_based_removal_strategy import (
+    KrumBasedRemovalStrategy,
+)
+from src.simulation_strategies.multi_krum_based_removal_strategy import (
+    MultiKrumBasedRemovalStrategy,
+)
+from src.simulation_strategies.trimmed_mean_based_removal_strategy import (
+    TrimmedMeanBasedRemovalStrategy,
+)
 from src.simulation_strategies.mutli_krum_strategy import MultiKrumStrategy
 from src.simulation_strategies.rfa_based_removal_strategy import RFABasedRemovalStrategy
 from src.simulation_strategies.bulyan_strategy import BulyanStrategy
@@ -78,10 +101,10 @@ def weighted_average(metrics: List[Tuple[int, dict]]) -> dict:
 
 class FederatedSimulation:
     def __init__(
-            self,
-            strategy_config: StrategyConfig,
-            dataset_dir: str,
-            dataset_handler: DatasetHandler
+        self,
+        strategy_config: StrategyConfig,
+        dataset_dir: str,
+        dataset_handler: DatasetHandler,
     ):
         self.strategy_config = strategy_config
         self.rounds_history = None
@@ -91,7 +114,7 @@ class FederatedSimulation:
         self.strategy_history = SimulationStrategyHistory(
             strategy_config=self.strategy_config,
             dataset_handler=self.dataset_handler,
-            rounds_history=RoundsInfo(simulation_strategy_config=self.strategy_config)
+            rounds_history=RoundsInfo(simulation_strategy_config=self.strategy_config),
         )
 
         self._dataset_dir = dataset_dir
@@ -111,11 +134,13 @@ class FederatedSimulation:
         flwr.simulation.start_simulation(
             client_fn=self.client_fn,
             num_clients=self.strategy_config.num_of_clients,
-            config=flwr.server.ServerConfig(num_rounds=self.strategy_config.num_of_rounds),
+            config=flwr.server.ServerConfig(
+                num_rounds=self.strategy_config.num_of_rounds
+            ),
             strategy=self._aggregation_strategy,
             client_resources={
                 "num_cpus": self.strategy_config.cpus_per_client,
-                "num_gpus": self.strategy_config.gpus_per_client
+                "num_gpus": self.strategy_config.gpus_per_client,
             },
         )
 
@@ -139,7 +164,7 @@ class FederatedSimulation:
                 dataset_dir=self._dataset_dir,
                 num_of_clients=num_of_clients,
                 batch_size=batch_size,
-                training_subset_fraction=training_subset_fraction
+                training_subset_fraction=training_subset_fraction,
             )
             self._network_model = ITSNetwork()
 
@@ -149,7 +174,7 @@ class FederatedSimulation:
                 dataset_dir=self._dataset_dir,
                 num_of_clients=num_of_clients,
                 batch_size=batch_size,
-                training_subset_fraction=training_subset_fraction
+                training_subset_fraction=training_subset_fraction,
             )
             self._network_model = FemnistReducedIIDNetwork()
 
@@ -159,7 +184,7 @@ class FederatedSimulation:
                 dataset_dir=self._dataset_dir,
                 num_of_clients=num_of_clients,
                 batch_size=batch_size,
-                training_subset_fraction=training_subset_fraction
+                training_subset_fraction=training_subset_fraction,
             )
             self._network_model = FemnistFullNIIDNetwork()
 
@@ -169,7 +194,7 @@ class FederatedSimulation:
                 dataset_dir=self._dataset_dir,
                 num_of_clients=num_of_clients,
                 batch_size=batch_size,
-                training_subset_fraction=training_subset_fraction
+                training_subset_fraction=training_subset_fraction,
             )
             self._network_model = FlairNetwork()
 
@@ -179,7 +204,7 @@ class FederatedSimulation:
                 dataset_dir=self._dataset_dir,
                 num_of_clients=num_of_clients,
                 batch_size=batch_size,
-                training_subset_fraction=training_subset_fraction
+                training_subset_fraction=training_subset_fraction,
             )
             self._network_model = PneumoniamnistNetwork()
         elif dataset_keyword == "bloodmnist":
@@ -188,7 +213,7 @@ class FederatedSimulation:
                 dataset_dir=self._dataset_dir,
                 num_of_clients=num_of_clients,
                 batch_size=batch_size,
-                training_subset_fraction=training_subset_fraction
+                training_subset_fraction=training_subset_fraction,
             )
             self._network_model = BloodmnistNetwork()
         elif dataset_keyword == "lung_photos":
@@ -197,7 +222,7 @@ class FederatedSimulation:
                 dataset_dir=self._dataset_dir,
                 num_of_clients=num_of_clients,
                 batch_size=batch_size,
-                training_subset_fraction=training_subset_fraction
+                training_subset_fraction=training_subset_fraction,
             )
             self._network_model = LungCancerCNN()
         elif dataset_keyword == "medquad":
@@ -240,25 +265,29 @@ class FederatedSimulation:
 
         if aggregation_strategy_keyword == "trust":
             self._aggregation_strategy = TrustBasedRemovalStrategy(
-                initial_parameters=ndarrays_to_parameters(self._get_model_params(self._network_model)),
+                initial_parameters=ndarrays_to_parameters(
+                    self._get_model_params(self._network_model)
+                ),
                 min_fit_clients=self.strategy_config.min_fit_clients,
                 min_evaluate_clients=self.strategy_config.min_evaluate_clients,
                 min_available_clients=self.strategy_config.min_available_clients,
-                evaluate_metrics_aggregation_fn=self.strategy_config.evaluate_metrics_aggregation_fn,
+                evaluate_metrics_aggregation_fn=weighted_average,
                 fit_metrics_aggregation_fn=weighted_average,
                 remove_clients=self.strategy_config.remove_clients,
                 beta_value=self.strategy_config.beta_value,
                 trust_threshold=self.strategy_config.trust_threshold,
                 strategy_history=self.strategy_history,
-                begin_removing_from_round=self.strategy_config.begin_removing_from_round
+                begin_removing_from_round=self.strategy_config.begin_removing_from_round,
             )
         elif aggregation_strategy_keyword in ("pid", "pid_scaled", "pid_standardized"):
             self._aggregation_strategy = PIDBasedRemovalStrategy(
-                initial_parameters=ndarrays_to_parameters(self._get_model_params(self._network_model)),
+                initial_parameters=ndarrays_to_parameters(
+                    self._get_model_params(self._network_model)
+                ),
                 min_fit_clients=self.strategy_config.min_fit_clients,
                 min_evaluate_clients=self.strategy_config.min_evaluate_clients,
                 min_available_clients=self.strategy_config.min_available_clients,
-                evaluate_metrics_aggregation_fn=self.strategy_config.evaluate_metrics_aggregation_fn,
+                evaluate_metrics_aggregation_fn=weighted_average,
                 fit_metrics_aggregation_fn=weighted_average,
                 remove_clients=self.strategy_config.remove_clients,
                 begin_removing_from_round=self.strategy_config.begin_removing_from_round,
@@ -269,85 +298,100 @@ class FederatedSimulation:
                 strategy_history=self.strategy_history,
                 network_model=self._network_model,
                 aggregation_strategy_keyword=aggregation_strategy_keyword,
-                use_lora=True if self.strategy_config.use_llm and self.strategy_config.llm_finetuning == "lora" else False
+                use_lora=True
+                if self.strategy_config.use_llm
+                and self.strategy_config.llm_finetuning == "lora"
+                else False,
             )
         elif aggregation_strategy_keyword == "krum":
             self._aggregation_strategy = KrumBasedRemovalStrategy(
-                initial_parameters=ndarrays_to_parameters(self._get_model_params(self._network_model)),
+                initial_parameters=ndarrays_to_parameters(
+                    self._get_model_params(self._network_model)
+                ),
                 min_fit_clients=self.strategy_config.min_fit_clients,
                 min_evaluate_clients=self.strategy_config.min_evaluate_clients,
                 min_available_clients=self.strategy_config.min_available_clients,
-                evaluate_metrics_aggregation_fn=self.strategy_config.evaluate_metrics_aggregation_fn,
+                evaluate_metrics_aggregation_fn=weighted_average,
                 fit_metrics_aggregation_fn=weighted_average,
                 remove_clients=self.strategy_config.remove_clients,
                 begin_removing_from_round=self.strategy_config.begin_removing_from_round,
                 num_malicious_clients=self.strategy_config.num_of_malicious_clients,
                 strategy_history=self.strategy_history,
-                num_krum_selections=self.strategy_config.num_krum_selections
+                num_krum_selections=self.strategy_config.num_krum_selections,
             )
         elif aggregation_strategy_keyword == "multi-krum-based":
             self._aggregation_strategy = MultiKrumBasedRemovalStrategy(
-                initial_parameters=ndarrays_to_parameters(self._get_model_params(self._network_model)),
+                initial_parameters=ndarrays_to_parameters(
+                    self._get_model_params(self._network_model)
+                ),
                 min_fit_clients=self.strategy_config.min_fit_clients,
                 min_evaluate_clients=self.strategy_config.min_evaluate_clients,
                 min_available_clients=self.strategy_config.min_available_clients,
-                evaluate_metrics_aggregation_fn=self.strategy_config.evaluate_metrics_aggregation_fn,
+                evaluate_metrics_aggregation_fn=weighted_average,
                 fit_metrics_aggregation_fn=weighted_average,
                 remove_clients=self.strategy_config.remove_clients,
                 begin_removing_from_round=self.strategy_config.begin_removing_from_round,
                 num_of_malicious_clients=self.strategy_config.num_of_malicious_clients,
                 strategy_history=self.strategy_history,
-                num_krum_selections=self.strategy_config.num_krum_selections
+                num_krum_selections=self.strategy_config.num_krum_selections,
             )
         elif aggregation_strategy_keyword == "multi-krum":
             self._aggregation_strategy = MultiKrumStrategy(
-                initial_parameters=ndarrays_to_parameters(self._get_model_params(self._network_model)),
+                initial_parameters=ndarrays_to_parameters(
+                    self._get_model_params(self._network_model)
+                ),
                 min_fit_clients=self.strategy_config.min_fit_clients,
                 min_evaluate_clients=self.strategy_config.min_evaluate_clients,
                 min_available_clients=self.strategy_config.min_available_clients,
-                evaluate_metrics_aggregation_fn=self.strategy_config.evaluate_metrics_aggregation_fn,
+                evaluate_metrics_aggregation_fn=weighted_average,
                 fit_metrics_aggregation_fn=weighted_average,
                 remove_clients=self.strategy_config.remove_clients,
                 begin_removing_from_round=self.strategy_config.begin_removing_from_round,
                 num_of_malicious_clients=self.strategy_config.num_of_malicious_clients,
                 strategy_history=self.strategy_history,
-                num_krum_selections=self.strategy_config.num_krum_selections
+                num_krum_selections=self.strategy_config.num_krum_selections,
             )
         elif aggregation_strategy_keyword == "trimmed_mean":
             self._aggregation_strategy = TrimmedMeanBasedRemovalStrategy(
-                initial_parameters=ndarrays_to_parameters(self._get_model_params(self._network_model)),
+                initial_parameters=ndarrays_to_parameters(
+                    self._get_model_params(self._network_model)
+                ),
                 min_fit_clients=self.strategy_config.min_fit_clients,
                 min_evaluate_clients=self.strategy_config.min_evaluate_clients,
                 min_available_clients=self.strategy_config.min_available_clients,
-                evaluate_metrics_aggregation_fn=self.strategy_config.evaluate_metrics_aggregation_fn,
+                evaluate_metrics_aggregation_fn=weighted_average,
                 fit_metrics_aggregation_fn=weighted_average,
                 remove_clients=self.strategy_config.remove_clients,
                 begin_removing_from_round=self.strategy_config.begin_removing_from_round,
                 strategy_history=self.strategy_history,
-                trim_ratio=self.strategy_config.trim_ratio
+                trim_ratio=self.strategy_config.trim_ratio,
             )
 
         elif aggregation_strategy_keyword == "rfa":
             self._aggregation_strategy = RFABasedRemovalStrategy(
-                initial_parameters=ndarrays_to_parameters(self._get_model_params(self._network_model)),
+                initial_parameters=ndarrays_to_parameters(
+                    self._get_model_params(self._network_model)
+                ),
                 min_fit_clients=self.strategy_config.min_fit_clients,
                 min_evaluate_clients=self.strategy_config.min_evaluate_clients,
                 min_available_clients=self.strategy_config.min_available_clients,
-                evaluate_metrics_aggregation_fn=self.strategy_config.evaluate_metrics_aggregation_fn,
+                evaluate_metrics_aggregation_fn=weighted_average,
                 fit_metrics_aggregation_fn=weighted_average,
                 remove_clients=self.strategy_config.remove_clients,
                 begin_removing_from_round=self.strategy_config.begin_removing_from_round,
                 strategy_history=self.strategy_history,
-                num_of_malicious_clients=self.strategy_config.num_of_malicious_clients
+                num_of_malicious_clients=self.strategy_config.num_of_malicious_clients,
             )
 
         elif aggregation_strategy_keyword == "bulyan":
             self._aggregation_strategy = BulyanStrategy(
-                initial_parameters=ndarrays_to_parameters(self._get_model_params(self._network_model)),
+                initial_parameters=ndarrays_to_parameters(
+                    self._get_model_params(self._network_model)
+                ),
                 min_fit_clients=self.strategy_config.min_fit_clients,
                 min_evaluate_clients=self.strategy_config.min_evaluate_clients,
                 min_available_clients=self.strategy_config.min_available_clients,
-                evaluate_metrics_aggregation_fn=self.strategy_config.evaluate_metrics_aggregation_fn,
+                evaluate_metrics_aggregation_fn=weighted_average,
                 fit_metrics_aggregation_fn=weighted_average,
                 remove_clients=self.strategy_config.remove_clients,
                 begin_removing_from_round=self.strategy_config.begin_removing_from_round,
@@ -355,15 +399,44 @@ class FederatedSimulation:
                 num_krum_selections=self.strategy_config.num_krum_selections,
             )
 
+        elif aggregation_strategy_keyword == "FedAvg":
+            self._aggregation_strategy = FedAvg(
+                initial_parameters=ndarrays_to_parameters(
+                    self._get_model_params(self._network_model)
+                ),
+                min_fit_clients=self.strategy_config.min_fit_clients,
+                min_evaluate_clients=self.strategy_config.min_evaluate_clients,
+                min_available_clients=self.strategy_config.min_available_clients,
+                evaluate_metrics_aggregation_fn=weighted_average,
+                fit_metrics_aggregation_fn=weighted_average,
+            )
+
         else:
-            raise NotImplementedError(f"The strategy {aggregation_strategy_keyword} not implemented!")
+            raise NotImplementedError(
+                f"The strategy {aggregation_strategy_keyword} not implemented!"
+            )
 
     def client_fn(self, cid: str) -> Client:
         """Create a Flower client."""
 
+        if self._network_model is None:
+            raise ValueError(
+                f"Network model not initialized for dataset: {self.strategy_config.dataset_keyword}"
+            )
+
+        if self._trainloaders is None or self._valloaders is None:
+            raise ValueError(
+                "Data loaders not initialized. Make sure dataset loading completed successfully."
+            )
+
         net = self._network_model.to(self.strategy_config.training_device)
 
-        use_lora = True if self.strategy_config.use_llm and self.strategy_config.llm_finetuning == "lora" else False
+        use_lora = (
+            True
+            if self.strategy_config.use_llm
+            and self.strategy_config.llm_finetuning == "lora"
+            else False
+        )
 
         trainloader = self._trainloaders[int(cid)]
         valloader = self._valloaders[int(cid)]
