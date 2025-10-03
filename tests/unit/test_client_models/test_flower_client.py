@@ -383,7 +383,7 @@ class TestFlowerClient:
             assert isinstance(result_params, list)
             assert isinstance(dataset_size, int)
             assert isinstance(metrics, dict)
-            assert dataset_size == len(flower_client_cnn.trainloader)
+            assert dataset_size == len(flower_client_cnn.trainloader.dataset)
 
     def test_fit_method_transformer_with_lora(self, flower_client_transformer):
         """Test fit method for transformer with LoRA."""
@@ -454,7 +454,7 @@ class TestFlowerClient:
             assert isinstance(dataset_size, int)
             assert isinstance(metrics, dict)
             assert "accuracy" in metrics
-            assert dataset_size == len(flower_client_cnn.valloader)
+            assert dataset_size == len(flower_client_cnn.valloader.dataset)
 
     @pytest.mark.parametrize(
         "model_type,expected_criterion",
