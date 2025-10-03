@@ -3,6 +3,7 @@ import { useParams, Link, useNavigate } from 'react-router-dom';
 import { Spinner, Alert, Card, Row, Col, Tabs, Tab, Table, Button, ProgressBar, ListGroup } from 'react-bootstrap';
 import useApi from '../hooks/useApi';
 import { getSimulationDetails, getSimulationStatus, getResultFile, createSimulation } from '../api';
+import InteractivePlots from './InteractivePlots';
 
 function SimulationDetails() {
   const { simulationId } = useParams();
@@ -78,6 +79,7 @@ function SimulationDetails() {
 
   const { config, result_files, status } = details;
   const displayStatus = currentStatus || status;
+  const cfg = config.shared_settings || config;
   const plotFiles = result_files.filter(file => file.endsWith('.png') || file.endsWith('.pdf'));
   const csvFiles = result_files.filter(file => file.endsWith('.csv'));
   const otherFiles = result_files.filter(file => !file.endsWith('.png') && !file.endsWith('.pdf') && !file.endsWith('.csv'));
@@ -130,15 +132,15 @@ function SimulationDetails() {
     }
 
     // Analyze malicious clients
-    if (config.num_of_malicious_clients > 0) {
+    if (cfg.num_of_malicious_clients > 0) {
       insights.push({
         type: 'info',
         icon: '🎯',
-        text: `Simulation includes ${config.num_of_malicious_clients} malicious client(s) using ${config.attack_type} attack`
+        text: `Simulation includes ${cfg.num_of_malicious_clients} malicious client(s) using ${cfg.attack_type} attack`
       });
 
       // Check removal metrics
-      if (config.remove_clients === 'true' && roundMetrics.length > 0) {
+      if (cfg.remove_clients === 'true' && roundMetrics.length > 0) {
         const lastRound = roundMetrics[roundMetrics.length - 1];
         const removalAccuracy = parseFloat(lastRound.removal_accuracy_history);
         const removalPrecision = parseFloat(lastRound.removal_precision_history);
@@ -148,7 +150,7 @@ function SimulationDetails() {
           insights.push({
             type: 'success',
             icon: '✓',
-            text: `Defense strategy (${config.aggregation_strategy_keyword}) successfully identified all malicious clients with 100% accuracy`
+            text: `Defense strategy (${cfg.aggregation_strategy_keyword}) successfully identified all malicious clients with 100% accuracy`
           });
         } else if (removalAccuracy >= 0.7) {
           insights.push({
@@ -177,7 +179,7 @@ function SimulationDetails() {
       const lastRound = perClientMetrics[perClientMetrics.length - 1];
       const participationKeys = Object.keys(lastRound).filter(k => k.includes('aggregation_participation_history'));
       const activeClients = participationKeys.filter(k => lastRound[k] === '1').length;
-      const removedClients = config.num_of_clients - activeClients;
+      const removedClients = cfg.num_of_clients - activeClients;
 
       if (removedClients > 0) {
         insights.push({
@@ -189,20 +191,20 @@ function SimulationDetails() {
     }
 
     // Analyze defense strategy behavior
-    if (config.aggregation_strategy_keyword === 'pid' && config.remove_clients === 'true') {
-      const beginRemoving = config.begin_removing_from_round || 2;
+    if (cfg.aggregation_strategy_keyword === 'pid' && cfg.remove_clients === 'true') {
+      const beginRemoving = cfg.begin_removing_from_round || 2;
       insights.push({
         type: 'info',
         icon: '🛡️',
-        text: `PID-based removal strategy started evaluating clients from round ${beginRemoving} with ${config.pid_p || 0.1} proportional gain`
+        text: `PID-based removal strategy started evaluating clients from round ${beginRemoving} with ${cfg.pid_p || 0.1} proportional gain`
       });
-    } else if (config.aggregation_strategy_keyword === 'krum') {
+    } else if (cfg.aggregation_strategy_keyword === 'krum') {
       insights.push({
         type: 'info',
         icon: '🛡️',
         text: `Krum aggregation selects the most trustworthy client update based on distance metrics`
       });
-    } else if (config.aggregation_strategy_keyword === 'trimmed_mean') {
+    } else if (cfg.aggregation_strategy_keyword === 'trimmed_mean') {
       insights.push({
         type: 'info',
         icon: '🛡️',
@@ -214,7 +216,7 @@ function SimulationDetails() {
     insights.push({
       type: 'info',
       icon: '📊',
-      text: `Trained ${config.model_type || 'cnn'} model on ${config.dataset_keyword} dataset with ${config.num_of_clients} clients`
+      text: `Trained ${cfg.model_type || 'cnn'} model on ${cfg.dataset_keyword} dataset with ${cfg.num_of_clients} clients`
     });
 
     return insights;
@@ -246,7 +248,7 @@ function SimulationDetails() {
             </div>
             <ProgressBar animated now={100} variant="primary" className="mb-2" />
             <div className="text-muted small">
-              <p className="mb-1">Running federated learning simulation with {config.num_of_clients} clients over {config.num_of_rounds} rounds...</p>
+              <p className="mb-1">Running federated learning simulation with {cfg.num_of_clients} clients over {cfg.num_of_rounds} rounds...</p>
               <p className="mb-0">Status updates every 2 seconds. Results will appear automatically when complete.</p>
             </div>
           </Card.Body>
@@ -298,30 +300,7 @@ function SimulationDetails() {
         </Tab>
 
         <Tab eventKey="plots" title="Plots">
-          <Row xs={1} md={2} className="g-4 mt-2">
-            {plotFiles.length > 0 ? (
-              plotFiles.map(file => (
-                <Col key={file}>
-                  <Card>
-                    {file.endsWith('.pdf') ? (
-                      <iframe
-                        src={`/api/simulations/${simulationId}/results/${file}`}
-                        style={{ width: '100%', height: '400px', border: 'none' }}
-                        title={file}
-                      />
-                    ) : (
-                      <Card.Img variant="top" src={`/api/simulations/${simulationId}/results/${file}`} />
-                    )}
-                    <Card.Body>
-                      <Card.Title>{file}</Card.Title>
-                    </Card.Body>
-                  </Card>
-                </Col>
-              ))
-            ) : (
-              <Col><p className="text-muted">No plots available</p></Col>
-            )}
-          </Row>
+          <InteractivePlots simulation={{ ...details, id: simulationId }} />
         </Tab>
 
         <Tab eventKey="metrics" title="Metrics">
