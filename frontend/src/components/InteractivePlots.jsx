@@ -4,6 +4,7 @@ import {
   ResponsiveContainer, Brush
 } from 'recharts';
 import { Card, Form, ButtonGroup, Button } from 'react-bootstrap';
+import { useTheme } from '../contexts/ThemeContext';
 
 const COLORS = [
   '#8884d8', '#82ca9d', '#ffc658', '#ff7c7c', '#8dd1e1',
@@ -13,6 +14,7 @@ const COLORS = [
 const MALICIOUS_COLOR = '#ff4444';
 
 export default function InteractivePlots({ simulation }) {
+  const { theme } = useTheme();
   const [plotData, setPlotData] = useState(null);
   const [selectedMetric, setSelectedMetric] = useState('');
   const [visibleClients, setVisibleClients] = useState({});
@@ -86,6 +88,19 @@ export default function InteractivePlots({ simulation }) {
     }));
   };
 
+  // Theme-aware chart colors
+  const chartColors = theme === 'dark' ? {
+    grid: '#444',
+    axis: '#999',
+    text: '#ccc',
+    brush: '#666'
+  } : {
+    grid: '#e0e0e0',
+    axis: '#666',
+    text: '#333',
+    brush: '#8884d8'
+  };
+
   return (
     <Card className="mb-4">
       <Card.Header>
@@ -141,17 +156,27 @@ export default function InteractivePlots({ simulation }) {
         {/* Chart */}
         <ResponsiveContainer width="100%" height={400}>
           <LineChart data={chartData}>
-            <CartesianGrid strokeDasharray="3 3" />
+            <CartesianGrid strokeDasharray="3 3" stroke={chartColors.grid} />
             <XAxis
               dataKey="round"
-              label={{ value: 'Round #', position: 'insideBottom', offset: -5 }}
+              stroke={chartColors.axis}
+              tick={{ fill: chartColors.text }}
+              label={{ value: 'Round #', position: 'insideBottom', offset: -5, fill: chartColors.text }}
             />
             <YAxis
-              label={{ value: selectedMetric, angle: -90, position: 'insideLeft' }}
+              stroke={chartColors.axis}
+              tick={{ fill: chartColors.text }}
+              label={{ value: selectedMetric, angle: -90, position: 'insideLeft', fill: chartColors.text }}
             />
-            <Tooltip />
-            <Legend />
-            <Brush dataKey="round" height={30} stroke="#8884d8" />
+            <Tooltip
+              contentStyle={{
+                backgroundColor: theme === 'dark' ? '#2b2b2b' : '#fff',
+                border: `1px solid ${chartColors.grid}`,
+                color: chartColors.text
+              }}
+            />
+            <Legend wrapperStyle={{ color: chartColors.text }} />
+            <Brush dataKey="round" height={30} stroke={chartColors.brush} fill={theme === 'dark' ? '#1a1a1a' : '#f5f5f5'} />
 
             {plotData.per_client_metrics.map((client, idx) => {
               const clientKey = `client_${client.client_id}`;
