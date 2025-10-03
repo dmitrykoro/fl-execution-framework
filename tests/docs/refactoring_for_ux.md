@@ -280,8 +280,8 @@ export const getSimulationStatus = (id) => api.get(`/api/simulations/${id}/statu
 
 **Changes:**
 
-- Added FedAvg strategy support (vanilla Flower FedAvg as baseline)
-- Frontend defaults to FedAvg for simplicity
+- Added fedavg strategy support (vanilla Flower FedAvg as baseline)
+- Frontend defaults to fedavg for simplicity
 - 12 lines following existing patterns
 
 ### Client Sample Counts
@@ -337,8 +337,8 @@ cd frontend && npm run dev
 
 **Modified Files:**
 
-- `src/federated_simulation.py`: +12 lines (FedAvg support)
-- `src/config_loaders/validate_strategy_config.py`: +1 line (FedAvg enum)
+- `src/federated_simulation.py`: +12 lines (fedavg support)
+- `src/config_loaders/validate_strategy_config.py`: +1 line (fedavg enum)
 - `src/client_models/flower_client.py`: ~5 lines (sample count fixes)
 - `src/output_handlers/new_plot_handler.py`: +50 lines (JSON export, robustness)
 - `src/output_handlers/directory_handler.py`: +10 lines (output_dir parameter)

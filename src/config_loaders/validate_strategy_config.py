@@ -8,7 +8,7 @@ config_schema = {
         "aggregation_strategy_keyword": {
             "type": "string",
             "enum": [
-                "FedAvg",
+                "fedavg",
                 "trust",
                 "pid",
                 "pid_scaled",

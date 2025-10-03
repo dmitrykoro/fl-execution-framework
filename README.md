@@ -1,5 +1,7 @@
 [![codecov](https://codecov.io/github/dmitrykoro/fl-execution-framework/graph/badge.svg?token=HJFASRJ43T)](https://codecov.io/github/dmitrykoro/fl-execution-framework)
+
 # Knowledge Management Framework for Federated Learning
+
 ### A framework for Federated Learning simulation configuration and execution
 
 ---
@@ -18,39 +20,38 @@ effects of these parameters on the collected metrics, as well as plug-and-play i
 - **Sample configuration**: located at `config/simulation_strategies/example_strategy_config.json`.
 - **Usage**: pass the configuration file as a parameter when initializing `SimulationRunner` in `src/simulation_runner.py`.
 
-### Description of Simulation Parameters 
+### Description of Simulation Parameters
+
 #### (found at `config/simulation_strategies/example_strategy_config.json`)
 
 #### Common parameters (applicable to all strategies)
 
 - **`aggregation_strategy_keyword`**  
 Defines the aggregation strategy. Options:
-  - `FedAvg`: standard Federated Averaging.
+  - `fedavg`: standard Federated Averaging.
   - `trust`: Trust & Reputation-based aggregation.
   - `pid`: PID-based aggregation. Initial version of the formula.
   - `pid_scaled`: PID-based aggregation with Integral part divided by the number of current round.
   - `pid_standardized`: PID-based aggregation with the Integral part standardized based on the distribution parameters of all Integral parts.
   - `multi-krum`: Multi-Krum aggregation. Clients are removed from aggregation only in current round.
-  - `krum`: Krum aggregation works like Multi-Krum, but uses only a single client. 
+  - `krum`: Krum aggregation works like Multi-Krum, but uses only a single client.
   - `multi-krum-based`: Multi-Krum-based aggregation where removed clients are excluded from aggregation permanently.
   - `rfa`: RFA (Robust Federated Averaging) aggregation strategy. Provides Byzantine fault tolerance through weighted median-based aggregation.
   - `trimmed_mean`: Trimmed-Mean aggregation strategy. Aggregates updates by removing a fixed fraction of the largest and smallest values for each parameter dimension before averaging. Robust against outliers and certain types of attacks.
   - `bulyan`: Bulyan aggregation strategy. Uses Multi-Krum as the first step of filtering and Trimmed-Mean as the second step to ensure robustness.
 
-
 - **`strict_mode`**: ensures that Flower trains and aggregates all available clients at every round. When enabled (default), automatically sets `min_fit_clients`, `min_evaluate_clients`, and `min_available_clients` to equal `num_of_clients`. Options: `"true"`, `"false"`.
 
 - **`remove_clients`**: attempt to remove malicious clients using strategy-specific mechanisms.
 
-
 - **`dataset_keyword`**  
   Dataset used for execution. Options:
   - `femnist_iid`: handwritten digit subset (0-9), 10 classes, IID distribution, 100 clients.
-  - `femnist_niid`: same, but the data is distributed in non-iid manner, according to authors' description. 16 clients max. 
+  - `femnist_niid`: same, but the data is distributed in non-iid manner, according to authors' description. 16 clients max.
   - `its`: intelligent Transportation Systems domain, binary classification (traffic sign vs stop sign), 12 clients.
   - `pneumoniamnist`: medical imaging (pneumonia diagnosis), binary classification, IID distribution, 10 clients.
-  - `flair`: non-IID distribution (FLAIR dataset, unsupported in current version), 20 clients. 
-  - `bloodmnist`: IID distribution, but non-equal number of samples per class, 40 clients. 
+  - `flair`: non-IID distribution (FLAIR dataset, unsupported in current version), 20 clients.
+  - `bloodmnist`: IID distribution, but non-equal number of samples per class, 40 clients.
   - `lung_photos`: contains images of lung cancer from NLST archive from different CT machines. Data distributed according to the source, with varying number of images representing each stage of cancer. 30 clients.
 
 - `num_of_rounds`: total aggregation rounds.
@@ -72,8 +73,8 @@ Defines the aggregation strategy. Options:
 
 - **Flower settings**:
   - `training_device`: `cpu`, `gpu`, or `cuda`.
-  - `cpus_per_client`: processors per client. 
-  - `gpus_per_client`: GPUs per client (if `cuda` is set as the `training_device`). 
+  - `cpus_per_client`: processors per client.
+  - `gpus_per_client`: GPUs per client (if `cuda` is set as the `training_device`).
   - `min_fit_clients`, `min_evaluate_clients`, `min_available_clients`: client quotas for each round.
   - `evaluate_metrics_aggregation_fn`: not used.
   - `num_of_client_epochs`: local client training epochs per round.
@@ -96,22 +97,24 @@ Defines the aggregation strategy. Options:
 #### Strategy-specific parameters
 
 **For `trust` strategy**:
+
 - `begin_removing_from_round`: start round for removing malicious clients.
 - `trust_threshold`: threshold for client removal (typically, in the range `0-1`).
 - `beta_value`: constant for Trust & Reputation calculus.
 - `num_of_clusters`: number of clusters (must be `1`).
 
 **For `pid` strategy**:
-- `num_std_dev`: number of standard deviations used int he calculation of PiD threshold at each round. 
+
+- `num_std_dev`: number of standard deviations used int he calculation of PiD threshold at each round.
 - `Kp`, `Ki`, `Kd`: PID controller parameters.
 
 **For `krum`, `multi-krum`, `multi-krum-based` strategies**:
-- `num_krum_selections`: how many clients the algorithm will select. 
+
+- `num_krum_selections`: how many clients the algorithm will select.
 
 **For `trimmed_mean` strategy**:
+
 - `trim_ratio`: fraction of extreme values to discard from both ends (lowest and highest) of each parameter dimension before averaging. Must be in the range 0–0.5.
-
-
 
 ---
 
@@ -122,8 +125,10 @@ Defines the aggregation strategy. Options:
 2. **Configuration**: place configurations in `config/simulation_strategies/`.
 3. **Specify Configuration**: update `src/simulation_runner.py` with the desired configuration file.
 4. **Execution**:
-  - On UNIX: run `sh run_simulation.sh` (automated virtual environment setup and execution).
-  - On Windows: install dependencies from `requirements.txt` and execute manually.
+
+- On UNIX: run `sh run_simulation.sh` (automated virtual environment setup and execution).
+- On Windows: install dependencies from `requirements.txt` and execute manually.
+
 5. **Output**: plots and `.csv` files (if enabled) saved in `out/` directory.
 
 ---
@@ -167,17 +172,14 @@ The configuration file is the `JSON` that has the following format:
 }
 ```
 
-* `shared_settings` is the section where you can put settings that you do not wish to change for each strategy.
+- `shared_settings` is the section where you can put settings that you do not wish to change for each strategy.
   It can be number of clients or any other settings.
-* `simulation_strategies` is the json array of strategy settings that you wish to alter for each strategy if you believe
+- `simulation_strategies` is the json array of strategy settings that you wish to alter for each strategy if you believe
   they may have effects on the learning or attack mitigation process.
-
 
 ---
 
 ### Examples
-
-
 
 1. We want to see how the number of local epochs will affect metrics. In that case, the `num_of_client_epochs` should
    be put into each entry in the `simulation_strategies` array:
@@ -271,6 +273,7 @@ local client epochs.
 ```
 
 Since the strategy-specific parameters are not altered between strategies, they can also be put to `shared_settigns`:
+
 ```json
 {
   "shared_settings": {
@@ -298,6 +301,7 @@ Since the strategy-specific parameters are not altered between strategies, they 
   ]
 }
 ```
+
 -- the execution results of these two will be identical.
 
 ---
@@ -306,5 +310,4 @@ This design of the configuration file provides the flexibility to put any number
 and compare how they affect the simulation outcome.
 
 One limitation is that as of now it is impossible to vary the number of aggregation rounds, so the parameter
-`num_of_rounds` must always be in the `shared_settings` section. 
-
+`num_of_rounds` must always be in the `shared_settings` section.

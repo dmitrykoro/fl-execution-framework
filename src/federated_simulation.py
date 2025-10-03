@@ -399,7 +399,7 @@ class FederatedSimulation:
                 num_krum_selections=self.strategy_config.num_krum_selections,
             )
 
-        elif aggregation_strategy_keyword == "FedAvg":
+        elif aggregation_strategy_keyword == "fedavg":
             self._aggregation_strategy = FedAvg(
                 initial_parameters=ndarrays_to_parameters(
                     self._get_model_params(self._network_model)
