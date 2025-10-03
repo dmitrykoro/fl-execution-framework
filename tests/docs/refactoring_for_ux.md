@@ -1,28 +1,22 @@
-# Technical Summary of Web UI and API Development
+# 🌐 Web UI and API Development Summary
 
-## 📜 Summary
+## 📜 Overview
 
-A complete web-based user interface was developed to provide an intuitive way to configure, launch, monitor, and analyze federated learning simulations. This required creating a new FastAPI backend server, a React frontend application, and supporting infrastructure. The core simulation logic remains unchanged - this enhancement provides a modern interface layer over the existing command-line framework.
+Complete web interface providing intuitive configuration, launch, monitoring, and analysis of federated learning simulations. Modern UI layer over existing CLI framework without modifying core simulation logic.
 
-## 🎯 The Purpose of the Web UI
+**Key Benefits:**
 
-The web UI transforms the federated learning framework from a CLI-only tool into an accessible platform:
-
-- **Easy Configuration**: Visual forms replace complex JSON file editing
-- **Real-time Monitoring**: Live status updates during simulation execution
-- **Result Visualization**: Interactive charts and downloadable result files
-- **Historical Tracking**: Browse and compare past simulation runs
-- **Lower Barrier to Entry**: Researchers can focus on experiments, not command syntax
+- Visual configuration forms replace JSON editing
+- Real-time status monitoring during execution
+- Interactive result visualization with charts
+- Historical simulation tracking and comparison
+- Lower barrier to entry for researchers
 
 ---
 
-## 🏗️ Architecture Overview
+## 🏗️ Architecture
 
-The web UI follows a modern three-tier architecture:
-
-1. **Frontend (React)**: User interface for configuration and visualization
-2. **Backend (FastAPI)**: REST API server for simulation management
-3. **Simulation Layer**: Existing Python federated learning framework
+Three-tier architecture with clear separation of concerns:
 
 ```text
 ┌─────────────────┐
@@ -46,90 +40,110 @@ The web UI follows a modern three-tier architecture:
 
 ---
 
-## 🛠️ Backend Development (FastAPI)
+## 🛠️ Backend API (FastAPI)
 
-### File: `src/api/main.py` (New File - 350+ lines)
+### Core File: `src/api/main.py` (~438 lines)
 
-**Core Components:**
+**Key Features:**
 
-1. **CORS Configuration**
-   - Allows frontend (localhost:5173) to communicate with API
-   - Development-friendly settings (all methods/headers allowed)
-   - **Risk**: Very low - standard dev configuration
-
-2. **Pydantic Models**
-   - `SimulationConfig`: 40+ configurable parameters
-   - `SimulationMetadata`: Summary info for list views
-   - `SimulationDetails`: Full config + result files
-   - **Purpose**: Type-safe request/response validation
-
-3. **Path Security**
-   - `secure_join()`: Prevents path traversal attacks
-   - `get_simulation_path()`: Validates simulation IDs
-   - **Purpose**: Protect filesystem from malicious inputs
-
-4. **Process Management**
-   - `running_processes`: In-memory dict of active simulations
-   - Tracks subprocess handles for status monitoring
-   - **Purpose**: Enable real-time progress tracking
+- Type-safe request/response validation with Pydantic models
+- Path traversal protection with `secure_join()`
+- In-memory process tracking for status monitoring
+- CORS configuration for frontend communication
 
 ### API Endpoints
 
 #### `GET /api/simulations`
 
-- **Purpose**: List all historical simulation runs
-- **Returns**: Array of simulation metadata (ID, strategy, rounds, clients)
-- **Implementation**: Scans `out/` directory for config.json files
+List all historical simulation runs from `out/` directory.
+
+**Response:** Array of simulation metadata (ID, strategy, rounds, clients)
 
 #### `POST /api/simulations`
 
-- **Purpose**: Launch a new simulation
-- **Input**: SimulationConfig with all parameters
-- **Process**:
-  1. Generate unique simulation ID (timestamp-based)
-  2. Create output directory
-  3. Write config.json
-  4. Launch run_simulation.sh as subprocess
-  5. Store process handle for monitoring
-- **Returns**: Simulation ID and status
+Launch a new simulation with provided configuration.
+
+**Process:**
+
+1. Generate unique timestamp-based simulation ID
+2. Create output directory
+3. Write config.json
+4. Launch run_simulation.sh as subprocess
+5. Store process handle for monitoring
+
+**Returns:** `{simulation_id: string, status: string}`
 
 #### `GET /api/simulations/{id}`
 
-- **Purpose**: Get detailed info for a specific simulation
-- **Returns**: Full config + list of result files (CSVs, PNGs, etc.)
+Get detailed information for a specific simulation.
+
+**Returns:** Full config + list of result files (CSVs, PDFs, JSON)
 
 #### `GET /api/simulations/{id}/status`
 
-- **Purpose**: Real-time status monitoring
-- **Returns**: `{status: "pending|running|completed|failed", progress: 0.0-1.0}`
-- **Logic**:
-  - Checks if process is in `running_processes` dict
-  - Polls process with `poll()` to see if still active
-  - Falls back to checking for result files if process not tracked
-  - Handles server restarts gracefully
+Real-time status polling for active simulations.
+
+**Returns:** `{status: "pending|running|completed|failed", progress: 0.0-1.0}`
+
+**Status Logic:**
+
+- Checks `running_processes` dict for active subprocess
+- Uses `process.poll()` to determine if still running
+- Falls back to filesystem checks (graceful server restart handling)
+- Detects completion by presence of result files (PDFs/CSVs)
 
 #### `GET /api/results/{filename}`
 
-- **Purpose**: Download result files (CSVs, plots)
-- **Security**: Validates filename, prevents directory traversal
-- **Returns**: File download or JSON metadata
+Download result files with path traversal protection.
 
-### Development Script: `start-dev.sh` (New File)
+**Security:** Validates filename, prevents directory traversal
 
-**Purpose**: Convenient parallel startup of frontend and backend
+#### `GET /api/simulations/{id}/plot-data`
 
-```bash
-#!/bin/bash
-# Start FastAPI server and React frontend concurrently
-uvicorn src.api.main:app --reload &
-cd frontend && npm run dev
+Return JSON plot data for interactive frontend visualization.
+
+**Returns:** Plot data from `plot_data_*.json` files generated by simulation
+
+**Integration:** Powers InteractivePlots component for real-time chart rendering
+
+### Implementation Details
+
+**CORS Configuration:**
+
+```python
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:5173", "http://127.0.0.1:5173", "http://localhost:5174"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 ```
 
-**Usage**: `./start-dev.sh` from project root
+**Process Tracking:**
+
+```python
+running_processes: Dict[str, subprocess.Popen] = {}
+```
+
+- Stores subprocess handles when launching simulations
+- Enables real-time status checks via `process.poll()`
+- Handles lost on server restart (gracefully handled by fallback logic)
+
+**CSV Encoding Compatibility:**
+
+- Added `encoding="latin-1"` to pandas CSV reads
+- Handles CSV files with non-UTF8 characters (special symbols, extended ASCII)
+- Prevents UTF-8 decode errors on simulation outputs
+
+**Python 3.9+ Compatibility:**
+
+- Uses `Union[int, str]` instead of `int | str` (PEP 604 syntax requires 3.10+)
+- Ensures compatibility across Python 3.9-3.11
 
 ---
 
-## 🎨 Frontend Development (React + Vite)
+## 🎨 Frontend (React + Vite)
 
 ### Project Structure
 
@@ -147,63 +161,49 @@ frontend/
 │   ├── App.jsx                    # Main routing component
 │   └── main.jsx                   # React entry point
 ├── index.html
-├── package.json                   # Dependencies
-└── vite.config.js                 # Build configuration
+├── package.json
+└── vite.config.js
 ```
 
-### Key Dependencies
-
-```json
-{
-  "react": "^18.3.1",
-  "react-router-dom": "^7.1.3",  // Client-side routing
-  "axios": "^1.7.9",              // HTTP requests
-  "recharts": "^2.15.0",          // Chart visualizations
-  "vite": "^6.0.5"                // Build tool
-}
-```
-
-### Component Details
+### Key Components
 
 #### `Dashboard.jsx`
 
-- **Purpose**: Landing page showing all simulations
-- **Features**:
-  - Fetches simulation list from API on mount
-  - Displays as sortable table
-  - Filters by strategy, status, date
-  - "New Simulation" button navigates to form
-- **State Management**: React hooks (useState, useEffect)
+Landing page showing all simulations with filtering and sorting.
+
+**Features:**
+
+- Fetches simulation list from API on mount
+- Sortable table display
+- Filters by strategy, status, date
+- Navigation to detail view and new simulation form
 
 #### `NewSimulation.jsx`
 
-- **Purpose**: Interactive form for simulation configuration
-- **Features**:
-  - 40+ form fields organized into sections:
-    - Basic Settings (strategy, dataset, rounds)
-    - Client Configuration (count, malicious clients, attack type)
-    - Advanced Options (hyperparameters, device settings)
-  - Conditional fields (e.g., PID params only show for PID strategy)
-  - Form validation (required fields, numeric ranges)
-  - Submit triggers POST to `/api/simulations`
-- **UX**: Clear labels, tooltips, default values
+Interactive configuration form with 40+ parameters.
+
+**Features:**
+
+- Organized sections (Basic, Client Config, Advanced)
+- Conditional fields (e.g., PID params only for PID strategy)
+- Form validation (required fields, numeric ranges)
+- Default values and tooltips
 
 #### `SimulationDetails.jsx`
 
-- **Purpose**: View results for a completed simulation
-- **Features**:
-  - Displays full configuration as formatted JSON
-  - Lists all output files with download buttons
-  - Shows plots inline (accuracy, loss, client metrics)
-  - Interactive charts with hover tooltips (Recharts)
-  - Status polling for in-progress simulations
-- **Auto-refresh**: Polls `/api/simulations/{id}/status` every 3 seconds
+Results viewer with inline visualization.
+
+**Features:**
+
+- Full configuration display as formatted JSON
+- File list with download buttons
+- Inline plots (accuracy, loss, client metrics)
+- Interactive charts with Recharts library
+- Auto-refresh status polling (every 3 seconds for active simulations)
 
 #### `ErrorBoundary.jsx`
 
-- **Purpose**: Graceful error handling
-- **Implementation**: React error boundary component
-- **Displays**: User-friendly message instead of white screen
+React error boundary for graceful error handling.
 
 ### API Client: `api.js`
 
@@ -221,317 +221,151 @@ export const getSimulationDetails = (id) => api.get(`/api/simulations/${id}`);
 export const getSimulationStatus = (id) => api.get(`/api/simulations/${id}/status`);
 ```
 
-### Custom Hook: `useApi.js`
-
-```javascript
-export function useSimulations() {
-  const [simulations, setSimulations] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-
-  useEffect(() => {
-    getSimulations()
-      .then(res => setSimulations(res.data))
-      .catch(err => setError(err.message))
-      .finally(() => setLoading(false));
-  }, []);
-
-  return { simulations, loading, error };
-}
-```
-
-**Purpose**: Encapsulate API calls with loading/error states
-
----
-
-## 🔧 Infrastructure Changes
-
-### Root-Level Files
-
-#### `package.json` (New File)
-
-- **Purpose**: Node.js workspace configuration
-- **Key Scripts**:
-  - `dev`: Start both frontend and backend
-  - `build`: Production build of frontend
-  - `test`: Run frontend tests
-
-#### `package-lock.json` (Auto-generated)
-
-- **Purpose**: Lock dependency versions for reproducibility
-
-#### `.gitignore` Updates
-
-- Added `frontend/node_modules/`
-- Added `frontend/dist/`
-- Added `frontend/.env`
-
-### Backend Integration
-
-#### `src/federated_simulation.py` (Modifications)
-
-**FedAvg Strategy Support:**
-
-- **Lines 358-367**: Added FedAvg initialization case
-- **Purpose**: Enable vanilla Flower FedAvg as baseline strategy
-- **Context**: Frontend defaults to FedAvg for simplicity
-- **Risk**: Very low - 12 lines following existing patterns
-
-#### `src/config_loaders/validate_strategy_config.py` (Modifications)
-
-**FedAvg Validation:**
-
-- **Line 10**: Added "FedAvg" to strategy enum
-- **Purpose**: Allow FedAvg in config validation
-- **Risk**: Very low - single enum entry
-
-#### `src/client_models/flower_client.py` (Bug Fixes)
-
-**Sample Count Corrections:**
-
-- **Line 201**: Fixed `fit()` to return dataset size, not batch count
-- **Line 206-207**: Fixed `evaluate()` to return dataset size
-- **Problem**:
-  - `len(self.trainloader)` returns batch count
-  - `len(self.valloader)` returns batch count
-  - Flower framework needs sample counts for weighted averaging
-  - Incorrect counts caused ZeroDivisionError
-- **Fix**: Use `len(loader.dataset)` with fallback to batch count
-- **Risk**: Low - critical bug fix, 2 lines changed
-
----
-
-## 📊 Python 3.9-3.11 Compatibility & API Details
-
-### Union Type Syntax Fix
-
-**File**: `src/api/main.py`
-
-**Changes**:
-
-- `int | str` → `Union[int, str]` (Line 94)
-- `FileResponse | JSONResponse` → `Union[FileResponse, JSONResponse]`
-- Added `response_model=None` to `/results/{filename}` endpoint
-
-**Reason**: PEP 604 union syntax (`X | Y`) requires Python 3.10+
-
-**Impact**: Ensures compatibility with Python 3.9-3.11
-
-**Risk**: Very low - syntax-only change
-
-### CORS Configuration Details
-
-**File**: `src/api/main.py` (Lines 22-28)
-
-**Implementation**:
-
-```python
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://127.0.0.1:5173"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-```
-
-**Purpose**: Allow React frontend to communicate with FastAPI backend during development
-
-**Security**: Development-only configuration; production should restrict origins
-
-### Process Tracking Implementation
-
-**File**: `src/api/main.py` (Line 37)
-
-**Implementation**:
-
-```python
-# In-memory storage for running processes
-running_processes: Dict[str, subprocess.Popen] = {}
-```
-
-**Usage**:
-
-- Store process handle when launching simulation: `running_processes[sim_id] = subprocess.Popen(...)`
-- Check status via `process.poll()` - returns None if running, exit code if done
-- Log PID for debugging: `logger.info(f"Started simulation {sim_id} with PID {process.pid}")`
-
-**Limitation**: Process handles lost on server restart (gracefully handled by status endpoint)
-
-### Status Endpoint Logic
-
-**File**: `src/api/main.py`
-
-**Endpoint**: `GET /api/simulations/{id}/status`
-
-**Response Model**:
+### Dependencies
 
 ```json
 {
-  "status": "pending|running|completed|failed",
-  "progress": 0.0  // 0.0 to 1.0
+  "react": "^18.3.1",
+  "react-router-dom": "^7.1.3",  // Client-side routing
+  "axios": "^1.7.9",              // HTTP requests
+  "recharts": "^2.15.0",          // Chart visualizations
+  "vite": "^6.0.5"                // Build tool
 }
 ```
 
-**Logic Flow**:
+---
 
-1. Check if `sim_id` exists in `running_processes` dict
-2. If yes, call `process.poll()`:
-   - Returns `None` → status = "running"
-   - Returns non-zero → status = "failed"
-   - Returns 0 → status = "completed"
-3. If not tracked, check filesystem:
-   - Results exist → status = "completed"
-   - No results → status = "pending" (or failed if old)
-4. Gracefully handles server restarts by falling back to file detection
+## 🔧 Supporting Infrastructure
 
-**Risk**: Very low - read-only, no state modification
+### Plot Data JSON Export
+
+**File:** `src/output_handlers/new_plot_handler.py`
+
+**New Function:** `export_plot_data_json()`
+
+- Exports plot data as JSON alongside PDF plots
+- Contains all plot metrics (accuracy, loss, client histories, removal thresholds)
+- Data structure includes per-client metrics and round-level aggregates
+- Consumed by `/api/simulations/{id}/plot-data` endpoint
+
+**Robustness Improvements:**
+
+- Empty list validation before plotting
+- Dimension matching with `min_length` to prevent index errors
+- Prevents crashes when rounds/metrics have different lengths
+
+### Output Directory Configuration
+
+**Files:** `src/output_handlers/directory_handler.py`, `src/simulation_runner.py`
+
+**Changes:**
+
+- Added optional `output_dir` parameter to DirectoryHandler
+- API-initiated simulations save to `out/api_run_*` directories
+- Backward compatible: defaults to timestamp-based directory when `output_dir=None`
+
+### API Status Detection
+
+**File:** `src/api/main.py`
+
+**Improvements:**
+
+- Updated result file detection from PNG/CSV to PDF/CSV (correct file types)
+- Check for result files before treating non-zero exit as failure
+- More accurate status reporting for completed simulations
+
+### Core Strategy Support
+
+**Files:** `src/federated_simulation.py`, `src/config_loaders/validate_strategy_config.py`
+
+**Changes:**
+
+- Added FedAvg strategy support (vanilla Flower FedAvg as baseline)
+- Frontend defaults to FedAvg for simplicity
+- 12 lines following existing patterns
+
+### Client Sample Counts
+
+**File:** `src/client_models/flower_client.py`
+
+**Bug Fix:**
+
+- Fixed `fit()` and `evaluate()` to return dataset size, not batch count
+- `len(self.trainloader)` returns batch count (incorrect)
+- `len(loader.dataset)` returns sample count (correct)
+- Flower framework needs sample counts for weighted averaging
+- Prevented ZeroDivisionError in aggregation
 
 ---
 
-## 🎨 Styling and UX Polish
+## 🚀 Development Workflow
 
-### CSS Framework: Tailwind CSS (Potential)
+### Development Script: `start-dev.sh`
 
-- **Status**: Not yet implemented
-- **Alternative**: Inline styles or CSS modules
+```bash
+#!/bin/bash
+# Start FastAPI server and React frontend concurrently
+uvicorn src.api.main:app --reload &
+cd frontend && npm run dev
+```
 
-### Responsive Design
+**Usage:** `./start-dev.sh` from project root
 
-- **Mobile**: Not yet optimized
-- **Desktop**: Functional layout with flexbox/grid
+### Manual Startup (Parallel)
 
-### Loading States
+```bash
+# Terminal 1: API server
+uvicorn src.api.main:app --reload --port 8000
 
-- Spinners during API calls
-- Skeleton screens for data fetching
+# Terminal 2: Frontend dev server
+cd frontend && npm run dev
+```
 
-### Error Handling
-
-- User-friendly error messages
-- Toast notifications for success/failure
-
----
-
-## 🚀 Deployment Considerations
-
-### Current State: Development Mode
-
-**Frontend**:
-
-- Vite dev server (port 5173)
-- Hot module replacement enabled
-
-**Backend**:
-
-- Uvicorn with `--reload` flag
-- Auto-restart on file changes
-
-### Production Readiness (Future Work)
-
-**Frontend**:
-
-- Build with `npm run build` → static files in `frontend/dist/`
-- Serve via Nginx or CDN
-
-**Backend**:
-
-- Run uvicorn without `--reload`
-- Use Gunicorn for multi-worker support
-- Add authentication (JWT tokens)
-- Rate limiting for API endpoints
-
-**Security Enhancements**:
-
-- CORS: Restrict to specific origins
-- API Keys: Require authentication
-- Input Validation: Stricter parameter checks
-- File Upload: Validate dataset uploads
+**Frontend URL:** <http://localhost:5173>
+**Backend URL:** <http://localhost:8000>
+**API Docs:** <http://localhost:8000/docs> (auto-generated by FastAPI)
 
 ---
 
-## 📈 Impact Summary
+## 📊 Code Changes Summary
 
-**✅ Key Outcomes:**
+**New Files:**
 
-- 🎨 **Modern UI**: Intuitive web interface replaces CLI-only access
-- 📊 **Real-time Monitoring**: Live status updates during simulations
-- 📁 **Result Management**: Easy access to plots, CSVs, and configs
-- 🔄 **Historical Tracking**: Browse and compare past experiments
-- 🛡️ **Type Safety**: Pydantic models ensure API correctness
-- 🌐 **API-First Design**: Backend can support multiple frontends
-
-**📝 Developer Guidelines:**
-
-- 🔧 **Start Dev Environment**: Run `./start-dev.sh` or manually start both servers
-- 🌐 **Frontend URL**: <http://localhost:5173>
-- 🔌 **Backend URL**: <http://localhost:8000>
-- 📚 **API Docs**: <http://localhost:8000/docs> (auto-generated by FastAPI)
-
----
-
-## 📊 File Statistics
-
-**New Files Created:**
-
-- Backend: 1 file (main.py, ~350 lines)
+- Backend: `src/api/main.py` (~438 lines)
 - Frontend: 8+ files (~1500 lines total)
-- Infrastructure: 2 files (package.json, start-dev.sh)
+- Infrastructure: `package.json`, `start-dev.sh`
 
 **Modified Files:**
 
 - `src/federated_simulation.py`: +12 lines (FedAvg support)
 - `src/config_loaders/validate_strategy_config.py`: +1 line (FedAvg enum)
 - `src/client_models/flower_client.py`: ~5 lines (sample count fixes)
-- **Code Formatting**: 48 Python files reformatted with ruff (1693 insertions, 1080 deletions)
+- `src/output_handlers/new_plot_handler.py`: +50 lines (JSON export, robustness)
+- `src/output_handlers/directory_handler.py`: +10 lines (output_dir parameter)
 
-**Total New Code**: ~2000 lines (excluding node_modules)
+**Code Formatting:**
 
----
-
-## 🔮 Future Enhancements
-
-**Short Term:**
-
-- Add authentication (user login)
-- Implement dataset upload via UI
-- Add simulation deletion/cancellation
-- Show live logs during execution
-
-**Medium Term:**
-
-- Multi-user support with role-based access
-- Simulation comparison dashboard
-- Export results to PDF reports
-- Scheduled/recurring simulations
-
-**Long Term:**
-
-- Distributed execution across multiple machines
-- Cloud deployment (AWS/Azure/GCP)
-- Hyperparameter tuning suggestions
-- Integration with MLflow/Weights & Biases
+- 48 Python files reformatted with `ruff`
+- 1693 insertions, 1080 deletions (whitespace, import ordering)
+- No functional changes
+- Accounts for majority of diff size between branches
 
 ---
 
-## 🏁 Conclusion
+## 🏁 Summary
 
-The web UI represents a major usability enhancement to the federated learning framework. By providing a modern, intuitive interface, we've made the system accessible to a broader range of researchers and practitioners. The API-first design ensures flexibility for future integrations, while the clean separation of concerns maintains the integrity of the core simulation logic.
+Web UI provides major usability enhancement while preserving core functionality:
 
-**Core Principles Maintained:**
+**✅ Maintained:**
 
-- ✅ No changes to core FL algorithms
-- ✅ Backward compatibility with CLI usage
-- ✅ Output format unchanged (CSVs, plots)
-- ✅ Configuration schema preserved
+- No changes to core FL algorithms
+- Backward compatibility with CLI usage
+- Output format unchanged (CSVs, plots)
+- Configuration schema preserved
 
-**Quality Improvements:**
+**📈 Enhanced:**
 
-- 📈 Enhanced accessibility for non-technical users
-- 🔍 Better experiment tracking and reproducibility
-- 🎨 Improved visualization of results
-- 🤝 Foundation for collaborative research platform
-
----
-
-Happy experimenting! 🎓🚀
+- Accessibility for non-technical users
+- Better experiment tracking
+- Improved result visualization
+- Foundation for collaborative research platform
