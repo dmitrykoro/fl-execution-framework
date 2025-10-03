@@ -25,6 +25,7 @@ effects of these parameters on the collected metrics, as well as plug-and-play i
 
 - **`aggregation_strategy_keyword`**  
 Defines the aggregation strategy. Options:
+  - `FedAvg`: standard Federated Averaging.
   - `trust`: Trust & Reputation-based aggregation.
   - `pid`: PID-based aggregation. Initial version of the formula.
   - `pid_scaled`: PID-based aggregation with Integral part divided by the number of current round.
