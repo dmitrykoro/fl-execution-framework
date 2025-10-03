@@ -411,22 +411,28 @@ def read_root() -> Dict[str, str]:
 async def get_plot_data(simulation_id: str) -> Dict:
     """Return JSON plot data for interactive visualization"""
     try:
-        sim_dir = os.path.join(SIMULATIONS_DIR, simulation_id)
-        plots_dir = os.path.join(sim_dir, "plots")
+        sim_dir = OUTPUT_DIR / simulation_id
 
-        # Find plot_data_*.json file
-        json_files = [f for f in os.listdir(plots_dir) if f.startswith("plot_data_") and f.endswith(".json")]
+        # Find plot_data_*.json file in simulation root directory
+        json_files = [
+            f
+            for f in os.listdir(sim_dir)
+            if f.startswith("plot_data_") and f.endswith(".json")
+        ]
 
         if not json_files:
             raise HTTPException(status_code=404, detail="Plot data not found")
 
         # Use first JSON file (usually plot_data_0.json)
-        json_path = os.path.join(plots_dir, json_files[0])
+        json_path = sim_dir / json_files[0]
 
-        with open(json_path, 'r') as f:
+        with open(json_path, "r") as f:
             return json.load(f)
 
     except FileNotFoundError:
-        raise HTTPException(status_code=404, detail=f"Plot data not found for simulation {simulation_id}")
+        raise HTTPException(
+            status_code=404,
+            detail=f"Plot data not found for simulation {simulation_id}",
+        )
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

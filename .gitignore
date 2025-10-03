@@ -22,5 +22,3 @@ tests/logs/
 .sonarwork/
 *sonar-project.properties
 node_modules/
-.kiro/
-.claude/

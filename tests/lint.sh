@@ -32,16 +32,16 @@ ruff check --fix .
 log_info "⚡ Running ruff format..."
 ruff format .
 
-# Uncomment when root type checking is ready
-# log_info "🔍 Running mypy on root..."
+# TODO: replace when root type checking is ready
+# log_info "🔍 Running mypy..."
 # mypy . --config-file=pyproject.toml
 
 log_info "🔍 Running mypy..."
 mypy tests/ --config-file=tests/pyproject.toml
 
 if command_exists pyright; then
-    # Uncomment when root type checking is ready
-    # log_info "🔍 Running pyright on root..."
+    # TODO: replace when root type checking is ready
+    # log_info "🔍 Running pyright..."
     # pyright .
 
     log_info "🔍 Running pyright..."
