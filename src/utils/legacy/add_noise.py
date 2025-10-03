@@ -26,8 +26,8 @@ def add_noise_to_images_in_folder(input_folder, output_folder, noise_level=0.1):
             add_noise_to_image(image_path, output_path, noise_level)
 
 
-input_folder = '../../femnist_subsets/pure/client_10/1'
-output_folder = '../../femnist_subsets/noise_noise/client_10/1'
+input_folder = "../../femnist_subsets/pure/client_10/1"
+output_folder = "../../femnist_subsets/noise_noise/client_10/1"
 noise_level = 0.5
 
 add_noise_to_images_in_folder(input_folder, output_folder, noise_level)

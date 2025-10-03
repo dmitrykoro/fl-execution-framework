@@ -7,11 +7,7 @@ from src.config_loaders.validate_strategy_config import validate_strategy_config
 
 
 class ConfigLoader:
-    def __init__(
-            self,
-            usecase_config_path: str,
-            dataset_config_path: str
-    ) -> None:
+    def __init__(self, usecase_config_path: str, dataset_config_path: str) -> None:
         self.usecase_config_path = os.path.join(usecase_config_path)
         self.usecase_config_list = self._merge_usecase_configs(self.usecase_config_path)
 
@@ -33,7 +29,9 @@ class ConfigLoader:
         try:
             return self.dataset_config_list[key]
         except KeyError:
-            logging.error(f"Error with the provided dataset key: {key}. Please specify it in {self.dataset_config_path}.")
+            logging.error(
+                f"Error with the provided dataset key: {key}. Please specify it in {self.dataset_config_path}."
+            )
             sys.exit(-1)
 
     @staticmethod
@@ -44,12 +42,12 @@ class ConfigLoader:
                 raw_config = json.load(f)
                 logging.info(f"Successfully loaded confing for {config_path}.")
 
-            shared_settings = raw_config['shared_settings']
+            shared_settings = raw_config["shared_settings"]
 
-            for strategy in raw_config['simulation_strategies']:
+            for strategy in raw_config["simulation_strategies"]:
                 strategy.update(shared_settings)
 
-            for strategy in raw_config['simulation_strategies']:
+            for strategy in raw_config["simulation_strategies"]:
                 # Validate the strategy configuration
                 validate_strategy_config(strategy)
                 logging.info(f"Successfully validated config from {config_path}.")

@@ -8,7 +8,6 @@ import numpy as np
 
 
 class DatasetHandler:
-
     def __init__(self, strategy_config, directory_handler, dataset_config_list) -> None:
         self._strategy_config = strategy_config
 
@@ -22,7 +21,10 @@ class DatasetHandler:
         """Copy the specified number of clients' subsets to runtime folder and perform poisoning"""
 
         self._copy_dataset(self._strategy_config.num_of_clients)
-        self._poison_clients(self._strategy_config.attack_type, self._strategy_config.num_of_malicious_clients)
+        self._poison_clients(
+            self._strategy_config.attack_type,
+            self._strategy_config.num_of_malicious_clients,
+        )
 
     def teardown_dataset(self) -> None:
         """Remove dataset after execution if requested in the strategy config"""
@@ -38,10 +40,16 @@ class DatasetHandler:
         """Copy dataset"""
 
         all_client_folders_list = [
-            client_folder for client_folder in sorted(os.listdir(self.src_dataset))
-            if (os.path.isdir(os.path.join(self.src_dataset, client_folder)) and not client_folder.startswith("."))
+            client_folder
+            for client_folder in sorted(os.listdir(self.src_dataset))
+            if (
+                os.path.isdir(os.path.join(self.src_dataset, client_folder))
+                and not client_folder.startswith(".")
+            )
         ]
-        all_client_folders_list = sorted(all_client_folders_list, key=lambda string: int(string.split("_")[1]))
+        all_client_folders_list = sorted(
+            all_client_folders_list, key=lambda string: int(string.split("_")[1])
+        )
 
         client_folders_list = all_client_folders_list[:num_to_copy]
 
@@ -59,10 +67,12 @@ class DatasetHandler:
         """Poison data according to the specified parameters in the strategy config"""
 
         client_dirs_to_poison = [
-            client_dir for client_dir in sorted(
+            client_dir
+            for client_dir in sorted(
                 os.listdir(self.dst_dataset),
-                key=lambda string: int(string.split("_")[1])
-            ) if not client_dir.startswith(".")
+                key=lambda string: int(string.split("_")[1]),
+            )
+            if not client_dir.startswith(".")
         ][:num_to_poison]
 
         self._assign_poisoned_client_ids(client_dirs_to_poison)
@@ -77,7 +87,9 @@ class DatasetHandler:
 
         if attack_type == "gaussian_noise":
             if len(self.all_poisoned_img_snrs) > 0:
-                logging.warning(f"Avg. SNR for poisoned images: {np.average(self.all_poisoned_img_snrs)}")
+                logging.warning(
+                    f"Avg. SNR for poisoned images: {np.average(self.all_poisoned_img_snrs)}"
+                )
             else:
                 logging.warning("No poisoned images to calculate SNR average")
 
@@ -85,18 +97,19 @@ class DatasetHandler:
         """Perform 100% label flipping for the specified client"""
 
         available_labels = [
-            label for label in os.listdir(os.path.join(self.dst_dataset, client_dir)) if not label.startswith(".")
+            label
+            for label in os.listdir(os.path.join(self.dst_dataset, client_dir))
+            if not label.startswith(".")
         ]
 
         for label in available_labels:
-
             old_dir = os.path.join(self.dst_dataset, client_dir, label)
             new_dir = os.path.join(self.dst_dataset, client_dir, label + "_old")
 
             os.rename(old_dir, new_dir)
 
         for label in os.listdir(os.path.join(self.dst_dataset, client_dir)):
-            if label.startswith('.'):  # skip .DS_store
+            if label.startswith("."):  # skip .DS_store
                 continue
 
             old_dir = os.path.join(self.dst_dataset, client_dir, label)
@@ -112,21 +125,25 @@ class DatasetHandler:
                     if new_label != label.split("_")[0]:
                         break
 
-            new_dir = os.path.join(self.dst_dataset, client_dir, f'{new_label}')
+            new_dir = os.path.join(self.dst_dataset, client_dir, f"{new_label}")
             os.rename(old_dir, new_dir)
             available_labels.remove(new_label)
 
-        os.rename(os.path.join(self.dst_dataset, client_dir), os.path.join(self.dst_dataset, client_dir + "_bad"))
+        os.rename(
+            os.path.join(self.dst_dataset, client_dir),
+            os.path.join(self.dst_dataset, client_dir + "_bad"),
+        )
 
     def _add_noise(self, client_dir: str) -> None:
         """Add Gaussian noise to a subset of images for the specified client."""
 
-        supported_extensions = ('.png', '.jpg', '.jpeg', '.bmp', '.tiff')
+        supported_extensions = (".png", ".jpg", ".jpeg", ".bmp", ".tiff")
         client_path = os.path.join(self.dst_dataset, client_dir)
 
         try:
             label_folders = [
-                d for d in os.listdir(client_path)
+                d
+                for d in os.listdir(client_path)
                 if os.path.isdir(os.path.join(client_path, d)) and not d.startswith(".")
             ]
         except FileNotFoundError:
@@ -137,7 +154,8 @@ class DatasetHandler:
             label_path = os.path.join(client_path, label_folder)
 
             all_images = [
-                f for f in os.listdir(label_path)
+                f
+                for f in os.listdir(label_path)
                 if f.lower().endswith(supported_extensions)
             ]
 
@@ -161,7 +179,7 @@ class DatasetHandler:
                 noise = np.random.normal(mean, std, image.shape).astype(np.float32)
 
                 signal_power = np.mean(image.astype(np.float32) ** 2)
-                noise_power = np.mean(noise ** 2)
+                noise_power = np.mean(noise**2)
 
                 """
                 Signal-to-Noise Ratio (SNR) in decibels (dB) is calculated as:
@@ -176,7 +194,9 @@ class DatasetHandler:
                 snr = 10 * np.log10(signal_power / noise_power)
                 self.all_poisoned_img_snrs.append(snr)
 
-                noisy_image = np.clip(image.astype(np.float32) + noise, 0, 255).astype(np.uint8)
+                noisy_image = np.clip(image.astype(np.float32) + noise, 0, 255).astype(
+                    np.uint8
+                )
                 success = cv2.imwrite(filepath, noisy_image)
 
                 if success:
@@ -184,14 +204,14 @@ class DatasetHandler:
                 else:
                     logging.error(f"Failed to write image: {filepath}")
 
-    def _assign_poisoned_client_ids(
-            self, bad_client_dirs: list
-    ) -> None:
+    def _assign_poisoned_client_ids(self, bad_client_dirs: list) -> None:
         """Assign ids of poisoned clients to class field"""
 
         for bad_client_dir in bad_client_dirs:
             try:
                 self.poisoned_client_ids.add(int(bad_client_dir.split("_")[1]))
             except Exception as e:
-                logging.error(f"Error while parsing client dataset folder: client id must be a number: {e}")
+                logging.error(
+                    f"Error while parsing client dataset folder: client id must be a number: {e}"
+                )
                 sys.exit(-1)

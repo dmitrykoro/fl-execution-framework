@@ -5,19 +5,21 @@ from transformers import AutoTokenizer
 from torch.utils.data import DataLoader
 from transformers import DataCollatorForLanguageModeling
 
+
 class MedQuADDatasetLoader:
-    def __init__(self,
-            dataset_dir: str,
-            num_of_clients: int,
-            training_subset_fraction: float,
-            model_name: str,
-            batch_size: int = 16,
-            chunk_size: int = 256,
-            mlm_probability: float = 0.15,
-            num_poisoned_clients: int = 0,
-            tokenize_columns=["answer"],
-            remove_columns=["answer", "token_type_ids", "question"],
-        ):
+    def __init__(
+        self,
+        dataset_dir: str,
+        num_of_clients: int,
+        training_subset_fraction: float,
+        model_name: str,
+        batch_size: int = 16,
+        chunk_size: int = 256,
+        mlm_probability: float = 0.15,
+        num_poisoned_clients: int = 0,
+        tokenize_columns=["answer"],
+        remove_columns=["answer", "token_type_ids", "question"],
+    ):
         self.dataset_dir = dataset_dir
         self.num_of_clients = num_of_clients
         self.training_subset_fraction = training_subset_fraction
@@ -28,31 +30,39 @@ class MedQuADDatasetLoader:
         self.num_poisoned_clients = num_poisoned_clients
         self.tokenize_columns = tokenize_columns
         self.remove_columns = remove_columns
-    
+
     def load_datasets(self):
         """
         Loads and tokenizes dataset for masked language modeling (MLM).
         """
-        
+
         trainloaders = []
         valloaders = []
 
         tokenizer = AutoTokenizer.from_pretrained(self.model_name)
-        
+
         poisoned_client_ids = []
         for i in range(self.num_poisoned_clients):
             poisoned_client_ids.append(i)
 
-        client_folders = [d for d in os.listdir(self.dataset_dir) if d.startswith("client_")]
-        for client_folder in sorted(client_folders, key=lambda string: int(string.split("_")[1])):
-            
-            json_files = glob.glob(os.path.join(self.dataset_dir, client_folder, "*.json"))
+        client_folders = [
+            d for d in os.listdir(self.dataset_dir) if d.startswith("client_")
+        ]
+        for client_folder in sorted(
+            client_folders, key=lambda string: int(string.split("_")[1])
+        ):
+            json_files = glob.glob(
+                os.path.join(self.dataset_dir, client_folder, "*.json")
+            )
 
             client_dataset = load_dataset("json", data_files=json_files)
 
             # Tokenize answers
             def tokenize_function(examples):
-                texts = [" ".join(row) for row in zip(*[examples[col] for col in self.tokenize_columns])]
+                texts = [
+                    " ".join(row)
+                    for row in zip(*[examples[col] for col in self.tokenize_columns])
+                ]
                 return tokenizer(texts, truncation=False)
 
             # Chunk tokens into fixed-length blocks
@@ -62,7 +72,10 @@ class MedQuADDatasetLoader:
                 total_len = (total_len // self.chunk_size) * self.chunk_size
 
                 result = {
-                    k: [t[i:i + self.chunk_size] for i in range(0, total_len, self.chunk_size)]
+                    k: [
+                        t[i : i + self.chunk_size]
+                        for i in range(0, total_len, self.chunk_size)
+                    ]
                     for k, t in concatenated.items()
                 }
                 result["labels"] = result["input_ids"].copy()
@@ -71,7 +84,9 @@ class MedQuADDatasetLoader:
             client_dataset = client_dataset.map(tokenize_function, batched=True)
             client_dataset = client_dataset.remove_columns(self.remove_columns)
             client_dataset = client_dataset.map(chunk_function, batched=True)
-            dataset = client_dataset["train"].train_test_split(test_size=(1 - self.training_subset_fraction))
+            dataset = client_dataset["train"].train_test_split(
+                test_size=(1 - self.training_subset_fraction)
+            )
 
             client_folder_num = int(client_folder.split("_")[1])
 
@@ -82,18 +97,29 @@ class MedQuADDatasetLoader:
             collate_fn = DataCollatorForLanguageModeling(
                 tokenizer=tokenizer,
                 mlm=True,
-                mlm_probability=.75 if client_folder_num in poisoned_client_ids else self.mlm_probability,
-                mask_replace_prob=0 if client_folder_num in poisoned_client_ids else 0.8,
-                random_replace_prob=1 if client_folder_num in poisoned_client_ids else 0.1,
+                mlm_probability=0.75
+                if client_folder_num in poisoned_client_ids
+                else self.mlm_probability,
+                mask_replace_prob=0
+                if client_folder_num in poisoned_client_ids
+                else 0.8,
+                random_replace_prob=1
+                if client_folder_num in poisoned_client_ids
+                else 0.1,
             )
 
             trainloader = DataLoader(
-                dataset["train"], batch_size=self.batch_size, shuffle=True, collate_fn=collate_fn
+                dataset["train"],
+                batch_size=self.batch_size,
+                shuffle=True,
+                collate_fn=collate_fn,
             )
             valloader = DataLoader(
-                dataset["test"], batch_size=self.batch_size, shuffle=False, collate_fn=collate_fn
+                dataset["test"],
+                batch_size=self.batch_size,
+                shuffle=False,
+                collate_fn=collate_fn,
             )
-
 
             trainloaders.append(trainloader)
             valloaders.append(valloader)

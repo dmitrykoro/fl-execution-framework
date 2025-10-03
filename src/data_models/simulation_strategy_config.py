@@ -6,7 +6,6 @@ from typing import Any
 
 @dataclass
 class StrategyConfig:
-
     aggregation_strategy_keyword: str = None
     remove_clients: bool = None
     begin_removing_from_round: int = None
@@ -61,7 +60,9 @@ class StrategyConfig:
 
     def __getattr__(self, name: str) -> Any:
         """Allow access to dynamically set attributes"""
-        raise AttributeError(f"'{self.__class__.__name__}' object has no attribute '{name}'")
+        raise AttributeError(
+            f"'{self.__class__.__name__}' object has no attribute '{name}'"
+        )
 
     @classmethod
     def from_dict(cls, strategy_config: dict):

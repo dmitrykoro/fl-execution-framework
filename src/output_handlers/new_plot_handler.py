@@ -31,18 +31,17 @@ def _generate_single_string_strategy_label(strategy_config: StrategyConfig) -> s
 def _generate_multi_string_strategy_label(strategy_config: StrategyConfig) -> str:
     """Generate multi-string label for strategy (better to use as plot title)"""
 
-    return _generate_single_string_strategy_label(strategy_config).replace(', ', '\n')
+    return _generate_single_string_strategy_label(strategy_config).replace(", ", "\n")
 
 
 def show_plots_within_strategy(
-        simulation_strategy: FederatedSimulation,
-        directory_handler: DirectoryHandler
+    simulation_strategy: FederatedSimulation, directory_handler: DirectoryHandler
 ) -> None:
     """Show all per-client plots within the strategy"""
 
     if not (
-            simulation_strategy.strategy_config.show_plots or
-            simulation_strategy.strategy_config.save_plots
+        simulation_strategy.strategy_config.show_plots
+        or simulation_strategy.strategy_config.save_plots
     ):
         return
 
@@ -58,16 +57,18 @@ def show_plots_within_strategy(
 
         removal_threshold_history = simulation_strategy.strategy_history.rounds_history.removal_threshold_history
 
-        if metric_name == "removal_criterion_history" and removal_threshold_history:  # Only plot if threshold was collected
+        if (
+            metric_name == "removal_criterion_history" and removal_threshold_history
+        ):  # Only plot if threshold was collected
             # Ensure rounds and removal_threshold_history have matching dimensions
             client_rounds = list_of_client_histories[0].rounds
             min_length = min(len(client_rounds), len(removal_threshold_history))
             plt.plot(
                 client_rounds[:min_length],
                 removal_threshold_history[:min_length],
-                label=f"removal threshold",
+                label="removal threshold",
                 linestyle="--",
-                color="red"
+                color="red",
             )
 
         for client_info in list_of_client_histories:
@@ -79,29 +80,35 @@ def show_plots_within_strategy(
                 client_info.rounds[:min_length],
                 metric_values[:min_length],
                 label=f"client_{client_info.client_id}"
-                if not client_info.is_malicious else f"client_{client_info.client_id}_bad"
+                if not client_info.is_malicious
+                else f"client_{client_info.client_id}_bad",
             )
 
             # to put X on values of clients that were excluded
             excluded_values = [
-                metric if participated == 0 else None for metric, participated in zip(
-                    metric_values[:min_length], client_info.aggregation_participation_history[:min_length]
+                metric if participated == 0 else None
+                for metric, participated in zip(
+                    metric_values[:min_length],
+                    client_info.aggregation_participation_history[:min_length],
                 )
             ]
-            plt.plot(client_info.rounds[:min_length], excluded_values, 'kx')
+            plt.plot(client_info.rounds[:min_length], excluded_values, "kx")
 
-        plt.xlabel('round #')
+        plt.xlabel("round #")
         plt.ylabel(metric_name)
 
-        plot_strategy_title = _generate_multi_string_strategy_label(simulation_strategy.strategy_config)
+        plot_strategy_title = _generate_multi_string_strategy_label(
+            simulation_strategy.strategy_config
+        )
         plt.title(
             f"{metric_name} of each client across rounds for strategy: "
             f"{simulation_strategy.strategy_config.aggregation_strategy_keyword}\n{plot_strategy_title}"
         )
         plt.legend(
-            title='clients', bbox_to_anchor=(1.05, 1),
-            loc='upper left',
-            ncol=math.ceil(simulation_strategy.strategy_config.num_of_clients / 20)
+            title="clients",
+            bbox_to_anchor=(1.05, 1),
+            loc="upper left",
+            ncol=math.ceil(simulation_strategy.strategy_config.num_of_clients / 20),
         )
         ax = plt.gca()
         ax.xaxis.set_major_locator(MaxNLocator(integer=True, steps=[2, 5]))
@@ -118,21 +125,24 @@ def show_plots_within_strategy(
 
 
 def show_inter_strategy_plots(
-        executed_simulation_strategies: list,
-        directory_handler: DirectoryHandler
+    executed_simulation_strategies: list, directory_handler: DirectoryHandler
 ) -> None:
     """Show comparing data from all strategies"""
 
     if not (
-            executed_simulation_strategies[0].strategy_config.show_plots or
-            executed_simulation_strategies[0].strategy_config.save_plots
+        executed_simulation_strategies[0].strategy_config.show_plots
+        or executed_simulation_strategies[0].strategy_config.save_plots
     ):
         return
 
-    rounds = executed_simulation_strategies[0].strategy_history.get_all_clients()[0].rounds
+    rounds = (
+        executed_simulation_strategies[0].strategy_history.get_all_clients()[0].rounds
+    )
 
     # line plots
-    plottable_metrics = executed_simulation_strategies[0].strategy_history.rounds_history.plottable_metrics
+    plottable_metrics = executed_simulation_strategies[
+        0
+    ].strategy_history.rounds_history.plottable_metrics
 
     for metric_name in plottable_metrics:
         plt.figure(figsize=plot_size)
@@ -148,26 +158,32 @@ def show_inter_strategy_plots(
                 plt.plot(
                     rounds[:min_length],
                     metric_values[:min_length],
-                    label=_generate_single_string_strategy_label(simulation_strategy.strategy_config)
+                    label=_generate_single_string_strategy_label(
+                        simulation_strategy.strategy_config
+                    ),
                 )
-        plt.xlabel('round #')
+        plt.xlabel("round #")
         plt.ylabel(metric_name)
-        plt.title(f'{metric_name} across strategies')
+        plt.title(f"{metric_name} across strategies")
         ax = plt.gca()
         # Only show legend if there are labeled artists
         if any(ax.get_legend_handles_labels()):
-            plt.legend(title='strategies', loc='upper center', bbox_to_anchor=(0.5, -0.1))
+            plt.legend(
+                title="strategies", loc="upper center", bbox_to_anchor=(0.5, -0.1)
+            )
         ax.xaxis.set_major_locator(MaxNLocator(integer=True, steps=[2, 5]))
         plt.tight_layout()
 
         if executed_simulation_strategies[0].strategy_config.save_plots:
-            plt.savefig(f'{directory_handler.new_plots_dirname}/{metric_name}.pdf')
+            plt.savefig(f"{directory_handler.new_plots_dirname}/{metric_name}.pdf")
 
         if executed_simulation_strategies[0].strategy_config.show_plots:
             plt.show()
 
     # bar plots
-    barable_metrics = executed_simulation_strategies[0].strategy_history.rounds_history.barable_metrics
+    barable_metrics = executed_simulation_strategies[
+        0
+    ].strategy_history.rounds_history.barable_metrics
 
     for metric_name in barable_metrics:
         plt.figure(figsize=plot_size)
@@ -184,24 +200,77 @@ def show_inter_strategy_plots(
                     rounds_array + i * bar_width,  # Offset bars to avoid overlap
                     metric_values,
                     width=bar_width,
-                    label=_generate_single_string_strategy_label(simulation_strategy.strategy_config),
-                    alpha=0.8
+                    label=_generate_single_string_strategy_label(
+                        simulation_strategy.strategy_config
+                    ),
+                    alpha=0.8,
                 )
 
-        plt.xlabel('round #')
+        plt.xlabel("round #")
         plt.ylabel(metric_name)
-        plt.title(f'{metric_name} across strategies')
+        plt.title(f"{metric_name} across strategies")
         ax = plt.gca()
         # Only show legend if there are labeled artists
         if any(ax.get_legend_handles_labels()):
-            plt.legend(title='strategies', loc='upper center', bbox_to_anchor=(0.5, -0.1))
+            plt.legend(
+                title="strategies", loc="upper center", bbox_to_anchor=(0.5, -0.1)
+            )
         ax.xaxis.set_major_locator(MaxNLocator(integer=True, steps=[2, 5]))
-        ax.set_xticks(rounds_array + (num_strategies - 1) * bar_width / 2)  # Adjust x-ticks to align
+        ax.set_xticks(
+            rounds_array + (num_strategies - 1) * bar_width / 2
+        )  # Adjust x-ticks to align
         ax.set_xticklabels(rounds)
         plt.tight_layout()
 
         if executed_simulation_strategies[0].strategy_config.save_plots:
-            plt.savefig(f'{directory_handler.new_plots_dirname}/{metric_name}.pdf')
+            plt.savefig(f"{directory_handler.new_plots_dirname}/{metric_name}.pdf")
 
         if executed_simulation_strategies[0].strategy_config.show_plots:
             plt.show()
+
+
+def export_plot_data_json(
+    simulation_strategy: FederatedSimulation, directory_handler: DirectoryHandler
+) -> None:
+    """Export plot data as JSON for frontend interactive visualization"""
+
+    if not simulation_strategy.strategy_config.save_plots:
+        return
+
+    import json
+
+    plot_data = {"per_client_metrics": [], "round_metrics": {}}
+
+    # Per-client data
+    list_of_client_histories = simulation_strategy.strategy_history.get_all_clients()
+    for client_info in list_of_client_histories:
+        client_data = {
+            "client_id": client_info.client_id,
+            "is_malicious": client_info.is_malicious,
+            "rounds": client_info.rounds,
+            "aggregation_participation": client_info.aggregation_participation_history,
+            "metrics": {},
+        }
+        for metric_name in client_info.plottable_metrics:
+            metric_values = client_info.get_metric_by_name(metric_name)
+            client_data["metrics"][metric_name] = metric_values
+        plot_data["per_client_metrics"].append(client_data)
+
+    # Round-level aggregated metrics
+    round_info = simulation_strategy.strategy_history.rounds_history
+    plot_data["rounds"] = (
+        list_of_client_histories[0].rounds if list_of_client_histories else []
+    )
+    for metric_name in round_info.plottable_metrics:
+        metric_values = round_info.get_metric_by_name(metric_name)
+        if metric_values:
+            plot_data["round_metrics"][metric_name] = metric_values
+
+    # Removal threshold if available
+    if round_info.removal_threshold_history:
+        plot_data["removal_threshold_history"] = round_info.removal_threshold_history
+
+    # Save to JSON
+    json_path = f"{directory_handler.new_plots_dirname}/plot_data_{simulation_strategy.strategy_config.strategy_number}.json"
+    with open(json_path, "w") as f:
+        json.dump(plot_data, f, indent=2)

@@ -1,7 +1,6 @@
 import io
 import torch
 import contextlib
-from torch.optim import AdamW
 from collections import OrderedDict
 from transformers import AutoModelForMaskedLM
 from peft import (
@@ -34,7 +33,6 @@ def load_model_with_lora(
 
     with io.StringIO() as buf, contextlib.redirect_stdout(buf):
         model.print_trainable_parameters()
-        output = buf.getvalue()
 
     return model
 
@@ -45,6 +43,7 @@ def load_model(
     model = AutoModelForMaskedLM.from_pretrained(model_name)
 
     return model
+
 
 # -------------------------------
 # State Dict (LoRA + Full)

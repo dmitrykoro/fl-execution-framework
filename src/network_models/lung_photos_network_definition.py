@@ -2,11 +2,14 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+
 class LungCancerCNN(nn.Module):
     def __init__(self, num_classes=4):
         super(LungCancerCNN, self).__init__()
 
-        self.conv1 = nn.Conv2d(1, 16, kernel_size=3, padding=1)  # Grayscale image (1 channel)
+        self.conv1 = nn.Conv2d(
+            1, 16, kernel_size=3, padding=1
+        )  # Grayscale image (1 channel)
         self.pool = nn.MaxPool2d(2, 2)
         self.conv2 = nn.Conv2d(16, 32, kernel_size=3, padding=1)
         self.conv3 = nn.Conv2d(32, 64, kernel_size=3, padding=1)
@@ -46,9 +49,9 @@ class LungCancerCNN(nn.Module):
     def _initialize_weights(self):
         """Random weight initialization"""
 
-        nn.init.kaiming_uniform_(self.conv1.weight, nonlinearity='relu')
-        nn.init.kaiming_uniform_(self.conv2.weight, nonlinearity='relu')
-        nn.init.kaiming_uniform_(self.conv3.weight, nonlinearity='relu')
+        nn.init.kaiming_uniform_(self.conv1.weight, nonlinearity="relu")
+        nn.init.kaiming_uniform_(self.conv2.weight, nonlinearity="relu")
+        nn.init.kaiming_uniform_(self.conv3.weight, nonlinearity="relu")
 
         nn.init.xavier_uniform_(self.fc1.weight)
         nn.init.xavier_uniform_(self.fc2.weight)

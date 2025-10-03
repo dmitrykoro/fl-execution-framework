@@ -32,8 +32,8 @@ class PneumoniamnistNetwork(nn.Module):
     def _initialize_weights(self):
         """Random weight initialization"""
 
-        nn.init.kaiming_uniform_(self.conv1.weight, nonlinearity='relu')
-        nn.init.kaiming_uniform_(self.conv2.weight, nonlinearity='relu')
+        nn.init.kaiming_uniform_(self.conv1.weight, nonlinearity="relu")
+        nn.init.kaiming_uniform_(self.conv2.weight, nonlinearity="relu")
 
         nn.init.xavier_uniform_(self.fc1.weight)
         nn.init.xavier_uniform_(self.fc2.weight)
