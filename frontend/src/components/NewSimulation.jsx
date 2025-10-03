@@ -73,7 +73,7 @@ const initialConfig = {
   lora_target_modules: ["query", "value"]
 };
 
-const STRATEGIES = ["FedAvg", "trust", "pid", "pid_scaled", "pid_standardized", "multi-krum", "krum", "multi-krum-based", "trimmed_mean", "rfa", "bulyan"];
+const STRATEGIES = ["fedavg", "trust", "pid", "pid_scaled", "pid_standardized", "multi-krum", "krum", "multi-krum-based", "trimmed_mean", "rfa", "bulyan"];
 const DATASETS = ["femnist_iid", "femnist_niid", "its", "pneumoniamnist", "flair", "bloodmnist", "medquad", "lung_photos"];
 const ATTACKS = ["gaussian_noise", "label_flipping"];
 const DEVICES = ["cpu", "gpu", "cuda"];
@@ -236,6 +236,144 @@ function NewSimulation() {
 
   const isValid = validateConfig();
 
+  // Validation status per section
+  const getSectionValidation = () => {
+    const sections = {
+      common: { valid: true, issues: [] },
+      attack: { valid: true, issues: [] },
+      strategy: { valid: true, issues: [] },
+      resources: { valid: true, issues: [] },
+      flower: { valid: true, issues: [] }
+    };
+
+    // Common Settings validation
+    if (!config.aggregation_strategy_keyword) {
+      sections.common.valid = false;
+      sections.common.issues.push('Strategy required');
+    }
+    if (!config.dataset_keyword) {
+      sections.common.valid = false;
+      sections.common.issues.push('Dataset required');
+    }
+    if (config.num_of_rounds <= 0) {
+      sections.common.valid = false;
+      sections.common.issues.push('Rounds must be > 0');
+    }
+    if (config.num_of_clients <= 0) {
+      sections.common.valid = false;
+      sections.common.issues.push('Clients must be > 0');
+    }
+    if (!config.batch_size || config.batch_size <= 0) {
+      sections.common.valid = false;
+      sections.common.issues.push('Batch size required');
+    }
+    if (!config.num_of_client_epochs || config.num_of_client_epochs <= 0) {
+      sections.common.valid = false;
+      sections.common.issues.push('Client epochs required');
+    }
+
+    // Attack Configuration validation
+    if (config.num_of_malicious_clients < 0 || config.num_of_malicious_clients > config.num_of_clients) {
+      sections.attack.valid = false;
+      sections.attack.issues.push('Invalid malicious client count');
+    }
+    if (config.num_of_malicious_clients > 0 && needsGaussianParams) {
+      if (config.gaussian_noise_mean === undefined) {
+        sections.attack.valid = false;
+        sections.attack.issues.push('Gaussian mean required');
+      }
+      if (config.gaussian_noise_std === undefined) {
+        sections.attack.valid = false;
+        sections.attack.issues.push('Gaussian std required');
+      }
+      if (config.attack_ratio === undefined) {
+        sections.attack.valid = false;
+        sections.attack.issues.push('Attack ratio required');
+      }
+    }
+
+    // Strategy-Specific Parameters validation
+    if (needsTrustParams) {
+      if (!config.begin_removing_from_round) {
+        sections.strategy.valid = false;
+        sections.strategy.issues.push('Begin removing round required');
+      }
+      if (!config.trust_threshold) {
+        sections.strategy.valid = false;
+        sections.strategy.issues.push('Trust threshold required');
+      }
+      if (!config.beta_value) {
+        sections.strategy.valid = false;
+        sections.strategy.issues.push('Beta value required');
+      }
+      if (!config.num_of_clusters) {
+        sections.strategy.valid = false;
+        sections.strategy.issues.push('Number of clusters required');
+      }
+    }
+
+    if (needsPidParams) {
+      if (config.num_std_dev === undefined) {
+        sections.strategy.valid = false;
+        sections.strategy.issues.push('Std dev threshold required');
+      }
+      if (config.Kp === undefined) {
+        sections.strategy.valid = false;
+        sections.strategy.issues.push('Kp required');
+      }
+      if (config.Ki === undefined) {
+        sections.strategy.valid = false;
+        sections.strategy.issues.push('Ki required');
+      }
+      if (config.Kd === undefined) {
+        sections.strategy.valid = false;
+        sections.strategy.issues.push('Kd required');
+      }
+    }
+
+    if (needsKrumParams && !config.num_krum_selections) {
+      sections.strategy.valid = false;
+      sections.strategy.issues.push('Krum selections required');
+    }
+
+    if (needsTrimmedMeanParams && !config.trim_ratio) {
+      sections.strategy.valid = false;
+      sections.strategy.issues.push('Trim ratio required');
+    }
+
+    return sections;
+  };
+
+  const sectionValidation = getSectionValidation();
+  const totalIssues = Object.values(sectionValidation).reduce((sum, section) => sum + section.issues.length, 0);
+
+  // Smart section defaults based on context
+  const getDefaultActiveKeys = () => {
+    const activeKeys = ["0"]; // Common Settings always expanded
+
+    // Attack Configuration: expand if attack preset or has malicious clients
+    if (selectedPreset === "attack" || config.num_of_malicious_clients > 0) {
+      activeKeys.push("1");
+    }
+
+    // Strategy-Specific Parameters: expand if non-default strategy
+    if (config.aggregation_strategy_keyword !== "fedavg") {
+      activeKeys.push("2");
+    }
+
+    // Resource & Output Settings: collapsed by default (eventKey="3")
+    // Flower Framework Settings: collapsed by default (eventKey="4")
+
+    return activeKeys;
+  };
+
+  const [activeKeys, setActiveKeys] = useState(getDefaultActiveKeys());
+
+  // Update active keys when preset or config changes
+  useEffect(() => {
+    setActiveKeys(getDefaultActiveKeys());
+  }, [selectedPreset, config.num_of_malicious_clients, config.aggregation_strategy_keyword]);
+
   // Generate plain-language summary
   const generateSummary = () => {
     const parts = [];
@@ -330,7 +468,11 @@ function NewSimulation() {
             <Col key={key}>
               <Card
                 className={`h-100 ${selectedPreset === key ? 'border-primary' : ''}`}
-                style={{ cursor: 'pointer', transition: 'all 0.2s' }}
+                style={{
+                  cursor: 'pointer',
+                  transition: 'all 0.2s',
+                  backgroundColor: selectedPreset === key ? 'rgba(13, 110, 253, 0.1)' : ''
+                }}
                 onClick={() => handlePresetChange(key)}
               >
                 <Card.Body>
@@ -341,7 +483,7 @@ function NewSimulation() {
                       <small className="text-muted">{preset.subtitle}</small>
                     </div>
                     {selectedPreset === key && (
-                      <span className="badge bg-primary">Selected</span>
+                      <span style={{ fontSize: '1.5rem', color: '#0d6efd' }}>✓</span>
                     )}
                   </div>
                   <p className="small mb-2">{preset.description}</p>
@@ -355,7 +497,11 @@ function NewSimulation() {
           <Col>
             <Card
               className={`h-100 ${selectedPreset === null ? 'border-primary' : ''}`}
-              style={{ cursor: 'pointer', transition: 'all 0.2s' }}
+              style={{
+                cursor: 'pointer',
+                transition: 'all 0.2s',
+                backgroundColor: selectedPreset === null ? 'rgba(13, 110, 253, 0.1)' : ''
+              }}
               onClick={() => handlePresetChange(null)}
             >
               <Card.Body>
@@ -366,7 +512,7 @@ function NewSimulation() {
                     <small className="text-muted">Advanced configuration</small>
                   </div>
                   {selectedPreset === null && (
-                    <span className="badge bg-primary">Selected</span>
+                    <span style={{ fontSize: '1.5rem', color: '#0d6efd' }}>✓</span>
                   )}
                 </div>
                 <p className="small mb-2">Configure all parameters manually for specialized experiments</p>
@@ -380,16 +526,21 @@ function NewSimulation() {
       </div>
 
       <Form onSubmit={handleSubmit}>
-        <Accordion defaultActiveKey="0">
+        <Accordion activeKey={activeKeys} onSelect={(keys) => setActiveKeys(keys)} alwaysOpen>
           <Accordion.Item eventKey="0">
-            <Accordion.Header>Common Settings</Accordion.Header>
+            <Accordion.Header>
+              <span className={sectionValidation.common.valid ? 'text-success' : 'text-danger'} style={{ marginRight: '8px' }}>
+                {sectionValidation.common.valid ? '✓' : '✗'}
+              </span>
+              Common Settings <span className="text-muted ms-2" style={{ fontSize: '0.9em' }}>(6 required, 5 optional)</span>
+            </Accordion.Header>
             <Accordion.Body>
               <Form.Group className="mb-3">
                 <Form.Label>
-                  Strategy{' '}
+                  Strategy <span className="text-danger">*</span>{' '}
                   <OverlayTrigger
                     placement="right"
-                    overlay={<Tooltip>Aggregation algorithm for combining client updates. FedAvg is simplest (average), others provide Byzantine robustness.</Tooltip>}
+                    overlay={<Tooltip>Aggregation algorithm for combining client updates. fedavg is simplest (average), others provide Byzantine robustness.</Tooltip>}
                   >
                     <span style={{ cursor: 'help' }}>ℹ️</span>
                   </OverlayTrigger>
@@ -401,7 +552,7 @@ function NewSimulation() {
 
               <Form.Group className="mb-3">
                 <Form.Label>
-                  Dataset{' '}
+                  Dataset <span className="text-danger">*</span>{' '}
                   <OverlayTrigger
                     placement="right"
                     overlay={<Tooltip>Training dataset for federated learning. Medical datasets (pneumoniamnist, bloodmnist) are common for healthcare FL.</Tooltip>}
@@ -472,7 +623,7 @@ function NewSimulation() {
 
               <Form.Group className="mb-3">
                 <Form.Label>
-                  Number of Rounds{' '}
+                  Number of Rounds <span className="text-danger">*</span>{' '}
                   <OverlayTrigger
                     placement="right"
                     overlay={<Tooltip>Communication rounds between server and clients. Start with 2-5 for quick tests, use 10+ for real experiments.</Tooltip>}
@@ -485,7 +636,7 @@ function NewSimulation() {
 
               <Form.Group className="mb-3">
                 <Form.Label>
-                  Number of Clients{' '}
+                  Number of Clients <span className="text-danger">*</span>{' '}
                   <OverlayTrigger
                     placement="right"
                     overlay={<Tooltip>Total participating devices/clients. More clients = more realistic but slower simulation.</Tooltip>}
@@ -498,7 +649,7 @@ function NewSimulation() {
 
               <Form.Group className="mb-3">
                 <Form.Label>
-                  Batch Size{' '}
+                  Batch Size <span className="text-danger">*</span>{' '}
                   <OverlayTrigger
                     placement="right"
                     overlay={<Tooltip>Number of samples per training batch. Larger = faster but more memory. 32 is standard.</Tooltip>}
@@ -511,7 +662,7 @@ function NewSimulation() {
 
               <Form.Group className="mb-3">
                 <Form.Label>
-                  Client Epochs{' '}
+                  Client Epochs <span className="text-danger">*</span>{' '}
                   <OverlayTrigger
                     placement="right"
                     overlay={<Tooltip>Training passes each client performs locally before sending updates. 1 epoch is fastest.</Tooltip>}
@@ -525,7 +676,12 @@ function NewSimulation() {
           </Accordion.Item>
 
           <Accordion.Item eventKey="1">
-            <Accordion.Header>Attack Configuration</Accordion.Header>
+            <Accordion.Header>
+              <span className={sectionValidation.attack.valid ? 'text-success' : 'text-danger'} style={{ marginRight: '8px' }}>
+                {sectionValidation.attack.valid ? '✓' : '✗'}
+              </span>
+              Attack Configuration
+            </Accordion.Header>
             <Accordion.Body>
               <Form.Group className="mb-3">
                 <Form.Label>Number of Malicious Clients</Form.Label>
@@ -562,7 +718,12 @@ function NewSimulation() {
 
           {(needsTrustParams || needsPidParams || needsKrumParams || needsTrimmedMeanParams) && (
             <Accordion.Item eventKey="2">
-              <Accordion.Header>Strategy-Specific Parameters</Accordion.Header>
+              <Accordion.Header>
+                <span className={sectionValidation.strategy.valid ? 'text-success' : 'text-danger'} style={{ marginRight: '8px' }}>
+                  {sectionValidation.strategy.valid ? '✓' : '✗'}
+                </span>
+                Strategy-Specific Parameters
+              </Accordion.Header>
               <Accordion.Body>
                 {needsTrustParams && (
                   <>
@@ -710,7 +871,12 @@ function NewSimulation() {
           )}
 
           <Accordion.Item eventKey="3">
-            <Accordion.Header>Resource & Output Settings</Accordion.Header>
+            <Accordion.Header>
+              <span className={sectionValidation.resources.valid ? 'text-success' : 'text-danger'} style={{ marginRight: '8px' }}>
+                {sectionValidation.resources.valid ? '✓' : '✗'}
+              </span>
+              Resource & Output Settings
+            </Accordion.Header>
             <Accordion.Body>
               <Form.Group className="mb-3">
                 <Form.Label>Training Device</Form.Label>
@@ -797,7 +963,12 @@ function NewSimulation() {
           </Accordion.Item>
 
           <Accordion.Item eventKey="4">
-            <Accordion.Header>Flower Framework Settings</Accordion.Header>
+            <Accordion.Header>
+              <span className={sectionValidation.flower.valid ? 'text-success' : 'text-danger'} style={{ marginRight: '8px' }}>
+                {sectionValidation.flower.valid ? '✓' : '✗'}
+              </span>
+              Flower Framework Settings
+            </Accordion.Header>
             <Accordion.Body>
               <Form.Group className="mb-3">
                 <Form.Label>Min Fit Clients</Form.Label>
@@ -832,9 +1003,16 @@ function NewSimulation() {
         )}
 
         <div className="mt-3">
-          <Button variant="primary" type="submit" disabled={submitting || !isValid}>
-            {submitting ? 'Launching...' : 'Launch Simulation'}
-          </Button>
+          <div className="d-flex align-items-center gap-3">
+            <Button variant="primary" type="submit" disabled={submitting || !isValid}>
+              {submitting ? 'Launching...' : 'Launch Simulation'}
+            </Button>
+            {!isValid && totalIssues > 0 && (
+              <span className="badge bg-danger">
+                {totalIssues} issue{totalIssues !== 1 ? 's' : ''} remaining
+              </span>
+            )}
+          </div>
           {!isValid && <div className="text-muted mt-2">Please complete all required fields to launch simulation</div>}
         </div>
 
