@@ -10,9 +10,6 @@ local_run_simulation.sh
 venv
 out
 datasets/
-/datasets/*
-
-# Coverage files
 .coverage
 .coverage.*
 htmlcov/
@@ -24,3 +21,4 @@ pytest.log
 tests/logs/
 .sonarwork/
 *sonar-project.properties
+node_modules/
