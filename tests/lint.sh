@@ -27,15 +27,23 @@ if [ "$TEST_MODE" = true ] || [ "$SONAR_MODE" = true ]; then
 fi
 
 log_info "⚡ Running ruff check..."
-ruff check --fix tests/
+ruff check --fix .
 
 log_info "⚡ Running ruff format..."
-ruff format tests/
+ruff format .
+
+# Uncomment when root type checking is ready
+# log_info "🔍 Running mypy on root..."
+# mypy . --config-file=pyproject.toml
 
 log_info "🔍 Running mypy..."
 mypy tests/ --config-file=tests/pyproject.toml
 
 if command_exists pyright; then
+    # Uncomment when root type checking is ready
+    # log_info "🔍 Running pyright on root..."
+    # pyright .
+
     log_info "🔍 Running pyright..."
     pyright tests/
 else
