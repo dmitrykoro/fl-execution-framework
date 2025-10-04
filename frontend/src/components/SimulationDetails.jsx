@@ -178,7 +178,7 @@ function SimulationDetails() {
     if (perClientMetrics && perClientMetrics.length > 0) {
       const lastRound = perClientMetrics[perClientMetrics.length - 1];
       const participationKeys = Object.keys(lastRound).filter(k => k.includes('aggregation_participation_history'));
-      const activeClients = participationKeys.filter(k => lastRound[k] === '1').length;
+      const activeClients = participationKeys.filter(k => lastRound[k] === '1' || lastRound[k] === 1).length;
       const removedClients = cfg.num_of_clients - activeClients;
 
       if (removedClients > 0) {
