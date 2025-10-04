@@ -123,6 +123,22 @@ const PRESETS = {
       min_evaluate_clients: 5,
       min_available_clients: 5,
     }
+  },
+  convergence: {
+    name: "Convergence Test",
+    subtitle: "15 rounds / 8 clients",
+    description: "Optimized for smooth plot curves and visualization testing",
+    estimatedTime: "60-90 seconds",
+    icon: "📈",
+    config: {
+      num_of_rounds: 15,
+      num_of_clients: 8,
+      num_of_malicious_clients: 0,
+      aggregation_strategy_keyword: "fedavg",
+      min_fit_clients: 8,
+      min_evaluate_clients: 8,
+      min_available_clients: 8,
+    }
   }
 };
 
@@ -374,6 +390,17 @@ function NewSimulation() {
     setActiveKeys(getDefaultActiveKeys());
   }, [selectedPreset, config.num_of_malicious_clients, config.aggregation_strategy_keyword]);
 
+  // Handle Esc key to navigate back to dashboard
+  useEffect(() => {
+    const handleEscape = (e) => {
+      if (e.key === 'Escape') {
+        navigate('/');
+      }
+    };
+    window.addEventListener('keydown', handleEscape);
+    return () => window.removeEventListener('keydown', handleEscape);
+  }, [navigate]);
+
   // Generate plain-language summary
   const generateSummary = () => {
     const parts = [];
@@ -398,6 +425,21 @@ function NewSimulation() {
     }
 
     return "This simulation " + parts.join(' ') + ".";
+  };
+
+  // Estimate resource usage
+  const estimateResources = () => {
+    const totalOperations = config.num_of_rounds * config.num_of_clients * config.num_of_client_epochs;
+    const estimatedMinutes = Math.ceil(totalOperations / 10); // rough estimate: 10 ops/min on CPU
+    const estimatedMemoryMB = config.num_of_clients * 50; // rough estimate: 50MB per client
+    const estimatedDiskMB = config.save_plots === "true" || config.save_csv === "true" ? 10 : 2;
+
+    return { estimatedMinutes, estimatedMemoryMB, estimatedDiskMB };
+  };
+
+  // Check if value differs from default
+  const isNonDefault = (key, value) => {
+    return initialConfig[key] !== undefined && initialConfig[key] !== value;
   };
 
   // Export config as JSON
@@ -435,35 +477,57 @@ function NewSimulation() {
 
   return (
     <div>
-      <Link to="/">&larr; Back to Dashboard</Link>
-      <div className="d-flex align-items-center justify-content-between mt-3 mb-2">
+      <div className="mb-3">
+        <Button variant="outline-secondary" size="sm" as={Link} to="/">
+          &larr; Back to Dashboard
+        </Button>
+        <span className="text-muted ms-2" style={{ fontSize: '0.85rem' }}>
+          (or press Esc to cancel)
+        </span>
+      </div>
+      <div className="d-flex align-items-center justify-content-between mb-2">
         <h1 className="mb-0">Create New Simulation</h1>
         <div className="d-flex align-items-center gap-2">
           {draftSaved && (
             <span className="badge bg-success">Draft saved</span>
           )}
-          <Button variant="outline-secondary" size="sm" onClick={handleExportConfig}>
-            Export JSON
-          </Button>
-          <Button variant="outline-secondary" size="sm" as="label" htmlFor="import-config" style={{ cursor: 'pointer', marginBottom: 0 }}>
-            Import JSON
-            <input
-              type="file"
-              id="import-config"
-              accept=".json"
-              style={{ display: 'none' }}
-              onChange={handleImportConfig}
-            />
-          </Button>
-          <Button variant="outline-secondary" size="sm" onClick={handleClearDraft}>
-            Reset to Defaults
-          </Button>
+          <OverlayTrigger
+            placement="bottom"
+            overlay={<Tooltip>Export current configuration for reuse or sharing</Tooltip>}
+          >
+            <Button variant="outline-secondary" size="sm" onClick={handleExportConfig}>
+              Export JSON
+            </Button>
+          </OverlayTrigger>
+          <OverlayTrigger
+            placement="bottom"
+            overlay={<Tooltip>Import previously saved configuration</Tooltip>}
+          >
+            <Button variant="outline-secondary" size="sm" as="label" htmlFor="import-config" style={{ cursor: 'pointer', marginBottom: 0 }}>
+              Import JSON
+              <input
+                type="file"
+                id="import-config"
+                accept=".json"
+                style={{ display: 'none' }}
+                onChange={handleImportConfig}
+              />
+            </Button>
+          </OverlayTrigger>
+          <OverlayTrigger
+            placement="bottom"
+            overlay={<Tooltip>Clear all changes and restore default values</Tooltip>}
+          >
+            <Button variant="outline-secondary" size="sm" onClick={handleClearDraft}>
+              Reset to Defaults
+            </Button>
+          </OverlayTrigger>
         </div>
       </div>
 
       <div className="mb-4">
         <h5 className="mb-3">Choose a Preset Template</h5>
-        <Row xs={1} md={3} className="g-3">
+        <Row xs={1} md={2} lg={3} xl={5} className="g-3">
           {Object.entries(PRESETS).map(([key, preset]) => (
             <Col key={key}>
               <Card
@@ -996,8 +1060,52 @@ function NewSimulation() {
         {isValid && (
           <Card className="mt-4 bg-light border-primary">
             <Card.Body>
-              <h6 className="mb-2">Configuration Summary</h6>
-              <p className="mb-0 text-muted">{generateSummary()}</p>
+              <h6 className="mb-3">📋 Configuration Summary</h6>
+              <p className="mb-3 text-muted">{generateSummary()}</p>
+
+              <Row className="g-3">
+                <Col md={4}>
+                  <div className="small">
+                    <strong>⏱️ Estimated Time:</strong>{' '}
+                    <span className={isNonDefault('num_of_rounds', config.num_of_rounds) || isNonDefault('num_of_clients', config.num_of_clients) ? 'fw-bold text-primary' : ''}>
+                      ~{estimateResources().estimatedMinutes} min
+                    </span>
+                  </div>
+                </Col>
+                <Col md={4}>
+                  <div className="small">
+                    <strong>💾 Memory Usage:</strong>{' '}
+                    <span className={isNonDefault('num_of_clients', config.num_of_clients) ? 'fw-bold text-primary' : ''}>
+                      ~{estimateResources().estimatedMemoryMB} MB
+                    </span>
+                  </div>
+                </Col>
+                <Col md={4}>
+                  <div className="small">
+                    <strong>💿 Disk Space:</strong>{' '}
+                    <span className={isNonDefault('save_plots', config.save_plots) || isNonDefault('save_csv', config.save_csv) ? 'fw-bold text-primary' : ''}>
+                      ~{estimateResources().estimatedDiskMB} MB
+                    </span>
+                  </div>
+                </Col>
+              </Row>
+
+              {(isNonDefault('num_of_rounds', config.num_of_rounds) ||
+                isNonDefault('num_of_clients', config.num_of_clients) ||
+                isNonDefault('aggregation_strategy_keyword', config.aggregation_strategy_keyword) ||
+                isNonDefault('dataset_keyword', config.dataset_keyword)) && (
+                  <div className="mt-3 pt-3 border-top">
+                    <div className="small text-muted">
+                      <strong>Modified from defaults:</strong>{' '}
+                      {[
+                        isNonDefault('aggregation_strategy_keyword', config.aggregation_strategy_keyword) && `Strategy (${config.aggregation_strategy_keyword})`,
+                        isNonDefault('dataset_keyword', config.dataset_keyword) && `Dataset (${config.dataset_keyword})`,
+                        isNonDefault('num_of_rounds', config.num_of_rounds) && `Rounds (${config.num_of_rounds})`,
+                        isNonDefault('num_of_clients', config.num_of_clients) && `Clients (${config.num_of_clients})`,
+                      ].filter(Boolean).join(', ')}
+                    </div>
+                  </div>
+                )}
             </Card.Body>
           </Card>
         )}
