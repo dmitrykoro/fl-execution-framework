@@ -44,20 +44,20 @@
   color: #888;
 }
 
-/* Dark Mode Form Fixes */
+/* Dark Mode */
 :root[data-theme="dark"] .form-control,
 :root[data-theme="dark"] .form-select {
-  background-color: #2b2930;
-  border-color: #49454F;
-  color: #E6E1E5;
+  background-color: #2b2930 !important;
+  border-color: #49454F !important;
+  color: #E6E1E5 !important;
 }
 
 :root[data-theme="dark"] .form-control:focus,
 :root[data-theme="dark"] .form-select:focus {
-  background-color: #353239;
-  border-color: #938F99;
-  color: #E6E1E5;
-  box-shadow: 0 0 0 0.25rem rgba(208, 188, 255, 0.25);
+  background-color: #353239 !important;
+  border-color: #938F99 !important;
+  color: #E6E1E5 !important;
+  box-shadow: 0 0 0 0.25rem rgba(208, 188, 255, 0.25) !important;
 }
 
 :root[data-theme="dark"] .card {
@@ -73,4 +73,33 @@
 :root[data-theme="dark"] .accordion-button:not(.collapsed) {
   background-color: #353239;
   color: #D0BCFF;
+}
+
+:root[data-theme="dark"] .text-muted {
+  color: #b8b4bb !important;
+}
+
+:root[data-theme="dark"] h1,
+:root[data-theme="dark"] h2,
+:root[data-theme="dark"] h3,
+:root[data-theme="dark"] h4,
+:root[data-theme="dark"] h5,
+:root[data-theme="dark"] h6 {
+  color: #E6E1E5;
+}
+
+:root[data-theme="dark"] p {
+  color: #CAC4D0;
+}
+
+:root[data-theme="dark"] .text-dark {
+  color: #E6E1E5 !important;
+}
+
+:root[data-theme="dark"] .card-title {
+  color: #E6E1E5;
+}
+
+:root[data-theme="dark"] .bg-light {
+  background-color: #2b2930 !important;
 }
