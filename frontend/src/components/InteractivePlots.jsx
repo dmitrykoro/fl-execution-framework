@@ -48,7 +48,9 @@ export default function InteractivePlots({ simulation }) {
 
         setLoading(false);
       } catch (error) {
-        console.error('Error fetching plot data:', error);
+        if (simulation.status === 'completed') {
+          console.error('Error fetching plot data:', error);
+        }
         setLoading(false);
       }
     };
@@ -195,18 +197,18 @@ export default function InteractivePlots({ simulation }) {
             })}
 
             {plotData.removal_threshold_history &&
-             selectedMetric === 'removal_criterion_history' &&
-             visibleClients.threshold && (
-              <Line
-                type="monotone"
-                dataKey="threshold"
-                stroke={MALICIOUS_COLOR}
-                strokeWidth={2}
-                strokeDasharray="5 5"
-                dot={false}
-                name="Removal Threshold"
-              />
-            )}
+              selectedMetric === 'removal_criterion_history' &&
+              visibleClients.threshold && (
+                <Line
+                  type="monotone"
+                  dataKey="threshold"
+                  stroke={MALICIOUS_COLOR}
+                  strokeWidth={2}
+                  strokeDasharray="5 5"
+                  dot={false}
+                  name="Removal Threshold"
+                />
+              )}
           </LineChart>
         </ResponsiveContainer>
 
