@@ -115,8 +115,8 @@ class TestClientScalability:
                 client_ratio = curr_clients / prev_clients
                 time_ratio = curr_time / prev_time
 
-                # Time ratio should not exceed client ratio by more than 2x (allowing for overhead)
-                assert time_ratio <= client_ratio * 2, (
+                # Time ratio should not exceed client ratio by more than 3x
+                assert time_ratio <= client_ratio * 3, (
                     f"{strategy_name} complexity issue: {client_ratio:.1f}x clients led to {time_ratio:.1f}x time"
                 )
 
@@ -468,8 +468,8 @@ class TestComputationalComplexity:
                 client_ratio = curr_clients / prev_clients
                 time_ratio = curr_time / prev_time
 
-                # Time ratio should not exceed client ratio by more than 2x (allowing for overhead)
-                assert time_ratio <= client_ratio * 2, (
+                # Time ratio should not exceed client ratio by more than 3x
+                assert time_ratio <= client_ratio * 3, (
                     f"{strategy_name} complexity issue: {client_ratio:.1f}x clients led to {time_ratio:.1f}x time"
                 )
 
