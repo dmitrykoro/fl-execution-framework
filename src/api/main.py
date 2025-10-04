@@ -421,6 +421,13 @@ async def get_plot_data(simulation_id: str) -> Dict:
     try:
         sim_dir = OUTPUT_DIR / simulation_id
 
+        # Check if simulation directory exists
+        if not sim_dir.exists():
+            raise HTTPException(
+                status_code=404,
+                detail=f"Simulation directory not found for {simulation_id}",
+            )
+
         # Find plot_data_*.json file in simulation root directory
         json_files = [
             f
@@ -429,7 +436,10 @@ async def get_plot_data(simulation_id: str) -> Dict:
         ]
 
         if not json_files:
-            raise HTTPException(status_code=404, detail="Plot data not found")
+            raise HTTPException(
+                status_code=404,
+                detail="Plot data not yet available - simulation may still be running",
+            )
 
         # Use first JSON file (usually plot_data_0.json)
         json_path = sim_dir / json_files[0]
@@ -437,6 +447,8 @@ async def get_plot_data(simulation_id: str) -> Dict:
         with open(json_path, "r") as f:
             return json.load(f)
 
+    except HTTPException:
+        raise
     except FileNotFoundError:
         raise HTTPException(
             status_code=404,
