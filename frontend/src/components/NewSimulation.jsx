@@ -127,14 +127,14 @@ const PRESETS = {
   convergence: {
     name: "Convergence Test",
     subtitle: "15 rounds / 8 clients",
-    description: "Optimized for smooth plot curves and visualization testing",
+    description: "Optimized for smooth plot curves and visualization testing with PID defense tracking",
     estimatedTime: "60-90 seconds",
     icon: "📈",
     config: {
       num_of_rounds: 15,
       num_of_clients: 8,
       num_of_malicious_clients: 0,
-      aggregation_strategy_keyword: "fedavg",
+      aggregation_strategy_keyword: "pid",
       min_fit_clients: 8,
       min_evaluate_clients: 8,
       min_available_clients: 8,
