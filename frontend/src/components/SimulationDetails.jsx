@@ -641,20 +641,6 @@ function SimulationDetails() {
             ) : (
               <p className="text-muted">No metrics available</p>
             )}
-            {otherFiles.length > 0 && (
-              <>
-                <h5 className="mt-3">Other Files</h5>
-                <ul>
-                  {otherFiles.map(file => (
-                    <li key={file}>
-                      <a href={`/api/simulations/${simulationId}/results/${file}`} target="_blank" rel="noopener noreferrer">
-                        {file}
-                      </a>
-                    </li>
-                  ))}
-                </ul>
-              </>
-            )}
           </div>
         </Tab>
 

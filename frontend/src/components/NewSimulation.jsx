@@ -79,34 +79,20 @@ const ATTACKS = ["gaussian_noise", "label_flipping"];
 const DEVICES = ["cpu", "gpu", "cuda"];
 
 const PRESETS = {
-  quick: {
-    name: "Quick Test",
-    subtitle: "2 rounds / 3 clients",
-    description: "Fast test for validating setup and basic functionality",
-    estimatedTime: "15-20 seconds",
-    icon: "⚡",
+  convergence: {
+    name: "Convergence Test",
+    subtitle: "15 rounds / 8 clients",
+    description: "Optimized for smooth plot curves and comprehensive learning experience with PID defense tracking",
+    estimatedTime: "60-90 seconds",
+    icon: "📈",
     config: {
-      num_of_rounds: 2,
-      num_of_clients: 3,
+      num_of_rounds: 15,
+      num_of_clients: 8,
       num_of_malicious_clients: 0,
-      min_fit_clients: 3,
-      min_evaluate_clients: 3,
-      min_available_clients: 3,
-    }
-  },
-  full: {
-    name: "Full Run",
-    subtitle: "10 rounds / 10 clients",
-    description: "Complete simulation for research experiments and demonstrations",
-    estimatedTime: "2-3 minutes",
-    icon: "🔬",
-    config: {
-      num_of_rounds: 10,
-      num_of_clients: 10,
-      num_of_malicious_clients: 0,
-      min_fit_clients: 10,
-      min_evaluate_clients: 10,
-      min_available_clients: 10,
+      aggregation_strategy_keyword: "pid",
+      min_fit_clients: 8,
+      min_evaluate_clients: 8,
+      min_available_clients: 8,
     }
   },
   attack: {
@@ -124,20 +110,19 @@ const PRESETS = {
       min_available_clients: 5,
     }
   },
-  convergence: {
-    name: "Convergence Test",
-    subtitle: "15 rounds / 8 clients",
-    description: "Optimized for smooth plot curves and visualization testing with PID defense tracking",
-    estimatedTime: "60-90 seconds",
-    icon: "📈",
+  full: {
+    name: "Full Run",
+    subtitle: "10 rounds / 10 clients",
+    description: "Complete simulation for research experiments and demonstrations",
+    estimatedTime: "2-3 minutes",
+    icon: "🔬",
     config: {
-      num_of_rounds: 15,
-      num_of_clients: 8,
+      num_of_rounds: 10,
+      num_of_clients: 10,
       num_of_malicious_clients: 0,
-      aggregation_strategy_keyword: "pid",
-      min_fit_clients: 8,
-      min_evaluate_clients: 8,
-      min_available_clients: 8,
+      min_fit_clients: 10,
+      min_evaluate_clients: 10,
+      min_available_clients: 10,
     }
   }
 };
