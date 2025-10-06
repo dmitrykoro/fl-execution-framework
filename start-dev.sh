@@ -1,70 +1,111 @@
-#!/bin/bash
-# Dev server startup script
+#!/bin/sh
+# Dev server startup script for FL Execution Framework
 
-set -e
+set -eu
 
-echo "🚀 Starting FL Framework Development Servers..."
-echo ""
+# Source common utilities
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+. "$SCRIPT_DIR/tests/scripts/common.sh"
+
+# Navigate to project root
+navigate_to_root
+
+log_info "🚀 Starting FL Framework Development Servers..."
+
+# Setup Python environment
+find_python_interpreter
+setup_virtual_environment
 
 # Install Python API dependencies
-echo "📦 Installing Python dependencies..."
-pip install -q -r requirements.txt
+if [ -f "requirements.txt" ]; then
+    log_info "📦 Installing Python dependencies..."
+    if pip install -q -r requirements.txt; then
+        log_info "Python dependencies installed"
+    else
+        log_error "Failed to install Python dependencies"
+        exit 1
+    fi
+else
+    log_error "requirements.txt not found"
+    exit 1
+fi
 
 # Install frontend dependencies
-echo "📦 Installing frontend dependencies..."
-cd frontend
-npm install
-cd ..
+if [ -d "frontend" ] && [ -f "frontend/package.json" ]; then
+    log_info "📦 Installing frontend dependencies..."
+    (cd frontend && npm install)
+    log_info "Frontend dependencies installed"
+else
+    log_error "Frontend directory or package.json not found"
+    exit 1
+fi
 
+log_info "✅ Setup complete!"
 echo ""
-echo "✅ Setup complete!"
-echo ""
-echo "Starting servers..."
+log_info "Starting servers..."
 echo "  - API: http://127.0.0.1:8000"
 echo "  - Frontend: http://localhost:5173"
 echo ""
-echo "Press Ctrl+C to stop both servers"
+log_info "Press Ctrl+C to stop both servers"
 echo ""
 
-# Create log files
-API_LOG=$(mktemp)
-FRONTEND_LOG=$(mktemp)
+# Create log directory and files
+mkdir -p tests/logs
+API_LOG="tests/logs/api_dev_$(date +%Y%m%d_%H%M%S).log"
+FRONTEND_LOG="tests/logs/frontend_dev_$(date +%Y%m%d_%H%M%S).log"
+: > "$API_LOG"
+: > "$FRONTEND_LOG"
 
 # Start API in background with logging
 uvicorn src.api.main:app --reload --port 8000 > "$API_LOG" 2>&1 &
 API_PID=$!
 
 # Start frontend in background with logging
-cd frontend
-npm run dev > "$FRONTEND_LOG" 2>&1 &
+(cd frontend && npm run dev > "../$FRONTEND_LOG" 2>&1) &
 FRONTEND_PID=$!
-cd ..
 
 # Wait for servers to start, then open browser
 sleep 3
-if command -v xdg-open > /dev/null; then
-  xdg-open http://localhost:5173 2>/dev/null
-elif command -v open > /dev/null; then
-  open http://localhost:5173 2>/dev/null
-elif command -v start > /dev/null; then
-  start http://localhost:5173 2>/dev/null
+if command_exists xdg-open; then
+    xdg-open http://localhost:5173 2>/dev/null || true
+elif command_exists open; then
+    open http://localhost:5173 2>/dev/null || true
+elif command_exists start; then
+    start http://localhost:5173 2>/dev/null || true
 fi
 
-# Trap Ctrl+C to kill both processes and cleanup
-trap "echo ''; echo '🛑 Stopping servers...'; kill $API_PID $FRONTEND_PID 2>/dev/null; rm -f $API_LOG $FRONTEND_LOG; exit" INT TERM
+# Trap Ctrl+C to kill both processes
+cleanup() {
+    echo ""
+    log_info "🛑 Stopping servers..."
+    kill $API_PID $FRONTEND_PID 2>/dev/null || true
+    wait $API_PID 2>/dev/null || true
+    wait $FRONTEND_PID 2>/dev/null || true
+    log_info "Servers stopped. Logs saved to tests/logs/"
+    exit 0
+}
+trap cleanup INT TERM
 
 echo ""
-echo "📋 Tailing logs (Ctrl+C to stop)..."
+log_info "📋 Tailing logs (Ctrl+C to stop)..."
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo ""
 
 # Tail both logs with prefixes
 tail -f "$API_LOG" "$FRONTEND_LOG" 2>/dev/null | while IFS= read -r line; do
-  if [[ "$line" == *"==> $API_LOG <=="* ]]; then
-    echo -e "\n🔵 [API]"
-  elif [[ "$line" == *"==> $FRONTEND_LOG <=="* ]]; then
-    echo -e "\n🟢 [FRONTEND]"
-  elif [[ -n "$line" ]]; then
-    echo "$line"
-  fi
+    case "$line" in
+        *"==> $API_LOG <=="*)
+            echo ""
+            echo "🔵 [API]"
+            ;;
+        *"==> $FRONTEND_LOG <=="*)
+            echo ""
+            echo "🟢 [FRONTEND]"
+            ;;
+        "")
+            ;;
+        *)
+            echo "$line"
+            ;;
+    esac
 done
