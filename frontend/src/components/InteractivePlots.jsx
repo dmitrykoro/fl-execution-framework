@@ -21,6 +21,12 @@ export default function InteractivePlots({ simulation }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    // Only fetch plot data if simulation is completed
+    if (simulation.status !== 'completed') {
+      setLoading(false);
+      return;
+    }
+
     const fetchPlotData = async () => {
       try {
         const response = await fetch(`http://localhost:8000/api/simulations/${simulation.id}/plot-data`);
@@ -48,18 +54,21 @@ export default function InteractivePlots({ simulation }) {
 
         setLoading(false);
       } catch (error) {
-        if (simulation.status === 'completed') {
-          console.error('Error fetching plot data:', error);
-        }
+        console.error('Error fetching plot data:', error);
         setLoading(false);
       }
     };
 
     fetchPlotData();
-  }, [simulation.id]);
+  }, [simulation.id, simulation.status]);
 
   if (loading) return <div className="text-center p-4">Loading interactive plots...</div>;
-  if (!plotData) return <div className="text-center p-4">No plot data available</div>;
+  if (!plotData) {
+    if (simulation.status === 'running') {
+      return <div className="text-center p-4">⏳ Plots will be available when the simulation completes...</div>;
+    }
+    return <div className="text-center p-4">No plot data available</div>;
+  }
 
   const metrics = plotData.per_client_metrics.length > 0
     ? Object.keys(plotData.per_client_metrics[0].metrics)
@@ -67,7 +76,7 @@ export default function InteractivePlots({ simulation }) {
 
   // Transform data for Recharts
   const chartData = plotData.rounds.map((round, idx) => {
-    const point = { round };
+    const point = { round, name: `Round ${round}` }; // Add 'name' for Brush aria-label
 
     plotData.per_client_metrics.forEach(client => {
       const metricValues = client.metrics[selectedMetric];
@@ -178,7 +187,12 @@ export default function InteractivePlots({ simulation }) {
               }}
             />
             <Legend wrapperStyle={{ color: chartColors.text }} />
-            <Brush dataKey="round" height={30} stroke={chartColors.brush} fill={theme === 'dark' ? '#1a1a1a' : '#f5f5f5'} />
+            <Brush
+              dataKey="round"
+              height={30}
+              stroke={chartColors.brush}
+              fill={theme === 'dark' ? '#1a1a1a' : '#f5f5f5'}
+            />
 
             {plotData.per_client_metrics.map((client, idx) => {
               const clientKey = `client_${client.client_id}`;
