@@ -255,6 +255,7 @@ class FederatedSimulation:
         elif aggregation_strategy_keyword in ("pid", "pid_scaled", "pid_standardized"):
             self._aggregation_strategy = PIDBasedRemovalStrategy(
                 initial_parameters=ndarrays_to_parameters(self._get_model_params(self._network_model)),
+                # global_seed=self.strategy_config.seed,
                 min_fit_clients=self.strategy_config.min_fit_clients,
                 min_evaluate_clients=self.strategy_config.min_evaluate_clients,
                 min_available_clients=self.strategy_config.min_available_clients,
