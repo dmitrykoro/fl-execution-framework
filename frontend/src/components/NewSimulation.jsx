@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { Form, Button, Card, Alert, Accordion, OverlayTrigger, Tooltip, Row, Col } from 'react-bootstrap';
 import { createSimulation } from '../api';
+import { useConfigValidation } from '../hooks/useConfigValidation';
+import ValidationSummary from './ValidationSummary';
 
 // Defaults from config/simulation_strategies/example_strategy_config.json
 const initialConfig = {
@@ -146,6 +148,15 @@ function NewSimulation() {
   const [selectedPreset, setSelectedPreset] = useState(null);
   const [draftSaved, setDraftSaved] = useState(false);
   const navigate = useNavigate();
+
+  // Real-time validation
+  const validation = useConfigValidation(config);
+  const { errors, warnings, infos } = validation;
+
+  // Helper functions to get validation messages for specific fields
+  const getFieldError = (fieldName) => errors.find(e => e.field === fieldName);
+  const getFieldWarning = (fieldName) => warnings.find(w => w.field === fieldName);
+  const getFieldInfo = (fieldName) => infos.find(i => i.field === fieldName);
 
   // Auto-save to localStorage when config changes
   useEffect(() => {
@@ -589,7 +600,7 @@ function NewSimulation() {
                   Strategy <span className="text-danger">*</span>{' '}
                   <OverlayTrigger
                     placement="right"
-                    overlay={<Tooltip>Aggregation algorithm for combining client updates. fedavg is simplest (average), others provide Byzantine robustness.</Tooltip>}
+                    overlay={<Tooltip>Aggregation algorithm for combining client model updates on the server. "fedavg" (FedAvg) = simple averaging (no attack defense). PID/Trust/Krum/etc. = Byzantine-robust strategies that detect and filter malicious updates.</Tooltip>}
                   >
                     <span style={{ cursor: 'help' }}>ℹ️</span>
                   </OverlayTrigger>
@@ -604,7 +615,7 @@ function NewSimulation() {
                   Dataset <span className="text-danger">*</span>{' '}
                   <OverlayTrigger
                     placement="right"
-                    overlay={<Tooltip>Training dataset for federated learning. Medical datasets (pneumoniamnist, bloodmnist) are common for healthcare FL.</Tooltip>}
+                    overlay={<Tooltip>Training dataset automatically split across clients. FEMNIST = handwritten characters (image classification). Medical: pneumoniamnist, bloodmnist, lung_photos = medical imaging. FLAIR, MedQuAD = medical text (NLP). IID = evenly distributed, NIID = non-evenly distributed (more realistic).</Tooltip>}
                   >
                     <span style={{ cursor: 'help' }}>ℹ️</span>
                   </OverlayTrigger>
@@ -615,7 +626,15 @@ function NewSimulation() {
               </Form.Group>
 
               <Form.Group className="mb-3">
-                <Form.Label>Model Type</Form.Label>
+                <Form.Label>
+                  Model Type{' '}
+                  <OverlayTrigger
+                    placement="right"
+                    overlay={<Tooltip>Neural network architecture. CNN (Convolutional Neural Network) = best for images (fast, efficient). Transformer = best for text/NLP tasks (required for LLM finetuning, slower but more accurate for language).</Tooltip>}
+                  >
+                    <span style={{ cursor: 'help' }}>ℹ️</span>
+                  </OverlayTrigger>
+                </Form.Label>
                 <Form.Select name="model_type" value={config.model_type} onChange={handleChange}>
                   <option value="cnn">CNN</option>
                   <option value="transformer">Transformer</option>
@@ -625,7 +644,17 @@ function NewSimulation() {
               <Form.Group className="mb-3">
                 <Form.Check
                   type="switch"
-                  label="Use LLM"
+                  label={
+                    <>
+                      Use LLM{' '}
+                      <OverlayTrigger
+                        placement="right"
+                        overlay={<Tooltip>Enable Large Language Model (LLM) finetuning for medical NLP tasks. Only works with Transformer model type. Uses BiomedBERT for medical text understanding. Requires medical text dataset (FLAIR, MedQuAD).</Tooltip>}
+                      >
+                        <span style={{ cursor: 'help' }}>ℹ️</span>
+                      </OverlayTrigger>
+                    </>
+                  }
                   name="use_llm"
                   checked={config.use_llm === "true"}
                   onChange={(e) => setConfig(prev => ({ ...prev, use_llm: e.target.checked ? "true" : "false" }))}
@@ -635,14 +664,30 @@ function NewSimulation() {
               {needsLlmParams && (
                 <>
                   <Form.Group className="mb-3">
-                    <Form.Label>LLM Model</Form.Label>
+                    <Form.Label>
+                      LLM Model{' '}
+                      <OverlayTrigger
+                        placement="right"
+                        overlay={<Tooltip>Pre-trained language model for medical NLP. BiomedBERT = specialized for biomedical text understanding, trained on PubMed abstracts and medical literature. Better than general models (BERT, GPT) for medical terminology and concepts.</Tooltip>}
+                      >
+                        <span style={{ cursor: 'help' }}>ℹ️</span>
+                      </OverlayTrigger>
+                    </Form.Label>
                     <Form.Select name="llm_model" value={config.llm_model} onChange={handleChange}>
                       <option value="microsoft/BiomedNLP-BiomedBERT-base-uncased-abstract-fulltext">BiomedBERT</option>
                     </Form.Select>
                   </Form.Group>
 
                   <Form.Group className="mb-3">
-                    <Form.Label>LLM Fine-tuning</Form.Label>
+                    <Form.Label>
+                      LLM Fine-tuning{' '}
+                      <OverlayTrigger
+                        placement="right"
+                        overlay={<Tooltip>Fine-tuning method. "Full" = update all model parameters (slow, resource-intensive, best accuracy). "LoRA" (Low-Rank Adaptation) = only update small adapter layers (fast, efficient, 90% of full performance with 1% of parameters). Recommended: LoRA for federated learning.</Tooltip>}
+                      >
+                        <span style={{ cursor: 'help' }}>ℹ️</span>
+                      </OverlayTrigger>
+                    </Form.Label>
                     <Form.Select name="llm_finetuning" value={config.llm_finetuning} onChange={handleChange}>
                       <option value="full">Full</option>
                       <option value="lora">LoRA</option>
@@ -650,20 +695,44 @@ function NewSimulation() {
                   </Form.Group>
 
                   <Form.Group className="mb-3">
-                    <Form.Label>LLM Task</Form.Label>
+                    <Form.Label>
+                      LLM Task{' '}
+                      <OverlayTrigger
+                        placement="right"
+                        overlay={<Tooltip>Training objective. MLM (Masked Language Modeling) = randomly mask words and predict them from context. Teaches model to understand medical language structure. Example: "The patient has [MASK] diabetes" → predict "Type 2". Standard pretraining task for BERT-style models.</Tooltip>}
+                      >
+                        <span style={{ cursor: 'help' }}>ℹ️</span>
+                      </OverlayTrigger>
+                    </Form.Label>
                     <Form.Select name="llm_task" value={config.llm_task} onChange={handleChange}>
                       <option value="mlm">MLM (Masked Language Modeling)</option>
                     </Form.Select>
                   </Form.Group>
 
                   <Form.Group className="mb-3">
-                    <Form.Label>LLM Chunk Size</Form.Label>
+                    <Form.Label>
+                      LLM Chunk Size{' '}
+                      <OverlayTrigger
+                        placement="right"
+                        overlay={<Tooltip>Maximum sequence length (number of tokens) for text input. Longer text is split into chunks. Higher = more context per chunk but slower processing and more memory. BiomedBERT max: 512 tokens. Typical: 128-512. Quick test: 256.</Tooltip>}
+                      >
+                        <span style={{ cursor: 'help' }}>ℹ️</span>
+                      </OverlayTrigger>
+                    </Form.Label>
                     <Form.Control type="number" name="llm_chunk_size" value={config.llm_chunk_size} onChange={handleChange} />
                   </Form.Group>
 
                   {needsMLMParams && (
                     <Form.Group className="mb-3">
-                      <Form.Label>MLM Probability</Form.Label>
+                      <Form.Label>
+                        MLM Probability{' '}
+                        <OverlayTrigger
+                          placement="right"
+                          overlay={<Tooltip>Fraction of input tokens to mask during MLM training (0-1). 0.15 = mask 15% of words (BERT standard). Higher = more challenging task (may improve learning) but harder to converge. Lower = easier but less effective. Typical: 0.10-0.20. Standard: 0.15.</Tooltip>}
+                        >
+                          <span style={{ cursor: 'help' }}>ℹ️</span>
+                        </OverlayTrigger>
+                      </Form.Label>
                       <Form.Control type="number" step="0.01" name="mlm_probability" value={config.mlm_probability} onChange={handleChange} />
                     </Form.Group>
                   )}
@@ -675,7 +744,7 @@ function NewSimulation() {
                   Number of Rounds <span className="text-danger">*</span>{' '}
                   <OverlayTrigger
                     placement="right"
-                    overlay={<Tooltip>Communication rounds between server and clients. Start with 2-5 for quick tests, use 10+ for real experiments.</Tooltip>}
+                    overlay={<Tooltip>Communication rounds between server and clients. Each round: clients train locally → send updates to server → server aggregates → broadcasts new global model. More rounds = better convergence but longer runtime. Quick test: 2-5 rounds. Research: 10-20 rounds.</Tooltip>}
                   >
                     <span style={{ cursor: 'help' }}>ℹ️</span>
                   </OverlayTrigger>
@@ -688,7 +757,7 @@ function NewSimulation() {
                   Number of Clients <span className="text-danger">*</span>{' '}
                   <OverlayTrigger
                     placement="right"
-                    overlay={<Tooltip>Total participating devices/clients. More clients = more realistic but slower simulation.</Tooltip>}
+                    overlay={<Tooltip>Total participating devices/clients in the simulation. Each client gets a portion of the dataset. More clients = more realistic federated learning (simulates hospitals, phones, etc.) but slower simulation. Quick test: 3-5 clients. Research: 10-100 clients.</Tooltip>}
                   >
                     <span style={{ cursor: 'help' }}>ℹ️</span>
                   </OverlayTrigger>
@@ -701,7 +770,7 @@ function NewSimulation() {
                   Batch Size <span className="text-danger">*</span>{' '}
                   <OverlayTrigger
                     placement="right"
-                    overlay={<Tooltip>Number of samples per training batch. Larger = faster but more memory. 32 is standard.</Tooltip>}
+                    overlay={<Tooltip>Number of training examples processed together in each gradient update. Larger batches = faster training but need more memory and may reduce model accuracy. Smaller batches = slower but more fine-grained learning. Standard: 16-64. Quick test: 20-32.</Tooltip>}
                   >
                     <span style={{ cursor: 'help' }}>ℹ️</span>
                   </OverlayTrigger>
@@ -714,7 +783,7 @@ function NewSimulation() {
                   Client Epochs <span className="text-danger">*</span>{' '}
                   <OverlayTrigger
                     placement="right"
-                    overlay={<Tooltip>Training passes each client performs locally before sending updates. 1 epoch is fastest.</Tooltip>}
+                    overlay={<Tooltip>Number of complete passes through the local dataset each client makes before sending updates to the server. 1 epoch = see each training example once. More epochs = better local learning but longer per-round time and risk of overfitting to local data. Quick test: 1-2. Research: 1-5.</Tooltip>}
                   >
                     <span style={{ cursor: 'help' }}>ℹ️</span>
                   </OverlayTrigger>
@@ -733,12 +802,28 @@ function NewSimulation() {
             </Accordion.Header>
             <Accordion.Body>
               <Form.Group className="mb-3">
-                <Form.Label>Number of Malicious Clients</Form.Label>
+                <Form.Label>
+                  Number of Malicious Clients{' '}
+                  <OverlayTrigger
+                    placement="right"
+                    overlay={<Tooltip>Number of Byzantine (malicious/compromised) clients that send corrupted model updates. These simulate real-world attacks like poisoning or sabotage. 0 = benign simulation. Set to 1-3 to test defense strategies. Must be < total clients.</Tooltip>}
+                  >
+                    <span style={{ cursor: 'help' }}>ℹ️</span>
+                  </OverlayTrigger>
+                </Form.Label>
                 <Form.Control type="number" name="num_of_malicious_clients" value={config.num_of_malicious_clients} onChange={handleChange} />
               </Form.Group>
 
               <Form.Group className="mb-3">
-                <Form.Label>Attack Type</Form.Label>
+                <Form.Label>
+                  Attack Type{' '}
+                  <OverlayTrigger
+                    placement="right"
+                    overlay={<Tooltip>Type of Byzantine attack malicious clients perform. "gaussian_noise" = add random noise to model weights (simulates faulty sensors or corruption). "label_flipping" = flip training labels to poison the model. Only applies if malicious clients > 0.</Tooltip>}
+                  >
+                    <span style={{ cursor: 'help' }}>ℹ️</span>
+                  </OverlayTrigger>
+                </Form.Label>
                 <Form.Select name="attack_type" value={config.attack_type} onChange={handleChange}>
                   {ATTACKS.map(a => <option key={a} value={a}>{a}</option>)}
                 </Form.Select>
@@ -747,17 +832,41 @@ function NewSimulation() {
               {needsGaussianParams && (
                 <>
                   <Form.Group className="mb-3">
-                    <Form.Label>Gaussian Noise Mean</Form.Label>
+                    <Form.Label>
+                      Gaussian Noise Mean{' '}
+                      <OverlayTrigger
+                        placement="right"
+                        overlay={<Tooltip>Center point of the Gaussian (normal) distribution used for noise attack. 0 = noise centered at zero (adds both positive and negative corruption). Higher values = more positive bias in corruption. Typical: 0.</Tooltip>}
+                      >
+                        <span style={{ cursor: 'help' }}>ℹ️</span>
+                      </OverlayTrigger>
+                    </Form.Label>
                     <Form.Control type="number" name="gaussian_noise_mean" value={config.gaussian_noise_mean || 0} onChange={handleChange} />
                   </Form.Group>
 
                   <Form.Group className="mb-3">
-                    <Form.Label>Gaussian Noise Std</Form.Label>
+                    <Form.Label>
+                      Gaussian Noise Std{' '}
+                      <OverlayTrigger
+                        placement="right"
+                        overlay={<Tooltip>Standard deviation (spread) of Gaussian noise added to model weights. Higher values = more severe attack, larger corruption. 1-10 = mild. 50-100 = severe (makes model unusable). Test defense strength by varying this.</Tooltip>}
+                      >
+                        <span style={{ cursor: 'help' }}>ℹ️</span>
+                      </OverlayTrigger>
+                    </Form.Label>
                     <Form.Control type="number" name="gaussian_noise_std" value={config.gaussian_noise_std || 1} onChange={handleChange} />
                   </Form.Group>
 
                   <Form.Group className="mb-3">
-                    <Form.Label>Attack Ratio</Form.Label>
+                    <Form.Label>
+                      Attack Ratio{' '}
+                      <OverlayTrigger
+                        placement="right"
+                        overlay={<Tooltip>Fraction of malicious client's model weights to corrupt (0-1). 1.0 = attack all weights (full corruption). 0.5 = attack half. Lower ratios = subtler, harder-to-detect attacks. Typical: 0.5-1.0.</Tooltip>}
+                      >
+                        <span style={{ cursor: 'help' }}>ℹ️</span>
+                      </OverlayTrigger>
+                    </Form.Label>
                     <Form.Control type="number" step="0.01" name="attack_ratio" value={config.attack_ratio || 0.5} onChange={handleChange} />
                   </Form.Group>
                 </>
@@ -781,7 +890,7 @@ function NewSimulation() {
                         Begin Removing From Round{' '}
                         <OverlayTrigger
                           placement="right"
-                          overlay={<Tooltip>Round number when trust-based client filtering starts. Earlier = more aggressive filtering.</Tooltip>}
+                          overlay={<Tooltip>Round number when trust strategy starts removing low-trust clients. Early rounds build trust scores. Later rounds filter out malicious clients. Earlier start = more aggressive (may remove good clients). Later start = let trust stabilize first. Typical: 2-5.</Tooltip>}
                         >
                           <span style={{ cursor: 'help' }}>ℹ️</span>
                         </OverlayTrigger>
@@ -794,7 +903,7 @@ function NewSimulation() {
                         Trust Threshold{' '}
                         <OverlayTrigger
                           placement="right"
-                          overlay={<Tooltip>Minimum trust score (0-1) for client inclusion. Lower = more permissive, higher = stricter filtering.</Tooltip>}
+                          overlay={<Tooltip>Minimum trust score (0-1) required for client to participate after removal begins. Clients below this are excluded as potentially malicious. Lower (0.1-0.3) = permissive, only remove obvious attackers. Higher (0.5-0.7) = strict, remove any suspicious clients. Typical: 0.15-0.5.</Tooltip>}
                         >
                           <span style={{ cursor: 'help' }}>ℹ️</span>
                         </OverlayTrigger>
@@ -807,7 +916,7 @@ function NewSimulation() {
                         Beta Value{' '}
                         <OverlayTrigger
                           placement="right"
-                          overlay={<Tooltip>Exponential decay factor for trust score updates. Higher (closer to 1) = trust changes slowly.</Tooltip>}
+                          overlay={<Tooltip>Exponential moving average weight for trust score updates (0-1). Higher (0.9-0.99) = trust changes slowly, prioritize history. Lower (0.5-0.8) = trust adapts quickly to recent behavior. Controls responsiveness vs. stability of trust scores. Typical: 0.75-0.9.</Tooltip>}
                         >
                           <span style={{ cursor: 'help' }}>ℹ️</span>
                         </OverlayTrigger>
@@ -820,7 +929,7 @@ function NewSimulation() {
                         Number of Clusters{' '}
                         <OverlayTrigger
                           placement="right"
-                          overlay={<Tooltip>Number of client clusters for trust grouping. More clusters = finer-grained trust analysis.</Tooltip>}
+                          overlay={<Tooltip>Number of client groups for clustering-based trust analysis. Clients are grouped by update similarity. More clusters = finer-grained analysis but higher complexity. 1 = simple (all clients in one group). Note: Currently limited to 1 in this implementation.</Tooltip>}
                         >
                           <span style={{ cursor: 'help' }}>ℹ️</span>
                         </OverlayTrigger>
@@ -837,7 +946,7 @@ function NewSimulation() {
                         Number of Std Deviations{' '}
                         <OverlayTrigger
                           placement="right"
-                          overlay={<Tooltip>Threshold for outlier detection. Updates beyond this many standard deviations are filtered.</Tooltip>}
+                          overlay={<Tooltip>Statistical threshold for outlier detection. Client updates beyond this many standard deviations from the mean are considered outliers and adaptively filtered. Higher = more permissive (fewer false positives). Lower = stricter (catches subtler attacks). Typical: 1.5-3.0. Standard: 2.0 (95% of normal data).</Tooltip>}
                         >
                           <span style={{ cursor: 'help' }}>ℹ️</span>
                         </OverlayTrigger>
@@ -850,7 +959,7 @@ function NewSimulation() {
                         Kp (Proportional Gain){' '}
                         <OverlayTrigger
                           placement="right"
-                          overlay={<Tooltip>PID controller proportional term. Controls reaction to current error. Higher = more aggressive correction.</Tooltip>}
+                          overlay={<Tooltip>PID controller proportional term - reacts to current outlier detection error. Higher = more aggressive threshold adjustments (faster response but may oscillate). Lower = gentler adjustments (more stable). Controls how quickly the defense adapts. Typical: 0.5-2.0.</Tooltip>}
                         >
                           <span style={{ cursor: 'help' }}>ℹ️</span>
                         </OverlayTrigger>
@@ -863,7 +972,7 @@ function NewSimulation() {
                         Ki (Integral Gain){' '}
                         <OverlayTrigger
                           placement="right"
-                          overlay={<Tooltip>PID controller integral term. Eliminates steady-state error by accumulating past errors.</Tooltip>}
+                          overlay={<Tooltip>PID controller integral term - eliminates long-term bias by accumulating past errors. Ensures threshold converges to optimal level over time. Higher = faster convergence but may cause instability. Lower = slower, more stable. Typically small: 0.01-0.1.</Tooltip>}
                         >
                           <span style={{ cursor: 'help' }}>ℹ️</span>
                         </OverlayTrigger>
@@ -876,7 +985,7 @@ function NewSimulation() {
                         Kd (Derivative Gain){' '}
                         <OverlayTrigger
                           placement="right"
-                          overlay={<Tooltip>PID controller derivative term. Predicts future error based on rate of change. Reduces overshoot.</Tooltip>}
+                          overlay={<Tooltip>PID controller derivative term - predicts future errors based on rate of change. Dampens oscillations and prevents overshooting. Higher = more damping (smoother but slower response). Lower = less damping (faster but may oscillate). Typically very small: 0.001-0.05.</Tooltip>}
                         >
                           <span style={{ cursor: 'help' }}>ℹ️</span>
                         </OverlayTrigger>
@@ -892,7 +1001,7 @@ function NewSimulation() {
                       Krum Selections{' '}
                       <OverlayTrigger
                         placement="right"
-                        overlay={<Tooltip>Number of closest clients to aggregate. Lower = more Byzantine robustness but less data diversity.</Tooltip>}
+                        overlay={<Tooltip>Number of clients with most similar updates to select for aggregation (based on Euclidean distance). Krum selects the "closest neighbors" and ignores outliers. Lower = more Byzantine robustness (strict filtering) but less data diversity. Higher = more data but less robust. Must be < total clients. Typical: (num_clients - malicious_clients - 2).</Tooltip>}
                       >
                         <span style={{ cursor: 'help' }}>ℹ️</span>
                       </OverlayTrigger>
@@ -907,7 +1016,7 @@ function NewSimulation() {
                       Trim Ratio{' '}
                       <OverlayTrigger
                         placement="right"
-                        overlay={<Tooltip>Fraction of extreme values to remove from both ends (0-0.5). Higher = more aggressive outlier filtering.</Tooltip>}
+                        overlay={<Tooltip>Fraction of most extreme (highest and lowest) values to remove before averaging (0-0.5). 0.1 = remove top 10% and bottom 10%, average the middle 80%. Higher = more aggressive outlier filtering (robust against attacks) but loses more data. Lower = keep more data but less robust. Must be < 0.5. Typical: 0.1-0.3.</Tooltip>}
                       >
                         <span style={{ cursor: 'help' }}>ℹ️</span>
                       </OverlayTrigger>
@@ -928,31 +1037,73 @@ function NewSimulation() {
             </Accordion.Header>
             <Accordion.Body>
               <Form.Group className="mb-3">
-                <Form.Label>Training Device</Form.Label>
+                <Form.Label>
+                  Training Device{' '}
+                  <OverlayTrigger
+                    placement="right"
+                    overlay={<Tooltip>Hardware for model training. "cpu" = uses CPU only (slower but works everywhere). "gpu" or "cuda" = uses GPU acceleration (10-100x faster but requires NVIDIA GPU). For quick tests, CPU is fine. For large models/datasets, GPU highly recommended.</Tooltip>}
+                  >
+                    <span style={{ cursor: 'help' }}>ℹ️</span>
+                  </OverlayTrigger>
+                </Form.Label>
                 <Form.Select name="training_device" value={config.training_device} onChange={handleChange}>
                   {DEVICES.map(d => <option key={d} value={d}>{d}</option>)}
                 </Form.Select>
               </Form.Group>
 
               <Form.Group className="mb-3">
-                <Form.Label>CPUs per Client</Form.Label>
+                <Form.Label>
+                  CPUs per Client{' '}
+                  <OverlayTrigger
+                    placement="right"
+                    overlay={<Tooltip>Number of CPU cores allocated to each client for parallel processing. 1 = single-threaded (slowest). Higher = faster training but uses more system resources. Limited by your machine's CPU count. Typical: 1-4.</Tooltip>}
+                  >
+                    <span style={{ cursor: 'help' }}>ℹ️</span>
+                  </OverlayTrigger>
+                </Form.Label>
                 <Form.Control type="number" name="cpus_per_client" value={config.cpus_per_client} onChange={handleChange} />
               </Form.Group>
 
               <Form.Group className="mb-3">
-                <Form.Label>GPUs per Client</Form.Label>
+                <Form.Label>
+                  GPUs per Client{' '}
+                  <OverlayTrigger
+                    placement="right"
+                    overlay={<Tooltip>Fraction of GPU memory allocated to each client (0-1). 0 = CPU only. 1.0 = full GPU. 0.1-0.3 = shared GPU (multiple clients). Useful for simulating multiple devices on one GPU. Requires "gpu" or "cuda" training device.</Tooltip>}
+                  >
+                    <span style={{ cursor: 'help' }}>ℹ️</span>
+                  </OverlayTrigger>
+                </Form.Label>
                 <Form.Control type="number" step="0.1" name="gpus_per_client" value={config.gpus_per_client} onChange={handleChange} />
               </Form.Group>
 
               <Form.Group className="mb-3">
-                <Form.Label>Training Subset Fraction</Form.Label>
+                <Form.Label>
+                  Training Subset Fraction{' '}
+                  <OverlayTrigger
+                    placement="right"
+                    overlay={<Tooltip>Fraction of dataset to use for training (0-1). 1.0 = use full dataset (most accurate). 0.1-0.5 = use subset (faster experiments). Reduces data per client proportionally. Useful for quick testing without waiting for full training. Typical: 0.5-1.0. Quick test: 0.1-0.3.</Tooltip>}
+                  >
+                    <span style={{ cursor: 'help' }}>ℹ️</span>
+                  </OverlayTrigger>
+                </Form.Label>
                 <Form.Control type="number" step="0.1" name="training_subset_fraction" value={config.training_subset_fraction} onChange={handleChange} />
               </Form.Group>
 
               <Form.Group className="mb-3">
                 <Form.Check
                   type="switch"
-                  label="Show Plots"
+                  label={
+                    <>
+                      Show Plots{' '}
+                      <OverlayTrigger
+                        placement="right"
+                        overlay={<Tooltip>Display matplotlib plots in popup windows during simulation (accuracy, loss curves, etc.). Useful for real-time monitoring but may slow down headless servers. Enable for interactive use, disable for background jobs.</Tooltip>}
+                      >
+                        <span style={{ cursor: 'help' }}>ℹ️</span>
+                      </OverlayTrigger>
+                    </>
+                  }
                   name="show_plots"
                   checked={config.show_plots === "true"}
                   onChange={(e) => setConfig(prev => ({ ...prev, show_plots: e.target.checked ? "true" : "false" }))}
@@ -962,7 +1113,17 @@ function NewSimulation() {
               <Form.Group className="mb-3">
                 <Form.Check
                   type="switch"
-                  label="Save Plots"
+                  label={
+                    <>
+                      Save Plots{' '}
+                      <OverlayTrigger
+                        placement="right"
+                        overlay={<Tooltip>Save plots as PNG/PDF files in output directory. Includes accuracy curves, loss graphs, and strategy-specific visualizations (trust scores, PID thresholds). Always recommended for record-keeping and paper figures. Minimal overhead.</Tooltip>}
+                      >
+                        <span style={{ cursor: 'help' }}>ℹ️</span>
+                      </OverlayTrigger>
+                    </>
+                  }
                   name="save_plots"
                   checked={config.save_plots === "true"}
                   onChange={(e) => setConfig(prev => ({ ...prev, save_plots: e.target.checked ? "true" : "false" }))}
@@ -972,7 +1133,17 @@ function NewSimulation() {
               <Form.Group className="mb-3">
                 <Form.Check
                   type="switch"
-                  label="Save CSV"
+                  label={
+                    <>
+                      Save CSV{' '}
+                      <OverlayTrigger
+                        placement="right"
+                        overlay={<Tooltip>Export results as CSV files (metrics, per-round statistics, per-client data). Useful for custom analysis, Excel import, or statistical processing. Enable for research experiments. Small file size (~KB).</Tooltip>}
+                      >
+                        <span style={{ cursor: 'help' }}>ℹ️</span>
+                      </OverlayTrigger>
+                    </>
+                  }
                   name="save_csv"
                   checked={config.save_csv === "true"}
                   onChange={(e) => setConfig(prev => ({ ...prev, save_csv: e.target.checked ? "true" : "false" }))}
@@ -982,7 +1153,17 @@ function NewSimulation() {
               <Form.Group className="mb-3">
                 <Form.Check
                   type="switch"
-                  label="Preserve Dataset"
+                  label={
+                    <>
+                      Preserve Dataset{' '}
+                      <OverlayTrigger
+                        placement="right"
+                        overlay={<Tooltip>Keep downloaded/preprocessed datasets cached on disk for future runs. Enabled = faster subsequent simulations (no re-download). Disabled = re-download each time (uses more bandwidth). Recommended: keep enabled unless testing dataset loading.</Tooltip>}
+                      >
+                        <span style={{ cursor: 'help' }}>ℹ️</span>
+                      </OverlayTrigger>
+                    </>
+                  }
                   name="preserve_dataset"
                   checked={config.preserve_dataset === "true"}
                   onChange={(e) => setConfig(prev => ({ ...prev, preserve_dataset: e.target.checked ? "true" : "false" }))}
@@ -992,7 +1173,17 @@ function NewSimulation() {
               <Form.Group className="mb-3">
                 <Form.Check
                   type="switch"
-                  label="Remove Clients"
+                  label={
+                    <>
+                      Remove Clients{' '}
+                      <OverlayTrigger
+                        placement="right"
+                        overlay={<Tooltip>Enable client removal for Byzantine-robust strategies (Trust, PID). When enabled, strategies can permanently exclude low-trust/malicious clients after threshold rounds. Disabled = all clients always participate (useful for benign baselines). Recommended: enable when testing defenses.</Tooltip>}
+                      >
+                        <span style={{ cursor: 'help' }}>ℹ️</span>
+                      </OverlayTrigger>
+                    </>
+                  }
                   name="remove_clients"
                   checked={config.remove_clients === "true"}
                   onChange={(e) => setConfig(prev => ({ ...prev, remove_clients: e.target.checked ? "true" : "false" }))}
@@ -1002,7 +1193,17 @@ function NewSimulation() {
               <Form.Group className="mb-3">
                 <Form.Check
                   type="switch"
-                  label="Strict Mode"
+                  label={
+                    <>
+                      Strict Mode{' '}
+                      <OverlayTrigger
+                        placement="right"
+                        overlay={<Tooltip>Enforce all clients participate every round (auto-sets min_fit/evaluate/available_clients = num_clients). Enabled = full synchronous FL (realistic, prevents stragglers). Disabled = allow partial participation (flexible but less common). Recommended: keep enabled for standard FL experiments.</Tooltip>}
+                      >
+                        <span style={{ cursor: 'help' }}>ℹ️</span>
+                      </OverlayTrigger>
+                    </>
+                  }
                   name="strict_mode"
                   checked={config.strict_mode === "true"}
                   onChange={(e) => setConfig(prev => ({ ...prev, strict_mode: e.target.checked ? "true" : "false" }))}
@@ -1020,18 +1221,93 @@ function NewSimulation() {
             </Accordion.Header>
             <Accordion.Body>
               <Form.Group className="mb-3">
-                <Form.Label>Min Fit Clients</Form.Label>
-                <Form.Control type="number" name="min_fit_clients" value={config.min_fit_clients} onChange={handleChange} />
+                <Form.Label>
+                  Min Fit Clients{' '}
+                  <OverlayTrigger
+                    placement="right"
+                    overlay={<Tooltip>Minimum clients that must participate in training ("fit" = train model) each round. Lower values allow rounds to proceed with fewer clients, but may reduce model quality. Must be ≤ total clients.</Tooltip>}
+                  >
+                    <span style={{ cursor: 'help' }}>ℹ️</span>
+                  </OverlayTrigger>
+                </Form.Label>
+                <Form.Control
+                  type="number"
+                  name="min_fit_clients"
+                  value={config.min_fit_clients}
+                  onChange={handleChange}
+                  isInvalid={!!getFieldError('min_fit_clients')}
+                  isValid={!getFieldError('min_fit_clients') && !getFieldWarning('min_fit_clients') && config.min_fit_clients !== ''}
+                />
+                {getFieldError('min_fit_clients') && (
+                  <Form.Control.Feedback type="invalid">
+                    {getFieldError('min_fit_clients').message}
+                  </Form.Control.Feedback>
+                )}
+                {getFieldWarning('min_fit_clients') && !getFieldError('min_fit_clients') && (
+                  <Form.Text className="text-warning">
+                    ⚠️ {getFieldWarning('min_fit_clients').message}
+                  </Form.Text>
+                )}
               </Form.Group>
 
               <Form.Group className="mb-3">
-                <Form.Label>Min Evaluate Clients</Form.Label>
-                <Form.Control type="number" name="min_evaluate_clients" value={config.min_evaluate_clients} onChange={handleChange} />
+                <Form.Label>
+                  Min Evaluate Clients{' '}
+                  <OverlayTrigger
+                    placement="right"
+                    overlay={<Tooltip>Minimum clients that must participate in evaluation (testing model accuracy) each round. Evaluation happens after training to measure global model performance. Must be ≤ total clients.</Tooltip>}
+                  >
+                    <span style={{ cursor: 'help' }}>ℹ️</span>
+                  </OverlayTrigger>
+                </Form.Label>
+                <Form.Control
+                  type="number"
+                  name="min_evaluate_clients"
+                  value={config.min_evaluate_clients}
+                  onChange={handleChange}
+                  isInvalid={!!getFieldError('min_evaluate_clients')}
+                  isValid={!getFieldError('min_evaluate_clients') && !getFieldWarning('min_evaluate_clients') && config.min_evaluate_clients !== ''}
+                />
+                {getFieldError('min_evaluate_clients') && (
+                  <Form.Control.Feedback type="invalid">
+                    {getFieldError('min_evaluate_clients').message}
+                  </Form.Control.Feedback>
+                )}
+                {getFieldWarning('min_evaluate_clients') && !getFieldError('min_evaluate_clients') && (
+                  <Form.Text className="text-warning">
+                    ⚠️ {getFieldWarning('min_evaluate_clients').message}
+                  </Form.Text>
+                )}
               </Form.Group>
 
               <Form.Group className="mb-3">
-                <Form.Label>Min Available Clients</Form.Label>
-                <Form.Control type="number" name="min_available_clients" value={config.min_available_clients} onChange={handleChange} />
+                <Form.Label>
+                  Min Available Clients{' '}
+                  <OverlayTrigger
+                    placement="right"
+                    overlay={<Tooltip>Minimum clients that must be connected and ready before a round can start. Server waits until this many clients are available. Simulates real-world scenarios where devices may be offline. Must be ≤ total clients.</Tooltip>}
+                  >
+                    <span style={{ cursor: 'help' }}>ℹ️</span>
+                  </OverlayTrigger>
+                </Form.Label>
+                <Form.Control
+                  type="number"
+                  name="min_available_clients"
+                  value={config.min_available_clients}
+                  onChange={handleChange}
+                  isInvalid={!!getFieldError('min_available_clients')}
+                  isValid={!getFieldError('min_available_clients') && !getFieldWarning('min_available_clients') && config.min_available_clients !== ''}
+                />
+                {getFieldError('min_available_clients') && (
+                  <Form.Control.Feedback type="invalid">
+                    {getFieldError('min_available_clients').message}
+                  </Form.Control.Feedback>
+                )}
+                {getFieldWarning('min_available_clients') && !getFieldError('min_available_clients') && (
+                  <Form.Text className="text-warning">
+                    ⚠️ {getFieldWarning('min_available_clients').message}
+                  </Form.Text>
+                )}
               </Form.Group>
 
               <Form.Group className="mb-3">
@@ -1041,6 +1317,11 @@ function NewSimulation() {
             </Accordion.Body>
           </Accordion.Item>
         </Accordion>
+
+        {/* Validation Summary */}
+        <div className="mt-4">
+          <ValidationSummary errors={errors} warnings={warnings} infos={infos} />
+        </div>
 
         {isValid && (
           <Card className="mt-4 bg-light border-primary">
@@ -1097,16 +1378,27 @@ function NewSimulation() {
 
         <div className="mt-3">
           <div className="d-flex align-items-center gap-3">
-            <Button variant="primary" type="submit" disabled={submitting || !isValid}>
-              {submitting ? 'Launching...' : 'Launch Simulation'}
+            <Button variant="primary" type="submit" disabled={submitting || !validation.isValid}>
+              {submitting
+                ? 'Launching...'
+                : errors.length > 0
+                  ? `Fix ${errors.length} error${errors.length > 1 ? 's' : ''} to launch`
+                  : 'Launch Simulation'}
             </Button>
-            {!isValid && totalIssues > 0 && (
+            {!validation.isValid && errors.length > 0 && (
               <span className="badge bg-danger">
-                {totalIssues} issue{totalIssues !== 1 ? 's' : ''} remaining
+                {errors.length} error{errors.length !== 1 ? 's' : ''} remaining
+              </span>
+            )}
+            {validation.isValid && warnings.length > 0 && (
+              <span className="badge bg-warning">
+                {warnings.length} warning{warnings.length !== 1 ? 's' : ''}
               </span>
             )}
           </div>
-          {!isValid && <div className="text-muted mt-2">Please complete all required fields to launch simulation</div>}
+          {!validation.isValid && errors.length > 0 && (
+            <div className="text-muted mt-2">Please fix all validation errors to launch simulation</div>
+          )}
         </div>
 
         {error && <Alert variant="danger" className="mt-3">{error}</Alert>}
