@@ -82,7 +82,7 @@ const PRESETS = {
   convergence: {
     name: "Convergence Test",
     subtitle: "15 rounds / 8 clients",
-    description: "Optimized for smooth plot curves and comprehensive learning experience with PID defense tracking",
+    description: "Tests federated learning convergence with PID defense. 15 rounds produces smooth plots.",
     estimatedTime: "60-90 seconds",
     icon: "📈",
     config: {
@@ -97,12 +97,12 @@ const PRESETS = {
   },
   attack: {
     name: "Attack Test",
-    subtitle: "5 rounds / 2 malicious",
-    description: "Test Byzantine attack detection with malicious clients",
-    estimatedTime: "45-60 seconds",
+    subtitle: "10 rounds / 2 malicious",
+    description: "Tests Byzantine attack detection with 2 malicious clients using Gaussian noise. PID defense adapts threshold over 10 rounds.",
+    estimatedTime: "2-3 minutes",
     icon: "⚔️",
     config: {
-      num_of_rounds: 5,
+      num_of_rounds: 10,
       num_of_clients: 5,
       num_of_malicious_clients: 2,
       min_fit_clients: 5,
@@ -113,7 +113,7 @@ const PRESETS = {
   full: {
     name: "Full Run",
     subtitle: "10 rounds / 10 clients",
-    description: "Complete simulation for research experiments and demonstrations",
+    description: "10 rounds with 10 clients for detailed experiments. Use for research and benchmarking.",
     estimatedTime: "2-3 minutes",
     icon: "🔬",
     config: {
