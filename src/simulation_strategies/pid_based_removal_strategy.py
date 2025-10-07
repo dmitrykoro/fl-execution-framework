@@ -20,7 +20,7 @@ from flwr.server.client_proxy import ClientProxy
 
 from src.output_handlers.directory_handler import DirectoryHandler
 from src.data_models.simulation_strategy_history import SimulationStrategyHistory
-
+from src.utils.seed import GLOBAL_SEED
 
 class PIDBasedRemovalStrategy(fl.server.strategy.FedAvg):
     def __init__(
@@ -35,7 +35,7 @@ class PIDBasedRemovalStrategy(fl.server.strategy.FedAvg):
         network_model,
         use_lora: bool,
         aggregation_strategy_keyword: str,
-        global_seed: int = 1337,  # NEW: single source of truth for RNG on server,
+        global_seed: int,  # NEW: single source of truth for RNG on server,
         *args,
         **kwargs,
     ):
@@ -63,7 +63,10 @@ class PIDBasedRemovalStrategy(fl.server.strategy.FedAvg):
         self.aggregation_strategy_keyword = aggregation_strategy_keyword
 
         # Determinism
-        self.global_seed = int(global_seed)
+        if not global_seed:
+            self.global_seed = GLOBAL_SEED
+        else:
+            self.global_seed = int(global_seed)
 
         # Logger (avoid duplicate handlers if multiple strategies are constructed)
         self.logger = logging.getLogger(f"pid_strategy_{id(self)}")

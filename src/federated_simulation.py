@@ -48,7 +48,6 @@ from src.data_models.round_info import RoundsInfo
 
 from src.dataset_handlers.dataset_handler import DatasetHandler
 
-
 def weighted_average(metrics: List[Tuple[int, dict]]) -> dict:
     """Compute weighted average of metrics from multiple clients."""
     if not metrics:
@@ -255,7 +254,7 @@ class FederatedSimulation:
         elif aggregation_strategy_keyword in ("pid", "pid_scaled", "pid_standardized"):
             self._aggregation_strategy = PIDBasedRemovalStrategy(
                 initial_parameters=ndarrays_to_parameters(self._get_model_params(self._network_model)),
-                # global_seed=self.strategy_config.seed,
+                global_seed=self.strategy_config.seed,
                 min_fit_clients=self.strategy_config.min_fit_clients,
                 min_evaluate_clients=self.strategy_config.min_evaluate_clients,
                 min_available_clients=self.strategy_config.min_available_clients,

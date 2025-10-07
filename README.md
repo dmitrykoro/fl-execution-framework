@@ -41,6 +41,7 @@ Defines the aggregation strategy. Options:
 
 - **`remove_clients`**: attempt to remove malicious clients using strategy-specific mechanisms.
 
+- **`seed`**: optionally provide a seed for results reproducibility. Uses seed=1337 by default.
 
 - **`dataset_keyword`**  
   Dataset used for execution. Options:

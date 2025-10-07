@@ -12,7 +12,7 @@ from src.data_models.simulation_strategy_config import StrategyConfig
 
 from src.dataset_handlers.dataset_handler import DatasetHandler
 
-from src.utils.seed import seed_everything
+from src.utils.seed import seed_everything, GLOBAL_SEED
 
 class SimulationRunner:
     def __init__(
@@ -53,7 +53,8 @@ class SimulationRunner:
             # NEW: Derive and apply a deterministic global seed for this strategy
             # Prefer an explicit 'seed' field in your strategy config; else default to 1337.
             # Seeding here ensures deterministic dataset setup, splits, and loaders created below.
-            global_seed = int(getattr(strategy_config, "seed", strategy_config_dict.get("seed", 1337)))
+            logging.info(msg=strategy_config_dict.get("seed", GLOBAL_SEED))
+            global_seed = int(strategy_config_dict.get("seed", GLOBAL_SEED))
             seed_everything(global_seed)
             logging.info(f"[Determinism] Using seed={global_seed} (CPU single-thread; mkldnn disabled; deterministic ops).")
 
@@ -90,5 +91,4 @@ class SimulationRunner:
 if __name__ == "__main__":
     """Put the filename of the json strategy from config/simulation_strategies here"""
     simulation_runner = SimulationRunner("example_strategy_config.json")
-    seed_everything(int(os.environ.get("SEED", "1337")))
     simulation_runner.run()

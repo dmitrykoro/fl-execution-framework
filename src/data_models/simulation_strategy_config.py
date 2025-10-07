@@ -9,6 +9,7 @@ class StrategyConfig:
 
     aggregation_strategy_keyword: str = None
     remove_clients: bool = None
+    seed: int = None
     begin_removing_from_round: int = None
     dataset_keyword: str = None
     num_of_rounds: int = None

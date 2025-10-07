@@ -11,6 +11,9 @@ config_schema = {
                     "multi-krum", "krum", "multi-krum-based", "trimmed_mean",
                     "rfa", "bulyan"]
         },
+        "seed": {
+            "type": "integer"
+        },
         "strict_mode": {
             "type": "string",
             "enum": ["true", "false"]

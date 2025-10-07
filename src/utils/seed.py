@@ -8,6 +8,8 @@ import os, random
 import numpy as np
 import torch
 
+GLOBAL_SEED = 1337
+
 def seed_everything(seed: int) -> None:
     os.environ["PYTHONHASHSEED"] = str(seed)
     os.environ.setdefault("OMP_NUM_THREADS", "1")
