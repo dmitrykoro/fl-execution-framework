@@ -35,11 +35,11 @@ class PIDBasedRemovalStrategy(fl.server.strategy.FedAvg):
         network_model,
         use_lora: bool,
         aggregation_strategy_keyword: str,
-        *,
-        global_seed: int = 1337,  # NEW: single source of truth for RNG on server
+        global_seed: int = 1337,  # NEW: single source of truth for RNG on server,
+        *args,
         **kwargs,
     ):
-        super().__init__(**kwargs)
+        super().__init__(*args, **kwargs)
         self.client_pids: Dict[str, float] = {}
         self.client_distance_sums: Dict[str, float] = {}
         self.client_distances: Dict[str, float] = {}
@@ -68,18 +68,20 @@ class PIDBasedRemovalStrategy(fl.server.strategy.FedAvg):
         # Logger (avoid duplicate handlers if multiple strategies are constructed)
         self.logger = logging.getLogger(f"pid_strategy_{id(self)}")
         self.logger.setLevel(logging.INFO)
-        if not self.logger.handlers:
-            out_dir = DirectoryHandler.dirname
-            os.makedirs(out_dir, exist_ok=True)
-            file_handler = logging.FileHandler(f"{out_dir}/output.log")
-            console_handler = logging.StreamHandler()
-            self.logger.addHandler(file_handler)
-            self.logger.addHandler(console_handler)
-            self.logger.propagate = False
+        
+        # Create handlers
+        out_dir = DirectoryHandler.dirname
+        os.makedirs(out_dir, exist_ok=True)
+        file_handler = logging.FileHandler(f"{out_dir}/output.log")
+        console_handler = logging.StreamHandler()
 
-    # ---------------- PID helpers ----------------
+        # Add the handlers to the logger
+        self.logger.addHandler(file_handler)
+        self.logger.addHandler(console_handler)
+        self.logger.propagate = False
 
     def calculate_single_client_pid_scaled(self, client_id, distance):
+        """Scale the I component of pid scores."""
         p = distance * self.kp
         if self.current_round == 1:
             return p
@@ -91,6 +93,7 @@ class PIDBasedRemovalStrategy(fl.server.strategy.FedAvg):
         return p + i_scaled + d
 
     def calculate_single_client_pid(self, client_id, distance):
+        """Old PID calculation without scaling or standardization."""
         p = distance * self.kp
         if self.current_round == 1:
             return p
@@ -101,6 +104,7 @@ class PIDBasedRemovalStrategy(fl.server.strategy.FedAvg):
         return p + i + d
 
     def calculate_single_client_pid_standardized(self, client_id, distance, avg_sum, sum_std_dev=0.0):
+        """Calculate pid with standardized distance."""
         p = distance * self.kp
         if self.current_round == 1:
             return p
@@ -144,21 +148,20 @@ class PIDBasedRemovalStrategy(fl.server.strategy.FedAvg):
         norm2 = torch.norm(tensor2)
         return dot_product / (norm1 * norm2)
 
-    # ---------------- FedAvg overrides (deterministic) ----------------
-
     def aggregate_fit(
         self,
         server_round: int,
         results: List[Tuple[fl.server.client_proxy.ClientProxy, fl.common.FitRes]],
         failures: List[Union[Tuple[ClientProxy, FitRes], BaseException]],
     ) -> Tuple[Optional[Parameters], Dict[str, Scalar]]:
+        """Performs aggregation in a determenistic manner for reproducible results."""
 
-        # Keep server-side round in sync (passed via configure_* already)
-        self.current_round = int(server_round)
+        self.current_round = server_round
 
         # Sort results by cid to remove nondeterminism from return order
         results = sorted(results, key=lambda r: str(r[0].cid))
 
+        # Handle empty results
         if not results:
             return super().aggregate_fit(server_round, results, failures)
 
@@ -167,7 +170,6 @@ class PIDBasedRemovalStrategy(fl.server.strategy.FedAvg):
             r for r in results if r[0].cid not in self.removed_client_ids
         ]
 
-        # Delegate actual parameter aggregation to FedAvg (order now stable)
         aggregated_parameters, aggregated_metrics = super().aggregate_fit(
             server_round, aggregate_clients, failures
         )
@@ -189,8 +191,7 @@ class PIDBasedRemovalStrategy(fl.server.strategy.FedAvg):
         kmeans.fit(X)
         distances = kmeans.transform(X)  # shape (n_clients, 1)
         normalized_distances = distances  # keep as-is to preserve your semantics
-
-        # ---- PID score calculation ----
+        
         time_start_calc = time.time_ns()
         pids = self.calculate_all_pid_scores(results, normalized_distances)
         time_end_calc = time.time_ns()
@@ -199,33 +200,36 @@ class PIDBasedRemovalStrategy(fl.server.strategy.FedAvg):
         )
 
         counted_pids: List[float] = []
+        counted_dist: List[float] = []
         for i, (client_proxy, _) in enumerate(results):
             client_id = client_proxy.cid
             curr_dist = float(normalized_distances[i][0])
-            new_pid = float(pids[i])
-            self.client_pids[client_id] = new_pid
+            new_PID = float(pids[i])
+            self.client_pids[client_id] = new_PID
 
             if client_id not in self.removed_client_ids:
-                counted_pids.append(new_pid)
+                counted_pids.append(new_PID)
+                counted_dist.append(curr_dist)
 
             self.client_distances[client_id] = curr_dist
-            self.client_distance_sums[client_id] = curr_dist + self.client_distance_sums.get(client_id, 0.0)
+            curr_sum = self.client_distance_sums.get(client_id, 0.0)
+            self.client_distance_sums[client_id] = curr_dist + curr_sum
 
             self.strategy_history.insert_single_client_history_entry(
                 current_round=self.current_round,
                 client_id=int(client_id),
-                removal_criterion=new_pid,
-                absolute_distance=curr_dist,
+                removal_criterion=new_PID,
+                absolute_distance=float(distances[i][0]),
             )
 
             self.logger.info(
                 f"Aggregation round: {server_round} "
                 f"Client ID: {client_id} "
-                f"PID: {new_pid} "
+                f"PID: {new_PID} "
                 f"Normalized Distance: {curr_dist} "
             )
 
-        # ---- Threshold computation (deterministic) ----
+        # Deterministic Threshold computation 
         if self.aggregation_strategy_keyword == "pid":
             pid_avg = float(np.mean(counted_pids)) if counted_pids else 0.0
             pid_std = float(np.std(counted_pids)) if len(counted_pids) > 1 else 0.0
@@ -247,7 +251,11 @@ class PIDBasedRemovalStrategy(fl.server.strategy.FedAvg):
         available_clients: Dict[str, ClientProxy] = client_manager.all()
         available_ids = sorted(available_clients.keys(), key=lambda x: str(x))
 
+        # common config info
         cfg_common = {"server_round": int(server_round), "seed": self.global_seed}
+
+        # (Optional) reset removed clients to empty set at the beginning of each round
+        # self.removed_client_ids = set()
 
         # Warmup: select all clients deterministically
         if self.current_round <= self.begin_removing_from_round - 1:
