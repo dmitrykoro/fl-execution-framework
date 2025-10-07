@@ -14,149 +14,284 @@ from src.config_loaders.validate_strategy_config import (
 )
 
 
-class TestValidateStrategyConfig:
-    """Test suite for strategy configuration validation functionality."""
+# Strategy-specific required parameters mapping
+STRATEGY_REQUIRED_PARAMS = {
+    "trust": [
+        "trust_threshold",
+        "beta_value",
+        "begin_removing_from_round",
+        "num_of_clusters",
+    ],
+    "pid": ["Kp", "Ki", "Kd", "num_std_dev"],
+    "pid_scaled": ["Kp", "Ki", "Kd", "num_std_dev"],
+    "pid_standardized": ["Kp", "Ki", "Kd", "num_std_dev"],
+    "krum": ["num_krum_selections"],
+    "multi-krum": ["num_krum_selections"],
+    "multi-krum-based": ["num_krum_selections"],
+    "trimmed_mean": ["trim_ratio"],
+}
 
-    def test_validate_strategy_config_valid_trust_strategy(self):
-        """Test validation of valid trust strategy configuration."""
-        config = {
-            "aggregation_strategy_keyword": "trust",
-            "remove_clients": "true",
-            "dataset_keyword": "femnist_iid",
-            "model_type": "cnn",
-            "use_llm": "false",
-            "num_of_rounds": 5,
-            "num_of_clients": 10,
-            "num_of_malicious_clients": 2,
-            "attack_type": "label_flipping",
-            "show_plots": "false",
-            "save_plots": "true",
-            "save_csv": "true",
-            "preserve_dataset": "false",
-            "training_subset_fraction": 0.8,
-            "training_device": "cpu",
-            "cpus_per_client": 1,
-            "gpus_per_client": 0.0,
-            "min_fit_clients": 10,
-            "min_evaluate_clients": 10,
-            "min_available_clients": 10,
-            "evaluate_metrics_aggregation_fn": "weighted_average",
-            "num_of_client_epochs": 3,
-            "batch_size": 32,
-            "strict_mode": "true",
-            # Trust-specific parameters
+# Flatten to (strategy, param, expected_error) tuples
+MISSING_PARAM_TEST_CASES = []
+for strategy, params in STRATEGY_REQUIRED_PARAMS.items():
+    for param in params:
+        if strategy.startswith("pid"):
+            error_msg = f"Missing parameter {param} for PID aggregation {strategy}"
+        elif "krum" in strategy:
+            error_msg = (
+                f"Missing parameter {param} for Krum-based aggregation {strategy}"
+            )
+        elif strategy == "trust":
+            error_msg = f"Missing parameter {param} for trust aggregation trust"
+        elif strategy == "trimmed_mean":
+            error_msg = (
+                f"Missing parameter {param} for trimmed mean aggregation trimmed_mean"
+            )
+        else:
+            error_msg = f"Missing parameter {param}"
+
+        MISSING_PARAM_TEST_CASES.append((strategy, param, error_msg))
+
+# Add attack-specific parameter tests
+MISSING_PARAM_TEST_CASES.extend(
+    [
+        (
+            "gaussian_noise",
+            "gaussian_noise_mean",
+            "Missing gaussian_noise_mean that is required for gaussian_noise",
+        ),
+        (
+            "gaussian_noise",
+            "gaussian_noise_std",
+            "Missing gaussian_noise_std that is required for gaussian_noise",
+        ),
+        (
+            "gaussian_noise",
+            "attack_ratio",
+            "Missing attack_ratio that is required for gaussian_noise",
+        ),
+    ]
+)
+
+# Valid strategy configurations
+VALID_STRATEGY_CONFIGS = [
+    (
+        "trust",
+        {
             "begin_removing_from_round": 2,
             "trust_threshold": 0.7,
             "beta_value": 0.5,
             "num_of_clusters": 1,
-        }
-
-        # Should not raise any exception
-        validate_strategy_config(config)
-
-    def test_validate_strategy_config_valid_pid_strategy(self):
-        """Test validation of valid PID strategy configuration."""
-        config = {
-            "aggregation_strategy_keyword": "pid",
-            "remove_clients": "true",
-            "dataset_keyword": "its",
-            "model_type": "cnn",
-            "use_llm": "false",
-            "num_of_rounds": 3,
-            "num_of_clients": 8,
-            "num_of_malicious_clients": 1,
-            "attack_type": "gaussian_noise",
-            "show_plots": "false",
-            "save_plots": "false",
-            "save_csv": "true",
-            "preserve_dataset": "true",
-            "training_subset_fraction": 1.0,
-            "training_device": "gpu",
-            "cpus_per_client": 2,
-            "gpus_per_client": 0.5,
-            "min_fit_clients": 8,
-            "min_evaluate_clients": 8,
-            "min_available_clients": 8,
-            "evaluate_metrics_aggregation_fn": "weighted_average",
-            "num_of_client_epochs": 5,
-            "batch_size": 64,
             "strict_mode": "true",
-            # PID-specific parameters
+        },
+    ),
+    (
+        "pid",
+        {
+            "dataset_keyword": "its",
+            "attack_type": "gaussian_noise",
             "num_std_dev": 2.0,
             "Kp": 1.0,
             "Ki": 0.1,
             "Kd": 0.01,
-            # Gaussian noise attack parameters
             "gaussian_noise_mean": 0.0,
             "gaussian_noise_std": 0.1,
             "attack_ratio": 0.2,
-        }
-
-        # Should not raise any exception
-        validate_strategy_config(config)
-
-    def test_validate_strategy_config_valid_krum_strategy(self):
-        """Test validation of valid Krum strategy configuration."""
-        config = {
-            "aggregation_strategy_keyword": "krum",
-            "remove_clients": "false",
+            "strict_mode": "true",
+        },
+    ),
+    (
+        "krum",
+        {
             "dataset_keyword": "pneumoniamnist",
-            "model_type": "cnn",
-            "use_llm": "false",
-            "num_of_rounds": 4,
-            "num_of_clients": 12,
+            "remove_clients": "false",
             "num_of_malicious_clients": 0,
-            "attack_type": "label_flipping",
-            "show_plots": "true",
-            "save_plots": "true",
-            "save_csv": "false",
-            "preserve_dataset": "false",
-            "training_subset_fraction": 0.9,
-            "training_device": "cuda",
-            "cpus_per_client": 1,
-            "gpus_per_client": 1.0,
-            "min_fit_clients": 10,
-            "min_evaluate_clients": 10,
-            "min_available_clients": 12,
-            "evaluate_metrics_aggregation_fn": "weighted_average",
-            "num_of_client_epochs": 2,
-            "batch_size": 16,
-            # Krum-specific parameters
             "num_krum_selections": 8,
-        }
-
-        # Should not raise any exception
-        validate_strategy_config(config)
-
-    def test_validate_strategy_config_valid_trimmed_mean_strategy(self):
-        """Test validation of valid trimmed mean strategy configuration."""
-        config = {
-            "aggregation_strategy_keyword": "trimmed_mean",
-            "remove_clients": "true",
+            "training_device": "cuda",
+            "gpus_per_client": 1.0,
+        },
+    ),
+    (
+        "trimmed_mean",
+        {
             "dataset_keyword": "bloodmnist",
-            "model_type": "cnn",
-            "use_llm": "false",
-            "num_of_rounds": 6,
-            "num_of_clients": 15,
-            "num_of_malicious_clients": 3,
-            "attack_type": "label_flipping",
-            "show_plots": "false",
-            "save_plots": "false",
-            "save_csv": "true",
-            "preserve_dataset": "true",
-            "training_subset_fraction": 0.7,
-            "training_device": "cpu",
-            "cpus_per_client": 4,
-            "gpus_per_client": 0.0,
-            "min_fit_clients": 12,
-            "min_evaluate_clients": 12,
-            "min_available_clients": 15,
-            "evaluate_metrics_aggregation_fn": "weighted_average",
-            "num_of_client_epochs": 1,
-            "batch_size": 128,
-            # Trimmed mean specific parameters
             "trim_ratio": 0.2,
-        }
+        },
+    ),
+]
+
+# Invalid field value test cases
+INVALID_VALUE_TEST_CASES = [
+    (
+        "aggregation_strategy_keyword",
+        "invalid_strategy",
+        "'invalid_strategy' is not one of",
+    ),
+    ("dataset_keyword", "invalid_dataset", "'invalid_dataset' is not one of"),
+    ("remove_clients", "maybe", "'maybe' is not one of ['true', 'false']"),
+    (
+        "attack_type",
+        "invalid_attack",
+        "'invalid_attack' is not one of ['label_flipping', 'gaussian_noise']",
+    ),
+    ("training_device", "quantum", "'quantum' is not one of ['cpu', 'gpu', 'cuda']"),
+    ("num_of_rounds", "five", "'five' is not of type 'integer'"),
+]
+
+# LLM parameter test cases
+LLM_MISSING_PARAM_TESTS = [
+    (
+        {
+            "model_type": "transformer",
+            "llm_finetuning": "full",
+            "llm_task": "classification",
+            "llm_chunk_size": 512,
+        },
+        "Missing parameter llm_model for LLM finetuning",
+    ),
+    (
+        {
+            "model_type": "transformer",
+            "llm_model": "bert-base-uncased",
+            "llm_task": "classification",
+            "llm_chunk_size": 512,
+        },
+        "Missing parameter llm_finetuning for LLM finetuning",
+    ),
+    (
+        {
+            "model_type": "transformer",
+            "llm_model": "bert-base-uncased",
+            "llm_finetuning": "full",
+            "llm_chunk_size": 512,
+        },
+        "Missing parameter llm_task for LLM finetuning",
+    ),
+    (
+        {
+            "model_type": "transformer",
+            "llm_model": "bert-base-uncased",
+            "llm_finetuning": "full",
+            "llm_task": "classification",
+        },
+        "Missing parameter llm_chunk_size for LLM finetuning",
+    ),
+]
+
+# LORA-specific parameters
+LORA_MISSING_PARAM_TESTS = [
+    (
+        {
+            "model_type": "transformer",
+            "llm_model": "bert-base-uncased",
+            "llm_finetuning": "lora",
+            "llm_task": "classification",
+            "llm_chunk_size": 512,
+            "lora_alpha": 32,
+            "lora_dropout": 0.1,
+            "lora_target_modules": ["query", "value"],
+        },
+        "Missing parameter lora_rank for LORA",
+    ),
+    (
+        {
+            "model_type": "transformer",
+            "llm_model": "bert-base-uncased",
+            "llm_finetuning": "lora",
+            "llm_task": "classification",
+            "llm_chunk_size": 512,
+            "lora_rank": 16,
+            "lora_dropout": 0.1,
+            "lora_target_modules": ["query", "value"],
+        },
+        "Missing parameter lora_alpha for LORA",
+    ),
+    (
+        {
+            "model_type": "transformer",
+            "llm_model": "bert-base-uncased",
+            "llm_finetuning": "lora",
+            "llm_task": "classification",
+            "llm_chunk_size": 512,
+            "lora_rank": 16,
+            "lora_alpha": 32,
+            "lora_target_modules": ["query", "value"],
+        },
+        "Missing parameter lora_dropout for LORA",
+    ),
+    (
+        {
+            "model_type": "transformer",
+            "llm_model": "bert-base-uncased",
+            "llm_finetuning": "lora",
+            "llm_task": "classification",
+            "llm_chunk_size": 512,
+            "lora_rank": 16,
+            "lora_alpha": 32,
+            "lora_dropout": 0.1,
+        },
+        "Missing parameter lora_target_modules for LORA",
+    ),
+]
+
+# MLM task-specific parameters
+MLM_MISSING_PARAM_TESTS = [
+    (
+        {
+            "model_type": "transformer",
+            "llm_model": "bert-base-uncased",
+            "llm_finetuning": "full",
+            "llm_task": "mlm",
+            "llm_chunk_size": 512,
+        },
+        "Missing parameter mlm_probability for LLM task mlm",
+    ),
+]
+
+# Valid LLM configurations
+VALID_LLM_CONFIGS = [
+    {
+        "model_type": "transformer",
+        "llm_model": "bert-base-uncased",
+        "llm_finetuning": "full",
+        "llm_task": "classification",
+        "llm_chunk_size": 512,
+    },
+    {
+        "model_type": "transformer",
+        "llm_model": "bert-base-uncased",
+        "llm_finetuning": "lora",
+        "llm_task": "classification",
+        "llm_chunk_size": 512,
+        "lora_rank": 16,
+        "lora_alpha": 32,
+        "lora_dropout": 0.1,
+        "lora_target_modules": ["query", "value"],
+    },
+    {
+        "model_type": "transformer",
+        "llm_model": "bert-base-uncased",
+        "llm_finetuning": "full",
+        "llm_task": "mlm",
+        "llm_chunk_size": 512,
+        "mlm_probability": 0.15,
+    },
+]
+
+
+class TestValidateStrategyConfig:
+    """Test suite for strategy configuration validation functionality."""
+
+    @pytest.mark.parametrize(
+        "strategy_keyword,strategy_specific_params", VALID_STRATEGY_CONFIGS
+    )
+    def test_valid_strategy_configurations(
+        self, strategy_keyword, strategy_specific_params, base_valid_config
+    ):
+        """Test validation of valid strategy configurations."""
+        config = base_valid_config.copy()
+        config["aggregation_strategy_keyword"] = strategy_keyword
+        config.update(strategy_specific_params)
 
         # Should not raise any exception
         validate_strategy_config(config)
@@ -165,32 +300,10 @@ class TestValidateStrategyConfig:
 class TestValidateStrategyConfigMissingRequiredParams:
     """Test validation errors for missing required parameters."""
 
-    def test_missing_aggregation_strategy_keyword(self):
+    def test_missing_aggregation_strategy_keyword(self, base_valid_config):
         """Test validation fails when aggregation_strategy_keyword is missing."""
-        config = {
-            "remove_clients": "true",
-            "dataset_keyword": "femnist_iid",
-            "model_type": "cnn",
-            "use_llm": "false",
-            "num_of_rounds": 5,
-            "num_of_clients": 10,
-            "num_of_malicious_clients": 2,
-            "attack_type": "label_flipping",
-            "show_plots": "false",
-            "save_plots": "true",
-            "save_csv": "true",
-            "preserve_dataset": "false",
-            "training_subset_fraction": 0.8,
-            "training_device": "cpu",
-            "cpus_per_client": 1,
-            "gpus_per_client": 0.0,
-            "min_fit_clients": 8,
-            "min_evaluate_clients": 8,
-            "min_available_clients": 10,
-            "evaluate_metrics_aggregation_fn": "weighted_average",
-            "num_of_client_epochs": 3,
-            "batch_size": 32,
-        }
+        config = base_valid_config.copy()
+        # Don't set aggregation_strategy_keyword
 
         with pytest.raises(ValidationError) as exc_info:
             validate_strategy_config(config)
@@ -199,87 +312,36 @@ class TestValidateStrategyConfigMissingRequiredParams:
             exc_info.value
         )
 
-    def test_missing_dataset_keyword(self):
+    def test_missing_dataset_keyword(self, base_valid_config):
         """Test validation fails when dataset_keyword is missing."""
-        config = {
-            "aggregation_strategy_keyword": "trust",
-            "remove_clients": "true",
-            "num_of_rounds": 5,
-            "num_of_clients": 10,
-            "num_of_malicious_clients": 2,
-            "attack_type": "label_flipping",
-            "show_plots": "false",
-            "save_plots": "true",
-            "save_csv": "true",
-            "preserve_dataset": "false",
-            "training_subset_fraction": 0.8,
-            "training_device": "cpu",
-            "cpus_per_client": 1,
-            "gpus_per_client": 0.0,
-            "min_fit_clients": 8,
-            "min_evaluate_clients": 8,
-            "min_available_clients": 10,
-            "evaluate_metrics_aggregation_fn": "weighted_average",
-            "num_of_client_epochs": 3,
-            "batch_size": 32,
-        }
+        config = base_valid_config.copy()
+        config["aggregation_strategy_keyword"] = "trust"
+        del config["dataset_keyword"]
 
         with pytest.raises(ValidationError) as exc_info:
             validate_strategy_config(config)
 
         assert "'dataset_keyword' is a required property" in str(exc_info.value)
 
-    def test_missing_num_of_rounds(self):
+    def test_missing_num_of_rounds(self, base_valid_config):
         """Test validation fails when num_of_rounds is missing."""
-        config = {
-            "aggregation_strategy_keyword": "trust",
-            "remove_clients": "true",
-            "dataset_keyword": "femnist_iid",
-            "model_type": "cnn",
-            "use_llm": "false",
-            "num_of_clients": 10,
-            "num_of_malicious_clients": 2,
-            "attack_type": "label_flipping",
-            "show_plots": "false",
-            "save_plots": "true",
-            "save_csv": "true",
-            "preserve_dataset": "false",
-            "training_subset_fraction": 0.8,
-            "training_device": "cpu",
-            "cpus_per_client": 1,
-            "gpus_per_client": 0.0,
-            "min_fit_clients": 8,
-            "min_evaluate_clients": 8,
-            "min_available_clients": 10,
-            "evaluate_metrics_aggregation_fn": "weighted_average",
-            "num_of_client_epochs": 3,
-            "batch_size": 32,
-        }
+        config = base_valid_config.copy()
+        config["aggregation_strategy_keyword"] = "trust"
+        del config["num_of_rounds"]
 
         with pytest.raises(ValidationError) as exc_info:
             validate_strategy_config(config)
 
         assert "'num_of_rounds' is a required property" in str(exc_info.value)
 
-    def test_missing_flower_settings(self):
+    def test_missing_flower_settings(self, base_valid_config):
         """Test validation fails when Flower-specific settings are missing."""
-        config = {
-            "aggregation_strategy_keyword": "trust",
-            "remove_clients": "true",
-            "dataset_keyword": "femnist_iid",
-            "model_type": "cnn",
-            "use_llm": "false",
-            "num_of_rounds": 5,
-            "num_of_clients": 10,
-            "num_of_malicious_clients": 2,
-            "attack_type": "label_flipping",
-            "show_plots": "false",
-            "save_plots": "true",
-            "save_csv": "true",
-            "preserve_dataset": "false",
-            "training_subset_fraction": 0.8,
-            # Missing all Flower settings
-        }
+        config = base_valid_config.copy()
+        config["aggregation_strategy_keyword"] = "trust"
+        # Remove Flower settings
+        del config["training_device"]
+        del config["cpus_per_client"]
+        del config["gpus_per_client"]
 
         with pytest.raises(ValidationError) as exc_info:
             validate_strategy_config(config)
@@ -291,513 +353,114 @@ class TestValidateStrategyConfigMissingRequiredParams:
 class TestValidateStrategyConfigInvalidValues:
     """Test validation errors for invalid parameter values."""
 
-    def test_invalid_aggregation_strategy_keyword(self):
-        """Test validation fails for invalid aggregation strategy."""
-        config = {
-            "aggregation_strategy_keyword": "invalid_strategy",
-            "remove_clients": "true",
-            "dataset_keyword": "femnist_iid",
-            "model_type": "cnn",
-            "use_llm": "false",
-            "num_of_rounds": 5,
-            "num_of_clients": 10,
-            "num_of_malicious_clients": 2,
-            "attack_type": "label_flipping",
-            "show_plots": "false",
-            "save_plots": "true",
-            "save_csv": "true",
-            "preserve_dataset": "false",
-            "training_subset_fraction": 0.8,
-            "training_device": "cpu",
-            "cpus_per_client": 1,
-            "gpus_per_client": 0.0,
-            "min_fit_clients": 8,
-            "min_evaluate_clients": 8,
-            "min_available_clients": 10,
-            "evaluate_metrics_aggregation_fn": "weighted_average",
-            "num_of_client_epochs": 3,
-            "batch_size": 32,
-        }
-
-        with pytest.raises(ValidationError) as exc_info:
-            validate_strategy_config(config)
-
-        assert "'invalid_strategy' is not one of" in str(exc_info.value)
-
-    def test_invalid_dataset_keyword(self):
-        """Test validation fails for invalid dataset keyword."""
-        config = {
-            "aggregation_strategy_keyword": "trust",
-            "remove_clients": "true",
-            "dataset_keyword": "invalid_dataset",
-            "model_type": "cnn",
-            "use_llm": "false",
-            "num_of_rounds": 5,
-            "num_of_clients": 10,
-            "num_of_malicious_clients": 2,
-            "attack_type": "label_flipping",
-            "show_plots": "false",
-            "save_plots": "true",
-            "save_csv": "true",
-            "preserve_dataset": "false",
-            "training_subset_fraction": 0.8,
-            "training_device": "cpu",
-            "cpus_per_client": 1,
-            "gpus_per_client": 0.0,
-            "min_fit_clients": 8,
-            "min_evaluate_clients": 8,
-            "min_available_clients": 10,
-            "evaluate_metrics_aggregation_fn": "weighted_average",
-            "num_of_client_epochs": 3,
-            "batch_size": 32,
-        }
-
-        with pytest.raises(ValidationError) as exc_info:
-            validate_strategy_config(config)
-
-        assert "'invalid_dataset' is not one of" in str(exc_info.value)
-
-    def test_invalid_boolean_string_values(self):
-        """Test validation fails for invalid boolean string values."""
-        config = {
-            "aggregation_strategy_keyword": "trust",
-            "remove_clients": "maybe",  # Invalid boolean string
-            "dataset_keyword": "femnist_iid",
-            "model_type": "cnn",
-            "use_llm": "false",
-            "num_of_rounds": 5,
-            "num_of_clients": 10,
-            "num_of_malicious_clients": 2,
-            "attack_type": "label_flipping",
-            "show_plots": "false",
-            "save_plots": "true",
-            "save_csv": "true",
-            "preserve_dataset": "false",
-            "training_subset_fraction": 0.8,
-            "training_device": "cpu",
-            "cpus_per_client": 1,
-            "gpus_per_client": 0.0,
-            "min_fit_clients": 8,
-            "min_evaluate_clients": 8,
-            "min_available_clients": 10,
-            "evaluate_metrics_aggregation_fn": "weighted_average",
-            "num_of_client_epochs": 3,
-            "batch_size": 32,
-            "strict_mode": "true",
-            # Trust-specific parameters
-            "begin_removing_from_round": 2,
-            "trust_threshold": 0.7,
-            "beta_value": 0.5,
-            "num_of_clusters": 1,
-        }
-
-        with pytest.raises(ValidationError) as exc_info:
-            validate_strategy_config(config)
-
-        assert "'maybe' is not one of ['true', 'false']" in str(exc_info.value)
-
-    def test_invalid_attack_type(self):
-        """Test validation fails for invalid attack type."""
-        config = {
-            "aggregation_strategy_keyword": "trust",
-            "remove_clients": "true",
-            "dataset_keyword": "femnist_iid",
-            "model_type": "cnn",
-            "use_llm": "false",
-            "num_of_rounds": 5,
-            "num_of_clients": 10,
-            "num_of_malicious_clients": 2,
-            "attack_type": "invalid_attack",
-            "show_plots": "false",
-            "save_plots": "true",
-            "save_csv": "true",
-            "preserve_dataset": "false",
-            "training_subset_fraction": 0.8,
-            "training_device": "cpu",
-            "cpus_per_client": 1,
-            "gpus_per_client": 0.0,
-            "min_fit_clients": 8,
-            "min_evaluate_clients": 8,
-            "min_available_clients": 10,
-            "evaluate_metrics_aggregation_fn": "weighted_average",
-            "num_of_client_epochs": 3,
-            "batch_size": 32,
-        }
-
-        with pytest.raises(ValidationError) as exc_info:
-            validate_strategy_config(config)
-
-        assert (
-            "'invalid_attack' is not one of ['label_flipping', 'gaussian_noise']"
-            in str(exc_info.value)
+    @pytest.mark.parametrize(
+        "invalid_field,invalid_value,expected_error_fragment", INVALID_VALUE_TEST_CASES
+    )
+    def test_invalid_config_values(
+        self, invalid_field, invalid_value, expected_error_fragment, base_valid_config
+    ):
+        """Test validation fails for invalid parameter values."""
+        config = base_valid_config.copy()
+        config["aggregation_strategy_keyword"] = "trust"
+        config.update(
+            {
+                "begin_removing_from_round": 2,
+                "trust_threshold": 0.7,
+                "beta_value": 0.5,
+                "num_of_clusters": 1,
+                "strict_mode": "true",
+            }
         )
-
-    def test_invalid_training_device(self):
-        """Test validation fails for invalid training device."""
-        config = {
-            "aggregation_strategy_keyword": "trust",
-            "remove_clients": "true",
-            "dataset_keyword": "femnist_iid",
-            "model_type": "cnn",
-            "use_llm": "false",
-            "num_of_rounds": 5,
-            "num_of_clients": 10,
-            "num_of_malicious_clients": 2,
-            "attack_type": "label_flipping",
-            "show_plots": "false",
-            "save_plots": "true",
-            "save_csv": "true",
-            "preserve_dataset": "false",
-            "training_subset_fraction": 0.8,
-            "training_device": "quantum",  # Invalid device
-            "cpus_per_client": 1,
-            "gpus_per_client": 0.0,
-            "min_fit_clients": 8,
-            "min_evaluate_clients": 8,
-            "min_available_clients": 10,
-            "evaluate_metrics_aggregation_fn": "weighted_average",
-            "num_of_client_epochs": 3,
-            "batch_size": 32,
-        }
+        config[invalid_field] = invalid_value
 
         with pytest.raises(ValidationError) as exc_info:
             validate_strategy_config(config)
 
-        assert "'quantum' is not one of ['cpu', 'gpu', 'cuda']" in str(exc_info.value)
-
-    def test_invalid_data_types(self):
-        """Test validation fails for invalid data types."""
-        config = {
-            "aggregation_strategy_keyword": "trust",
-            "remove_clients": "true",
-            "dataset_keyword": "femnist_iid",
-            "model_type": "cnn",
-            "use_llm": "false",
-            "num_of_rounds": "five",  # Should be integer
-            "num_of_clients": 10,
-            "num_of_malicious_clients": 2,
-            "attack_type": "label_flipping",
-            "show_plots": "false",
-            "save_plots": "true",
-            "save_csv": "true",
-            "preserve_dataset": "false",
-            "training_subset_fraction": 0.8,
-            "training_device": "cpu",
-            "cpus_per_client": 1,
-            "gpus_per_client": 0.0,
-            "min_fit_clients": 8,
-            "min_evaluate_clients": 8,
-            "min_available_clients": 10,
-            "evaluate_metrics_aggregation_fn": "weighted_average",
-            "num_of_client_epochs": 3,
-            "batch_size": 32,
-        }
-
-        with pytest.raises(ValidationError) as exc_info:
-            validate_strategy_config(config)
-
-        assert "'five' is not of type 'integer'" in str(exc_info.value)
+        assert expected_error_fragment in str(exc_info.value)
 
 
 class TestValidateDependentParams:
     """Test validation of strategy-specific dependent parameters."""
 
-    def test_trust_strategy_missing_trust_threshold(self):
-        """Test validation fails when trust strategy is missing trust_threshold."""
+    @pytest.mark.parametrize(
+        "strategy,missing_param,expected_error", MISSING_PARAM_TEST_CASES
+    )
+    def test_missing_strategy_specific_params(
+        self, strategy, missing_param, expected_error
+    ):
+        """Test validation fails when strategy-specific parameters are missing."""
+        if strategy == "gaussian_noise":
+            # Special case: attack type, not aggregation strategy
+            config = {
+                "aggregation_strategy_keyword": "trust",
+                "attack_type": "gaussian_noise",
+                # Trust params required first
+                "begin_removing_from_round": 2,
+                "trust_threshold": 0.7,
+                "beta_value": 0.5,
+                "num_of_clusters": 1,
+                # Add all gaussian noise params except the one being tested
+                "gaussian_noise_mean": 0.0,
+                "gaussian_noise_std": 0.1,
+                "attack_ratio": 0.2,
+            }
+            # Remove the missing param
+            config.pop(missing_param, None)
+        else:
+            # Standard strategy parameter test
+            # Start with all params for this strategy, then remove the one being tested
+            config = {"aggregation_strategy_keyword": strategy}
+
+            # Add all required params for this strategy
+            if strategy in STRATEGY_REQUIRED_PARAMS:
+                for param in STRATEGY_REQUIRED_PARAMS[strategy]:
+                    if param == "trust_threshold":
+                        config[param] = 0.7
+                    elif param == "beta_value":
+                        config[param] = 0.5
+                    elif param == "begin_removing_from_round":
+                        config[param] = 2
+                    elif param == "num_of_clusters":
+                        config[param] = 1
+                    elif param in ["Kp", "Ki", "Kd"]:
+                        config[param] = 1.0
+                    elif param == "num_std_dev":
+                        config[param] = 2.0
+                    elif param == "num_krum_selections":
+                        config[param] = 8
+                    elif param == "trim_ratio":
+                        config[param] = 0.2
+
+            # Remove the missing param
+            config.pop(missing_param, None)
+
+        with pytest.raises(ValidationError) as exc_info:
+            validate_dependent_params(config)
+
+        assert expected_error in str(exc_info.value)
+
+    def test_label_flipping_attack_no_additional_params_required(self):
+        """Test that label flipping attack doesn't require additional parameters."""
         config = {
             "aggregation_strategy_keyword": "trust",
-            "begin_removing_from_round": 2,
-            "beta_value": 0.5,
-            "num_of_clusters": 1,
-            # Missing trust_threshold
-        }
-
-        with pytest.raises(ValidationError) as exc_info:
-            validate_dependent_params(config)
-
-        assert "Missing parameter trust_threshold for trust aggregation trust" in str(
-            exc_info.value
-        )
-
-    def test_trust_strategy_missing_beta_value(self):
-        """Test validation fails when trust strategy is missing beta_value."""
-        config = {
-            "aggregation_strategy_keyword": "trust",
-            "begin_removing_from_round": 2,
-            "trust_threshold": 0.7,
-            "num_of_clusters": 1,
-            # Missing beta_value
-        }
-
-        with pytest.raises(ValidationError) as exc_info:
-            validate_dependent_params(config)
-
-        assert "Missing parameter beta_value for trust aggregation trust" in str(
-            exc_info.value
-        )
-
-    def test_trust_strategy_missing_begin_removing_from_round(self):
-        """Test validation fails when trust strategy is missing begin_removing_from_round."""
-        config = {
-            "aggregation_strategy_keyword": "trust",
-            "trust_threshold": 0.7,
-            "beta_value": 0.5,
-            "num_of_clusters": 1,
-            # Missing begin_removing_from_round
-        }
-
-        with pytest.raises(ValidationError) as exc_info:
-            validate_dependent_params(config)
-
-        assert (
-            "Missing parameter begin_removing_from_round for trust aggregation trust"
-            in str(exc_info.value)
-        )
-
-    def test_trust_strategy_missing_num_of_clusters(self):
-        """Test validation fails when trust strategy is missing num_of_clusters."""
-        config = {
-            "aggregation_strategy_keyword": "trust",
-            "begin_removing_from_round": 2,
-            "trust_threshold": 0.7,
-            "beta_value": 0.5,
-            # Missing num_of_clusters
-        }
-
-        with pytest.raises(ValidationError) as exc_info:
-            validate_dependent_params(config)
-
-        assert "Missing parameter num_of_clusters for trust aggregation trust" in str(
-            exc_info.value
-        )
-
-    def test_pid_strategy_missing_kp(self):
-        """Test validation fails when PID strategy is missing Kp parameter."""
-        config = {
-            "aggregation_strategy_keyword": "pid",
-            "num_std_dev": 2.0,
-            "Ki": 0.1,
-            "Kd": 0.01,
-            # Missing Kp
-        }
-
-        with pytest.raises(ValidationError) as exc_info:
-            validate_dependent_params(config)
-
-        assert "Missing parameter Kp for PID aggregation pid" in str(exc_info.value)
-
-    def test_pid_scaled_strategy_missing_ki(self):
-        """Test validation fails when PID scaled strategy is missing Ki parameter."""
-        config = {
-            "aggregation_strategy_keyword": "pid_scaled",
-            "num_std_dev": 2.0,
-            "Kp": 1.0,
-            "Kd": 0.01,
-            # Missing Ki
-        }
-
-        with pytest.raises(ValidationError) as exc_info:
-            validate_dependent_params(config)
-
-        assert "Missing parameter Ki for PID aggregation pid_scaled" in str(
-            exc_info.value
-        )
-
-    def test_pid_standardized_strategy_missing_kd(self):
-        """Test validation fails when PID standardized strategy is missing Kd parameter."""
-        config = {
-            "aggregation_strategy_keyword": "pid_standardized",
-            "num_std_dev": 2.0,
-            "Kp": 1.0,
-            "Ki": 0.1,
-            # Missing Kd
-        }
-
-        with pytest.raises(ValidationError) as exc_info:
-            validate_dependent_params(config)
-
-        assert "Missing parameter Kd for PID aggregation pid_standardized" in str(
-            exc_info.value
-        )
-
-    def test_pid_strategy_missing_num_std_dev(self):
-        """Test validation fails when PID strategy is missing num_std_dev parameter."""
-        config = {
-            "aggregation_strategy_keyword": "pid",
-            "Kp": 1.0,
-            "Ki": 0.1,
-            "Kd": 0.01,
-            # Missing num_std_dev
-        }
-
-        with pytest.raises(ValidationError) as exc_info:
-            validate_dependent_params(config)
-
-        assert "Missing parameter num_std_dev for PID aggregation pid" in str(
-            exc_info.value
-        )
-
-    def test_krum_strategy_missing_num_krum_selections(self):
-        """Test validation fails when Krum strategy is missing num_krum_selections."""
-        config = {
-            "aggregation_strategy_keyword": "krum"
-            # Missing num_krum_selections
-        }
-
-        with pytest.raises(ValidationError) as exc_info:
-            validate_dependent_params(config)
-
-        assert (
-            "Missing parameter num_krum_selections for Krum-based aggregation krum"
-            in str(exc_info.value)
-        )
-
-    def test_multi_krum_strategy_missing_num_krum_selections(self):
-        """Test validation fails when Multi-Krum strategy is missing num_krum_selections."""
-        config = {
-            "aggregation_strategy_keyword": "multi-krum"
-            # Missing num_krum_selections
-        }
-
-        with pytest.raises(ValidationError) as exc_info:
-            validate_dependent_params(config)
-
-        assert (
-            "Missing parameter num_krum_selections for Krum-based aggregation multi-krum"
-            in str(exc_info.value)
-        )
-
-    def test_multi_krum_based_strategy_missing_num_krum_selections(self):
-        """Test validation fails when Multi-Krum-based strategy is missing num_krum_selections."""
-        config = {
-            "aggregation_strategy_keyword": "multi-krum-based"
-            # Missing num_krum_selections
-        }
-
-        with pytest.raises(ValidationError) as exc_info:
-            validate_dependent_params(config)
-
-        assert (
-            "Missing parameter num_krum_selections for Krum-based aggregation multi-krum-based"
-            in str(exc_info.value)
-        )
-
-    def test_trimmed_mean_strategy_missing_trim_ratio(self):
-        """Test validation fails when trimmed mean strategy is missing trim_ratio."""
-        config = {
-            "aggregation_strategy_keyword": "trimmed_mean"
-            # Missing trim_ratio
-        }
-
-        with pytest.raises(ValidationError) as exc_info:
-            validate_dependent_params(config)
-
-        assert (
-            "Missing parameter trim_ratio for trimmed mean aggregation trimmed_mean"
-            in str(exc_info.value)
-        )
-
-    def test_gaussian_noise_attack_missing_parameters(self):
-        """Test validation fails when gaussian noise attack is missing required parameters."""
-        config = {
-            "aggregation_strategy_keyword": "trust",
-            "attack_type": "gaussian_noise",
-            # Trust-specific parameters (required first)
+            "attack_type": "label_flipping",
             "begin_removing_from_round": 2,
             "trust_threshold": 0.7,
             "beta_value": 0.5,
             "num_of_clusters": 1,
-            # Missing gaussian_noise_mean, gaussian_noise_std, attack_ratio
         }
 
-        with pytest.raises(ValidationError) as exc_info:
-            validate_dependent_params(config)
-
-        error_message = str(exc_info.value)
-        assert (
-            "Missing gaussian_noise_mean that is required for gaussian_noise in configuration"
-            in error_message
-        )
-
-    def test_gaussian_noise_attack_missing_std(self):
-        """Test validation fails when gaussian noise attack is missing std parameter."""
-        config = {
-            "aggregation_strategy_keyword": "trust",
-            "attack_type": "gaussian_noise",
-            # Trust-specific parameters (required first)
-            "begin_removing_from_round": 2,
-            "trust_threshold": 0.7,
-            "beta_value": 0.5,
-            "num_of_clusters": 1,
-            # Gaussian noise parameters
-            "gaussian_noise_mean": 0.0,
-            "attack_ratio": 0.2,
-            # Missing gaussian_noise_std
-        }
-
-        with pytest.raises(ValidationError) as exc_info:
-            validate_dependent_params(config)
-
-        assert (
-            "Missing gaussian_noise_std that is required for gaussian_noise in configuration"
-            in str(exc_info.value)
-        )
-
-    def test_gaussian_noise_attack_missing_attack_ratio(self):
-        """Test validation fails when gaussian noise attack is missing attack_ratio parameter."""
-        config = {
-            "aggregation_strategy_keyword": "trust",
-            "attack_type": "gaussian_noise",
-            # Trust-specific parameters (required first)
-            "begin_removing_from_round": 2,
-            "trust_threshold": 0.7,
-            "beta_value": 0.5,
-            "num_of_clusters": 1,
-            # Gaussian noise parameters
-            "gaussian_noise_mean": 0.0,
-            "gaussian_noise_std": 0.1,
-            # Missing attack_ratio
-        }
-
-        with pytest.raises(ValidationError) as exc_info:
-            validate_dependent_params(config)
-
-        assert (
-            "Missing attack_ratio that is required for gaussian_noise in configuration"
-            in str(exc_info.value)
-        )
+        # Should not raise any exception for dependent params
+        validate_dependent_params(config)
 
 
 class TestValidateStrategyConfigErrorMessages:
     """Test that validation provides clear and helpful error messages."""
 
-    def test_clear_error_message_for_invalid_enum_value(self):
+    def test_clear_error_message_for_invalid_enum_value(self, base_valid_config):
         """Test that error messages clearly indicate valid enum options."""
-        config = {
-            "aggregation_strategy_keyword": "invalid_strategy",
-            "remove_clients": "true",
-            "dataset_keyword": "femnist_iid",
-            "model_type": "cnn",
-            "use_llm": "false",
-            "num_of_rounds": 5,
-            "num_of_clients": 10,
-            "num_of_malicious_clients": 2,
-            "attack_type": "label_flipping",
-            "show_plots": "false",
-            "save_plots": "true",
-            "save_csv": "true",
-            "preserve_dataset": "false",
-            "training_subset_fraction": 0.8,
-            "training_device": "cpu",
-            "cpus_per_client": 1,
-            "gpus_per_client": 0.0,
-            "min_fit_clients": 8,
-            "min_evaluate_clients": 8,
-            "min_available_clients": 10,
-            "evaluate_metrics_aggregation_fn": "weighted_average",
-            "num_of_client_epochs": 3,
-            "batch_size": 32,
-        }
+        config = base_valid_config.copy()
+        config["aggregation_strategy_keyword"] = "invalid_strategy"
 
         with pytest.raises(ValidationError) as exc_info:
             validate_strategy_config(config)
@@ -826,33 +489,11 @@ class TestValidateStrategyConfigErrorMessages:
         # Should clearly indicate the missing required property
         assert "is a required property" in error_message
 
-    def test_clear_error_message_for_wrong_data_type(self):
+    def test_clear_error_message_for_wrong_data_type(self, base_valid_config):
         """Test that error messages clearly indicate expected data type."""
-        config = {
-            "aggregation_strategy_keyword": "trust",
-            "remove_clients": "true",
-            "dataset_keyword": "femnist_iid",
-            "model_type": "cnn",
-            "use_llm": "false",
-            "num_of_rounds": "not_a_number",  # Should be integer
-            "num_of_clients": 10,
-            "num_of_malicious_clients": 2,
-            "attack_type": "label_flipping",
-            "show_plots": "false",
-            "save_plots": "true",
-            "save_csv": "true",
-            "preserve_dataset": "false",
-            "training_subset_fraction": 0.8,
-            "training_device": "cpu",
-            "cpus_per_client": 1,
-            "gpus_per_client": 0.0,
-            "min_fit_clients": 8,
-            "min_evaluate_clients": 8,
-            "min_available_clients": 10,
-            "evaluate_metrics_aggregation_fn": "weighted_average",
-            "num_of_client_epochs": 3,
-            "batch_size": 32,
-        }
+        config = base_valid_config.copy()
+        config["aggregation_strategy_keyword"] = "trust"
+        config["num_of_rounds"] = "not_a_number"  # Should be integer
 
         with pytest.raises(ValidationError) as exc_info:
             validate_strategy_config(config)
@@ -1040,205 +681,59 @@ class TestCheckLlmSpecificParameters:
             exc_info.value
         )
 
-    def test_llm_missing_llm_model_parameter(self):
-        """Test that validation fails when LLM config is missing llm_model."""
-        config = {
-            "model_type": "transformer",
-            "llm_finetuning": "full",
-            "llm_task": "classification",
-            "llm_chunk_size": 512,
-            # Missing llm_model
-        }
-
+    @pytest.mark.parametrize(
+        "config,expected_error",
+        LLM_MISSING_PARAM_TESTS,
+        ids=[
+            "missing_llm_model",
+            "missing_llm_finetuning",
+            "missing_llm_task",
+            "missing_llm_chunk_size",
+        ],
+    )
+    def test_llm_missing_base_parameters(self, config, expected_error):
+        """Test that validation fails when LLM config is missing required base parameters."""
         with pytest.raises(ValidationError) as exc_info:
             check_llm_specific_parameters(config)
 
-        assert "Missing parameter llm_model for LLM finetuning" in str(exc_info.value)
+        assert expected_error in str(exc_info.value)
 
-    def test_llm_missing_llm_finetuning_parameter(self):
-        """Test that validation fails when LLM config is missing llm_finetuning."""
-        config = {
-            "model_type": "transformer",
-            "llm_model": "bert-base-uncased",
-            "llm_task": "classification",
-            "llm_chunk_size": 512,
-            # Missing llm_finetuning
-        }
-
+    @pytest.mark.parametrize(
+        "config,expected_error",
+        MLM_MISSING_PARAM_TESTS,
+        ids=["missing_mlm_probability"],
+    )
+    def test_mlm_missing_parameters(self, config, expected_error):
+        """Test that validation fails when MLM task is missing required parameters."""
         with pytest.raises(ValidationError) as exc_info:
             check_llm_specific_parameters(config)
 
-        assert "Missing parameter llm_finetuning for LLM finetuning" in str(
-            exc_info.value
-        )
+        assert expected_error in str(exc_info.value)
 
-    def test_llm_missing_llm_task_parameter(self):
-        """Test that validation fails when LLM config is missing llm_task."""
-        config = {
-            "model_type": "transformer",
-            "llm_model": "bert-base-uncased",
-            "llm_finetuning": "full",
-            "llm_chunk_size": 512,
-            # Missing llm_task
-        }
-
+    @pytest.mark.parametrize(
+        "config,expected_error",
+        LORA_MISSING_PARAM_TESTS,
+        ids=[
+            "missing_lora_rank",
+            "missing_lora_alpha",
+            "missing_lora_dropout",
+            "missing_lora_target_modules",
+        ],
+    )
+    def test_lora_missing_parameters(self, config, expected_error):
+        """Test that validation fails when LORA finetuning is missing required parameters."""
         with pytest.raises(ValidationError) as exc_info:
             check_llm_specific_parameters(config)
 
-        assert "Missing parameter llm_task for LLM finetuning" in str(exc_info.value)
+        assert expected_error in str(exc_info.value)
 
-    def test_llm_missing_llm_chunk_size_parameter(self):
-        """Test that validation fails when LLM config is missing llm_chunk_size."""
-        config = {
-            "model_type": "transformer",
-            "llm_model": "bert-base-uncased",
-            "llm_finetuning": "full",
-            "llm_task": "classification",
-            # Missing llm_chunk_size
-        }
-
-        with pytest.raises(ValidationError) as exc_info:
-            check_llm_specific_parameters(config)
-
-        assert "Missing parameter llm_chunk_size for LLM finetuning" in str(
-            exc_info.value
-        )
-
-    def test_llm_mlm_task_missing_mlm_probability(self):
-        """Test that MLM task requires mlm_probability parameter."""
-        config = {
-            "model_type": "transformer",
-            "llm_model": "bert-base-uncased",
-            "llm_finetuning": "full",
-            "llm_task": "mlm",
-            "llm_chunk_size": 512,
-            # Missing mlm_probability
-        }
-
-        with pytest.raises(ValidationError) as exc_info:
-            check_llm_specific_parameters(config)
-
-        assert "Missing parameter mlm_probability for LLM task mlm" in str(
-            exc_info.value
-        )
-
-    def test_llm_lora_finetuning_missing_lora_rank(self):
-        """Test that LORA finetuning requires lora_rank parameter."""
-        config = {
-            "model_type": "transformer",
-            "llm_model": "bert-base-uncased",
-            "llm_finetuning": "lora",
-            "llm_task": "classification",
-            "llm_chunk_size": 512,
-            "lora_alpha": 32,
-            "lora_dropout": 0.1,
-            "lora_target_modules": ["query", "value"],
-            # Missing lora_rank
-        }
-
-        with pytest.raises(ValidationError) as exc_info:
-            check_llm_specific_parameters(config)
-
-        assert "Missing parameter lora_rank for LORA" in str(exc_info.value)
-
-    def test_llm_lora_finetuning_missing_lora_alpha(self):
-        """Test that LORA finetuning requires lora_alpha parameter."""
-        config = {
-            "model_type": "transformer",
-            "llm_model": "bert-base-uncased",
-            "llm_finetuning": "lora",
-            "llm_task": "classification",
-            "llm_chunk_size": 512,
-            "lora_rank": 16,
-            "lora_dropout": 0.1,
-            "lora_target_modules": ["query", "value"],
-            # Missing lora_alpha
-        }
-
-        with pytest.raises(ValidationError) as exc_info:
-            check_llm_specific_parameters(config)
-
-        assert "Missing parameter lora_alpha for LORA" in str(exc_info.value)
-
-    def test_llm_lora_finetuning_missing_lora_dropout(self):
-        """Test that LORA finetuning requires lora_dropout parameter."""
-        config = {
-            "model_type": "transformer",
-            "llm_model": "bert-base-uncased",
-            "llm_finetuning": "lora",
-            "llm_task": "classification",
-            "llm_chunk_size": 512,
-            "lora_rank": 16,
-            "lora_alpha": 32,
-            "lora_target_modules": ["query", "value"],
-            # Missing lora_dropout
-        }
-
-        with pytest.raises(ValidationError) as exc_info:
-            check_llm_specific_parameters(config)
-
-        assert "Missing parameter lora_dropout for LORA" in str(exc_info.value)
-
-    def test_llm_lora_finetuning_missing_lora_target_modules(self):
-        """Test that LORA finetuning requires lora_target_modules parameter."""
-        config = {
-            "model_type": "transformer",
-            "llm_model": "bert-base-uncased",
-            "llm_finetuning": "lora",
-            "llm_task": "classification",
-            "llm_chunk_size": 512,
-            "lora_rank": 16,
-            "lora_alpha": 32,
-            "lora_dropout": 0.1,
-            # Missing lora_target_modules
-        }
-
-        with pytest.raises(ValidationError) as exc_info:
-            check_llm_specific_parameters(config)
-
-        assert "Missing parameter lora_target_modules for LORA" in str(exc_info.value)
-
-    def test_llm_valid_full_finetuning_config(self):
-        """Test that valid full finetuning config passes validation."""
-        config = {
-            "model_type": "transformer",
-            "llm_model": "bert-base-uncased",
-            "llm_finetuning": "full",
-            "llm_task": "classification",
-            "llm_chunk_size": 512,
-        }
-
-        # Should not raise any exception
-        check_llm_specific_parameters(config)
-
-    def test_llm_valid_lora_finetuning_config(self):
-        """Test that valid LORA finetuning config passes validation."""
-        config = {
-            "model_type": "transformer",
-            "llm_model": "bert-base-uncased",
-            "llm_finetuning": "lora",
-            "llm_task": "classification",
-            "llm_chunk_size": 512,
-            "lora_rank": 16,
-            "lora_alpha": 32,
-            "lora_dropout": 0.1,
-            "lora_target_modules": ["query", "value"],
-        }
-
-        # Should not raise any exception
-        check_llm_specific_parameters(config)
-
-    def test_llm_valid_mlm_task_config(self):
-        """Test that valid MLM task config passes validation."""
-        config = {
-            "model_type": "transformer",
-            "llm_model": "bert-base-uncased",
-            "llm_finetuning": "full",
-            "llm_task": "mlm",
-            "llm_chunk_size": 512,
-            "mlm_probability": 0.15,
-        }
-
+    @pytest.mark.parametrize(
+        "config",
+        VALID_LLM_CONFIGS,
+        ids=["valid_full_finetuning", "valid_lora_finetuning", "valid_mlm_task"],
+    )
+    def test_valid_llm_configurations(self, config):
+        """Test that valid LLM configurations pass validation."""
         # Should not raise any exception
         check_llm_specific_parameters(config)
 
