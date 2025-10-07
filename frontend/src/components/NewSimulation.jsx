@@ -659,6 +659,11 @@ function NewSimulation() {
                   checked={config.use_llm === "true"}
                   onChange={(e) => setConfig(prev => ({ ...prev, use_llm: e.target.checked ? "true" : "false" }))}
                 />
+                {getFieldError('use_llm') && (
+                  <Form.Text className="text-danger d-block">
+                    ❌ {getFieldError('use_llm').message}
+                  </Form.Text>
+                )}
               </Form.Group>
 
               {needsLlmParams && (
@@ -719,7 +724,18 @@ function NewSimulation() {
                         <span style={{ cursor: 'help' }}>ℹ️</span>
                       </OverlayTrigger>
                     </Form.Label>
-                    <Form.Control type="number" name="llm_chunk_size" value={config.llm_chunk_size} onChange={handleChange} />
+                    <Form.Control
+                      type="number"
+                      name="llm_chunk_size"
+                      value={config.llm_chunk_size}
+                      onChange={handleChange}
+                      isInvalid={!!getFieldError('llm_chunk_size')}
+                    />
+                    {getFieldError('llm_chunk_size') && (
+                      <Form.Control.Feedback type="invalid">
+                        {getFieldError('llm_chunk_size').message}
+                      </Form.Control.Feedback>
+                    )}
                   </Form.Group>
 
                   {needsMLMParams && (
@@ -733,7 +749,19 @@ function NewSimulation() {
                           <span style={{ cursor: 'help' }}>ℹ️</span>
                         </OverlayTrigger>
                       </Form.Label>
-                      <Form.Control type="number" step="0.01" name="mlm_probability" value={config.mlm_probability} onChange={handleChange} />
+                      <Form.Control
+                        type="number"
+                        step="0.01"
+                        name="mlm_probability"
+                        value={config.mlm_probability}
+                        onChange={handleChange}
+                        isInvalid={!!getFieldError('mlm_probability')}
+                      />
+                      {getFieldError('mlm_probability') && (
+                        <Form.Control.Feedback type="invalid">
+                          {getFieldError('mlm_probability').message}
+                        </Form.Control.Feedback>
+                      )}
                     </Form.Group>
                   )}
                 </>
@@ -806,7 +834,7 @@ function NewSimulation() {
                   Number of Malicious Clients{' '}
                   <OverlayTrigger
                     placement="right"
-                    overlay={<Tooltip>Number of Byzantine (malicious/compromised) clients that send corrupted model updates. These simulate real-world attacks like poisoning or sabotage. 0 = benign simulation. Set to 1-3 to test defense strategies. Must be < total clients.</Tooltip>}
+                    overlay={<Tooltip>Number of Byzantine (malicious/compromised) clients that send corrupted model updates. These simulate real-world attacks like poisoning or sabotage. 0 = benign simulation. Set to 1-3 to test defense strategies. Must be &lt; total clients.</Tooltip>}
                   >
                     <span style={{ cursor: 'help' }}>ℹ️</span>
                   </OverlayTrigger>
@@ -819,7 +847,7 @@ function NewSimulation() {
                   Attack Type{' '}
                   <OverlayTrigger
                     placement="right"
-                    overlay={<Tooltip>Type of Byzantine attack malicious clients perform. "gaussian_noise" = add random noise to model weights (simulates faulty sensors or corruption). "label_flipping" = flip training labels to poison the model. Only applies if malicious clients > 0.</Tooltip>}
+                    overlay={<Tooltip>Type of Byzantine attack malicious clients perform. "gaussian_noise" = add random noise to model weights (simulates faulty sensors or corruption). "label_flipping" = flip training labels to poison the model. Only applies if malicious clients &gt; 0.</Tooltip>}
                   >
                     <span style={{ cursor: 'help' }}>ℹ️</span>
                   </OverlayTrigger>
@@ -841,7 +869,18 @@ function NewSimulation() {
                         <span style={{ cursor: 'help' }}>ℹ️</span>
                       </OverlayTrigger>
                     </Form.Label>
-                    <Form.Control type="number" name="gaussian_noise_mean" value={config.gaussian_noise_mean || 0} onChange={handleChange} />
+                    <Form.Control
+                      type="number"
+                      name="gaussian_noise_mean"
+                      value={config.gaussian_noise_mean || 0}
+                      onChange={handleChange}
+                      isInvalid={!!getFieldError('gaussian_noise_mean')}
+                    />
+                    {getFieldError('gaussian_noise_mean') && (
+                      <Form.Control.Feedback type="invalid">
+                        {getFieldError('gaussian_noise_mean').message}
+                      </Form.Control.Feedback>
+                    )}
                   </Form.Group>
 
                   <Form.Group className="mb-3">
@@ -854,7 +893,18 @@ function NewSimulation() {
                         <span style={{ cursor: 'help' }}>ℹ️</span>
                       </OverlayTrigger>
                     </Form.Label>
-                    <Form.Control type="number" name="gaussian_noise_std" value={config.gaussian_noise_std || 1} onChange={handleChange} />
+                    <Form.Control
+                      type="number"
+                      name="gaussian_noise_std"
+                      value={config.gaussian_noise_std || 1}
+                      onChange={handleChange}
+                      isInvalid={!!getFieldError('gaussian_noise_std')}
+                    />
+                    {getFieldError('gaussian_noise_std') && (
+                      <Form.Control.Feedback type="invalid">
+                        {getFieldError('gaussian_noise_std').message}
+                      </Form.Control.Feedback>
+                    )}
                   </Form.Group>
 
                   <Form.Group className="mb-3">
@@ -867,7 +917,19 @@ function NewSimulation() {
                         <span style={{ cursor: 'help' }}>ℹ️</span>
                       </OverlayTrigger>
                     </Form.Label>
-                    <Form.Control type="number" step="0.01" name="attack_ratio" value={config.attack_ratio || 0.5} onChange={handleChange} />
+                    <Form.Control
+                      type="number"
+                      step="0.01"
+                      name="attack_ratio"
+                      value={config.attack_ratio || 0.5}
+                      onChange={handleChange}
+                      isInvalid={!!getFieldError('attack_ratio')}
+                    />
+                    {getFieldError('attack_ratio') && (
+                      <Form.Control.Feedback type="invalid">
+                        {getFieldError('attack_ratio').message}
+                      </Form.Control.Feedback>
+                    )}
                   </Form.Group>
                 </>
               )}
@@ -895,7 +957,18 @@ function NewSimulation() {
                           <span style={{ cursor: 'help' }}>ℹ️</span>
                         </OverlayTrigger>
                       </Form.Label>
-                      <Form.Control type="number" name="begin_removing_from_round" value={config.begin_removing_from_round || 1} onChange={handleChange} />
+                      <Form.Control
+                        type="number"
+                        name="begin_removing_from_round"
+                        value={config.begin_removing_from_round || 1}
+                        onChange={handleChange}
+                        isInvalid={!!getFieldError('begin_removing_from_round')}
+                      />
+                      {getFieldError('begin_removing_from_round') && (
+                        <Form.Control.Feedback type="invalid">
+                          {getFieldError('begin_removing_from_round').message}
+                        </Form.Control.Feedback>
+                      )}
                     </Form.Group>
 
                     <Form.Group className="mb-3">
@@ -908,7 +981,19 @@ function NewSimulation() {
                           <span style={{ cursor: 'help' }}>ℹ️</span>
                         </OverlayTrigger>
                       </Form.Label>
-                      <Form.Control type="number" step="0.01" name="trust_threshold" value={config.trust_threshold || 0.5} onChange={handleChange} />
+                      <Form.Control
+                        type="number"
+                        step="0.01"
+                        name="trust_threshold"
+                        value={config.trust_threshold || 0.5}
+                        onChange={handleChange}
+                        isInvalid={!!getFieldError('trust_threshold')}
+                      />
+                      {getFieldError('trust_threshold') && (
+                        <Form.Control.Feedback type="invalid">
+                          {getFieldError('trust_threshold').message}
+                        </Form.Control.Feedback>
+                      )}
                     </Form.Group>
 
                     <Form.Group className="mb-3">
@@ -921,7 +1006,19 @@ function NewSimulation() {
                           <span style={{ cursor: 'help' }}>ℹ️</span>
                         </OverlayTrigger>
                       </Form.Label>
-                      <Form.Control type="number" step="0.01" name="beta_value" value={config.beta_value || 0.9} onChange={handleChange} />
+                      <Form.Control
+                        type="number"
+                        step="0.01"
+                        name="beta_value"
+                        value={config.beta_value || 0.9}
+                        onChange={handleChange}
+                        isInvalid={!!getFieldError('beta_value')}
+                      />
+                      {getFieldError('beta_value') && (
+                        <Form.Control.Feedback type="invalid">
+                          {getFieldError('beta_value').message}
+                        </Form.Control.Feedback>
+                      )}
                     </Form.Group>
 
                     <Form.Group className="mb-3">
@@ -934,7 +1031,18 @@ function NewSimulation() {
                           <span style={{ cursor: 'help' }}>ℹ️</span>
                         </OverlayTrigger>
                       </Form.Label>
-                      <Form.Control type="number" name="num_of_clusters" value={config.num_of_clusters || 1} onChange={handleChange} />
+                      <Form.Control
+                        type="number"
+                        name="num_of_clusters"
+                        value={config.num_of_clusters || 1}
+                        onChange={handleChange}
+                        isInvalid={!!getFieldError('num_of_clusters')}
+                      />
+                      {getFieldError('num_of_clusters') && (
+                        <Form.Control.Feedback type="invalid">
+                          {getFieldError('num_of_clusters').message}
+                        </Form.Control.Feedback>
+                      )}
                     </Form.Group>
                   </>
                 )}
@@ -951,7 +1059,19 @@ function NewSimulation() {
                           <span style={{ cursor: 'help' }}>ℹ️</span>
                         </OverlayTrigger>
                       </Form.Label>
-                      <Form.Control type="number" step="0.1" name="num_std_dev" value={config.num_std_dev || 2.0} onChange={handleChange} />
+                      <Form.Control
+                        type="number"
+                        step="0.1"
+                        name="num_std_dev"
+                        value={config.num_std_dev || 2.0}
+                        onChange={handleChange}
+                        isInvalid={!!getFieldError('num_std_dev')}
+                      />
+                      {getFieldError('num_std_dev') && (
+                        <Form.Control.Feedback type="invalid">
+                          {getFieldError('num_std_dev').message}
+                        </Form.Control.Feedback>
+                      )}
                     </Form.Group>
 
                     <Form.Group className="mb-3">
@@ -964,7 +1084,19 @@ function NewSimulation() {
                           <span style={{ cursor: 'help' }}>ℹ️</span>
                         </OverlayTrigger>
                       </Form.Label>
-                      <Form.Control type="number" step="0.01" name="Kp" value={config.Kp || 1.0} onChange={handleChange} />
+                      <Form.Control
+                        type="number"
+                        step="0.01"
+                        name="Kp"
+                        value={config.Kp || 1.0}
+                        onChange={handleChange}
+                        isInvalid={!!getFieldError('Kp')}
+                      />
+                      {getFieldError('Kp') && (
+                        <Form.Control.Feedback type="invalid">
+                          {getFieldError('Kp').message}
+                        </Form.Control.Feedback>
+                      )}
                     </Form.Group>
 
                     <Form.Group className="mb-3">
@@ -977,7 +1109,19 @@ function NewSimulation() {
                           <span style={{ cursor: 'help' }}>ℹ️</span>
                         </OverlayTrigger>
                       </Form.Label>
-                      <Form.Control type="number" step="0.01" name="Ki" value={config.Ki || 0.1} onChange={handleChange} />
+                      <Form.Control
+                        type="number"
+                        step="0.01"
+                        name="Ki"
+                        value={config.Ki || 0.1}
+                        onChange={handleChange}
+                        isInvalid={!!getFieldError('Ki')}
+                      />
+                      {getFieldError('Ki') && (
+                        <Form.Control.Feedback type="invalid">
+                          {getFieldError('Ki').message}
+                        </Form.Control.Feedback>
+                      )}
                     </Form.Group>
 
                     <Form.Group className="mb-3">
@@ -990,7 +1134,19 @@ function NewSimulation() {
                           <span style={{ cursor: 'help' }}>ℹ️</span>
                         </OverlayTrigger>
                       </Form.Label>
-                      <Form.Control type="number" step="0.01" name="Kd" value={config.Kd || 0.01} onChange={handleChange} />
+                      <Form.Control
+                        type="number"
+                        step="0.01"
+                        name="Kd"
+                        value={config.Kd || 0.01}
+                        onChange={handleChange}
+                        isInvalid={!!getFieldError('Kd')}
+                      />
+                      {getFieldError('Kd') && (
+                        <Form.Control.Feedback type="invalid">
+                          {getFieldError('Kd').message}
+                        </Form.Control.Feedback>
+                      )}
                     </Form.Group>
                   </>
                 )}
@@ -1001,12 +1157,23 @@ function NewSimulation() {
                       Krum Selections{' '}
                       <OverlayTrigger
                         placement="right"
-                        overlay={<Tooltip>Number of clients with most similar updates to select for aggregation (based on Euclidean distance). Krum selects the "closest neighbors" and ignores outliers. Lower = more Byzantine robustness (strict filtering) but less data diversity. Higher = more data but less robust. Must be < total clients. Typical: (num_clients - malicious_clients - 2).</Tooltip>}
+                        overlay={<Tooltip>Number of clients with most similar updates to select for aggregation (based on Euclidean distance). Krum selects the "closest neighbors" and ignores outliers. Lower = more Byzantine robustness (strict filtering) but less data diversity. Higher = more data but less robust. Must be &lt; total clients. Typical: (num_clients - malicious_clients - 2).</Tooltip>}
                       >
                         <span style={{ cursor: 'help' }}>ℹ️</span>
                       </OverlayTrigger>
                     </Form.Label>
-                    <Form.Control type="number" name="num_krum_selections" value={config.num_krum_selections || 5} onChange={handleChange} />
+                    <Form.Control
+                      type="number"
+                      name="num_krum_selections"
+                      value={config.num_krum_selections || 5}
+                      onChange={handleChange}
+                      isInvalid={!!getFieldError('num_krum_selections')}
+                    />
+                    {getFieldError('num_krum_selections') && (
+                      <Form.Control.Feedback type="invalid">
+                        {getFieldError('num_krum_selections').message}
+                      </Form.Control.Feedback>
+                    )}
                   </Form.Group>
                 )}
 
@@ -1016,12 +1183,24 @@ function NewSimulation() {
                       Trim Ratio{' '}
                       <OverlayTrigger
                         placement="right"
-                        overlay={<Tooltip>Fraction of most extreme (highest and lowest) values to remove before averaging (0-0.5). 0.1 = remove top 10% and bottom 10%, average the middle 80%. Higher = more aggressive outlier filtering (robust against attacks) but loses more data. Lower = keep more data but less robust. Must be < 0.5. Typical: 0.1-0.3.</Tooltip>}
+                        overlay={<Tooltip>Fraction of most extreme (highest and lowest) values to remove before averaging (0-0.5). 0.1 = remove top 10% and bottom 10%, average the middle 80%. Higher = more aggressive outlier filtering (robust against attacks) but loses more data. Lower = keep more data but less robust. Must be &lt; 0.5. Typical: 0.1-0.3.</Tooltip>}
                       >
                         <span style={{ cursor: 'help' }}>ℹ️</span>
                       </OverlayTrigger>
                     </Form.Label>
-                    <Form.Control type="number" step="0.01" name="trim_ratio" value={config.trim_ratio || 0.1} onChange={handleChange} />
+                    <Form.Control
+                      type="number"
+                      step="0.01"
+                      name="trim_ratio"
+                      value={config.trim_ratio || 0.1}
+                      onChange={handleChange}
+                      isInvalid={!!getFieldError('trim_ratio')}
+                    />
+                    {getFieldError('trim_ratio') && (
+                      <Form.Control.Feedback type="invalid">
+                        {getFieldError('trim_ratio').message}
+                      </Form.Control.Feedback>
+                    )}
                   </Form.Group>
                 )}
               </Accordion.Body>
