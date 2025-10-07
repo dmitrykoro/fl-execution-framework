@@ -289,7 +289,7 @@ async def create_simulation(config: SimulationConfig) -> Dict[str, str]:
     """
     Creates and runs a new simulation from a configuration payload.
     """
-    config_dict = config.dict(exclude_unset=True)
+    config_dict = config.model_dump(exclude_unset=True)
     timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
     simulation_id = f"api_run_{timestamp}"
 
