@@ -1,6 +1,6 @@
 import json
 import logging
-
+import os
 from src.config_loaders.config_loader import ConfigLoader
 
 from src.output_handlers.directory_handler import DirectoryHandler
@@ -12,6 +12,7 @@ from src.data_models.simulation_strategy_config import StrategyConfig
 
 from src.dataset_handlers.dataset_handler import DatasetHandler
 
+from src.utils.seed import seed_everything, GLOBAL_SEED
 
 class SimulationRunner:
     def __init__(
@@ -48,6 +49,14 @@ class SimulationRunner:
 
             strategy_config = StrategyConfig.from_dict(strategy_config_dict)
             setattr(strategy_config, "strategy_number", strategy_number)
+
+            # NEW: Derive and apply a deterministic global seed for this strategy
+            # Prefer an explicit 'seed' field in your strategy config; else default to 1337.
+            # Seeding here ensures deterministic dataset setup, splits, and loaders created below.
+            logging.info(msg=strategy_config_dict.get("seed", GLOBAL_SEED))
+            global_seed = int(strategy_config_dict.get("seed", GLOBAL_SEED))
+            seed_everything(global_seed)
+            logging.info(f"[Determinism] Using seed={global_seed} (CPU single-thread; mkldnn disabled; deterministic ops).")
 
             self._directory_handler.assign_dataset_dir(strategy_number)
 
