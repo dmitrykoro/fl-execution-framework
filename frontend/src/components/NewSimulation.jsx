@@ -1,8 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { Form, Button, Card, Alert, Accordion, OverlayTrigger, Tooltip, Row, Col } from 'react-bootstrap';
 import { createSimulation } from '../api';
 import { useConfigValidation } from '../hooks/useConfigValidation';
+import { useDatasetValidation } from '../hooks/useDatasetValidation';
 import ValidationSummary from './ValidationSummary';
 
 // Defaults from config/simulation_strategies/example_strategy_config.json
@@ -90,6 +91,26 @@ const DATASETS = ["femnist_iid", "femnist_niid", "its", "pneumoniamnist", "flair
 const ATTACKS = ["gaussian_noise", "label_flipping"];
 const DEVICES = ["cpu", "gpu", "cuda"];
 
+const POPULAR_DATASETS = [
+  // Image Classification - Basic
+  { value: 'ylecun/mnist', label: 'MNIST - Handwritten digits (70k)' },
+  { value: 'mnist', label: 'MNIST - Alternative (70k)' },
+  { value: 'fashion_mnist', label: 'Fashion-MNIST - Clothing items (70k)' },
+
+  // Image Classification - Standard
+  { value: 'uoft-cs/cifar10', label: 'CIFAR-10 - 32x32 RGB, 10 classes (60k)' },
+  { value: 'cifar10', label: 'CIFAR-10 - Alternative (60k)' },
+  { value: 'uoft-cs/cifar100', label: 'CIFAR-100 - 100 classes (60k)' },
+  { value: 'cifar100', label: 'CIFAR-100 - Alternative (60k)' },
+
+  // Federated Datasets
+  { value: 'flwrlabs/femnist', label: 'FEMNIST - Federated handwriting (814k)' },
+  { value: 'flwrlabs/shakespeare', label: 'Shakespeare - Federated text (4.2M)' },
+
+  // Text Classification
+  { value: 'imdb', label: 'IMDB - Movie reviews sentiment (100k)' },
+];
+
 const PRESETS = {
   convergence: {
     name: "Convergence Test",
@@ -162,6 +183,11 @@ function NewSimulation() {
   // Real-time validation
   const validation = useConfigValidation(config);
   const { errors, warnings, infos } = validation;
+
+  // HuggingFace dataset validation
+  const datasetValidation = useDatasetValidation(
+    config.dataset_source === "huggingface" ? config.hf_dataset_name : null
+  );
 
   // Helper functions to get validation messages for specific fields
   const getFieldError = (fieldName) => errors.find(e => e.field === fieldName);
@@ -634,6 +660,19 @@ function NewSimulation() {
                   <option value="local">Local Dataset</option>
                   <option value="huggingface">HuggingFace Hub</option>
                 </Form.Select>
+                {config.dataset_source === "huggingface" && (
+                  <Form.Text className="text-muted d-block mt-1">
+                    💡 Browse more available datasets at{' '}
+                    <a
+                      href="https://huggingface.co/datasets"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      style={{ textDecoration: 'underline' }}
+                    >
+                      huggingface.co/datasets
+                    </a>
+                  </Form.Text>
+                )}
               </Form.Group>
 
               {config.dataset_source === "local" && (
@@ -660,7 +699,7 @@ function NewSimulation() {
                       HuggingFace Dataset Name <span className="text-danger">*</span>{' '}
                       <OverlayTrigger
                         placement="right"
-                        overlay={<Tooltip>Dataset identifier from HuggingFace Hub. Examples: "ylecun/mnist", "uoft-cs/cifar10", "flwrlabs/femnist". Browse available datasets at huggingface.co/datasets.</Tooltip>}
+                        overlay={<Tooltip>Dataset identifier from HuggingFace Hub. Select from suggestions or type custom dataset. Examples: "ylecun/mnist", "uoft-cs/cifar10". Real-time validation checks if dataset exists.</Tooltip>}
                       >
                         <span style={{ cursor: 'help' }}>ℹ️</span>
                       </OverlayTrigger>
@@ -670,8 +709,37 @@ function NewSimulation() {
                       name="hf_dataset_name"
                       value={config.hf_dataset_name}
                       onChange={handleChange}
-                      placeholder="e.g., ylecun/mnist"
+                      list="popular-datasets"
+                      placeholder="Select from suggestions or type dataset name..."
                     />
+                    <datalist id="popular-datasets">
+                      {POPULAR_DATASETS.map(d => (
+                        <option key={d.value} value={d.value}>{d.label}</option>
+                      ))}
+                    </datalist>
+                    {datasetValidation.loading && (
+                      <Form.Text className="text-muted d-block mt-1">
+                        ⏳ Checking dataset...
+                      </Form.Text>
+                    )}
+                    {datasetValidation.valid === false && (
+                      <Form.Text className="text-danger d-block mt-1">
+                        ❌ Dataset not found: {datasetValidation.error}
+                      </Form.Text>
+                    )}
+                    {datasetValidation.valid === true && !datasetValidation.compatible && (
+                      <Form.Text className="text-warning d-block mt-1">
+                        ⚠️ Dataset found but may not be compatible with Flower Datasets
+                      </Form.Text>
+                    )}
+                    {datasetValidation.valid === true && datasetValidation.compatible && (
+                      <Form.Text className="text-success d-block mt-1">
+                        ✅ Valid dataset ({datasetValidation.info?.num_examples?.toLocaleString()} examples, splits: {datasetValidation.info?.splits?.join(', ')})
+                        {datasetValidation.info?.key_features?.length > 0 && (
+                          <span> • Fields: {datasetValidation.info.key_features.join(', ')}</span>
+                        )}
+                      </Form.Text>
+                    )}
                   </Form.Group>
 
                   <Form.Group className="mb-3">
@@ -693,6 +761,20 @@ function NewSimulation() {
                       <option value="dirichlet">Dirichlet (Heterogeneous)</option>
                       <option value="pathological">Pathological (Extreme Non-IID)</option>
                     </Form.Select>
+                    {datasetValidation.valid &&
+                      datasetValidation.info?.has_label === false &&
+                      (config.partitioning_strategy === "dirichlet" || config.partitioning_strategy === "pathological") && (
+                        <Form.Text className="d-block mt-1" style={{ color: '#d97706', fontWeight: '500' }}>
+                          ⚠️ Warning: This dataset may not work with {config.partitioning_strategy} partitioning (no "label" field detected). Consider using IID partitioning or switching to a classification dataset.
+                        </Form.Text>
+                      )}
+                    {datasetValidation.valid &&
+                      datasetValidation.info?.has_label === false &&
+                      config.partitioning_strategy === "iid" && (
+                        <Form.Text className="d-block mt-1" style={{ color: '#0ea5e9', fontWeight: '500' }}>
+                          ℹ️ This dataset works best with IID partitioning since no label field was detected. Good choice!
+                        </Form.Text>
+                      )}
                   </Form.Group>
 
                   {config.partitioning_strategy === "dirichlet" && (
