@@ -7,9 +7,8 @@ navigate_to_root
 
 setup_logging_with_file "tests/logs" "lint"
 
-setup_virtual_environment
-if [ -z "${VIRTUAL_ENV:-}" ]; then
-    log_error "No virtual environment activated. Please run ./reinstall_requirements.sh first."
+if ! ensure_virtual_environment; then
+    log_error "Please run './reinstall_requirements.sh' first."
     exit 1
 fi
 

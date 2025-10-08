@@ -3,12 +3,12 @@
 
 . "$(dirname "$0")/tests/scripts/common.sh"
 
-if [ -z "${VIRTUAL_ENV:-}" ] && ! [ -d "venv" ] && ! [ -d ".venv" ]; then
-    log_warning "Virtual environment not found. Running reinstall_requirements.sh to create 'venv'..."
+if ! ensure_virtual_environment; then
+    log_warning "Running reinstall_requirements.sh to create 'venv'..."
     ./reinstall_requirements.sh
+    setup_virtual_environment
 fi
 
-setup_virtual_environment
 find_python_interpreter
 setup_joblib_env
 

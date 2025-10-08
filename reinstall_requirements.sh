@@ -19,3 +19,4 @@ log_info "Upgrading pip..."
 "$PYTHON_CMD" -m pip install --upgrade pip
 
 install_requirements
+install_requirements "src/api/requirements.txt"
