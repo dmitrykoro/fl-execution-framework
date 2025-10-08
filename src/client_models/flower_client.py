@@ -9,6 +9,10 @@ from src.network_models.bert_model_definition import (
     get_peft_model_state_dict,
     set_peft_model_state_dict,
 )
+from src.attack_utils.poisoning import (
+    should_poison_this_round,
+    apply_poisoning_attack,
+)
 
 
 class FlowerClient(fl.client.NumPyClient):
@@ -23,6 +27,7 @@ class FlowerClient(fl.client.NumPyClient):
         model_type="cnn",
         use_lora=False,
         num_malicious_clients=0,
+        dynamic_attacks_schedule=None,
     ):
         self.client_id = client_id
         self.net = net
@@ -33,6 +38,7 @@ class FlowerClient(fl.client.NumPyClient):
         self.num_of_client_epochs = num_of_client_epochs
         self.use_lora = use_lora
         self.num_malicious_clients = num_malicious_clients
+        self.dynamic_attacks_schedule = dynamic_attacks_schedule
 
     def set_parameters(self, net, parameters: List[np.ndarray]):
         if self.use_lora:
@@ -52,9 +58,17 @@ class FlowerClient(fl.client.NumPyClient):
             return [val.cpu().numpy() for _, val in self.net.state_dict().items()]
 
     def train(
-        self, net, trainloader, epochs: int, verbose=False, global_params=None, mu=0.01
+        self,
+        net,
+        trainloader,
+        epochs: int,
+        verbose=False,
+        global_params=None,
+        mu=0.01,
+        config=None,
     ):
-        """Train the network on the training set."""
+        """Train the network on the training set with optional dynamic poisoning."""
+        current_round = config.get("server_round", 1) if config else 1
 
         if self.model_type == "cnn":
             criterion = torch.nn.CrossEntropyLoss()
@@ -65,6 +79,15 @@ class FlowerClient(fl.client.NumPyClient):
                 correct, total, epoch_loss = 0, 0, 0.0
 
                 for images, labels in trainloader:
+                    should_poison, attack_config = should_poison_this_round(
+                        current_round, self.client_id, self.dynamic_attacks_schedule
+                    )
+
+                    if should_poison and attack_config:
+                        images, labels = apply_poisoning_attack(
+                            images, labels, attack_config
+                        )
+
                     images, labels = (
                         images.to(self.training_device),
                         labels.to(self.training_device),
@@ -99,6 +122,16 @@ class FlowerClient(fl.client.NumPyClient):
                 correct, total = 0, 0
 
                 for batch in trainloader:
+                    should_poison, attack_config = should_poison_this_round(
+                        current_round, self.client_id, self.dynamic_attacks_schedule
+                    )
+
+                    if should_poison and attack_config:
+                        if attack_config.get("type") == "token_replacement":
+                            batch["input_ids"], _ = apply_poisoning_attack(
+                                batch["input_ids"], batch["labels"], attack_config
+                            )
+
                     batch = {k: v.to(self.training_device) for k, v in batch.items()}
                     labels = batch["labels"]
 
@@ -220,6 +253,7 @@ class FlowerClient(fl.client.NumPyClient):
             self.trainloader,
             epochs=self.num_of_client_epochs,
             global_params=global_params,
+            config=config,
         )
 
         # calculate gradients
