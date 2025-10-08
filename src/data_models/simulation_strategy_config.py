@@ -1,7 +1,7 @@
 import json
 
 from dataclasses import dataclass, asdict
-from typing import Any
+from typing import Any, Optional
 
 
 @dataclass
@@ -50,6 +50,17 @@ class StrategyConfig:
     strict_mode: bool = None
 
     strategy_number: int = None
+
+    # Dataset source control
+    dataset_source: Optional[str] = None  # "local" | "huggingface"
+
+    # HuggingFace-specific settings
+    hf_dataset_name: Optional[str] = None  # e.g., "mnist", "cifar10", "flwrlabs/femnist"
+    partitioning_strategy: Optional[str] = None  # "iid" | "dirichlet" | "pathological"
+    partitioning_params: Optional[dict] = None  # e.g., {"alpha": 0.5} for Dirichlet
+    
+    # Dynamic poisoning attacks
+    dynamic_attacks: Optional[dict] = None  # {"enabled": bool, "schedule": [...attack phases...]}
 
     def __init__(self, **kwargs):
         for key, value in kwargs.items():
