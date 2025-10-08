@@ -366,8 +366,13 @@ class PIDBasedRemovalStrategy(fl.server.strategy.FedAvg):
 
         aggregate_value = []
         number_of_clients_in_loss_calc = 0
+        total_examples = 0
+        weighted_accuracy_sum = 0.0
 
         for client_metadata, evaluate_res in results:
+            num_examples = evaluate_res.num_examples
+            accuracy = float(evaluate_res.metrics.get("accuracy", 0.0))
+
             self.strategy_history.insert_single_client_history_entry(
                 client_id=int(client_metadata.cid),
                 current_round=self.current_round,
@@ -375,13 +380,21 @@ class PIDBasedRemovalStrategy(fl.server.strategy.FedAvg):
             )
 
             if client_metadata.cid not in self.removed_client_ids:
-                aggregate_value.append((evaluate_res.num_examples, evaluate_res.loss))
+                aggregate_value.append((num_examples, evaluate_res.loss))
                 number_of_clients_in_loss_calc += 1
+                weighted_accuracy_sum += accuracy * num_examples
+                total_examples += num_examples
 
         loss_aggregated = weighted_loss_avg(aggregate_value)
+        average_accuracy = (
+            weighted_accuracy_sum / total_examples if total_examples > 0 else 0.0
+        )
 
-        self.strategy_history.insert_round_history_entry(
-            loss_aggregated=loss_aggregated
+        self.strategy_history.rounds_history.aggregated_loss_history.append(
+            loss_aggregated
+        )
+        self.strategy_history.rounds_history.average_accuracy_history.append(
+            average_accuracy
         )
 
         for result in results:
@@ -395,6 +408,9 @@ class PIDBasedRemovalStrategy(fl.server.strategy.FedAvg):
             f"Round: {server_round} "
             f"Number of aggregated clients: {number_of_clients_in_loss_calc} "
             f"Aggregated loss: {loss_aggregated} "
+            f"Average accuracy: {average_accuracy} "
         )
+
+        metrics_aggregated["accuracy"] = average_accuracy
 
         return loss_aggregated, metrics_aggregated
