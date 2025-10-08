@@ -64,7 +64,9 @@ config_schema = {
             "type": "string",
             "enum": ["microsoft/BiomedNLP-BiomedBERT-base-uncased-abstract-fulltext", 
                      "microsoft/BiomedNLP-PubMedBERT-base-uncased-abstract-fulltext",
-                     "michiyasunaga/BioLinkBERT-base"]
+                     "michiyasunaga/BioLinkBERT-base",
+                     "microsoft/BiomedNLP-BiomedBERT-large-uncased-abstract-fulltext",
+                     "microsoft/BiomedNLP-PubMedBERT-large-uncased-abstract-fulltext"]
         },
         "llm_task": {
             "type": "string",

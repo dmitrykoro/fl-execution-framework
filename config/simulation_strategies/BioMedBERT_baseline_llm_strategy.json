@@ -1,12 +1,12 @@
 {
   "shared_settings": {
-    "aggregation_strategy_keyword": "pid",
-    "remove_clients": "true",
+    "aggregation_strategy_keyword": "trust",
+    "remove_clients": "false",
     "dataset_keyword": "medquad",
     "use_llm": "true",
 
     "num_of_rounds": 10,
-    "num_of_clients": 8,
+    "num_of_clients": 12,
     "num_of_malicious_clients": 0,
 
     "attack_ratio": 1.0,
@@ -43,9 +43,9 @@
 
     "training_subset_fraction": 0.9,
     
-    "min_fit_clients": 8,
-    "min_evaluate_clients": 8,
-    "min_available_clients": 8,
+    "min_fit_clients": 12,
+    "min_evaluate_clients": 12,
+    "min_available_clients": 12,
     
     "evaluate_metrics_aggregation_fn": "weighted_average",
     "num_of_client_epochs": 1,
