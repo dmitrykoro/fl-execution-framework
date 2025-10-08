@@ -1,3 +1,4 @@
+import json
 import matplotlib.pyplot as plt
 import numpy as np
 import math
@@ -236,8 +237,6 @@ def export_plot_data_json(
 
     if not simulation_strategy.strategy_config.save_plots:
         return
-
-    import json
 
     plot_data = {"per_client_metrics": [], "round_metrics": {}}
 
