@@ -158,7 +158,28 @@ class FederatedSimulation:
         batch_size = self.strategy_config.batch_size
         training_subset_fraction = self.strategy_config.training_subset_fraction
 
-        if dataset_keyword == "its":
+        dataset_source = getattr(self.strategy_config, "dataset_source", "local")
+
+        if dataset_source == "huggingface":
+            from src.dataset_loaders.federated_dataset_loader import (
+                FederatedDatasetLoader,
+            )
+
+            dataset_loader = FederatedDatasetLoader(
+                dataset_name=self.strategy_config.hf_dataset_name,
+                num_of_clients=num_of_clients,
+                batch_size=batch_size,
+                training_subset_fraction=training_subset_fraction,
+                partitioning_strategy=getattr(
+                    self.strategy_config, "partitioning_strategy", "iid"
+                ),
+                partitioning_params=getattr(
+                    self.strategy_config, "partitioning_params", None
+                ),
+            )
+            self._network_model = FemnistReducedIIDNetwork()
+
+        elif dataset_keyword == "its":
             dataset_loader = ImageDatasetLoader(
                 transformer=its_image_transformer,
                 dataset_dir=self._dataset_dir,
@@ -441,6 +462,13 @@ class FederatedSimulation:
         trainloader = self._trainloaders[int(cid)]
         valloader = self._valloaders[int(cid)]
 
+        dynamic_attacks_schedule = None
+        if self.strategy_config.dynamic_attacks:
+            if self.strategy_config.dynamic_attacks.get("enabled", False):
+                dynamic_attacks_schedule = self.strategy_config.dynamic_attacks.get(
+                    "schedule", []
+                )
+
         return FlowerClient(
             client_id=int(cid),
             net=net,
@@ -451,6 +479,7 @@ class FederatedSimulation:
             model_type=self.strategy_config.model_type,
             use_lora=use_lora,
             num_malicious_clients=self.strategy_config.num_of_malicious_clients,
+            dynamic_attacks_schedule=dynamic_attacks_schedule,
         ).to_client()
 
     @staticmethod
