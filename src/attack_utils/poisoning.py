@@ -6,7 +6,7 @@ during client training loops. Supports both image and text-based attacks.
 """
 
 import torch
-from typing import Optional, Tuple, Union
+from typing import Optional, Tuple
 
 
 def apply_label_flipping(

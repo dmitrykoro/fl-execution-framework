@@ -5,7 +5,6 @@ import flwr
 
 from flwr.client import Client
 from flwr.common import ndarrays_to_parameters
-from flwr.server.strategy.fedavg import FedAvg
 from typing import Tuple, Union, Sequence
 
 from peft import PeftModel, get_peft_model_state_dict
@@ -48,6 +47,7 @@ from src.network_models.bert_model_definition import load_model, load_model_with
 
 from src.client_models.flower_client import FlowerClient
 
+from src.simulation_strategies.fedavg_strategy import FedAvgStrategy
 from src.simulation_strategies.trust_based_removal_strategy import (
     TrustBasedRemovalStrategy,
 )
@@ -421,7 +421,8 @@ class FederatedSimulation:
             )
 
         elif aggregation_strategy_keyword == "fedavg":
-            self._aggregation_strategy = FedAvg(
+            self._aggregation_strategy = FedAvgStrategy(
+                strategy_history=self.strategy_history,
                 initial_parameters=ndarrays_to_parameters(
                     self._get_model_params(self._network_model)
                 ),
