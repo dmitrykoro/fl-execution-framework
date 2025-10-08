@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { Card, Row, Col, Spinner, Alert, Button, Table, Badge } from 'react-bootstrap';
 import { getSimulationDetails, getSimulationStatus } from '../api';

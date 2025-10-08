@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import {
   Card,
@@ -13,12 +13,18 @@ import {
   Form,
 } from 'react-bootstrap';
 import useApi from '../hooks/useApi';
-import { getSimulations, getSimulationStatus } from '../api';
+import {
+  getSimulations,
+  getSimulationStatus,
+  deleteSimulation,
+  deleteMultipleSimulations,
+} from '../api';
 
 function Dashboard() {
-  const { data: simulations, loading, error } = useApi(getSimulations);
+  const { data: simulations, loading, error, refetch } = useApi(getSimulations);
   const [statuses, setStatuses] = useState({});
   const [selectedSims, setSelectedSims] = useState([]);
+  const [deleting, setDeleting] = useState(false);
   const navigate = useNavigate();
 
   const getRelativeTime = timestamp => {
@@ -112,6 +118,66 @@ function Dashboard() {
     navigate(`/compare?ids=${selectedSims.join(',')}`);
   };
 
+  const handleDeleteOne = async simId => {
+    const statusData = statuses[simId];
+    if (statusData?.status === 'running') {
+      alert('❌ Cannot delete a running simulation');
+      return;
+    }
+
+    if (!window.confirm(`🗑️ Delete simulation "${simId}"?`)) {
+      return;
+    }
+
+    setDeleting(true);
+    try {
+      await deleteSimulation(simId);
+      setSelectedSims(prev => prev.filter(id => id !== simId));
+      await refetch();
+    } catch (err) {
+      alert(`❌ Failed to delete: ${err.response?.data?.detail || err.message}`);
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  const handleDeleteSelected = async () => {
+    if (selectedSims.length === 0) {
+      alert('⚠️ No simulations selected');
+      return;
+    }
+
+    const runningSimulations = selectedSims.filter(simId => statuses[simId]?.status === 'running');
+    if (runningSimulations.length > 0) {
+      alert(`❌ Cannot delete running simulations: ${runningSimulations.join(', ')}`);
+      return;
+    }
+
+    if (!window.confirm(`🗑️ Delete ${selectedSims.length} simulation(s)?`)) {
+      return;
+    }
+
+    setDeleting(true);
+    try {
+      const response = await deleteMultipleSimulations(selectedSims);
+      const { deleted, failed } = response.data;
+
+      if (failed.length > 0) {
+        const failedList = failed.map(f => `${f.simulation_id}: ${f.error}`).join('\n');
+        alert(`⚠️ Some deletions failed:\n${failedList}`);
+      }
+
+      if (deleted.length > 0) {
+        setSelectedSims([]);
+        await refetch();
+      }
+    } catch (err) {
+      alert(`❌ Failed to delete: ${err.response?.data?.detail || err.message}`);
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   const getStatusBadge = statusData => {
     if (!statusData) return <Badge bg="secondary">pending</Badge>;
 
@@ -172,9 +238,14 @@ function Dashboard() {
         <h1>Simulation Dashboard</h1>
         <div className="d-flex gap-2">
           {selectedSims.length > 0 && (
-            <Button variant="info" onClick={handleCompare}>
-              📊 Compare Selected ({selectedSims.length})
-            </Button>
+            <>
+              <Button variant="danger" onClick={handleDeleteSelected} disabled={deleting}>
+                🗑️ Delete Selected ({selectedSims.length})
+              </Button>
+              <Button variant="info" onClick={handleCompare}>
+                📊 Compare Selected ({selectedSims.length})
+              </Button>
+            </>
           )}
           <Link to="/simulations/new">
             <Button variant="primary">+ New Simulation</Button>
@@ -209,7 +280,19 @@ function Dashboard() {
                         />
                         <Card.Title className="mb-0">{sim.strategy_name}</Card.Title>
                       </div>
-                      {getStatusBadge(statusData)}
+                      <div className="d-flex gap-2 align-items-center">
+                        {getStatusBadge(statusData)}
+                        <Button
+                          variant="link"
+                          size="sm"
+                          className="text-danger p-0"
+                          onClick={() => handleDeleteOne(sim.simulation_id)}
+                          disabled={deleting}
+                          title="Delete simulation"
+                        >
+                          🗑️
+                        </Button>
+                      </div>
                     </div>
                     <Card.Subtitle className="mb-2 text-muted">
                       {sim.simulation_id}
