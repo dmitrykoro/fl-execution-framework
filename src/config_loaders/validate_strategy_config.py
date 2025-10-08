@@ -65,6 +65,67 @@ config_schema = {
                 "type": "string",
             },
         },
+        # Dataset source control
+        "dataset_source": {"type": "string", "enum": ["local", "huggingface"]},
+        "hf_dataset_name": {"type": "string"},
+        "partitioning_strategy": {
+            "type": "string",
+            "enum": ["iid", "dirichlet", "pathological"],
+        },
+        "partitioning_params": {"type": "object"},
+        # Dynamic poisoning attacks
+        "dynamic_attacks": {
+            "type": "object",
+            "properties": {
+                "enabled": {"type": "boolean"},
+                "schedule": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "start_round": {"type": "integer", "minimum": 1},
+                            "end_round": {"type": "integer", "minimum": 1},
+                            "selection_strategy": {
+                                "type": "string",
+                                "enum": ["specific", "random", "percentage"],
+                            },
+                            "client_ids": {
+                                "type": "array",
+                                "items": {"type": "integer"},
+                            },
+                            "num_clients": {"type": "integer", "minimum": 1},
+                            "percentage": {
+                                "type": "number",
+                                "minimum": 0,
+                                "maximum": 1,
+                            },
+                            "attack_config": {
+                                "type": "object",
+                                "properties": {
+                                    "type": {
+                                        "type": "string",
+                                        "enum": [
+                                            "label_flipping",
+                                            "gaussian_noise",
+                                            "brightness",
+                                            "token_replacement",
+                                        ],
+                                    },
+                                    "params": {"type": "object"},
+                                },
+                                "required": ["type", "params"],
+                            },
+                        },
+                        "required": [
+                            "start_round",
+                            "selection_strategy",
+                            "attack_config",
+                        ],
+                    },
+                },
+            },
+            "required": ["enabled"],
+        },
         # Flower settings
         "training_device": {"type": "string", "enum": ["cpu", "gpu", "cuda"]},
         "cpus_per_client": {"type": "integer"},
@@ -252,6 +313,42 @@ def _handle_strict_mode_validation(config: dict) -> None:
             logging.info("  - This ensures all clients participate in every round")
 
 
+def validate_huggingface_dataset(config: dict) -> None:
+    """Validate HuggingFace dataset configuration."""
+
+    dataset_source = config.get("dataset_source", "local")
+
+    if dataset_source == "huggingface":
+        if not config.get("hf_dataset_name"):
+            raise ValidationError(
+                "hf_dataset_name is required when dataset_source='huggingface'"
+            )
+
+        valid_strategies = ["iid", "dirichlet", "pathological"]
+        strategy = config.get("partitioning_strategy", "iid")
+        if strategy not in valid_strategies:
+            raise ValidationError(
+                f"Invalid partitioning_strategy: {strategy}. "
+                f"Must be one of: {', '.join(valid_strategies)}"
+            )
+
+        if strategy == "dirichlet":
+            params = config.get("partitioning_params", {})
+            alpha = params.get("alpha", 0.5)
+            if not 0 < alpha <= 10:
+                raise ValidationError(
+                    f"Dirichlet alpha must be in range (0, 10], got: {alpha}"
+                )
+
+        elif strategy == "pathological":
+            params = config.get("partitioning_params", {})
+            num_classes = params.get("num_classes_per_partition", 2)
+            if num_classes < 1:
+                raise ValidationError(
+                    f"num_classes_per_partition must be >= 1, got: {num_classes}"
+                )
+
+
 def validate_strategy_config(config: dict) -> None:
     """Validate config based on the schema, will raise an exception if invalid"""
 
@@ -263,6 +360,9 @@ def validate_strategy_config(config: dict) -> None:
     use_llm_keyword = config["use_llm"]
     if use_llm_keyword == "true":
         check_llm_specific_parameters(config)
+
+    # Validate HuggingFace dataset configuration
+    validate_huggingface_dataset(config)
 
     # Handle strict_mode logic
     _handle_strict_mode_validation(config)
