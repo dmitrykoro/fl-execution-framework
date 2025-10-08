@@ -513,3 +513,248 @@ class TestFederatedSimulationErrorHandling:
         # Verify strategy history is properly linked
         assert simulation.strategy_history.strategy_config == strategy_config
         assert simulation.strategy_history.dataset_handler == mock_dataset_handler
+
+
+class TestWeightedAverage:
+    """Test suite for weighted_average function."""
+
+    def test_weighted_average_empty_metrics(self) -> None:
+        """Test weighted_average with empty metrics list."""
+        from src.federated_simulation import weighted_average
+
+        result = weighted_average([])
+        assert result == {}
+
+    def test_weighted_average_single_client(self) -> None:
+        """Test weighted_average with single client."""
+        from src.federated_simulation import weighted_average
+
+        metrics = [(100, {"accuracy": 0.85, "loss": 0.25})]
+        result = weighted_average(metrics)
+
+        assert "accuracy" in result
+        assert "loss" in result
+        assert result["accuracy"] == 0.85
+        assert result["loss"] == 0.25
+
+    def test_weighted_average_multiple_clients_equal_samples(self) -> None:
+        """Test weighted_average with multiple clients having equal samples."""
+        from src.federated_simulation import weighted_average
+
+        metrics = [
+            (100, {"accuracy": 0.8, "loss": 0.3}),
+            (100, {"accuracy": 0.9, "loss": 0.2}),
+        ]
+        result = weighted_average(metrics)
+
+        # With equal weights, should be simple average
+        assert abs(result["accuracy"] - 0.85) < 1e-6
+        assert abs(result["loss"] - 0.25) < 1e-6
+
+    def test_weighted_average_multiple_clients_different_samples(self) -> None:
+        """Test weighted_average with clients having different sample counts."""
+        from src.federated_simulation import weighted_average
+
+        metrics = [
+            (100, {"accuracy": 0.8, "loss": 0.3}),  # 100 samples
+            (200, {"accuracy": 0.9, "loss": 0.2}),  # 200 samples
+        ]
+        result = weighted_average(metrics)
+
+        # Weighted: (100*0.8 + 200*0.9) / 300 = 260/300 = 0.8666...
+        expected_accuracy = (100 * 0.8 + 200 * 0.9) / 300
+        expected_loss = (100 * 0.3 + 200 * 0.2) / 300
+
+        assert abs(result["accuracy"] - expected_accuracy) < 1e-6
+        assert abs(result["loss"] - expected_loss) < 1e-6
+
+    def test_weighted_average_different_metric_sets(self) -> None:
+        """Test weighted_average when clients have different metrics."""
+        from src.federated_simulation import weighted_average
+
+        metrics = [
+            (100, {"accuracy": 0.8, "precision": 0.85}),
+            (200, {"accuracy": 0.9, "recall": 0.88}),
+        ]
+        result = weighted_average(metrics)
+
+        # All metrics should be in result
+        assert "accuracy" in result
+        assert "precision" in result
+        assert "recall" in result
+
+        # Accuracy: both clients have it
+        expected_accuracy = (100 * 0.8 + 200 * 0.9) / 300
+        assert abs(result["accuracy"] - expected_accuracy) < 1e-6
+
+        # Precision: only first client
+        assert abs(result["precision"] - 0.85) < 1e-6
+
+        # Recall: only second client
+        assert abs(result["recall"] - 0.88) < 1e-6
+
+    def test_weighted_average_missing_metrics_in_some_clients(self) -> None:
+        """Test weighted_average when some clients are missing certain metrics."""
+        from src.federated_simulation import weighted_average
+
+        metrics = [
+            (100, {"accuracy": 0.8, "loss": 0.3}),
+            (200, {"accuracy": 0.9}),  # Missing loss
+            (150, {"loss": 0.25}),  # Missing accuracy
+        ]
+        result = weighted_average(metrics)
+
+        # Accuracy: clients 0 and 1
+        expected_accuracy = (100 * 0.8 + 200 * 0.9) / (100 + 200)
+        assert abs(result["accuracy"] - expected_accuracy) < 1e-6
+
+        # Loss: clients 0 and 2
+        expected_loss = (100 * 0.3 + 150 * 0.25) / (100 + 150)
+        assert abs(result["loss"] - expected_loss) < 1e-6
+
+    def test_weighted_average_zero_samples(self) -> None:
+        """Test weighted_average handles zero samples gracefully."""
+        from src.federated_simulation import weighted_average
+
+        metrics = [
+            (0, {"accuracy": 0.8}),  # Zero samples
+            (100, {"accuracy": 0.9}),
+        ]
+        result = weighted_average(metrics)
+
+        # Should only count client with non-zero samples
+        assert abs(result["accuracy"] - 0.9) < 1e-6
+
+    def test_weighted_average_all_zero_samples(self) -> None:
+        """Test weighted_average when all clients have zero samples."""
+        from src.federated_simulation import weighted_average
+
+        metrics = [
+            (0, {"accuracy": 0.8}),
+            (0, {"accuracy": 0.9}),
+        ]
+        result = weighted_average(metrics)
+
+        # No metrics should be computed when total_samples is 0
+        assert "accuracy" not in result or result.get("accuracy") is None
+
+    def test_weighted_average_complex_metrics(self) -> None:
+        """Test weighted_average with multiple complex metrics."""
+        from src.federated_simulation import weighted_average
+
+        metrics = [
+            (100, {"accuracy": 0.85, "precision": 0.88, "recall": 0.82, "f1": 0.85}),
+            (
+                200,
+                {"accuracy": 0.90, "precision": 0.92, "recall": 0.87, "f1": 0.895},
+            ),
+            (150, {"accuracy": 0.88, "precision": 0.89, "recall": 0.85, "f1": 0.87}),
+        ]
+        result = weighted_average(metrics)
+
+        # All metrics should be present
+        assert all(
+            metric in result for metric in ["accuracy", "precision", "recall", "f1"]
+        )
+
+        # Verify weighted calculations
+        total_samples = 450
+        expected_accuracy = (100 * 0.85 + 200 * 0.90 + 150 * 0.88) / total_samples
+        assert abs(result["accuracy"] - expected_accuracy) < 1e-6
+
+    def test_weighted_average_negative_metric_values(self) -> None:
+        """Test weighted_average handles negative metric values."""
+        from src.federated_simulation import weighted_average
+
+        metrics = [
+            (100, {"score": -0.5}),
+            (200, {"score": 0.3}),
+        ]
+        result = weighted_average(metrics)
+
+        expected_score = (100 * -0.5 + 200 * 0.3) / 300
+        assert abs(result["score"] - expected_score) < 1e-6
+
+    def test_weighted_average_large_numbers(self) -> None:
+        """Test weighted_average with large sample counts and metric values."""
+        from src.federated_simulation import weighted_average
+
+        metrics = [
+            (1000000, {"accuracy": 0.95}),
+            (2000000, {"accuracy": 0.97}),
+        ]
+        result = weighted_average(metrics)
+
+        expected_accuracy = (1000000 * 0.95 + 2000000 * 0.97) / 3000000
+        assert abs(result["accuracy"] - expected_accuracy) < 1e-6
+
+    def test_weighted_average_floating_point_samples(self) -> None:
+        """Test weighted_average handles floating point sample counts."""
+        from src.federated_simulation import weighted_average
+
+        metrics = [
+            (100.5, {"accuracy": 0.8}),
+            (200.3, {"accuracy": 0.9}),
+        ]
+        result = weighted_average(metrics)
+
+        expected_accuracy = (100.5 * 0.8 + 200.3 * 0.9) / (100.5 + 200.3)
+        assert abs(result["accuracy"] - expected_accuracy) < 1e-6
+
+    def test_weighted_average_preserves_all_metric_names(self) -> None:
+        """Test that weighted_average preserves all unique metric names."""
+        from src.federated_simulation import weighted_average
+
+        metrics = [
+            (100, {"metric1": 0.5, "metric2": 0.6}),
+            (200, {"metric2": 0.7, "metric3": 0.8}),
+            (150, {"metric3": 0.9, "metric4": 1.0}),
+        ]
+        result = weighted_average(metrics)
+
+        # All unique metrics should be present
+        assert set(result.keys()) == {"metric1", "metric2", "metric3", "metric4"}
+
+    def test_weighted_average_single_metric_across_clients(self) -> None:
+        """Test weighted_average with single metric type across all clients."""
+        from src.federated_simulation import weighted_average
+
+        metrics = [
+            (50, {"loss": 0.5}),
+            (100, {"loss": 0.4}),
+            (150, {"loss": 0.3}),
+            (200, {"loss": 0.2}),
+        ]
+        result = weighted_average(metrics)
+
+        total = 500
+        expected_loss = (50 * 0.5 + 100 * 0.4 + 150 * 0.3 + 200 * 0.2) / total
+        assert abs(result["loss"] - expected_loss) < 1e-6
+        assert len(result) == 1  # Only one metric
+
+    def test_weighted_average_empty_metric_dict(self) -> None:
+        """Test weighted_average when client has empty metrics dict."""
+        from src.federated_simulation import weighted_average
+
+        metrics = [
+            (100, {}),  # Empty metrics
+            (200, {"accuracy": 0.9}),
+        ]
+        result = weighted_average(metrics)
+
+        # Should only have accuracy from second client
+        assert "accuracy" in result
+        assert abs(result["accuracy"] - 0.9) < 1e-6
+
+    def test_weighted_average_all_empty_metric_dicts(self) -> None:
+        """Test weighted_average when all clients have empty metrics dicts."""
+        from src.federated_simulation import weighted_average
+
+        metrics = [
+            (100, {}),
+            (200, {}),
+        ]
+        result = weighted_average(metrics)
+
+        # Should return empty dict
+        assert result == {}
