@@ -14,7 +14,11 @@ const initialConfig = {
   attack_ratio: 1.0,
 
   // Dataset & Model
+  dataset_source: "local", // "local" | "huggingface"
   dataset_keyword: "femnist_iid",
+  hf_dataset_name: "", // HuggingFace dataset name
+  partitioning_strategy: "iid", // "iid" | "dirichlet" | "pathological"
+  partitioning_params: {}, // e.g., {"alpha": 0.5} for Dirichlet
   model_type: "cnn",
   use_llm: "false",
 
@@ -23,6 +27,12 @@ const initialConfig = {
   gaussian_noise_mean: 0,
   gaussian_noise_std: 75,
   num_std_dev: 2,
+
+  // Dynamic Poisoning Attacks
+  dynamic_attacks: {
+    enabled: false,
+    schedule: []
+  },
 
   // Defense Strategy
   aggregation_strategy_keyword: "pid",
@@ -612,18 +622,106 @@ function NewSimulation() {
 
               <Form.Group className="mb-3">
                 <Form.Label>
-                  Dataset <span className="text-danger">*</span>{' '}
+                  Dataset Source <span className="text-danger">*</span>{' '}
                   <OverlayTrigger
                     placement="right"
-                    overlay={<Tooltip>Training dataset automatically split across clients. FEMNIST = handwritten characters (image classification). Medical: pneumoniamnist, bloodmnist, lung_photos = medical imaging. FLAIR, MedQuAD = medical text (NLP). IID = evenly distributed, NIID = non-evenly distributed (more realistic).</Tooltip>}
+                    overlay={<Tooltip>Choose dataset source. Local = pre-configured datasets in this framework. HuggingFace = download from HuggingFace Hub (100+ research datasets like MNIST, CIFAR-10, FEMNIST with flexible partitioning).</Tooltip>}
                   >
                     <span style={{ cursor: 'help' }}>ℹ️</span>
                   </OverlayTrigger>
                 </Form.Label>
-                <Form.Select name="dataset_keyword" value={config.dataset_keyword} onChange={handleChange}>
-                  {DATASETS.map(d => <option key={d} value={d}>{d}</option>)}
+                <Form.Select name="dataset_source" value={config.dataset_source} onChange={handleChange}>
+                  <option value="local">Local Dataset</option>
+                  <option value="huggingface">HuggingFace Hub</option>
                 </Form.Select>
               </Form.Group>
+
+              {config.dataset_source === "local" && (
+                <Form.Group className="mb-3">
+                  <Form.Label>
+                    Dataset <span className="text-danger">*</span>{' '}
+                    <OverlayTrigger
+                      placement="right"
+                      overlay={<Tooltip>Training dataset automatically split across clients. FEMNIST = handwritten characters (image classification). Medical: pneumoniamnist, bloodmnist, lung_photos = medical imaging. FLAIR, MedQuAD = medical text (NLP). IID = evenly distributed, NIID = non-evenly distributed (more realistic).</Tooltip>}
+                    >
+                      <span style={{ cursor: 'help' }}>ℹ️</span>
+                    </OverlayTrigger>
+                  </Form.Label>
+                  <Form.Select name="dataset_keyword" value={config.dataset_keyword} onChange={handleChange}>
+                    {DATASETS.map(d => <option key={d} value={d}>{d}</option>)}
+                  </Form.Select>
+                </Form.Group>
+              )}
+
+              {config.dataset_source === "huggingface" && (
+                <>
+                  <Form.Group className="mb-3">
+                    <Form.Label>
+                      HuggingFace Dataset Name <span className="text-danger">*</span>{' '}
+                      <OverlayTrigger
+                        placement="right"
+                        overlay={<Tooltip>Dataset identifier from HuggingFace Hub. Examples: "ylecun/mnist", "uoft-cs/cifar10", "flwrlabs/femnist". Browse available datasets at huggingface.co/datasets.</Tooltip>}
+                      >
+                        <span style={{ cursor: 'help' }}>ℹ️</span>
+                      </OverlayTrigger>
+                    </Form.Label>
+                    <Form.Control
+                      type="text"
+                      name="hf_dataset_name"
+                      value={config.hf_dataset_name}
+                      onChange={handleChange}
+                      placeholder="e.g., ylecun/mnist"
+                    />
+                  </Form.Group>
+
+                  <Form.Group className="mb-3">
+                    <Form.Label>
+                      Partitioning Strategy <span className="text-danger">*</span>{' '}
+                      <OverlayTrigger
+                        placement="right"
+                        overlay={<Tooltip>How to distribute data across clients. IID = balanced/uniform. Dirichlet = realistic heterogeneous distribution (tune α: lower = more heterogeneous). Pathological = extreme non-IID (each client gets limited label classes).</Tooltip>}
+                      >
+                        <span style={{ cursor: 'help' }}>ℹ️</span>
+                      </OverlayTrigger>
+                    </Form.Label>
+                    <Form.Select
+                      name="partitioning_strategy"
+                      value={config.partitioning_strategy}
+                      onChange={handleChange}
+                    >
+                      <option value="iid">IID (Balanced)</option>
+                      <option value="dirichlet">Dirichlet (Heterogeneous)</option>
+                      <option value="pathological">Pathological (Extreme Non-IID)</option>
+                    </Form.Select>
+                  </Form.Group>
+
+                  {config.partitioning_strategy === "dirichlet" && (
+                    <Form.Group className="mb-3">
+                      <Form.Label>
+                        Dirichlet Alpha (α){' '}
+                        <OverlayTrigger
+                          placement="right"
+                          overlay={<Tooltip>Controls data heterogeneity. Lower α = more heterogeneous (realistic). α=0.1 = very heterogeneous, α=0.5 = moderate, α=10.0 = nearly IID. Typical research values: 0.1-1.0.</Tooltip>}
+                        >
+                          <span style={{ cursor: 'help' }}>ℹ️</span>
+                        </OverlayTrigger>
+                        {' '}<span className="text-muted">Current: {config.partitioning_params?.alpha || 0.5}</span>
+                      </Form.Label>
+                      <Form.Control
+                        type="number"
+                        step="0.1"
+                        min="0.01"
+                        max="100"
+                        value={config.partitioning_params?.alpha || 0.5}
+                        onChange={(e) => {
+                          const newParams = { ...config.partitioning_params, alpha: parseFloat(e.target.value) };
+                          handleChange({ target: { name: 'partitioning_params', value: newParams } });
+                        }}
+                      />
+                    </Form.Group>
+                  )}
+                </>
+              )}
 
               <Form.Group className="mb-3">
                 <Form.Label>
