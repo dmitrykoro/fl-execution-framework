@@ -42,7 +42,7 @@ Three-tier architecture with clear separation of concerns:
 
 ## 🛠️ Backend API (FastAPI)
 
-### Core File: `src/api/main.py` (~438 lines)
+### Core File: `src/api/main.py`
 
 **Key Features:**
 
@@ -282,7 +282,6 @@ export const getSimulationStatus = (id) => api.get(`/api/simulations/${id}/statu
 
 - Added fedavg strategy support (vanilla Flower FedAvg as baseline)
 - Frontend defaults to fedavg for simplicity
-- 12 lines following existing patterns
 
 ### Client Sample Counts
 
@@ -331,24 +330,22 @@ cd frontend && npm run dev
 
 **New Files:**
 
-- Backend: `src/api/main.py` (~438 lines)
-- Frontend: 8+ files (~1500 lines total)
+- Backend: `src/api/main.py`
+- Frontend: Core components and infrastructure
 - Infrastructure: `package.json`, `start-dev.sh`
 
 **Modified Files:**
 
-- `src/federated_simulation.py`: +12 lines (fedavg support)
-- `src/config_loaders/validate_strategy_config.py`: +1 line (fedavg enum)
-- `src/client_models/flower_client.py`: ~5 lines (sample count fixes)
-- `src/output_handlers/new_plot_handler.py`: +50 lines (JSON export, robustness)
-- `src/output_handlers/directory_handler.py`: +10 lines (output_dir parameter)
+- `src/federated_simulation.py`: fedavg support
+- `src/config_loaders/validate_strategy_config.py`: fedavg enum
+- `src/client_models/flower_client.py`: sample count fixes
+- `src/output_handlers/new_plot_handler.py`: JSON export, robustness
+- `src/output_handlers/directory_handler.py`: output_dir parameter
 
 **Code Formatting:**
 
-- 48 Python files reformatted with `ruff`
-- 1693 insertions, 1080 deletions (whitespace, import ordering)
+- Python files reformatted with `ruff`
 - No functional changes
-- Accounts for majority of diff size between branches
 
 ---
 

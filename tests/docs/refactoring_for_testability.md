@@ -110,8 +110,6 @@ Test suite verifying framework functionality across datasets and federated learn
 
 **Risk:** Very low - aligns with Flower framework metrics pattern
 
-**Lines Changed:** ~10 lines in `train()` and `fit()` methods
-
 ### Network Architecture
 
 #### **Dynamic Network Sizing**
@@ -205,8 +203,6 @@ Test suite verifying framework functionality across datasets and federated learn
 **Impact:** Prevents `IndexError` when rounds and metrics have different lengths
 
 **Risk:** Very low - defensive programming for robustness
-
-**Lines Changed:** ~15 lines across multiple plot generation functions
 
 #### **CSV Metric Handling**
 
