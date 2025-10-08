@@ -32,7 +32,7 @@ log_info "⚡ Running ruff format..."
 ruff format .
 
 log_info "✨ Running frontend linting..."
-cd frontend && npm run lint && npm run format && cd ..
+cd frontend && npm run lint && npm run format -- --log-level warn && cd ..
 
 # TODO: replace when root type checking is ready
 # log_info "🔍 Running mypy..."
