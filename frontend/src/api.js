@@ -26,3 +26,11 @@ export const getSimulationStatus = simulationId => {
 export const getResultFile = (simulationId, filename) => {
   return apiClient.get(`/simulations/${simulationId}/results/${filename}`);
 };
+
+export const deleteSimulation = simulationId => {
+  return apiClient.delete(`/simulations/${simulationId}`);
+};
+
+export const deleteMultipleSimulations = simulationIds => {
+  return apiClient.delete('/simulations', { data: { simulation_ids: simulationIds } });
+};
