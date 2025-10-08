@@ -198,6 +198,15 @@ export function validateStrategyParams(config) {
     }
   }
 
+  // FedAvg strategy - no per-client plots
+  if (aggregation_strategy_keyword === 'fedavg') {
+    infos.push({
+      field: 'aggregation_strategy_keyword',
+      message:
+        'FedAvg only produces round-level plots (loss/accuracy convergence). For per-client visualizations, try Krum, Multi-Krum, or PID strategies.',
+    });
+  }
+
   return { errors, warnings, infos };
 }
 
