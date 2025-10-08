@@ -6,7 +6,7 @@
  */
 
 /**
- * Validate client configuration (Priority 1: Critical)
+ * Validate client configuration
  * Source: validate_strategy_config.py:207-253
  */
 export function validateClientConfig(config) {
@@ -22,7 +22,7 @@ export function validateClientConfig(config) {
     strict_mode = "true"
   } = config;
 
-  // Rule 1: Min client bounds - all min_* values must be <= num_of_clients
+  // Min client bounds - all min_* values must be <= num_of_clients
   if (min_fit_clients > num_of_clients) {
     errors.push({
       field: "min_fit_clients",
@@ -44,7 +44,7 @@ export function validateClientConfig(config) {
     });
   }
 
-  // Rule 2: Strict mode warnings - backend auto-corrects these values
+  // Strict mode warnings
   if (strict_mode === "true") {
     if (min_fit_clients !== num_of_clients && min_fit_clients <= num_of_clients) {
       warnings.push({
@@ -70,7 +70,7 @@ export function validateClientConfig(config) {
 }
 
 /**
- * Validate strategy-specific parameters (Priority 2)
+ * Validate strategy-specific parameters
  * Source: validate_strategy_config.py:124-157
  */
 export function validateStrategyParams(config) {
@@ -125,6 +125,53 @@ export function validateStrategyParams(config) {
         field: "num_krum_selections",
         message: `Krum Selections is required for ${aggregation_strategy_keyword} strategy`
       });
+    } else {
+      const { num_krum_selections, num_of_clients, num_of_malicious_clients = 0 } = config;
+
+      // Error: num_krum_selections must be < num_of_clients
+      if (num_krum_selections >= num_of_clients) {
+        errors.push({
+          field: "num_krum_selections",
+          message: `Krum Selections (${num_krum_selections}) must be less than total clients (${num_of_clients})`
+        });
+      }
+
+      // Warning: Recommend optimal value
+      const recommended = num_of_clients - num_of_malicious_clients - 2;
+      if (recommended > 0 && num_krum_selections > recommended) {
+        warnings.push({
+          field: "num_krum_selections",
+          message: `For best Byzantine robustness with ${num_of_malicious_clients} malicious clients, consider setting to ${recommended} or lower`
+        });
+      }
+    }
+  }
+
+  // Bulyan strategy - special validation
+  if (aggregation_strategy_keyword === "bulyan") {
+    if (config.num_krum_selections === undefined || config.num_krum_selections === null || config.num_krum_selections === '') {
+      errors.push({
+        field: "num_krum_selections",
+        message: "Krum Selections is required for bulyan strategy"
+      });
+    } else {
+      const { num_krum_selections, num_of_clients } = config;
+
+      // Bulyan constraint: (n - C) must be even for n - C = 2f
+      const diff = num_of_clients - num_krum_selections;
+      if (diff % 2 !== 0) {
+        errors.push({
+          field: "num_krum_selections",
+          message: `Bulyan requires (clients - selections) to be even. With ${num_of_clients} clients, try ${num_krum_selections - 1} or ${num_krum_selections + 1} selections`
+        });
+      }
+
+      if (num_krum_selections >= num_of_clients) {
+        errors.push({
+          field: "num_krum_selections",
+          message: `Krum Selections (${num_krum_selections}) must be less than total clients (${num_of_clients})`
+        });
+      }
     }
   }
 
@@ -147,7 +194,7 @@ export function validateStrategyParams(config) {
 }
 
 /**
- * Validate attack configuration (Priority 3)
+ * Validate attack configuration
  * Source: validate_strategy_config.py:159-171
  */
 export function validateAttackConfig(config) {
@@ -181,7 +228,84 @@ export function validateAttackConfig(config) {
 }
 
 /**
- * Validate LLM configuration (Priority 4)
+ * Validate dataset and model type compatibility
+ */
+export function validateDatasetModelCompatibility(config) {
+  const errors = [];
+  const warnings = [];
+  const infos = [];
+
+  const { model_type, dataset_source, dataset_keyword, hf_dataset_name } = config;
+
+  // Define dataset modalities
+  const IMAGE_DATASETS_LOCAL = ['femnist_iid', 'femnist_niid', 'its', 'pneumoniamnist', 'bloodmnist', 'lung_photos'];
+  const TEXT_DATASETS_LOCAL = ['flair', 'medquad'];
+
+  // Common HuggingFace dataset patterns
+  const IMAGE_DATASET_PATTERNS = [
+    'mnist', 'cifar', 'femnist', 'fashion', 'svhn',
+    'imagenet', 'coco', 'celeb', 'flowers', 'food',
+    'medmnist', 'pneumonia', 'chest', 'xray', 'blood', 'skin'
+  ];
+
+  const TEXT_DATASET_PATTERNS = [
+    'imdb', 'shakespeare', 'ag_news', 'yelp', 'sst',
+    'glue', 'squad', 'wikitext', 'bookcorpus', 'amazon',
+    'tweet', 'sentiment', 'review', 'qa', 'nli',
+    'flair', 'medquad', 'pubmed', 'mimic'
+  ];
+
+  let datasetModality = null;
+
+  // Determine dataset modality
+  if (dataset_source === 'local') {
+    if (IMAGE_DATASETS_LOCAL.includes(dataset_keyword)) {
+      datasetModality = 'image';
+    } else if (TEXT_DATASETS_LOCAL.includes(dataset_keyword)) {
+      datasetModality = 'text';
+    }
+  } else if (dataset_source === 'huggingface' && hf_dataset_name) {
+    const nameLower = hf_dataset_name.toLowerCase();
+
+    // Check if it matches known image patterns
+    const isImage = IMAGE_DATASET_PATTERNS.some(pattern => nameLower.includes(pattern));
+    const isText = TEXT_DATASET_PATTERNS.some(pattern => nameLower.includes(pattern));
+
+    if (isImage && !isText) {
+      datasetModality = 'image';
+    } else if (isText && !isImage) {
+      datasetModality = 'text';
+    } else if (isImage && isText) {
+      // Ambiguous - could be multimodal
+      datasetModality = 'unknown';
+    }
+  }
+
+  // Validate model_type vs dataset modality
+  if (datasetModality && model_type) {
+    if (model_type === 'cnn' && datasetModality === 'text') {
+      errors.push({
+        field: 'model_type',
+        message: `CNN models don't work with text datasets. Please select "Transformer" model type or choose an image dataset.`
+      });
+    } else if (model_type === 'transformer' && datasetModality === 'image') {
+      warnings.push({
+        field: 'model_type',
+        message: `Transformer models are slower for image datasets. Consider using CNN for better performance, or keep Transformer if you need LLM finetuning.`
+      });
+    } else if (datasetModality === 'unknown') {
+      infos.push({
+        field: 'hf_dataset_name',
+        message: 'Unable to auto-detect dataset type. Ensure your model type (CNN for images, Transformer for text) matches your dataset.'
+      });
+    }
+  }
+
+  return { errors, warnings, infos };
+}
+
+/**
+ * Validate LLM configuration
  * Source: validate_strategy_config.py:174-205
  */
 export function validateLLMConfig(config) {
@@ -259,6 +383,7 @@ export function validateConfig(config) {
   const clientValidation = validateClientConfig(config);
   const strategyValidation = validateStrategyParams(config);
   const attackValidation = validateAttackConfig(config);
+  const datasetModelValidation = validateDatasetModelCompatibility(config);
   const llmValidation = validateLLMConfig(config);
 
   // Aggregate all errors, warnings, and infos
@@ -266,6 +391,7 @@ export function validateConfig(config) {
     ...clientValidation.errors,
     ...strategyValidation.errors,
     ...attackValidation.errors,
+    ...datasetModelValidation.errors,
     ...llmValidation.errors
   ];
 
@@ -273,6 +399,7 @@ export function validateConfig(config) {
     ...clientValidation.warnings,
     ...strategyValidation.warnings,
     ...attackValidation.warnings,
+    ...datasetModelValidation.warnings,
     ...llmValidation.warnings
   ];
 
@@ -280,6 +407,7 @@ export function validateConfig(config) {
     ...clientValidation.infos,
     ...strategyValidation.infos,
     ...attackValidation.infos,
+    ...datasetModelValidation.infos,
     ...llmValidation.infos
   ];
 
