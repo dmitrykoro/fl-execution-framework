@@ -4,9 +4,16 @@ A React UI for the `fl-execution-framework`.
 
 ## ✨ Features
 
-- **Dashboard**: View past simulation runs.
-- **Details**: Inspect configuration and results.
-- **Execution**: Launch new simulations from the UI.
+- **Dashboard**: View past simulation runs
+- **Details**: Inspect configuration and results
+- **Execution**: Launch new simulations from the UI
+- **HuggingFace Datasets**: Load datasets directly from HuggingFace Hub
+- **Dynamic Attacks**: Schedule round-based poisoning attacks
+
+## 📚 Documentation
+
+- **[HuggingFace Dataset Loading](./HUGGINGFACE_DATASETS.md)** - Load datasets with IID/Dirichlet/Pathological partitioning
+- **[Dynamic Poisoning Attacks](./DYNAMIC_POISONING.md)** - Configure round-based attack scheduling
 
 ## 🛠️ Running the Application
 
