@@ -5,13 +5,19 @@ This module contains only pytest-specific fixtures and configuration.
 General utilities, imports, and FL helpers are in tests.common module.
 """
 
+import json
 import logging
 import os
+import warnings
+import pytest
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict
 
-import pytest
+from fastapi import BackgroundTasks
+from fastapi.testclient import TestClient
+from src.api.main import app
+
 from tests.common import STRATEGY_CONFIGS, np
 
 # Deterministic test environment
@@ -72,6 +78,63 @@ def mock_client_parameters():
     """Generate mock client parameters."""
     rng = np.random.default_rng(42)
     return [rng.standard_normal(100) for _ in range(5)]
+
+
+# API Testing Fixtures
+@pytest.fixture
+def api_client():
+    """FastAPI TestClient for API tests."""
+    # Suppress httpx deprecation warning for TestClient
+    with warnings.catch_warnings():
+        warnings.filterwarnings(
+            "ignore", category=DeprecationWarning, module="httpx._client"
+        )
+        return TestClient(app=app)
+
+
+@pytest.fixture
+def mock_simulation_dir(tmp_path: Path) -> Path:
+    """Mock simulation output directory structure."""
+    sim_dir = tmp_path / "out" / "api_run_20250107_120000"
+    sim_dir.mkdir(parents=True)
+
+    # Create mock config.json
+    config = {
+        "shared_settings": {
+            "aggregation_strategy_keyword": "fedavg",
+            "num_of_rounds": 5,
+            "num_of_clients": 3,
+            "dataset_keyword": "bloodmnist",
+        },
+        "simulation_strategies": [{}],
+    }
+
+    (sim_dir / "config.json").write_text(json.dumps(config, indent=4))
+
+    # Create mock result files
+    (sim_dir / "metrics.csv").write_text(
+        "round,accuracy,loss\n1,0.85,0.45\n2,0.88,0.35\n"
+    )
+    (sim_dir / "plot_data_0.json").write_text(
+        '{"rounds": [1, 2, 3], "accuracy": [0.85, 0.88, 0.90]}'
+    )
+
+    # Create mock PDF plot
+    (sim_dir / "accuracy_plot.pdf").write_text("Mock PDF content")
+
+    return sim_dir
+
+
+@pytest.fixture
+def mock_background_task(monkeypatch: pytest.MonkeyPatch):
+    """Mock BackgroundTasks.add_task to prevent actual simulation runs."""
+    tasks = []
+
+    def mock_add_task(func, *args, **kwargs):
+        tasks.append((func, args, kwargs))
+
+    monkeypatch.setattr(BackgroundTasks, "add_task", mock_add_task)
+    return tasks
 
 
 # Test failure logging setup
