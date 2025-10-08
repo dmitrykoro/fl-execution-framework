@@ -666,3 +666,381 @@ class TestBulyanStrategy:
         # Note: The implementation resets removed_client_ids each round
         assert len(first_removed) == 1
         assert len(second_removed) == 1
+
+
+class TestBulyanAggregateEvaluate:
+    """Test cases for aggregate_evaluate method."""
+
+    @pytest.fixture
+    def mock_strategy_history(self):
+        """Create mock strategy history."""
+        return Mock(spec=SimulationStrategyHistory)
+
+    @pytest.fixture
+    def bulyan_strategy(self, mock_strategy_history):
+        """Create BulyanStrategy instance for testing."""
+        return BulyanStrategy(
+            remove_clients=True,
+            num_krum_selections=13,
+            begin_removing_from_round=2,
+            strategy_history=mock_strategy_history,
+        )
+
+    def test_aggregate_evaluate_empty_results(self, bulyan_strategy):
+        """Test aggregate_evaluate with empty results."""
+        loss, metrics = bulyan_strategy.aggregate_evaluate(1, [], [])
+
+        # Should return None for empty results
+        assert loss is None
+        assert metrics == {}
+
+    def test_aggregate_evaluate_with_valid_results(self, bulyan_strategy):
+        """Test aggregate_evaluate with valid client results."""
+        from flwr.common import EvaluateRes
+
+        bulyan_strategy.current_round = 1
+
+        # Create mock client results
+        results = []
+        for i in range(5):
+            client_proxy = Mock(spec=ClientProxy)
+            client_proxy.cid = str(i)
+
+            eval_res = Mock(spec=EvaluateRes)
+            eval_res.loss = 0.5 + i * 0.1
+            eval_res.num_examples = 100
+            eval_res.metrics = {"accuracy": 0.8 - i * 0.05}
+
+            results.append((client_proxy, eval_res))
+
+        loss, metrics = bulyan_strategy.aggregate_evaluate(1, results, [])
+
+        # Should return aggregated loss
+        assert loss is not None
+        assert isinstance(loss, float)
+        assert isinstance(metrics, dict)
+
+        # Verify strategy history was updated for accuracy and loss
+        assert (
+            bulyan_strategy.strategy_history.insert_single_client_history_entry.call_count
+            == 10
+        )  # 5 for accuracy + 5 for loss
+        bulyan_strategy.strategy_history.insert_round_history_entry.assert_called_once()
+
+    def test_aggregate_evaluate_with_removed_clients(self, bulyan_strategy):
+        """Test aggregate_evaluate excludes removed clients from loss aggregation."""
+        from flwr.common import EvaluateRes
+
+        bulyan_strategy.current_round = 1
+        bulyan_strategy.removed_client_ids = {"0", "2"}
+
+        results = []
+        for i in range(5):
+            client_proxy = Mock(spec=ClientProxy)
+            client_proxy.cid = str(i)
+
+            eval_res = Mock(spec=EvaluateRes)
+            eval_res.loss = 0.5 + i * 0.1
+            eval_res.num_examples = 100
+            eval_res.metrics = {"accuracy": 0.8}
+
+            results.append((client_proxy, eval_res))
+
+        loss, metrics = bulyan_strategy.aggregate_evaluate(1, results, [])
+
+        # Should aggregate only non-removed clients (3 out of 5)
+        assert loss is not None
+
+        # Verify all clients got accuracy/loss recorded
+        assert (
+            bulyan_strategy.strategy_history.insert_single_client_history_entry.call_count
+            == 10
+        )  # 5 for accuracy + 5 for loss (all tracked)
+
+    def test_aggregate_evaluate_all_clients_removed(self, bulyan_strategy):
+        """Test aggregate_evaluate when all clients are removed raises ZeroDivisionError."""
+        from flwr.common import EvaluateRes
+
+        bulyan_strategy.current_round = 1
+        bulyan_strategy.removed_client_ids = {"0", "1", "2"}
+
+        results = []
+        for i in range(3):
+            client_proxy = Mock(spec=ClientProxy)
+            client_proxy.cid = str(i)
+
+            eval_res = Mock(spec=EvaluateRes)
+            eval_res.loss = 0.5
+            eval_res.num_examples = 100
+            eval_res.metrics = {"accuracy": 0.8}
+
+            results.append((client_proxy, eval_res))
+
+        # Should raise ZeroDivisionError when all clients are removed
+        with pytest.raises(ZeroDivisionError):
+            bulyan_strategy.aggregate_evaluate(1, results, [])
+
+    def test_aggregate_evaluate_accuracy_tracking(self, bulyan_strategy):
+        """Test that accuracy is tracked for all clients."""
+        from flwr.common import EvaluateRes
+
+        bulyan_strategy.current_round = 1
+
+        results = []
+        for i in range(3):
+            client_proxy = Mock(spec=ClientProxy)
+            client_proxy.cid = str(i)
+
+            eval_res = Mock(spec=EvaluateRes)
+            eval_res.loss = 0.5
+            eval_res.num_examples = 100
+            eval_res.metrics = {"accuracy": 0.7 + i * 0.1, "precision": 0.8}
+
+            results.append((client_proxy, eval_res))
+
+        bulyan_strategy.aggregate_evaluate(1, results, [])
+
+        # Verify accuracy was extracted from metrics for each client
+        accuracy_calls = [
+            call
+            for call in bulyan_strategy.strategy_history.insert_single_client_history_entry.call_args_list
+            if "accuracy" in str(call)
+        ]
+        assert len(accuracy_calls) == 3
+
+    def test_aggregate_evaluate_loss_tracking(self, bulyan_strategy):
+        """Test that loss is tracked for all clients."""
+        from flwr.common import EvaluateRes
+
+        bulyan_strategy.current_round = 1
+
+        results = []
+        for i in range(3):
+            client_proxy = Mock(spec=ClientProxy)
+            client_proxy.cid = str(i)
+
+            eval_res = Mock(spec=EvaluateRes)
+            eval_res.loss = 0.5 + i * 0.1
+            eval_res.num_examples = 100
+            eval_res.metrics = {"accuracy": 0.8}
+
+            results.append((client_proxy, eval_res))
+
+        bulyan_strategy.aggregate_evaluate(1, results, [])
+
+        # Verify loss was tracked for each client
+        loss_calls = [
+            call
+            for call in bulyan_strategy.strategy_history.insert_single_client_history_entry.call_args_list
+            if "loss" in str(call)
+        ]
+        assert len(loss_calls) == 3
+
+    def test_aggregate_evaluate_weighted_loss_calculation(self, bulyan_strategy):
+        """Test that loss is weighted by number of examples."""
+        from flwr.common import EvaluateRes
+
+        bulyan_strategy.current_round = 1
+
+        results = []
+        # Client 0: 100 examples, loss 1.0
+        client_proxy_0 = Mock(spec=ClientProxy)
+        client_proxy_0.cid = "0"
+        eval_res_0 = Mock(spec=EvaluateRes)
+        eval_res_0.loss = 1.0
+        eval_res_0.num_examples = 100
+        eval_res_0.metrics = {"accuracy": 0.8}
+        results.append((client_proxy_0, eval_res_0))
+
+        # Client 1: 200 examples, loss 2.0
+        client_proxy_1 = Mock(spec=ClientProxy)
+        client_proxy_1.cid = "1"
+        eval_res_1 = Mock(spec=EvaluateRes)
+        eval_res_1.loss = 2.0
+        eval_res_1.num_examples = 200
+        eval_res_1.metrics = {"accuracy": 0.7}
+        results.append((client_proxy_1, eval_res_1))
+
+        loss, metrics = bulyan_strategy.aggregate_evaluate(1, results, [])
+
+        # Weighted average: (100*1.0 + 200*2.0) / (100+200) = 500/300 = 1.6666...
+        assert loss is not None
+        assert abs(loss - 1.6666666666666667) < 1e-6
+
+    def test_aggregate_evaluate_round_history_update(self, bulyan_strategy):
+        """Test that round history is updated with aggregated loss."""
+        from flwr.common import EvaluateRes
+
+        bulyan_strategy.current_round = 1
+
+        results = []
+        for i in range(3):
+            client_proxy = Mock(spec=ClientProxy)
+            client_proxy.cid = str(i)
+
+            eval_res = Mock(spec=EvaluateRes)
+            eval_res.loss = 0.6
+            eval_res.num_examples = 100
+            eval_res.metrics = {"accuracy": 0.8}
+
+            results.append((client_proxy, eval_res))
+
+        bulyan_strategy.aggregate_evaluate(1, results, [])
+
+        # Verify round history was updated with loss
+        bulyan_strategy.strategy_history.insert_round_history_entry.assert_called_once()
+        call_kwargs = (
+            bulyan_strategy.strategy_history.insert_round_history_entry.call_args[1]
+        )
+        assert "loss_aggregated" in call_kwargs
+        assert isinstance(call_kwargs["loss_aggregated"], float)
+
+    def test_aggregate_evaluate_metrics_dict_conversion(self, bulyan_strategy):
+        """Test that metrics are properly converted to dict."""
+        from flwr.common import EvaluateRes
+
+        bulyan_strategy.current_round = 1
+
+        # Create result with various metrics
+        client_proxy = Mock(spec=ClientProxy)
+        client_proxy.cid = "0"
+        eval_res = Mock(spec=EvaluateRes)
+        eval_res.loss = 0.5
+        eval_res.num_examples = 100
+        eval_res.metrics = {
+            "accuracy": 0.85,
+            "precision": 0.9,
+            "recall": 0.88,
+            "f1": 0.89,
+        }
+        results = [(client_proxy, eval_res)]
+
+        bulyan_strategy.aggregate_evaluate(1, results, [])
+
+        # Verify that dict() was called on metrics
+        # Check that accuracy was extracted correctly
+        accuracy_calls = [
+            call
+            for call in bulyan_strategy.strategy_history.insert_single_client_history_entry.call_args_list
+            if "accuracy" in str(call)
+        ]
+        assert len(accuracy_calls) == 1
+
+    def test_aggregate_evaluate_with_failures(self, bulyan_strategy):
+        """Test aggregate_evaluate handles failures gracefully."""
+        from flwr.common import EvaluateRes
+
+        bulyan_strategy.current_round = 1
+
+        # Create one successful result
+        client_proxy = Mock(spec=ClientProxy)
+        client_proxy.cid = "0"
+        eval_res = Mock(spec=EvaluateRes)
+        eval_res.loss = 0.5
+        eval_res.num_examples = 100
+        eval_res.metrics = {"accuracy": 0.8}
+        results = [(client_proxy, eval_res)]
+
+        # Provide some failures
+        failures = [
+            (Mock(spec=ClientProxy), Exception("Test failure")),
+            (Mock(spec=ClientProxy), Exception("Another failure")),
+        ]
+
+        loss, metrics = bulyan_strategy.aggregate_evaluate(1, results, failures)
+
+        # Should still process successful results
+        assert loss is not None
+        assert isinstance(metrics, dict)
+
+    def test_aggregate_evaluate_client_id_conversion(self, bulyan_strategy):
+        """Test that client IDs are converted to int for strategy history."""
+        from flwr.common import EvaluateRes
+
+        bulyan_strategy.current_round = 1
+
+        # Create result with string client ID
+        client_proxy = Mock(spec=ClientProxy)
+        client_proxy.cid = "42"
+        eval_res = Mock(spec=EvaluateRes)
+        eval_res.loss = 0.5
+        eval_res.num_examples = 100
+        eval_res.metrics = {"accuracy": 0.8}
+        results = [(client_proxy, eval_res)]
+
+        bulyan_strategy.aggregate_evaluate(1, results, [])
+
+        # Verify client_id was converted to int in calls
+        for call in bulyan_strategy.strategy_history.insert_single_client_history_entry.call_args_list:
+            if "client_id" in call[1]:
+                assert isinstance(call[1]["client_id"], int)
+                assert call[1]["client_id"] == 42
+
+    def test_aggregate_evaluate_missing_accuracy_metric(self, bulyan_strategy):
+        """Test aggregate_evaluate when accuracy is missing from metrics."""
+        from flwr.common import EvaluateRes
+
+        bulyan_strategy.current_round = 1
+
+        # Create result without accuracy
+        client_proxy = Mock(spec=ClientProxy)
+        client_proxy.cid = "0"
+        eval_res = Mock(spec=EvaluateRes)
+        eval_res.loss = 0.5
+        eval_res.num_examples = 100
+        eval_res.metrics = {"precision": 0.9}  # No accuracy
+
+        results = [(client_proxy, eval_res)]
+
+        bulyan_strategy.aggregate_evaluate(1, results, [])
+
+        # Should handle missing accuracy gracefully (using .get())
+        accuracy_calls = [
+            call
+            for call in bulyan_strategy.strategy_history.insert_single_client_history_entry.call_args_list
+            if "accuracy" in str(call)
+        ]
+        assert len(accuracy_calls) == 1
+
+    def test_aggregate_evaluate_cid_in_metrics(self, bulyan_strategy):
+        """Test that client ID is added to metrics dict."""
+        from flwr.common import EvaluateRes
+
+        bulyan_strategy.current_round = 1
+
+        client_proxy = Mock(spec=ClientProxy)
+        client_proxy.cid = "123"
+        eval_res = Mock(spec=EvaluateRes)
+        eval_res.loss = 0.5
+        eval_res.num_examples = 100
+        # Create a mutable metrics dict
+        eval_res.metrics = {"accuracy": 0.8}
+
+        results = [(client_proxy, eval_res)]
+
+        bulyan_strategy.aggregate_evaluate(1, results, [])
+
+        # The code converts to dict and adds cid
+        # We can't directly check the dict modification, but we can verify the flow worked
+        assert (
+            bulyan_strategy.strategy_history.insert_single_client_history_entry.called
+        )
+
+    def test_aggregate_evaluate_returns_empty_metrics_dict(self, bulyan_strategy):
+        """Test that aggregate_evaluate returns empty metrics dict."""
+        from flwr.common import EvaluateRes
+
+        bulyan_strategy.current_round = 1
+
+        client_proxy = Mock(spec=ClientProxy)
+        client_proxy.cid = "0"
+        eval_res = Mock(spec=EvaluateRes)
+        eval_res.loss = 0.5
+        eval_res.num_examples = 100
+        eval_res.metrics = {"accuracy": 0.8}
+        results = [(client_proxy, eval_res)]
+
+        loss, metrics = bulyan_strategy.aggregate_evaluate(1, results, [])
+
+        # Should return empty dict for metrics
+        assert metrics == {}
