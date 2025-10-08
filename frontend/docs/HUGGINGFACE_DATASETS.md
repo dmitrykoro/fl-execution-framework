@@ -262,9 +262,9 @@ Run same simulation with different α values:
 
 ## 🚀 Advanced Usage
 
-### Combining with Byzantine Attacks
+### Combining with Dynamic Poisoning Attacks
 
-Test attack effectiveness under different data distributions:
+HuggingFace datasets work seamlessly with dynamic attack scheduling for round-based poisoning:
 
 ```json
 {
@@ -272,12 +272,26 @@ Test attack effectiveness under different data distributions:
   "hf_dataset_name": "uoft-cs/cifar10",
   "partitioning_strategy": "dirichlet",
   "partitioning_params": {"alpha": 0.3},
-  "num_of_malicious_clients": 5,
-  "aggregation_strategy_keyword": "trimmed_mean"
+  "aggregation_strategy_keyword": "trimmed_mean",
+  "dynamic_attacks": {
+    "enabled": true,
+    "schedule": [{
+      "start_round": 5,
+      "end_round": 12,
+      "selection_strategy": "specific",
+      "client_ids": [0, 1, 2],
+      "attack_config": {
+        "type": "label_flipping",
+        "params": {"flip_fraction": 0.6, "num_classes": 10}
+      }
+    }]
+  }
 }
 ```
 
 **Research Question:** Does heterogeneity make attacks more/less effective?
+
+**See:** [DYNAMIC_POISONING.md](./DYNAMIC_POISONING.md) for complete attack configuration guide
 
 ---
 
@@ -340,6 +354,7 @@ Controls label distribution heterogeneity:
 
 ## 📖 References
 
+- **Dynamic Poisoning Attacks:** [DYNAMIC_POISONING.md](./DYNAMIC_POISONING.md)
 - Flower Datasets: [https://flower.ai/docs/datasets/](https://flower.ai/docs/datasets/)
 - HuggingFace Hub: [https://huggingface.co/datasets](https://huggingface.co/datasets)
 - Dirichlet Distribution: [Understanding Non-IID Data in Federated Learning](https://arxiv.org/abs/1909.06335)
