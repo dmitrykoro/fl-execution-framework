@@ -515,7 +515,9 @@ function NewSimulation() {
       parts.push(`(${config.num_of_malicious_clients} malicious)`);
     }
 
-    parts.push(`on ${config.dataset_keyword} dataset`);
+    const datasetName =
+      config.dataset_source === 'huggingface' ? config.hf_dataset_name : config.dataset_keyword;
+    parts.push(`on ${datasetName} dataset`);
 
     if (config.remove_clients === 'true' && config.begin_removing_from_round) {
       parts.push(
