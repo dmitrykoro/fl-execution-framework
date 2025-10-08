@@ -3,6 +3,7 @@
 import json
 import multiprocessing
 import re
+import shutil
 import subprocess
 import datetime
 import logging
@@ -11,7 +12,7 @@ from pathlib import Path
 import traceback
 from typing import Optional, Dict, Any, List, Union
 from datasets import load_dataset_builder
-from fastapi import FastAPI, HTTPException, Depends
+from fastapi import FastAPI, HTTPException, Depends, Body
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
 import pandas as pd
@@ -405,6 +406,87 @@ def get_simulation_status(
 
     # Default to pending if no process and no results
     return {"status": "pending", "progress": 0.0}
+
+
+@app.delete("/api/simulations/{simulation_id}", status_code=200)
+def delete_simulation(
+    sim_path: Path = Depends(get_simulation_path), simulation_id: str = ""
+) -> Dict[str, str]:
+    """
+    Delete a simulation and all its files.
+    """
+    # Prevent deleting running simulations
+    if simulation_id in running_processes:
+        process = running_processes[simulation_id]
+        if process.poll() is None:
+            raise HTTPException(
+                status_code=409, detail="Cannot delete a running simulation."
+            )
+        # Process finished, safe to remove from tracking
+        del running_processes[simulation_id]
+
+    try:
+        shutil.rmtree(sim_path)
+        logger.info(f"Deleted simulation: {simulation_id}")
+        return {"message": "deleted", "simulation_id": simulation_id}
+    except Exception as e:
+        logger.error(f"Failed to delete simulation {simulation_id}: {e}")
+        raise HTTPException(
+            status_code=500, detail=f"Failed to delete simulation: {str(e)}"
+        )
+
+
+@app.delete("/api/simulations", status_code=200)
+def delete_multiple_simulations(
+    simulation_ids: List[str] = Body(..., embed=True),
+) -> Dict[str, Any]:
+    """
+    Delete multiple simulations at once.
+    """
+    deleted = []
+    failed = []
+
+    for simulation_id in simulation_ids:
+        try:
+            # Validate and get simulation path
+            if not simulation_id.isalnum() and "_" not in simulation_id:
+                failed.append(
+                    {"simulation_id": simulation_id, "error": "Invalid simulation ID"}
+                )
+                continue
+
+            sim_path = secure_join(OUTPUT_DIR, simulation_id)
+
+            if not sim_path.is_dir():
+                failed.append(
+                    {"simulation_id": simulation_id, "error": "Simulation not found"}
+                )
+                continue
+
+            # Prevent deleting running simulations
+            if simulation_id in running_processes:
+                process = running_processes[simulation_id]
+                if process.poll() is None:
+                    failed.append(
+                        {
+                            "simulation_id": simulation_id,
+                            "error": "Simulation is running",
+                        }
+                    )
+                    continue
+                # Process finished, safe to remove from tracking
+                del running_processes[simulation_id]
+
+            # Delete simulation
+            shutil.rmtree(sim_path)
+            deleted.append(simulation_id)
+            logger.info(f"Deleted simulation: {simulation_id}")
+
+        except Exception as e:
+            logger.error(f"Failed to delete simulation {simulation_id}: {e}")
+            failed.append({"simulation_id": simulation_id, "error": str(e)})
+
+    return {"deleted": deleted, "failed": failed}
 
 
 @app.get("/")
