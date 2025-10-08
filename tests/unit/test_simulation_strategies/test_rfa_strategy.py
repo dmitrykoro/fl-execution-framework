@@ -554,3 +554,366 @@ class TestRFABasedRemovalStrategy:
         # Results should be in reasonable range
         for median in [median_strict, median_loose]:
             assert np.all(median >= -1.0) and np.all(median <= 2.0)
+
+
+class TestRFAAggregateEvaluate:
+    """Test cases for aggregate_evaluate method."""
+
+    @pytest.fixture
+    def rfa_strategy(self):
+        """Create RFABasedRemovalStrategy instance for testing."""
+        return RFABasedRemovalStrategy(
+            remove_clients=True,
+            begin_removing_from_round=2,
+            weighted_median_factor=1.0,
+        )
+
+    def test_aggregate_evaluate_empty_results(self, rfa_strategy):
+        """Test aggregate_evaluate with empty results."""
+        loss, metrics = rfa_strategy.aggregate_evaluate(1, [], [])
+
+        # Should return None for empty results
+        assert loss is None
+        assert metrics == {}
+
+    def test_aggregate_evaluate_with_valid_results(self, rfa_strategy):
+        """Test aggregate_evaluate with valid client results."""
+        from flwr.common import EvaluateRes
+
+        # Setup rounds_history for current round
+        rfa_strategy.current_round = 1
+        rfa_strategy.rounds_history["1"] = {"client_info": {}}
+
+        # Create mock client results
+        results = []
+        for i in range(5):
+            client_proxy = Mock(spec=ClientProxy)
+            client_proxy.cid = str(i)
+
+            eval_res = Mock(spec=EvaluateRes)
+            eval_res.loss = 0.5 + i * 0.1
+            eval_res.num_examples = 100
+            eval_res.metrics = {"accuracy": 0.8 - i * 0.05}
+
+            results.append((client_proxy, eval_res))
+
+            # Initialize client_info in rounds_history
+            rfa_strategy.rounds_history["1"]["client_info"][f"client_{i}"] = {}
+
+        loss, metrics = rfa_strategy.aggregate_evaluate(1, results, [])
+
+        # Should return aggregated loss
+        assert loss is not None
+        assert isinstance(loss, float)
+        assert isinstance(metrics, dict)
+
+        # Verify client info was updated
+        for i in range(5):
+            client_info = rfa_strategy.rounds_history["1"]["client_info"][f"client_{i}"]
+            assert "accuracy" in client_info
+            assert "loss" in client_info
+
+    def test_aggregate_evaluate_with_removed_clients(self, rfa_strategy):
+        """Test aggregate_evaluate excludes removed clients from aggregation."""
+        from flwr.common import EvaluateRes
+
+        # Setup rounds_history and mark clients as removed
+        rfa_strategy.current_round = 1
+        rfa_strategy.rounds_history["1"] = {"client_info": {}}
+        rfa_strategy.removed_client_ids = {"0", "2"}
+
+        results = []
+        for i in range(5):
+            client_proxy = Mock(spec=ClientProxy)
+            client_proxy.cid = str(i)
+
+            eval_res = Mock(spec=EvaluateRes)
+            eval_res.loss = 0.5 + i * 0.1
+            eval_res.num_examples = 100
+            eval_res.metrics = {"accuracy": 0.8}
+
+            results.append((client_proxy, eval_res))
+
+            # Initialize client_info
+            rfa_strategy.rounds_history["1"]["client_info"][f"client_{i}"] = {}
+
+        loss, metrics = rfa_strategy.aggregate_evaluate(1, results, [])
+
+        # Should aggregate only non-removed clients
+        assert loss is not None
+
+        # Verify removed clients have no accuracy set
+        assert (
+            rfa_strategy.rounds_history["1"]["client_info"]["client_0"].get("accuracy")
+            is None
+        )
+        assert (
+            rfa_strategy.rounds_history["1"]["client_info"]["client_2"].get("accuracy")
+            is None
+        )
+
+        # Verify non-removed clients have accuracy
+        assert (
+            rfa_strategy.rounds_history["1"]["client_info"]["client_1"]["accuracy"]
+            == 0.8
+        )
+
+    def test_aggregate_evaluate_all_clients_removed(self, rfa_strategy):
+        """Test aggregate_evaluate when all clients are removed raises ZeroDivisionError."""
+        from flwr.common import EvaluateRes
+
+        # Setup rounds_history
+        rfa_strategy.current_round = 1
+        rfa_strategy.rounds_history["1"] = {"client_info": {}}
+        rfa_strategy.removed_client_ids = {"0", "1", "2"}
+
+        results = []
+        for i in range(3):
+            client_proxy = Mock(spec=ClientProxy)
+            client_proxy.cid = str(i)
+
+            eval_res = Mock(spec=EvaluateRes)
+            eval_res.loss = 0.5
+            eval_res.num_examples = 100
+            eval_res.metrics = {"accuracy": 0.8}
+
+            results.append((client_proxy, eval_res))
+
+            # Initialize client_info
+            rfa_strategy.rounds_history["1"]["client_info"][f"client_{i}"] = {}
+
+        # Should raise ZeroDivisionError when all clients are removed
+        with pytest.raises(ZeroDivisionError):
+            rfa_strategy.aggregate_evaluate(1, results, [])
+
+    def test_aggregate_evaluate_previous_round_client_info(self, rfa_strategy):
+        """Test aggregate_evaluate copies client info from previous round."""
+        from flwr.common import EvaluateRes
+
+        # Setup previous round history
+        rfa_strategy.current_round = 2
+        rfa_strategy.rounds_history["1"] = {
+            "client_info": {
+                "client_0": {
+                    "removal_criterion": 0.5,
+                    "absolute_distance": 0.3,
+                    "normalized_distance": 0.2,
+                    "is_removed": False,
+                },
+                "client_1": {
+                    "removal_criterion": 0.7,
+                    "absolute_distance": 0.5,
+                    "normalized_distance": 0.4,
+                    "is_removed": False,
+                },
+            }
+        }
+        rfa_strategy.rounds_history["2"] = {"client_info": {}}
+
+        # Create result for only client_1 (client_0 is missing)
+        client_proxy = Mock(spec=ClientProxy)
+        client_proxy.cid = "1"
+        eval_res = Mock(spec=EvaluateRes)
+        eval_res.loss = 0.5
+        eval_res.num_examples = 100
+        eval_res.metrics = {"accuracy": 0.8}
+        results = [(client_proxy, eval_res)]
+
+        rfa_strategy.rounds_history["2"]["client_info"]["client_1"] = {}
+
+        rfa_strategy.aggregate_evaluate(2, results, [])
+
+        # Verify client_0 info was copied from previous round
+        assert "client_0" in rfa_strategy.rounds_history["2"]["client_info"]
+        copied_info = rfa_strategy.rounds_history["2"]["client_info"]["client_0"]
+        assert copied_info["removal_criterion"] == 0.5
+        assert copied_info["absolute_distance"] == 0.3
+
+    def test_aggregate_evaluate_removed_client_null_metrics(self, rfa_strategy):
+        """Test that removed clients copied from previous round get None for accuracy and loss."""
+        from flwr.common import EvaluateRes
+
+        # Setup previous round with client_0
+        rfa_strategy.current_round = 2
+        rfa_strategy.rounds_history["1"] = {
+            "client_info": {
+                "client_0": {"is_removed": False, "accuracy": 0.9, "loss": 0.3},
+            }
+        }
+        rfa_strategy.rounds_history["2"] = {"client_info": {}}
+        # removed_client_ids uses the full key "client_0" not just "0"
+        rfa_strategy.removed_client_ids = {"client_0"}
+
+        # Create result for client_1 only (client_0 will be copied from previous round)
+        client_proxy = Mock(spec=ClientProxy)
+        client_proxy.cid = "1"
+        eval_res = Mock(spec=EvaluateRes)
+        eval_res.loss = 0.5
+        eval_res.num_examples = 100
+        eval_res.metrics = {"accuracy": 0.8}
+        results = [(client_proxy, eval_res)]
+
+        rfa_strategy.rounds_history["2"]["client_info"]["client_1"] = {}
+
+        rfa_strategy.aggregate_evaluate(2, results, [])
+
+        # Verify removed client_0 (copied from previous round) has None metrics
+        assert "client_0" in rfa_strategy.rounds_history["2"]["client_info"]
+        assert (
+            rfa_strategy.rounds_history["2"]["client_info"]["client_0"]["accuracy"]
+            is None
+        )
+        assert (
+            rfa_strategy.rounds_history["2"]["client_info"]["client_0"]["loss"] is None
+        )
+
+        # Verify non-removed client_1 has actual metrics
+        assert (
+            rfa_strategy.rounds_history["2"]["client_info"]["client_1"]["accuracy"]
+            == 0.8
+        )
+        assert (
+            rfa_strategy.rounds_history["2"]["client_info"]["client_1"]["loss"] == 0.5
+        )
+
+    def test_aggregate_evaluate_weighted_loss_calculation(self, rfa_strategy):
+        """Test that loss is weighted by number of examples."""
+        from flwr.common import EvaluateRes
+
+        rfa_strategy.current_round = 1
+        rfa_strategy.rounds_history["1"] = {"client_info": {}}
+
+        results = []
+        # Client 0: 100 examples, loss 1.0
+        client_proxy_0 = Mock(spec=ClientProxy)
+        client_proxy_0.cid = "0"
+        eval_res_0 = Mock(spec=EvaluateRes)
+        eval_res_0.loss = 1.0
+        eval_res_0.num_examples = 100
+        eval_res_0.metrics = {"accuracy": 0.8}
+        results.append((client_proxy_0, eval_res_0))
+
+        # Client 1: 200 examples, loss 2.0
+        client_proxy_1 = Mock(spec=ClientProxy)
+        client_proxy_1.cid = "1"
+        eval_res_1 = Mock(spec=EvaluateRes)
+        eval_res_1.loss = 2.0
+        eval_res_1.num_examples = 200
+        eval_res_1.metrics = {"accuracy": 0.7}
+        results.append((client_proxy_1, eval_res_1))
+
+        # Initialize client_info
+        for i in range(2):
+            rfa_strategy.rounds_history["1"]["client_info"][f"client_{i}"] = {}
+
+        loss, metrics = rfa_strategy.aggregate_evaluate(1, results, [])
+
+        # Weighted average: (100*1.0 + 200*2.0) / (100+200) = 500/300 = 1.6666...
+        assert loss is not None
+        assert abs(loss - 1.6666666666666667) < 1e-6
+
+    def test_aggregate_evaluate_metrics_from_get_method(self, rfa_strategy):
+        """Test that accuracy uses .get() method on metrics dict."""
+        from flwr.common import EvaluateRes
+
+        rfa_strategy.current_round = 1
+        rfa_strategy.rounds_history["1"] = {"client_info": {}}
+
+        # Create result with metrics that has accuracy
+        client_proxy = Mock(spec=ClientProxy)
+        client_proxy.cid = "0"
+        eval_res = Mock(spec=EvaluateRes)
+        eval_res.loss = 0.5
+        eval_res.num_examples = 100
+        eval_res.metrics = {"accuracy": 0.85, "precision": 0.9}
+        results = [(client_proxy, eval_res)]
+
+        rfa_strategy.rounds_history["1"]["client_info"]["client_0"] = {}
+
+        rfa_strategy.aggregate_evaluate(1, results, [])
+
+        # Verify accuracy was extracted correctly
+        assert (
+            rfa_strategy.rounds_history["1"]["client_info"]["client_0"]["accuracy"]
+            == 0.85
+        )
+
+    def test_aggregate_evaluate_no_previous_round(self, rfa_strategy):
+        """Test aggregate_evaluate when there is no previous round."""
+        from flwr.common import EvaluateRes
+
+        rfa_strategy.current_round = 1
+        rfa_strategy.rounds_history["1"] = {"client_info": {}}
+
+        # Create results
+        client_proxy = Mock(spec=ClientProxy)
+        client_proxy.cid = "0"
+        eval_res = Mock(spec=EvaluateRes)
+        eval_res.loss = 0.5
+        eval_res.num_examples = 100
+        eval_res.metrics = {"accuracy": 0.8}
+        results = [(client_proxy, eval_res)]
+
+        rfa_strategy.rounds_history["1"]["client_info"]["client_0"] = {}
+
+        # Should handle gracefully when previous_round doesn't exist
+        loss, metrics = rfa_strategy.aggregate_evaluate(1, results, [])
+
+        assert loss is not None
+        assert isinstance(metrics, dict)
+
+    def test_aggregate_evaluate_with_failures(self, rfa_strategy):
+        """Test aggregate_evaluate handles failures gracefully."""
+        from flwr.common import EvaluateRes
+
+        rfa_strategy.current_round = 1
+        rfa_strategy.rounds_history["1"] = {"client_info": {}}
+
+        # Create one successful result
+        client_proxy = Mock(spec=ClientProxy)
+        client_proxy.cid = "0"
+        eval_res = Mock(spec=EvaluateRes)
+        eval_res.loss = 0.5
+        eval_res.num_examples = 100
+        eval_res.metrics = {"accuracy": 0.8}
+        results = [(client_proxy, eval_res)]
+
+        rfa_strategy.rounds_history["1"]["client_info"]["client_0"] = {}
+
+        # Provide some failures
+        failures = [
+            (Mock(spec=ClientProxy), Exception("Test failure")),
+            (Mock(spec=ClientProxy), Exception("Another failure")),
+        ]
+
+        loss, metrics = rfa_strategy.aggregate_evaluate(1, results, failures)
+
+        # Should still process successful results
+        assert loss is not None
+        assert isinstance(metrics, dict)
+
+    def test_aggregate_evaluate_missing_accuracy_key(self, rfa_strategy):
+        """Test aggregate_evaluate when metrics dict doesn't have accuracy key."""
+        from flwr.common import EvaluateRes
+
+        rfa_strategy.current_round = 1
+        rfa_strategy.rounds_history["1"] = {"client_info": {}}
+
+        # Create result without accuracy metric
+        client_proxy = Mock(spec=ClientProxy)
+        client_proxy.cid = "0"
+        eval_res = Mock(spec=EvaluateRes)
+        eval_res.loss = 0.5
+        eval_res.num_examples = 100
+        eval_res.metrics = {"precision": 0.9}  # No accuracy key
+
+        results = [(client_proxy, eval_res)]
+        rfa_strategy.rounds_history["1"]["client_info"]["client_0"] = {}
+
+        rfa_strategy.aggregate_evaluate(1, results, [])
+
+        # Should use .get() and return None for missing key
+        assert (
+            rfa_strategy.rounds_history["1"]["client_info"]["client_0"]["accuracy"]
+            is None
+        )
