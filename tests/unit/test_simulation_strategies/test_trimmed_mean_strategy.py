@@ -465,3 +465,294 @@ class TestTrimmedMeanBasedRemovalStrategy:
         aggregated_arrays = parameters_to_ndarrays(result_params)
         for arr in aggregated_arrays:
             assert np.all(np.isfinite(arr))
+
+
+class TestAggregateEvaluate:
+    """Test cases for aggregate_evaluate method."""
+
+    @pytest.fixture
+    def mock_strategy_history(self):
+        """Create mock strategy history."""
+        return Mock(spec=SimulationStrategyHistory)
+
+    @pytest.fixture
+    def trimmed_mean_strategy(self, mock_strategy_history):
+        """Create TrimmedMeanBasedRemovalStrategy instance for testing."""
+        return TrimmedMeanBasedRemovalStrategy(
+            remove_clients=True,
+            begin_removing_from_round=2,
+            strategy_history=mock_strategy_history,
+            trim_ratio=0.2,
+        )
+
+    def test_aggregate_evaluate_empty_results(self, trimmed_mean_strategy):
+        """Test aggregate_evaluate with empty results."""
+        loss, metrics = trimmed_mean_strategy.aggregate_evaluate(1, [], [])
+
+        # Should return None for empty results
+        assert loss is None
+        assert metrics == {}
+
+    def test_aggregate_evaluate_with_valid_results(self, trimmed_mean_strategy):
+        """Test aggregate_evaluate with valid client results."""
+        from flwr.common import EvaluateRes
+
+        # Create mock client results
+        results = []
+        for i in range(5):
+            client_proxy = Mock(spec=ClientProxy)
+            client_proxy.cid = str(i)
+
+            eval_res = Mock(spec=EvaluateRes)
+            eval_res.loss = 0.5 + i * 0.1
+            eval_res.num_examples = 100
+            eval_res.metrics = {"accuracy": 0.8 - i * 0.05}
+
+            results.append((client_proxy, eval_res))
+
+        loss, metrics = trimmed_mean_strategy.aggregate_evaluate(1, results, [])
+
+        # Should return aggregated loss
+        assert loss is not None
+        assert isinstance(loss, float)
+        assert isinstance(metrics, dict)
+
+        # Verify strategy history was updated
+        assert (
+            trimmed_mean_strategy.strategy_history.insert_single_client_history_entry.call_count
+            == 10
+        )  # 5 for accuracy + 5 for loss
+        trimmed_mean_strategy.strategy_history.insert_round_history_entry.assert_called_once()
+
+    def test_aggregate_evaluate_with_removed_clients(self, trimmed_mean_strategy):
+        """Test aggregate_evaluate excludes removed clients from aggregation."""
+        from flwr.common import EvaluateRes
+
+        # Mark clients 0 and 2 as removed
+        trimmed_mean_strategy.removed_client_ids = {"0", "2"}
+
+        results = []
+        for i in range(5):
+            client_proxy = Mock(spec=ClientProxy)
+            client_proxy.cid = str(i)
+
+            eval_res = Mock(spec=EvaluateRes)
+            eval_res.loss = 0.5 + i * 0.1
+            eval_res.num_examples = 100
+            eval_res.metrics = {"accuracy": 0.8}
+
+            results.append((client_proxy, eval_res))
+
+        loss, metrics = trimmed_mean_strategy.aggregate_evaluate(1, results, [])
+
+        # Should aggregate only non-removed clients
+        assert loss is not None
+
+        # Verify that accuracy was only recorded for non-removed clients
+        accuracy_calls = [
+            call
+            for call in trimmed_mean_strategy.strategy_history.insert_single_client_history_entry.call_args_list
+            if "accuracy" in str(call)
+        ]
+        # Should have 3 accuracy calls (clients 1, 3, 4) not 5
+        assert len(accuracy_calls) == 3
+
+    def test_aggregate_evaluate_all_clients_removed(self, trimmed_mean_strategy):
+        """Test aggregate_evaluate when all clients are removed raises ZeroDivisionError."""
+        from flwr.common import EvaluateRes
+
+        # Mark all clients as removed
+        trimmed_mean_strategy.removed_client_ids = {"0", "1", "2"}
+
+        results = []
+        for i in range(3):
+            client_proxy = Mock(spec=ClientProxy)
+            client_proxy.cid = str(i)
+
+            eval_res = Mock(spec=EvaluateRes)
+            eval_res.loss = 0.5
+            eval_res.num_examples = 100
+            eval_res.metrics = {"accuracy": 0.8}
+
+            results.append((client_proxy, eval_res))
+
+        # Should raise ZeroDivisionError when all clients are removed
+        with pytest.raises(ZeroDivisionError):
+            trimmed_mean_strategy.aggregate_evaluate(1, results, [])
+
+    def test_aggregate_evaluate_tracks_loss_for_all_clients(
+        self, trimmed_mean_strategy
+    ):
+        """Test that loss is tracked for all clients including removed ones."""
+        from flwr.common import EvaluateRes
+
+        # Mark client 0 as removed
+        trimmed_mean_strategy.removed_client_ids = {"0"}
+
+        results = []
+        for i in range(3):
+            client_proxy = Mock(spec=ClientProxy)
+            client_proxy.cid = str(i)
+
+            eval_res = Mock(spec=EvaluateRes)
+            eval_res.loss = 0.5 + i * 0.1
+            eval_res.num_examples = 100
+            eval_res.metrics = {"accuracy": 0.8}
+
+            results.append((client_proxy, eval_res))
+
+        trimmed_mean_strategy.aggregate_evaluate(1, results, [])
+
+        # Loss should be recorded for all clients (including removed ones)
+        loss_calls = [
+            call
+            for call in trimmed_mean_strategy.strategy_history.insert_single_client_history_entry.call_args_list
+            if "loss" in str(call)
+        ]
+        assert len(loss_calls) == 3  # All 3 clients
+
+    def test_aggregate_evaluate_metrics_structure(self, trimmed_mean_strategy):
+        """Test that metrics are properly structured."""
+        from flwr.common import EvaluateRes
+
+        results = []
+        for i in range(3):
+            client_proxy = Mock(spec=ClientProxy)
+            client_proxy.cid = str(i)
+
+            eval_res = Mock(spec=EvaluateRes)
+            eval_res.loss = 0.5
+            eval_res.num_examples = 100
+            eval_res.metrics = {
+                "accuracy": 0.8,
+                "precision": 0.75,
+                "recall": 0.82,
+            }
+
+            results.append((client_proxy, eval_res))
+
+        loss, metrics = trimmed_mean_strategy.aggregate_evaluate(1, results, [])
+
+        # Metrics should be a dictionary
+        assert isinstance(metrics, dict)
+
+    def test_aggregate_evaluate_with_failures(self, trimmed_mean_strategy):
+        """Test aggregate_evaluate handles failures gracefully."""
+        from flwr.common import EvaluateRes
+
+        results = []
+        client_proxy = Mock(spec=ClientProxy)
+        client_proxy.cid = "0"
+        eval_res = Mock(spec=EvaluateRes)
+        eval_res.loss = 0.5
+        eval_res.num_examples = 100
+        eval_res.metrics = {"accuracy": 0.8}
+        results.append((client_proxy, eval_res))
+
+        # Provide some failures
+        failures = [
+            (Mock(spec=ClientProxy), Exception("Test failure")),
+            (Mock(spec=ClientProxy), Exception("Another failure")),
+        ]
+
+        loss, metrics = trimmed_mean_strategy.aggregate_evaluate(1, results, failures)
+
+        # Should still process successful results
+        assert loss is not None
+        assert isinstance(metrics, dict)
+
+    def test_aggregate_evaluate_round_history_update(self, trimmed_mean_strategy):
+        """Test that round history is updated with aggregated loss."""
+        from flwr.common import EvaluateRes
+
+        results = []
+        for i in range(3):
+            client_proxy = Mock(spec=ClientProxy)
+            client_proxy.cid = str(i)
+
+            eval_res = Mock(spec=EvaluateRes)
+            eval_res.loss = 0.6
+            eval_res.num_examples = 100
+            eval_res.metrics = {"accuracy": 0.8}
+
+            results.append((client_proxy, eval_res))
+
+        trimmed_mean_strategy.aggregate_evaluate(1, results, [])
+
+        # Verify round history was updated with loss
+        trimmed_mean_strategy.strategy_history.insert_round_history_entry.assert_called_once()
+        call_kwargs = (
+            trimmed_mean_strategy.strategy_history.insert_round_history_entry.call_args[
+                1
+            ]
+        )
+        assert "loss_aggregated" in call_kwargs
+        assert isinstance(call_kwargs["loss_aggregated"], float)
+
+    def test_aggregate_evaluate_weighted_loss_calculation(self, trimmed_mean_strategy):
+        """Test that loss is weighted by number of examples."""
+        from flwr.common import EvaluateRes
+
+        results = []
+        # Client 0: 100 examples, loss 1.0
+        client_proxy_0 = Mock(spec=ClientProxy)
+        client_proxy_0.cid = "0"
+        eval_res_0 = Mock(spec=EvaluateRes)
+        eval_res_0.loss = 1.0
+        eval_res_0.num_examples = 100
+        eval_res_0.metrics = {"accuracy": 0.8}
+        results.append((client_proxy_0, eval_res_0))
+
+        # Client 1: 200 examples, loss 2.0
+        client_proxy_1 = Mock(spec=ClientProxy)
+        client_proxy_1.cid = "1"
+        eval_res_1 = Mock(spec=EvaluateRes)
+        eval_res_1.loss = 2.0
+        eval_res_1.num_examples = 200
+        eval_res_1.metrics = {"accuracy": 0.7}
+        results.append((client_proxy_1, eval_res_1))
+
+        loss, metrics = trimmed_mean_strategy.aggregate_evaluate(1, results, [])
+
+        # Weighted average: (100*1.0 + 200*2.0) / (100+200) = 500/300 = 1.6666...
+        assert loss is not None
+        assert abs(loss - 1.6666666666666667) < 1e-6
+
+    def test_aggregate_evaluate_client_id_types(self, trimmed_mean_strategy):
+        """Test aggregate_evaluate raises ValueError for non-numeric client IDs."""
+        from flwr.common import EvaluateRes
+
+        results = []
+        for i in range(3):
+            client_proxy = Mock(spec=ClientProxy)
+            client_proxy.cid = f"client_{i}"  # Non-numeric string CID
+
+            eval_res = Mock(spec=EvaluateRes)
+            eval_res.loss = 0.5
+            eval_res.num_examples = 100
+            eval_res.metrics = {"accuracy": 0.8}
+
+            results.append((client_proxy, eval_res))
+
+        # Should raise ValueError when trying to convert non-numeric CID to int
+        with pytest.raises(ValueError, match="invalid literal for int"):
+            trimmed_mean_strategy.aggregate_evaluate(1, results, [])
+
+    def test_aggregate_evaluate_no_accuracy_metric(self, trimmed_mean_strategy):
+        """Test aggregate_evaluate when accuracy metric is missing."""
+        from flwr.common import EvaluateRes
+
+        results = []
+        client_proxy = Mock(spec=ClientProxy)
+        client_proxy.cid = "0"
+
+        eval_res = Mock(spec=EvaluateRes)
+        eval_res.loss = 0.5
+        eval_res.num_examples = 100
+        eval_res.metrics = {"precision": 0.8}  # No accuracy
+
+        results.append((client_proxy, eval_res))
+
+        # Should raise KeyError when trying to access accuracy
+        with pytest.raises(KeyError):
+            trimmed_mean_strategy.aggregate_evaluate(1, results, [])
