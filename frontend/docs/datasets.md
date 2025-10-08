@@ -2,19 +2,37 @@
 
 **Technical guide for using HuggingFace datasets in federated learning simulations.**
 
+> 📚 **Related Docs:** [README](./README.md) | [attacks.md](./attacks.md)
+
 ---
 
-## ⚡ Essential Commands
+## ⚡ Quick Start
+
+### **Web UI (Recommended)**
+
+1. Navigate to **New Simulation** (`http://localhost:5173/simulations/new`)
+2. Select Dataset Source: **HuggingFace Hub**
+3. Enter dataset name (e.g., `ylecun/mnist`)
+4. Choose partitioning strategy (IID, Dirichlet, or Pathological)
+5. Get **real-time validation** with dataset metadata! ✅
+
+### **CLI**
 
 ```bash
-# Web UI: Select "HuggingFace Hub" as dataset source
-# CLI: Use config files in config/simulation_strategies/examples/
+# Use config files in config/simulation_strategies/examples/
 python -m src.simulation_runner  # Will prompt for config selection
 ```
 
+### **Features** ✨
+
+- ✅ **Real-time validation** - Instant feedback on dataset compatibility
+- ✅ **Metadata preview** - View splits, example counts, and key features
+- ✅ **Autocomplete** - Popular datasets suggested automatically
+- ✅ **Error handling** - Clear error messages for 404, network, and auth issues
+
 ---
 
-## 🎯 Quick Start
+## 🎯 Configuration Options
 
 ### 1. Select Dataset Source
 
@@ -291,7 +309,7 @@ HuggingFace datasets work seamlessly with dynamic attack scheduling for round-ba
 
 **Research Question:** Does heterogeneity make attacks more/less effective?
 
-**See:** [DYNAMIC_POISONING.md](./DYNAMIC_POISONING.md) for complete attack configuration guide
+**See:** [attacks.md](./attacks.md) for complete attack configuration guide
 
 ---
 
@@ -352,9 +370,33 @@ Controls label distribution heterogeneity:
 
 ---
 
+## 🚀 Running Simulations
+
+### **Quick Start**
+
+```bash
+# From project root - starts both API and frontend
+./start-dev.sh
+```
+
+This automatically:
+
+- ✅ Starts API server (port 8000)
+- ✅ Starts frontend dev server (port 5173)
+- ✅ Opens browser to `http://localhost:5173`
+
+Navigate to **New Simulation** to configure and launch your HuggingFace dataset experiment!
+
+### **Manual Setup**
+
+See [README.md](./README.md#-running-the-application) for detailed instructions.
+
+---
+
 ## 📖 References
 
-- **Dynamic Poisoning Attacks:** [DYNAMIC_POISONING.md](./DYNAMIC_POISONING.md)
-- Flower Datasets: [https://flower.ai/docs/datasets/](https://flower.ai/docs/datasets/)
-- HuggingFace Hub: [https://huggingface.co/datasets](https://huggingface.co/datasets)
-- Dirichlet Distribution: [Understanding Non-IID Data in Federated Learning](https://arxiv.org/abs/1909.06335)
+- **Frontend:** [README.md](./README.md) - Tech stack and features
+- **Attacks:** [attacks.md](./attacks.md) - Dynamic poisoning attacks
+- **Flower Datasets:** [https://flower.ai/docs/datasets/](https://flower.ai/docs/datasets/)
+- **HuggingFace Hub:** [https://huggingface.co/datasets](https://huggingface.co/datasets)
+- **Research:** [Understanding Non-IID Data in Federated Learning](https://arxiv.org/abs/1909.06335)

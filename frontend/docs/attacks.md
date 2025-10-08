@@ -1,12 +1,25 @@
 # ⚔️ Dynamic Poisoning Attacks
 
-**Round-based attack scheduling for FL simulations.**
+**Round-based attack scheduling for federated learning simulations.**
+
+> 📚 **Related Docs:** [README](./README.md) | [datasets.md](./datasets.md)
 
 ---
 
 ## ⚡ Quick Start
 
-**Web UI:** Enable "Dynamic Attacks" toggle in attack configuration
+### **Web UI (Recommended)**
+
+1. Navigate to **New Simulation** (`http://localhost:5173/simulations/new`)
+2. Scroll to **Attack Configuration** section
+3. Enable **Dynamic Attacks** toggle
+4. Configure attack schedule with:
+   - Start/End rounds
+   - Client selection strategy
+   - Attack type and parameters
+5. Get **real-time validation** ensuring attack config is valid! ✅
+
+### **CLI**
 
 **Config:**
 
@@ -396,7 +409,7 @@ Dynamic attacks work with HuggingFace datasets:
 }
 ```
 
-See [HUGGINGFACE_DATASETS.md](./HUGGINGFACE_DATASETS.md) for details.
+See [datasets.md](./datasets.md) for details.
 
 ---
 
@@ -483,7 +496,32 @@ See [HUGGINGFACE_DATASETS.md](./HUGGINGFACE_DATASETS.md) for details.
 
 ---
 
+## 🚀 Running Simulations
+
+### **Quick Start**
+
+```bash
+# From project root - starts both API and frontend
+./start-dev.sh
+```
+
+This automatically:
+
+- ✅ Starts API server (port 8000)
+- ✅ Starts frontend dev server (port 5173)
+- ✅ Opens browser to `http://localhost:5173`
+
+Navigate to **New Simulation** → **Attack Configuration** to configure dynamic attacks!
+
+### **Manual Setup**
+
+See [README.md](./README.md#-running-the-application) for detailed instructions.
+
+---
+
 ## 📖 References
 
+- **Frontend:** [README.md](./README.md) - Tech stack and features
+- **Datasets:** [datasets.md](./datasets.md) - HuggingFace loading and partitioning
 - **Flower:** [https://flower.ai/](https://flower.ai/)
-- **HuggingFace Datasets:** [HUGGINGFACE_DATASETS.md](./HUGGINGFACE_DATASETS.md)
+- **Research:** Byzantine attacks and defenses in federated learning
