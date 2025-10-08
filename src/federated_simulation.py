@@ -6,7 +6,7 @@ import flwr
 from flwr.client import Client
 from flwr.common import ndarrays_to_parameters
 from flwr.server.strategy.fedavg import FedAvg
-from typing import List, Tuple
+from typing import Tuple, Union, Sequence
 
 from peft import PeftModel, get_peft_model_state_dict
 
@@ -72,7 +72,7 @@ from src.data_models.round_info import RoundsInfo
 from src.dataset_handlers.dataset_handler import DatasetHandler
 
 
-def weighted_average(metrics: List[Tuple[int, dict]]) -> dict:
+def weighted_average(metrics: Sequence[Tuple[Union[int, float], dict]]) -> dict:
     """Compute weighted average of metrics from multiple clients."""
     if not metrics:
         return {}
