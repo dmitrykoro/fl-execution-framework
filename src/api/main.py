@@ -1,16 +1,21 @@
 # src/api/main.py
 
 import json
+import multiprocessing
+import re
 import subprocess
 import datetime
 import logging
 import os
 from pathlib import Path
+import traceback
 from typing import Optional, Dict, Any, List, Union
-
+from datasets import load_dataset_builder
 from fastapi import FastAPI, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
+import pandas as pd
+import psutil
 from pydantic import BaseModel
 
 # Configure logging
@@ -268,13 +273,9 @@ def get_result_file(
 
     if result_filename.endswith(".csv"):
         try:
-            import pandas as pd
-
             df = pd.read_csv(file_path, encoding="latin-1")
             return JSONResponse(content=df.to_dict(orient="records"))
         except Exception as e:
-            import traceback
-
             logger.error(f"Failed to read or parse CSV file {file_path}: {e}")
             logger.error(f"Traceback: {traceback.format_exc()}")
             raise HTTPException(
@@ -320,16 +321,12 @@ async def create_simulation(config: SimulationConfig) -> Dict[str, str]:
         # Set up environment to suppress joblib/loky warnings
         env = dict(os.environ)
         try:
-            import psutil
-
             physical_cores = (
                 psutil.cpu_count(logical=False) or psutil.cpu_count(logical=True) or 1
             )
             env["LOKY_MAX_CPU_COUNT"] = str(physical_cores)
         except ImportError:
             # If psutil not available, use cpu_count as fallback
-            import multiprocessing
-
             env["LOKY_MAX_CPU_COUNT"] = str(multiprocessing.cpu_count())
         env["PYTHONWARNINGS"] = "ignore::RuntimeWarning:threadpoolctl"
 
@@ -482,8 +479,6 @@ async def validate_dataset(name: str) -> Dict[str, Any]:
     """
     try:
         # Lightweight check - just load metadata, not the dataset
-        from datasets import load_dataset_builder
-
         builder = load_dataset_builder(name)
 
         # Extract dataset info
@@ -507,8 +502,6 @@ async def validate_dataset(name: str) -> Dict[str, Any]:
         if builder.info.features:
             try:
                 # Extract feature names (works for most HF dataset feature formats)
-                import re
-
                 # Match patterns like "'feature_name':" or "feature_name:"
                 feature_matches = re.findall(r"['\"]?(\w+)['\"]?\s*:", features)
                 if feature_matches:
