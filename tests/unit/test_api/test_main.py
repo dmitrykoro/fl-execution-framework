@@ -943,3 +943,178 @@ def test_create_simulation_sets_loky_env_vars(
     assert response.status_code == 201
     assert "LOKY_MAX_CPU_COUNT" in captured_env
     assert int(captured_env["LOKY_MAX_CPU_COUNT"]) > 0
+
+
+# --- DELETE Endpoint Tests ---
+
+
+def test_delete_simulation_success(api_client: TestClient, tmp_path: Path, monkeypatch):
+    """DELETE /api/simulations/{id} deletes simulation successfully."""
+    monkeypatch.setattr("src.api.main.OUTPUT_DIR", tmp_path / "out")
+    sim_dir = tmp_path / "out" / "test_delete"
+    sim_dir.mkdir(parents=True)
+    config = {"shared_settings": {}, "simulation_strategies": [{}]}
+    (sim_dir / "config.json").write_text(json.dumps(config))
+    (sim_dir / "results.csv").write_text("data")
+
+    assert sim_dir.exists()
+
+    response = api_client.delete("/api/simulations/test_delete")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["message"] == "deleted"
+    assert data["simulation_id"] == "test_delete"
+
+    # Verify directory was deleted
+    assert not sim_dir.exists()
+
+
+def test_delete_simulation_not_found(
+    api_client: TestClient, tmp_path: Path, monkeypatch
+):
+    """DELETE /api/simulations/{id} returns 404 for nonexistent simulation."""
+    monkeypatch.setattr("src.api.main.OUTPUT_DIR", tmp_path / "out")
+    (tmp_path / "out").mkdir(parents=True)
+
+    response = api_client.delete("/api/simulations/nonexistent")
+    assert response.status_code == 404
+    assert "not found" in response.json()["detail"].lower()
+
+
+def test_delete_simulation_running_process(
+    api_client: TestClient, tmp_path: Path, monkeypatch
+):
+    """DELETE /api/simulations/{id} returns 409 for running simulation."""
+    monkeypatch.setattr("src.api.main.OUTPUT_DIR", tmp_path / "out")
+    sim_dir = tmp_path / "out" / "running_sim"
+    sim_dir.mkdir(parents=True)
+    config = {"shared_settings": {}, "simulation_strategies": [{}]}
+    (sim_dir / "config.json").write_text(json.dumps(config))
+
+    # Mock a running process
+    mock_process = MagicMock()
+    mock_process.poll.return_value = None  # Still running
+    main.running_processes["running_sim"] = mock_process
+
+    response = api_client.delete("/api/simulations/running_sim")
+    assert response.status_code == 409
+    assert "cannot delete" in response.json()["detail"].lower()
+
+    # Cleanup
+    del main.running_processes["running_sim"]
+
+
+def test_delete_simulation_finished_process(
+    api_client: TestClient, tmp_path: Path, monkeypatch
+):
+    """DELETE /api/simulations/{id} succeeds when process is finished."""
+    monkeypatch.setattr("src.api.main.OUTPUT_DIR", tmp_path / "out")
+    sim_dir = tmp_path / "out" / "finished_sim"
+    sim_dir.mkdir(parents=True)
+    config = {"shared_settings": {}, "simulation_strategies": [{}]}
+    (sim_dir / "config.json").write_text(json.dumps(config))
+
+    # Mock a finished process
+    mock_process = MagicMock()
+    mock_process.poll.return_value = 0  # Finished
+    main.running_processes["finished_sim"] = mock_process
+
+    response = api_client.delete("/api/simulations/finished_sim")
+    assert response.status_code == 200
+    assert not sim_dir.exists()
+
+    # Process should be removed from tracking
+    assert "finished_sim" not in main.running_processes
+
+
+def test_delete_multiple_simulations_success(
+    api_client: TestClient, tmp_path: Path, monkeypatch
+):
+    """DELETE /api/simulations with simulation_ids deletes multiple simulations."""
+    monkeypatch.setattr("src.api.main.OUTPUT_DIR", tmp_path / "out")
+
+    # Create three simulations
+    for sim_id in ["sim1", "sim2", "sim3"]:
+        sim_dir = tmp_path / "out" / sim_id
+        sim_dir.mkdir(parents=True)
+        config = {"shared_settings": {}, "simulation_strategies": [{}]}
+        (sim_dir / "config.json").write_text(json.dumps(config))
+
+    response = api_client.request(
+        "DELETE", "/api/simulations", json={"simulation_ids": ["sim1", "sim2", "sim3"]}
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert len(data["deleted"]) == 3
+    assert len(data["failed"]) == 0
+    assert "sim1" in data["deleted"]
+    assert "sim2" in data["deleted"]
+    assert "sim3" in data["deleted"]
+
+    # Verify all were deleted
+    assert not (tmp_path / "out" / "sim1").exists()
+    assert not (tmp_path / "out" / "sim2").exists()
+    assert not (tmp_path / "out" / "sim3").exists()
+
+
+def test_delete_multiple_simulations_partial_failure(
+    api_client: TestClient, tmp_path: Path, monkeypatch
+):
+    """DELETE /api/simulations returns success and failures separately."""
+    monkeypatch.setattr("src.api.main.OUTPUT_DIR", tmp_path / "out")
+    (tmp_path / "out").mkdir(parents=True)
+
+    # Create one valid simulation
+    sim_dir = tmp_path / "out" / "valid_sim"
+    sim_dir.mkdir()
+    config = {"shared_settings": {}, "simulation_strategies": [{}]}
+    (sim_dir / "config.json").write_text(json.dumps(config))
+
+    # Delete valid + nonexistent
+    response = api_client.request(
+        "DELETE",
+        "/api/simulations",
+        json={"simulation_ids": ["valid_sim", "nonexistent"]},
+    )
+    assert response.status_code == 200
+    data = response.json()
+
+    assert "valid_sim" in data["deleted"]
+    assert len(data["failed"]) == 1
+    assert data["failed"][0]["simulation_id"] == "nonexistent"
+    assert "not found" in data["failed"][0]["error"].lower()
+
+
+def test_delete_multiple_simulations_running_process(
+    api_client: TestClient, tmp_path: Path, monkeypatch
+):
+    """DELETE /api/simulations skips running simulations."""
+    monkeypatch.setattr("src.api.main.OUTPUT_DIR", tmp_path / "out")
+
+    # Create two simulations
+    for sim_id in ["completed_sim", "running_sim"]:
+        sim_dir = tmp_path / "out" / sim_id
+        sim_dir.mkdir(parents=True)
+        config = {"shared_settings": {}, "simulation_strategies": [{}]}
+        (sim_dir / "config.json").write_text(json.dumps(config))
+
+    # Mock running process
+    mock_process = MagicMock()
+    mock_process.poll.return_value = None
+    main.running_processes["running_sim"] = mock_process
+
+    response = api_client.request(
+        "DELETE",
+        "/api/simulations",
+        json={"simulation_ids": ["completed_sim", "running_sim"]},
+    )
+    assert response.status_code == 200
+    data = response.json()
+
+    assert "completed_sim" in data["deleted"]
+    assert len(data["failed"]) == 1
+    assert data["failed"][0]["simulation_id"] == "running_sim"
+    assert "running" in data["failed"][0]["error"].lower()
+
+    # Cleanup
+    del main.running_processes["running_sim"]
