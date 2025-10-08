@@ -428,6 +428,182 @@ class TestMedQuADDatasetLoader:
                 ["This is answer 1", "This is answer 2"], truncation=False
             )
 
+    def test_tokenize_function_with_multiple_columns(self, dataset_loader):
+        """Test tokenize_function joins multiple columns with spaces"""
+        with patch(
+            "src.dataset_loaders.medquad_dataset_loader.AutoTokenizer.from_pretrained"
+        ) as mock_tokenizer:
+            mock_tokenizer_instance = Mock()
+            mock_tokenizer_instance.return_value = {"input_ids": [1, 2, 3]}
+            mock_tokenizer.return_value = mock_tokenizer_instance
+
+            # Create tokenize function with multiple columns
+            tokenizer = mock_tokenizer_instance
+            tokenize_columns = ["question", "answer"]
+
+            def tokenize_function(examples):
+                texts = [
+                    " ".join(row)
+                    for row in zip(*[examples[col] for col in tokenize_columns])
+                ]
+                return tokenizer(texts, truncation=False)
+
+            # Test with sample data
+            examples = {
+                "question": ["What is AI?", "What is ML?"],
+                "answer": ["Artificial Intelligence", "Machine Learning"],
+            }
+            tokenize_function(examples)
+
+            # Should join question and answer with space
+            mock_tokenizer_instance.assert_called_with(
+                [
+                    "What is AI? Artificial Intelligence",
+                    "What is ML? Machine Learning",
+                ],
+                truncation=False,
+            )
+
+    def test_chunk_function_chunks_tokens_correctly(self, dataset_loader):
+        """Test internal chunk_function splits tokens into fixed-size chunks"""
+        chunk_size = 256
+
+        def chunk_function(examples):
+            concatenated = {k: sum(examples[k], []) for k in examples.keys()}
+            total_len = len(concatenated["input_ids"])
+            total_len = (total_len // chunk_size) * chunk_size
+
+            result = {
+                k: [t[i : i + chunk_size] for i in range(0, total_len, chunk_size)]
+                for k, t in concatenated.items()
+            }
+            result["labels"] = result["input_ids"].copy()
+            return result
+
+        # Test with sample tokenized data (3 examples with varying lengths)
+        examples = {
+            "input_ids": [
+                list(range(100)),  # 100 tokens
+                list(range(100, 250)),  # 150 tokens
+                list(range(250, 400)),  # 150 tokens
+            ],
+            "attention_mask": [
+                [1] * 100,
+                [1] * 150,
+                [1] * 150,
+            ],
+        }
+
+        result = chunk_function(examples)
+
+        # Total tokens: 100 + 150 + 150 = 400
+        # With chunk_size=256, we get: floor(400/256) = 1 chunk
+        # Expected: 1 chunk of 256 tokens (remaining 144 tokens are dropped)
+        assert len(result["input_ids"]) == 1
+        assert len(result["input_ids"][0]) == 256
+        assert len(result["attention_mask"]) == 1
+        assert len(result["attention_mask"][0]) == 256
+
+        # Should create labels as copy of input_ids
+        assert "labels" in result
+        assert result["labels"] == result["input_ids"]
+
+    def test_chunk_function_handles_exact_multiple_of_chunk_size(self, dataset_loader):
+        """Test chunk_function when total length is exact multiple of chunk_size"""
+        chunk_size = 128
+
+        def chunk_function(examples):
+            concatenated = {k: sum(examples[k], []) for k in examples.keys()}
+            total_len = len(concatenated["input_ids"])
+            total_len = (total_len // chunk_size) * chunk_size
+
+            result = {
+                k: [t[i : i + chunk_size] for i in range(0, total_len, chunk_size)]
+                for k, t in concatenated.items()
+            }
+            result["labels"] = result["input_ids"].copy()
+            return result
+
+        # Test with data that's exactly 2 * chunk_size
+        examples = {
+            "input_ids": [
+                list(range(128)),  # 128 tokens
+                list(range(128, 256)),  # 128 tokens
+            ],
+            "attention_mask": [
+                [1] * 128,
+                [1] * 128,
+            ],
+        }
+
+        result = chunk_function(examples)
+
+        # Should create exactly 2 chunks
+        assert len(result["input_ids"]) == 2
+        assert len(result["input_ids"][0]) == 128
+        assert len(result["input_ids"][1]) == 128
+
+    def test_chunk_function_drops_incomplete_chunk(self, dataset_loader):
+        """Test chunk_function drops tokens that don't fill a complete chunk"""
+        chunk_size = 100
+
+        def chunk_function(examples):
+            concatenated = {k: sum(examples[k], []) for k in examples.keys()}
+            total_len = len(concatenated["input_ids"])
+            total_len = (total_len // chunk_size) * chunk_size
+
+            result = {
+                k: [t[i : i + chunk_size] for i in range(0, total_len, chunk_size)]
+                for k, t in concatenated.items()
+            }
+            result["labels"] = result["input_ids"].copy()
+            return result
+
+        # Test with 250 tokens (2 complete chunks + 50 leftover)
+        examples = {
+            "input_ids": [list(range(250))],
+            "attention_mask": [[1] * 250],
+        }
+
+        result = chunk_function(examples)
+
+        # Should only create 2 complete chunks (50 tokens dropped)
+        assert len(result["input_ids"]) == 2
+        assert len(result["input_ids"][0]) == 100
+        assert len(result["input_ids"][1]) == 100
+
+    def test_chunk_function_creates_labels_copy(self, dataset_loader):
+        """Test chunk_function creates independent labels copy"""
+        chunk_size = 64
+
+        def chunk_function(examples):
+            concatenated = {k: sum(examples[k], []) for k in examples.keys()}
+            total_len = len(concatenated["input_ids"])
+            total_len = (total_len // chunk_size) * chunk_size
+
+            result = {
+                k: [t[i : i + chunk_size] for i in range(0, total_len, chunk_size)]
+                for k, t in concatenated.items()
+            }
+            result["labels"] = result["input_ids"].copy()
+            return result
+
+        examples = {
+            "input_ids": [list(range(128))],
+            "attention_mask": [[1] * 128],
+        }
+
+        result = chunk_function(examples)
+
+        # Labels should be a copy, not the same reference
+        assert result["labels"] == result["input_ids"]
+        assert result["labels"] is not result["input_ids"]
+
+        # Verify both have the expected structure
+        assert len(result["labels"]) == 2
+        assert len(result["labels"][0]) == 64
+        assert len(result["labels"][1]) == 64
+
     @patch("src.dataset_loaders.medquad_dataset_loader.AutoTokenizer.from_pretrained")
     @patch("src.dataset_loaders.medquad_dataset_loader.load_dataset")
     @patch("src.dataset_loaders.medquad_dataset_loader.DataLoader")

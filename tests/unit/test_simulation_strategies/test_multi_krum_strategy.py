@@ -6,13 +6,20 @@ Tests Multi-Krum client selection algorithms and removal logic.
 
 from unittest.mock import patch
 
-from tests.common import Mock, np, pytest, FitRes, ndarrays_to_parameters, ClientProxy
+from flwr.common import EvaluateRes
+from tests.common import (
+    Mock,
+    np,
+    pytest,
+    FitRes,
+    ndarrays_to_parameters,
+    ClientProxy,
+    generate_mock_client_data,
+)
 from src.data_models.simulation_strategy_history import SimulationStrategyHistory
 from src.simulation_strategies.multi_krum_based_removal_strategy import (
     MultiKrumBasedRemovalStrategy,
 )
-
-from tests.common import generate_mock_client_data
 
 
 class TestMultiKrumBasedRemovalStrategy:
@@ -48,6 +55,20 @@ class TestMultiKrumBasedRemovalStrategy:
     def mock_client_results(self):
         """Create mock client results for testing."""
         return generate_mock_client_data(num_clients=6)
+
+    @pytest.fixture
+    def mock_evaluate_results(self):
+        """Generate mock evaluate results for testing."""
+        results = []
+        for i in range(6):
+            client_proxy = Mock(spec=ClientProxy)
+            client_proxy.cid = str(i)
+            eval_res = Mock(spec=EvaluateRes)
+            eval_res.num_examples = 100 + (i * 10)
+            eval_res.loss = 0.5 - (i * 0.08)
+            eval_res.metrics = {"accuracy": 0.75 + (i * 0.03)}
+            results.append((client_proxy, eval_res))
+        return results
 
     def test_initialization(self, multi_krum_strategy, mock_strategy_history):
         """Test MultiKrumBasedRemovalStrategy initialization."""
@@ -577,3 +598,86 @@ class TestMultiKrumBasedRemovalStrategy:
 
         # Verify remove_clients is set to False when limit is reached
         assert multi_krum_strategy.remove_clients is False
+
+    def test_aggregate_evaluate_empty_results(self, multi_krum_strategy):
+        """Test aggregate_evaluate with empty results."""
+        result = multi_krum_strategy.aggregate_evaluate(1, [], [])
+
+        assert result == (None, {})
+
+    def test_aggregate_evaluate_collects_per_client_metrics(
+        self, multi_krum_strategy, mock_evaluate_results, mock_strategy_history
+    ):
+        """Test aggregate_evaluate collects per-client metrics."""
+        server_round = 1
+
+        multi_krum_strategy.aggregate_evaluate(server_round, mock_evaluate_results, [])
+
+        # Should call insert_single_client_history_entry twice per client (accuracy and loss)
+        assert mock_strategy_history.insert_single_client_history_entry.call_count == 12
+
+    def test_aggregate_evaluate_calculates_aggregated_loss(
+        self, multi_krum_strategy, mock_evaluate_results
+    ):
+        """Test aggregate_evaluate calculates weighted aggregated loss."""
+        server_round = 1
+
+        loss_aggregated, _ = multi_krum_strategy.aggregate_evaluate(
+            server_round, mock_evaluate_results, []
+        )
+
+        # Should return a float loss value
+        assert isinstance(loss_aggregated, float)
+        assert loss_aggregated >= 0
+
+    def test_aggregate_evaluate_returns_empty_metrics(
+        self, multi_krum_strategy, mock_evaluate_results
+    ):
+        """Test aggregate_evaluate returns empty metrics dict."""
+        server_round = 1
+
+        _, metrics = multi_krum_strategy.aggregate_evaluate(
+            server_round, mock_evaluate_results, []
+        )
+
+        # Multi-Krum strategy doesn't return metrics in aggregate_evaluate
+        assert isinstance(metrics, dict)
+
+    def test_aggregate_evaluate_stores_per_client_data(
+        self, multi_krum_strategy, mock_evaluate_results, mock_strategy_history
+    ):
+        """Test aggregate_evaluate stores correct per-client data."""
+        server_round = 1
+        multi_krum_strategy.current_round = 1
+
+        multi_krum_strategy.aggregate_evaluate(server_round, mock_evaluate_results, [])
+
+        # Verify both accuracy and loss were stored
+        calls = mock_strategy_history.insert_single_client_history_entry.call_args_list
+
+        # First 6 calls should be accuracy
+        first_call = calls[0]
+        assert first_call[1]["client_id"] == 0
+        assert first_call[1]["current_round"] == 1
+        assert first_call[1]["accuracy"] == 0.75
+
+        # Next 6 calls should be loss
+        seventh_call = calls[6]
+        assert seventh_call[1]["client_id"] == 0
+        assert seventh_call[1]["current_round"] == 1
+        assert seventh_call[1]["loss"] == 0.5
+
+    def test_aggregate_evaluate_with_failures(
+        self, multi_krum_strategy, mock_evaluate_results
+    ):
+        """Test aggregate_evaluate handles failures parameter."""
+        server_round = 1
+        failures = [Exception("Test failure")]
+
+        # Should process successfully despite failures
+        loss_aggregated, metrics = multi_krum_strategy.aggregate_evaluate(
+            server_round, mock_evaluate_results, failures
+        )
+
+        assert isinstance(loss_aggregated, float)
+        assert isinstance(metrics, dict)

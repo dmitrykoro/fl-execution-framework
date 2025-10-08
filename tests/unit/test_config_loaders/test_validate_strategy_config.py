@@ -11,6 +11,7 @@ from src.config_loaders.validate_strategy_config import (
     check_llm_specific_parameters,
     validate_dependent_params,
     validate_strategy_config,
+    validate_huggingface_dataset,
 )
 
 
@@ -1105,3 +1106,299 @@ class TestValidateStrategyConfigLlmIntegration:
         # Should fail due to insufficient clients
         error_message = str(exc_info.value)
         assert "EXPERIMENT STOPPED: Client configuration error" in error_message
+
+
+class TestValidateHuggingFaceDataset:
+    """Test suite for HuggingFace dataset validation functionality."""
+
+    def test_local_dataset_source_no_validation_required(self):
+        """Test that local dataset source doesn't require HF-specific parameters."""
+        config = {
+            "dataset_source": "local",
+            "dataset_keyword": "femnist_iid",
+        }
+
+        # Should not raise any exception
+        validate_huggingface_dataset(config)
+
+    def test_default_dataset_source_no_validation_required(self):
+        """Test that missing dataset_source defaults to local and doesn't require HF parameters."""
+        config = {
+            "dataset_keyword": "femnist_iid",
+        }
+
+        # Should not raise any exception
+        validate_huggingface_dataset(config)
+
+    def test_huggingface_source_requires_dataset_name(self):
+        """Test that HuggingFace source requires hf_dataset_name parameter."""
+        config = {
+            "dataset_source": "huggingface",
+        }
+
+        with pytest.raises(ValidationError) as exc_info:
+            validate_huggingface_dataset(config)
+
+        assert "hf_dataset_name is required when dataset_source='huggingface'" in str(
+            exc_info.value
+        )
+
+    def test_huggingface_source_with_empty_dataset_name_fails(self):
+        """Test that empty hf_dataset_name is treated as missing."""
+        config = {
+            "dataset_source": "huggingface",
+            "hf_dataset_name": "",
+        }
+
+        with pytest.raises(ValidationError) as exc_info:
+            validate_huggingface_dataset(config)
+
+        assert "hf_dataset_name is required when dataset_source='huggingface'" in str(
+            exc_info.value
+        )
+
+    def test_huggingface_with_valid_iid_strategy(self):
+        """Test that IID partitioning strategy is valid for HuggingFace datasets."""
+        config = {
+            "dataset_source": "huggingface",
+            "hf_dataset_name": "mnist",
+            "partitioning_strategy": "iid",
+        }
+
+        # Should not raise any exception
+        validate_huggingface_dataset(config)
+
+    def test_huggingface_with_default_iid_strategy(self):
+        """Test that partitioning_strategy defaults to IID when not specified."""
+        config = {
+            "dataset_source": "huggingface",
+            "hf_dataset_name": "cifar10",
+        }
+
+        # Should not raise any exception (defaults to iid)
+        validate_huggingface_dataset(config)
+
+    def test_huggingface_with_valid_dirichlet_strategy(self):
+        """Test that Dirichlet partitioning strategy is valid for HuggingFace datasets."""
+        config = {
+            "dataset_source": "huggingface",
+            "hf_dataset_name": "mnist",
+            "partitioning_strategy": "dirichlet",
+            "partitioning_params": {"alpha": 0.5},
+        }
+
+        # Should not raise any exception
+        validate_huggingface_dataset(config)
+
+    def test_huggingface_with_valid_pathological_strategy(self):
+        """Test that pathological partitioning strategy is valid for HuggingFace datasets."""
+        config = {
+            "dataset_source": "huggingface",
+            "hf_dataset_name": "mnist",
+            "partitioning_strategy": "pathological",
+            "partitioning_params": {"num_classes_per_partition": 2},
+        }
+
+        # Should not raise any exception
+        validate_huggingface_dataset(config)
+
+    def test_huggingface_with_invalid_strategy_fails(self):
+        """Test that invalid partitioning strategy fails validation."""
+        config = {
+            "dataset_source": "huggingface",
+            "hf_dataset_name": "mnist",
+            "partitioning_strategy": "invalid_strategy",
+        }
+
+        with pytest.raises(ValidationError) as exc_info:
+            validate_huggingface_dataset(config)
+
+        error_message = str(exc_info.value)
+        assert "Invalid partitioning_strategy: invalid_strategy" in error_message
+        assert "Must be one of: iid, dirichlet, pathological" in error_message
+
+    def test_dirichlet_alpha_minimum_boundary(self):
+        """Test that Dirichlet alpha at minimum boundary (just above 0) is valid."""
+        config = {
+            "dataset_source": "huggingface",
+            "hf_dataset_name": "mnist",
+            "partitioning_strategy": "dirichlet",
+            "partitioning_params": {"alpha": 0.01},
+        }
+
+        # Should not raise any exception
+        validate_huggingface_dataset(config)
+
+    def test_dirichlet_alpha_maximum_boundary(self):
+        """Test that Dirichlet alpha at maximum boundary (10) is valid."""
+        config = {
+            "dataset_source": "huggingface",
+            "hf_dataset_name": "mnist",
+            "partitioning_strategy": "dirichlet",
+            "partitioning_params": {"alpha": 10.0},
+        }
+
+        # Should not raise any exception
+        validate_huggingface_dataset(config)
+
+    def test_dirichlet_alpha_zero_fails(self):
+        """Test that Dirichlet alpha of 0 fails validation."""
+        config = {
+            "dataset_source": "huggingface",
+            "hf_dataset_name": "mnist",
+            "partitioning_strategy": "dirichlet",
+            "partitioning_params": {"alpha": 0.0},
+        }
+
+        with pytest.raises(ValidationError) as exc_info:
+            validate_huggingface_dataset(config)
+
+        error_message = str(exc_info.value)
+        assert "Dirichlet alpha must be in range (0, 10]" in error_message
+        assert "got: 0" in error_message
+
+    def test_dirichlet_alpha_negative_fails(self):
+        """Test that negative Dirichlet alpha fails validation."""
+        config = {
+            "dataset_source": "huggingface",
+            "hf_dataset_name": "mnist",
+            "partitioning_strategy": "dirichlet",
+            "partitioning_params": {"alpha": -1.0},
+        }
+
+        with pytest.raises(ValidationError) as exc_info:
+            validate_huggingface_dataset(config)
+
+        error_message = str(exc_info.value)
+        assert "Dirichlet alpha must be in range (0, 10]" in error_message
+        assert "got: -1" in error_message
+
+    def test_dirichlet_alpha_above_maximum_fails(self):
+        """Test that Dirichlet alpha above 10 fails validation."""
+        config = {
+            "dataset_source": "huggingface",
+            "hf_dataset_name": "mnist",
+            "partitioning_strategy": "dirichlet",
+            "partitioning_params": {"alpha": 10.5},
+        }
+
+        with pytest.raises(ValidationError) as exc_info:
+            validate_huggingface_dataset(config)
+
+        error_message = str(exc_info.value)
+        assert "Dirichlet alpha must be in range (0, 10]" in error_message
+        assert "got: 10.5" in error_message
+
+    def test_dirichlet_with_default_alpha(self):
+        """Test that Dirichlet strategy uses default alpha of 0.5 when not specified."""
+        config = {
+            "dataset_source": "huggingface",
+            "hf_dataset_name": "mnist",
+            "partitioning_strategy": "dirichlet",
+        }
+
+        # Should not raise any exception (defaults to alpha=0.5)
+        validate_huggingface_dataset(config)
+
+    def test_dirichlet_with_empty_params(self):
+        """Test that Dirichlet strategy works with empty partitioning_params."""
+        config = {
+            "dataset_source": "huggingface",
+            "hf_dataset_name": "mnist",
+            "partitioning_strategy": "dirichlet",
+            "partitioning_params": {},
+        }
+
+        # Should not raise any exception (defaults to alpha=0.5)
+        validate_huggingface_dataset(config)
+
+    def test_pathological_num_classes_minimum_boundary(self):
+        """Test that pathological with 1 class per partition is valid."""
+        config = {
+            "dataset_source": "huggingface",
+            "hf_dataset_name": "mnist",
+            "partitioning_strategy": "pathological",
+            "partitioning_params": {"num_classes_per_partition": 1},
+        }
+
+        # Should not raise any exception
+        validate_huggingface_dataset(config)
+
+    def test_pathological_num_classes_zero_fails(self):
+        """Test that pathological with 0 classes per partition fails validation."""
+        config = {
+            "dataset_source": "huggingface",
+            "hf_dataset_name": "mnist",
+            "partitioning_strategy": "pathological",
+            "partitioning_params": {"num_classes_per_partition": 0},
+        }
+
+        with pytest.raises(ValidationError) as exc_info:
+            validate_huggingface_dataset(config)
+
+        error_message = str(exc_info.value)
+        assert "num_classes_per_partition must be >= 1" in error_message
+        assert "got: 0" in error_message
+
+    def test_pathological_num_classes_negative_fails(self):
+        """Test that pathological with negative classes per partition fails validation."""
+        config = {
+            "dataset_source": "huggingface",
+            "hf_dataset_name": "mnist",
+            "partitioning_strategy": "pathological",
+            "partitioning_params": {"num_classes_per_partition": -1},
+        }
+
+        with pytest.raises(ValidationError) as exc_info:
+            validate_huggingface_dataset(config)
+
+        error_message = str(exc_info.value)
+        assert "num_classes_per_partition must be >= 1" in error_message
+        assert "got: -1" in error_message
+
+    def test_pathological_with_default_num_classes(self):
+        """Test that pathological strategy uses default of 2 classes when not specified."""
+        config = {
+            "dataset_source": "huggingface",
+            "hf_dataset_name": "mnist",
+            "partitioning_strategy": "pathological",
+        }
+
+        # Should not raise any exception (defaults to 2 classes)
+        validate_huggingface_dataset(config)
+
+    def test_pathological_with_empty_params(self):
+        """Test that pathological strategy works with empty partitioning_params."""
+        config = {
+            "dataset_source": "huggingface",
+            "hf_dataset_name": "mnist",
+            "partitioning_strategy": "pathological",
+            "partitioning_params": {},
+        }
+
+        # Should not raise any exception (defaults to 2 classes)
+        validate_huggingface_dataset(config)
+
+    def test_huggingface_complete_config_with_dirichlet(self):
+        """Test complete HuggingFace configuration with Dirichlet partitioning."""
+        config = {
+            "dataset_source": "huggingface",
+            "hf_dataset_name": "uoft-cs/cifar10",
+            "partitioning_strategy": "dirichlet",
+            "partitioning_params": {"alpha": 1.0},
+        }
+
+        # Should not raise any exception
+        validate_huggingface_dataset(config)
+
+    def test_huggingface_complete_config_with_pathological(self):
+        """Test complete HuggingFace configuration with pathological partitioning."""
+        config = {
+            "dataset_source": "huggingface",
+            "hf_dataset_name": "ylecun/mnist",
+            "partitioning_strategy": "pathological",
+            "partitioning_params": {"num_classes_per_partition": 3},
+        }
+
+        # Should not raise any exception
+        validate_huggingface_dataset(config)

@@ -7,11 +7,18 @@ Tests PID controller logic implementation, PID variants behavior, and parameter 
 from unittest.mock import patch
 
 import torch
-from tests.common import Mock, np, pytest, FitRes, ndarrays_to_parameters, ClientProxy
+from flwr.common import EvaluateRes
+from tests.common import (
+    Mock,
+    np,
+    pytest,
+    FitRes,
+    ndarrays_to_parameters,
+    ClientProxy,
+    generate_mock_client_data,
+)
 from src.data_models.simulation_strategy_history import SimulationStrategyHistory
 from src.simulation_strategies.pid_based_removal_strategy import PIDBasedRemovalStrategy
-
-from tests.common import generate_mock_client_data
 
 
 class TestPIDBasedRemovalStrategy:
@@ -91,6 +98,20 @@ class TestPIDBasedRemovalStrategy:
     def mock_client_results(self):
         """Generate mock client results for testing."""
         return generate_mock_client_data(num_clients=5)
+
+    @pytest.fixture
+    def mock_evaluate_results(self):
+        """Generate mock evaluate results for testing."""
+        results = []
+        for i in range(5):
+            client_proxy = Mock(spec=ClientProxy)
+            client_proxy.cid = str(i)
+            eval_res = Mock(spec=EvaluateRes)
+            eval_res.num_examples = 100 + (i * 10)
+            eval_res.loss = 0.6 - (i * 0.1)
+            eval_res.metrics = {"accuracy": 0.75 + (i * 0.04)}
+            results.append((client_proxy, eval_res))
+        return results
 
     def test_initialization(
         self, pid_strategy, mock_strategy_history, mock_network_model
@@ -809,3 +830,86 @@ class TestPIDBasedRemovalStrategy:
         assert pid_scores["pid"] != pid_scores["pid_scaled"]
         assert pid_scores["pid"] != pid_scores["pid_standardized"]
         assert pid_scores["pid_scaled"] != pid_scores["pid_standardized"]
+
+    def test_aggregate_evaluate_empty_results(self, pid_strategy):
+        """Test aggregate_evaluate with empty results."""
+        result = pid_strategy.aggregate_evaluate(1, [], [])
+
+        assert result == (None, {})
+
+    def test_aggregate_evaluate_collects_per_client_metrics(
+        self, pid_strategy, mock_evaluate_results, mock_strategy_history
+    ):
+        """Test aggregate_evaluate collects per-client metrics."""
+        server_round = 1
+
+        pid_strategy.aggregate_evaluate(server_round, mock_evaluate_results, [])
+
+        # Should call insert_single_client_history_entry twice per client (accuracy and loss)
+        assert mock_strategy_history.insert_single_client_history_entry.call_count == 10
+
+    def test_aggregate_evaluate_calculates_aggregated_loss(
+        self, pid_strategy, mock_evaluate_results
+    ):
+        """Test aggregate_evaluate calculates weighted aggregated loss."""
+        server_round = 1
+
+        loss_aggregated, _ = pid_strategy.aggregate_evaluate(
+            server_round, mock_evaluate_results, []
+        )
+
+        # Should return a float loss value
+        assert isinstance(loss_aggregated, float)
+        assert loss_aggregated >= 0
+
+    def test_aggregate_evaluate_returns_empty_metrics(
+        self, pid_strategy, mock_evaluate_results
+    ):
+        """Test aggregate_evaluate returns empty metrics dict."""
+        server_round = 1
+
+        _, metrics = pid_strategy.aggregate_evaluate(
+            server_round, mock_evaluate_results, []
+        )
+
+        # PID strategy doesn't return metrics in aggregate_evaluate
+        assert isinstance(metrics, dict)
+
+    def test_aggregate_evaluate_stores_per_client_data(
+        self, pid_strategy, mock_evaluate_results, mock_strategy_history
+    ):
+        """Test aggregate_evaluate stores correct per-client data."""
+        server_round = 1
+        pid_strategy.current_round = 1
+
+        pid_strategy.aggregate_evaluate(server_round, mock_evaluate_results, [])
+
+        # Verify both accuracy and loss were stored
+        calls = mock_strategy_history.insert_single_client_history_entry.call_args_list
+
+        # First 5 calls should be accuracy
+        first_call = calls[0]
+        assert first_call[1]["client_id"] == 0
+        assert first_call[1]["current_round"] == 1
+        assert first_call[1]["accuracy"] == 0.75
+
+        # Next 5 calls should be loss
+        sixth_call = calls[5]
+        assert sixth_call[1]["client_id"] == 0
+        assert sixth_call[1]["current_round"] == 1
+        assert sixth_call[1]["loss"] == 0.6
+
+    def test_aggregate_evaluate_with_failures(
+        self, pid_strategy, mock_evaluate_results
+    ):
+        """Test aggregate_evaluate handles failures parameter."""
+        server_round = 1
+        failures = [Exception("Test failure")]
+
+        # Should process successfully despite failures
+        loss_aggregated, metrics = pid_strategy.aggregate_evaluate(
+            server_round, mock_evaluate_results, failures
+        )
+
+        assert isinstance(loss_aggregated, float)
+        assert isinstance(metrics, dict)

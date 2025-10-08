@@ -520,3 +520,426 @@ def test_simulation_status_transitions_to_completed(
 
     # Process should be removed from tracking
     assert "api_run_20250107_120000" not in main.running_processes
+
+
+# --- Additional Exception Handling Tests ---
+
+
+def test_list_simulations_with_malformed_config(
+    api_client: TestClient, tmp_path: Path, monkeypatch
+):
+    """GET /api/simulations skips simulations with malformed config.json."""
+    monkeypatch.setattr("src.api.main.OUTPUT_DIR", tmp_path / "out")
+    (tmp_path / "out").mkdir(parents=True)
+
+    # Create simulation with valid config
+    valid_sim = tmp_path / "out" / "valid_sim"
+    valid_sim.mkdir()
+    valid_config = {
+        "shared_settings": {
+            "aggregation_strategy_keyword": "fedavg",
+            "num_of_rounds": 5,
+            "num_of_clients": 3,
+        }
+    }
+    (valid_sim / "config.json").write_text(json.dumps(valid_config))
+
+    # Create simulation with malformed config
+    bad_sim = tmp_path / "out" / "bad_sim"
+    bad_sim.mkdir()
+    (bad_sim / "config.json").write_text("{invalid json}")
+
+    response = api_client.get("/api/simulations")
+    assert response.status_code == 200
+    sims = response.json()
+
+    # Should only return the valid simulation
+    assert len(sims) == 1
+    assert sims[0]["simulation_id"] == "valid_sim"
+
+
+def test_list_simulations_with_io_error(
+    api_client: TestClient, tmp_path: Path, monkeypatch
+):
+    """GET /api/simulations handles IO errors when reading config."""
+    monkeypatch.setattr("src.api.main.OUTPUT_DIR", tmp_path / "out")
+    (tmp_path / "out").mkdir(parents=True)
+
+    sim_dir = tmp_path / "out" / "io_error_sim"
+    sim_dir.mkdir()
+
+    # Create config file with valid content
+    config = {"shared_settings": {"aggregation_strategy_keyword": "fedavg"}}
+    config_path = sim_dir / "config.json"
+    config_path.write_text(json.dumps(config))
+
+    # Mock Path.open to raise IOError
+    from pathlib import Path as PathLib
+
+    original_open = PathLib.open
+
+    def mock_open(self, *args, **kwargs):
+        if "io_error_sim" in str(self) and "config.json" in str(self):
+            raise IOError("Permission denied")
+        return original_open(self, *args, **kwargs)
+
+    monkeypatch.setattr("pathlib.Path.open", mock_open)
+
+    response = api_client.get("/api/simulations")
+    assert response.status_code == 200
+    # Should skip the problematic simulation
+    sims = response.json()
+    assert all(sim["simulation_id"] != "io_error_sim" for sim in sims)
+
+
+def test_create_simulation_config_write_error(
+    api_client: TestClient, tmp_path: Path, monkeypatch
+):
+    """POST /api/simulations handles config write errors."""
+    monkeypatch.setattr("src.api.main.OUTPUT_DIR", tmp_path / "out")
+    monkeypatch.setattr("src.api.main.BASE_DIR", tmp_path)
+
+    # Make output directory read-only to cause write error
+    (tmp_path / "out").mkdir(parents=True, exist_ok=True)
+
+    # Mock Path.open to raise IOError
+    from pathlib import Path as PathLib
+
+    original_open = PathLib.open
+
+    def mock_open(self, *args, **kwargs):
+        if "config.json" in str(self):
+            raise IOError("Disk full")
+        return original_open(self, *args, **kwargs)
+
+    monkeypatch.setattr("pathlib.Path.open", mock_open)
+
+    config = {"aggregation_strategy_keyword": "fedavg"}
+
+    response = api_client.post("/api/simulations", json=config)
+    assert response.status_code == 500
+    assert "failed to write config" in response.json()["detail"].lower()
+
+
+def test_create_simulation_subprocess_error(
+    api_client: TestClient, tmp_path: Path, monkeypatch
+):
+    """POST /api/simulations handles subprocess creation errors."""
+    monkeypatch.setattr("src.api.main.OUTPUT_DIR", tmp_path / "out")
+    monkeypatch.setattr("src.api.main.BASE_DIR", tmp_path)
+
+    # Mock subprocess.Popen to raise exception
+    def mock_popen(*args, **kwargs):
+        raise OSError("Failed to spawn process")
+
+    monkeypatch.setattr("src.api.main.subprocess.Popen", mock_popen)
+
+    config = {"aggregation_strategy_keyword": "fedavg"}
+
+    response = api_client.post("/api/simulations", json=config)
+    assert response.status_code == 500
+    assert "failed to start simulation" in response.json()["detail"].lower()
+
+
+def test_get_simulation_status_error_log_io_error(
+    api_client: TestClient, tmp_path: Path, monkeypatch
+):
+    """GET /api/simulations/{id}/status handles error.log read errors."""
+    monkeypatch.setattr("src.api.main.OUTPUT_DIR", tmp_path / "out")
+    sim_dir = tmp_path / "out" / "error_log_issue"
+    sim_dir.mkdir(parents=True)
+
+    config = {"shared_settings": {}, "simulation_strategies": [{}]}
+    (sim_dir / "config.json").write_text(json.dumps(config))
+    (sim_dir / "error.log").write_text("Some error")
+
+    # Mock a finished process
+    mock_process = MagicMock()
+    mock_process.poll.return_value = 1  # Non-zero exit
+
+    main.running_processes["error_log_issue"] = mock_process
+
+    # Mock Path.open to raise IOError when reading error.log
+    from pathlib import Path as PathLib
+
+    original_open = PathLib.open
+
+    def mock_open(self, *args, **kwargs):
+        if "error.log" in str(self):
+            raise IOError("Cannot read error log")
+        return original_open(self, *args, **kwargs)
+
+    monkeypatch.setattr("pathlib.Path.open", mock_open)
+
+    response = api_client.get("/api/simulations/error_log_issue/status")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["status"] == "failed"
+    # error field should be None or absent when error.log can't be read
+    assert data.get("error") is None
+
+
+def test_get_plot_data_nonexistent_simulation(
+    api_client: TestClient, tmp_path: Path, monkeypatch
+):
+    """GET /api/simulations/{id}/plot-data returns 404 for nonexistent simulation."""
+    monkeypatch.setattr("src.api.main.OUTPUT_DIR", tmp_path / "out")
+    (tmp_path / "out").mkdir(parents=True)
+
+    response = api_client.get("/api/simulations/nonexistent/plot-data")
+    assert response.status_code == 404
+    assert "not found" in response.json()["detail"].lower()
+
+
+def test_get_plot_data_json_parse_error(
+    api_client: TestClient, tmp_path: Path, monkeypatch
+):
+    """GET /api/simulations/{id}/plot-data handles JSON parse errors."""
+    monkeypatch.setattr("src.api.main.OUTPUT_DIR", tmp_path / "out")
+    sim_dir = tmp_path / "out" / "bad_json"
+    sim_dir.mkdir(parents=True)
+
+    # Create malformed plot data JSON
+    (sim_dir / "plot_data_0.json").write_text("{invalid json")
+
+    response = api_client.get("/api/simulations/bad_json/plot-data")
+    assert response.status_code == 500
+    # Should return generic error message
+
+
+def test_get_plot_data_file_not_found_error(
+    api_client: TestClient, tmp_path: Path, monkeypatch
+):
+    """GET /api/simulations/{id}/plot-data handles FileNotFoundError explicitly."""
+    monkeypatch.setattr("src.api.main.OUTPUT_DIR", tmp_path / "out")
+    sim_dir = tmp_path / "out" / "missing_plot"
+    sim_dir.mkdir(parents=True)
+
+    # Create plot_data file that will be deleted
+    plot_file = sim_dir / "plot_data_0.json"
+    plot_file.write_text('{"rounds": [1, 2, 3]}')
+
+    # Mock open to raise FileNotFoundError
+    original_open = open
+
+    def mock_open(*args, **kwargs):
+        if "plot_data_0.json" in str(args[0]):
+            raise FileNotFoundError("File disappeared")
+        return original_open(*args, **kwargs)
+
+    monkeypatch.setattr("builtins.open", mock_open)
+
+    response = api_client.get("/api/simulations/missing_plot/plot-data")
+    assert response.status_code == 404
+    assert "not found" in response.json()["detail"].lower()
+
+
+def test_validate_dataset_valid(api_client: TestClient, monkeypatch):
+    """GET /api/datasets/validate returns valid dataset info."""
+    from unittest.mock import Mock
+
+    # Mock HuggingFace dataset builder
+    mock_builder = Mock()
+    mock_builder.info.splits = {
+        "train": Mock(num_examples=60000),
+        "test": Mock(num_examples=10000),
+    }
+    mock_builder.info.features = "{'image': Image, 'label': ClassLabel}"
+
+    def mock_load_builder(name):
+        return mock_builder
+
+    monkeypatch.setattr("src.api.main.load_dataset_builder", mock_load_builder)
+
+    response = api_client.get("/api/datasets/validate?name=ylecun/mnist")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["valid"] is True
+    assert data["compatible"] is True
+    assert "info" in data
+    assert data["info"]["has_label"] is True
+
+
+def test_validate_dataset_not_found(api_client: TestClient, monkeypatch):
+    """GET /api/datasets/validate handles dataset not found."""
+
+    def mock_load_builder(name):
+        raise Exception("Dataset not found on HuggingFace Hub")
+
+    monkeypatch.setattr("src.api.main.load_dataset_builder", mock_load_builder)
+
+    response = api_client.get("/api/datasets/validate?name=invalid/dataset")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["valid"] is False
+    assert data["compatible"] is False
+    assert "not found" in data["error"].lower()
+
+
+def test_validate_dataset_network_error(api_client: TestClient, monkeypatch):
+    """GET /api/datasets/validate handles network errors."""
+
+    def mock_load_builder(name):
+        raise Exception("Connection timeout")
+
+    monkeypatch.setattr("src.api.main.load_dataset_builder", mock_load_builder)
+
+    response = api_client.get("/api/datasets/validate?name=ylecun/mnist")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["valid"] is False
+    assert "network" in data["error"].lower() or "connection" in data["error"].lower()
+
+
+def test_validate_dataset_authentication_error(api_client: TestClient, monkeypatch):
+    """GET /api/datasets/validate handles authentication errors."""
+
+    def mock_load_builder(name):
+        raise Exception("Unauthorized: 401")
+
+    monkeypatch.setattr("src.api.main.load_dataset_builder", mock_load_builder)
+
+    response = api_client.get("/api/datasets/validate?name=private/dataset")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["valid"] is False
+    assert (
+        "authentication" in data["error"].lower()
+        or "unauthorized" in data["error"].lower()
+    )
+
+
+def test_validate_dataset_forbidden_error(api_client: TestClient, monkeypatch):
+    """GET /api/datasets/validate handles forbidden errors."""
+
+    def mock_load_builder(name):
+        raise Exception("Forbidden: 403")
+
+    monkeypatch.setattr("src.api.main.load_dataset_builder", mock_load_builder)
+
+    response = api_client.get("/api/datasets/validate?name=restricted/dataset")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["valid"] is False
+    assert "forbidden" in data["error"].lower() or "permission" in data["error"].lower()
+
+
+def test_validate_dataset_invalid_format(api_client: TestClient, monkeypatch):
+    """GET /api/datasets/validate handles invalid dataset name format."""
+
+    def mock_load_builder(name):
+        raise Exception("Invalid dataset identifier")
+
+    monkeypatch.setattr("src.api.main.load_dataset_builder", mock_load_builder)
+
+    response = api_client.get("/api/datasets/validate?name=invalidformat")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["valid"] is False
+    assert "format" in data["error"].lower()
+
+
+def test_secure_join_prevents_traversal(tmp_path):
+    """secure_join prevents path traversal attacks."""
+    from src.api.main import secure_join, HTTPException
+
+    # Use tmp_path to ensure base exists on Windows
+    base = tmp_path / "safe"
+    base.mkdir()
+
+    # Valid path
+    result = secure_join(base, "subdir", "file.txt")
+    # Resolve both paths for comparison on Windows
+    assert result.resolve().is_relative_to(base.resolve())
+
+    # Path traversal attempts should raise HTTPException
+    try:
+        secure_join(base, "..", "..", "etc", "passwd")
+        assert False, "Should have raised HTTPException"
+    except HTTPException as e:
+        assert e.status_code == 400
+        assert "invalid path" in e.detail.lower()
+
+
+def test_get_simulation_path_invalid_id():
+    """get_simulation_path rejects invalid simulation IDs."""
+    from src.api.main import get_simulation_path, HTTPException
+
+    # Invalid characters in simulation ID
+    try:
+        get_simulation_path("../../malicious")
+        assert False, "Should have raised HTTPException"
+    except HTTPException as e:
+        assert e.status_code in [400, 404]
+
+
+def test_simulation_status_completed_with_results_no_process(
+    api_client: TestClient, mock_simulation_dir: Path, monkeypatch
+):
+    """Status returns 'completed' when results exist but no tracked process."""
+    monkeypatch.setattr("src.api.main.OUTPUT_DIR", mock_simulation_dir.parent)
+
+    # Ensure no process is tracked
+    if "api_run_20250107_120000" in main.running_processes:
+        del main.running_processes["api_run_20250107_120000"]
+
+    response = api_client.get("/api/simulations/api_run_20250107_120000/status")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["status"] == "completed"
+    assert data["progress"] == 1.0
+
+
+def test_simulation_details_filters_dataset_directories(
+    api_client: TestClient, tmp_path: Path, monkeypatch
+):
+    """GET /api/simulations/{id} excludes dataset_ directories from result_files."""
+    monkeypatch.setattr("src.api.main.OUTPUT_DIR", tmp_path / "out")
+    sim_dir = tmp_path / "out" / "test_filter"
+    sim_dir.mkdir(parents=True)
+
+    config = {"shared_settings": {}, "simulation_strategies": [{}]}
+    (sim_dir / "config.json").write_text(json.dumps(config))
+
+    # Create result files
+    (sim_dir / "metrics.csv").write_text("round,accuracy\n1,0.8")
+    (sim_dir / "plot.pdf").write_bytes(b"%PDF-1.4")
+
+    # Create dataset directory (should be filtered out)
+    dataset_dir = sim_dir / "dataset_mnist"
+    dataset_dir.mkdir()
+    (dataset_dir / "train.csv").write_text("data")
+
+    response = api_client.get("/api/simulations/test_filter")
+    assert response.status_code == 200
+    data = response.json()
+
+    # Dataset files should not be in result_files
+    assert "metrics.csv" in data["result_files"]
+    assert "plot.pdf" in data["result_files"]
+    assert not any("dataset_" in f for f in data["result_files"])
+
+
+def test_create_simulation_sets_loky_env_vars(
+    api_client: TestClient, tmp_path: Path, monkeypatch
+):
+    """POST /api/simulations sets LOKY_MAX_CPU_COUNT environment variable."""
+    monkeypatch.setattr("src.api.main.OUTPUT_DIR", tmp_path / "out")
+    monkeypatch.setattr("src.api.main.BASE_DIR", tmp_path)
+
+    captured_env = {}
+
+    def mock_popen(*args, **kwargs):
+        captured_env.update(kwargs.get("env", {}))
+        mock_process = MagicMock()
+        mock_process.pid = 12345
+        return mock_process
+
+    monkeypatch.setattr("src.api.main.subprocess.Popen", mock_popen)
+
+    config = {"aggregation_strategy_keyword": "fedavg"}
+    response = api_client.post("/api/simulations", json=config)
+
+    assert response.status_code == 201
+    assert "LOKY_MAX_CPU_COUNT" in captured_env
+    assert int(captured_env["LOKY_MAX_CPU_COUNT"]) > 0

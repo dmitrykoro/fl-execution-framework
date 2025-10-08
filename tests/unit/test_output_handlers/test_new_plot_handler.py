@@ -15,6 +15,7 @@ from src.output_handlers.new_plot_handler import (
     plot_size,
     show_inter_strategy_plots,
     show_plots_within_strategy,
+    export_plot_data_json,
 )
 
 matplotlib.use("Agg")
@@ -64,6 +65,8 @@ class TestPlotHandler:
         # Add the missing rounds_history attribute
         mock_rounds_history = Mock(spec=RoundsInfo)
         mock_rounds_history.removal_threshold_history = []
+        mock_rounds_history.plottable_metrics = []  # Add plottable_metrics for export_plot_data_json
+        mock_rounds_history.get_metric_by_name = Mock(return_value=None)
         strategy_history.rounds_history = mock_rounds_history
 
         simulation.strategy_history = strategy_history
@@ -739,3 +742,377 @@ class TestPlotHandler:
         assert len(plot_size) == 2
         assert isinstance(bar_width, (int, float))
         assert bar_width > 0
+
+    # --- Tests for export_plot_data_json ---
+
+    def test_export_plot_data_json_returns_early_when_save_disabled(
+        self, mock_simulation_strategy, mock_directory_handler, tmp_path
+    ):
+        """Test export_plot_data_json returns early when save_plots is disabled"""
+        mock_simulation_strategy.strategy_config.save_plots = False
+        mock_directory_handler.new_plots_dirname = str(tmp_path)
+
+        export_plot_data_json(mock_simulation_strategy, mock_directory_handler)
+
+        # Should not create any JSON files
+        json_files = list(tmp_path.glob("*.json"))
+        assert len(json_files) == 0
+
+    def test_export_plot_data_json_creates_file_when_enabled(
+        self, mock_simulation_strategy, mock_directory_handler, tmp_path
+    ):
+        """Test export_plot_data_json creates JSON file when save_plots is enabled"""
+        mock_simulation_strategy.strategy_config.save_plots = True
+        mock_simulation_strategy.strategy_config.strategy_number = 0
+        mock_directory_handler.new_plots_dirname = str(tmp_path)
+
+        export_plot_data_json(mock_simulation_strategy, mock_directory_handler)
+
+        # Should create plot_data_0.json
+        json_file = tmp_path / "plot_data_0.json"
+        assert json_file.exists()
+
+    def test_export_plot_data_json_valid_structure(
+        self, mock_simulation_strategy, mock_directory_handler, tmp_path
+    ):
+        """Test export_plot_data_json creates valid JSON structure"""
+        import json
+
+        mock_simulation_strategy.strategy_config.save_plots = True
+        mock_simulation_strategy.strategy_config.strategy_number = 0
+        mock_directory_handler.new_plots_dirname = str(tmp_path)
+
+        export_plot_data_json(mock_simulation_strategy, mock_directory_handler)
+
+        json_file = tmp_path / "plot_data_0.json"
+        with open(json_file, "r") as f:
+            data = json.load(f)
+
+        # Verify top-level structure
+        assert "per_client_metrics" in data
+        assert "round_metrics" in data
+        assert isinstance(data["per_client_metrics"], list)
+        assert isinstance(data["round_metrics"], dict)
+
+    def test_export_plot_data_json_includes_client_data(
+        self, mock_simulation_strategy, mock_directory_handler, tmp_path
+    ):
+        """Test export_plot_data_json includes per-client data"""
+        import json
+
+        mock_simulation_strategy.strategy_config.save_plots = True
+        mock_simulation_strategy.strategy_config.strategy_number = 0
+        mock_directory_handler.new_plots_dirname = str(tmp_path)
+
+        # Setup client data
+        clients = mock_simulation_strategy.strategy_history.get_all_clients()
+        assert len(clients) == 3
+
+        export_plot_data_json(mock_simulation_strategy, mock_directory_handler)
+
+        json_file = tmp_path / "plot_data_0.json"
+        with open(json_file, "r") as f:
+            data = json.load(f)
+
+        # Should have data for all 3 clients
+        assert len(data["per_client_metrics"]) == 3
+
+        # Verify client data structure
+        client_data = data["per_client_metrics"][0]
+        assert "client_id" in client_data
+        assert "is_malicious" in client_data
+        assert "rounds" in client_data
+        assert "aggregation_participation" in client_data
+        assert "metrics" in client_data
+
+    def test_export_plot_data_json_client_metrics(
+        self, mock_simulation_strategy, mock_directory_handler, tmp_path
+    ):
+        """Test export_plot_data_json includes client metrics correctly"""
+        import json
+
+        mock_simulation_strategy.strategy_config.save_plots = True
+        mock_simulation_strategy.strategy_config.strategy_number = 0
+        mock_directory_handler.new_plots_dirname = str(tmp_path)
+
+        export_plot_data_json(mock_simulation_strategy, mock_directory_handler)
+
+        json_file = tmp_path / "plot_data_0.json"
+        with open(json_file, "r") as f:
+            data = json.load(f)
+
+        client_data = data["per_client_metrics"][0]
+        assert "loss_history" in client_data["metrics"]
+        assert "accuracy_history" in client_data["metrics"]
+
+        # Verify values match mock data
+        assert client_data["metrics"]["loss_history"] == [0.8, 0.6, 0.4]
+        assert client_data["metrics"]["accuracy_history"] == [0.6, 0.7, 0.8]
+
+    def test_export_plot_data_json_includes_rounds(
+        self, mock_simulation_strategy, mock_directory_handler, tmp_path
+    ):
+        """Test export_plot_data_json includes rounds array"""
+        import json
+
+        mock_simulation_strategy.strategy_config.save_plots = True
+        mock_simulation_strategy.strategy_config.strategy_number = 0
+        mock_directory_handler.new_plots_dirname = str(tmp_path)
+
+        export_plot_data_json(mock_simulation_strategy, mock_directory_handler)
+
+        json_file = tmp_path / "plot_data_0.json"
+        with open(json_file, "r") as f:
+            data = json.load(f)
+
+        assert "rounds" in data
+        assert isinstance(data["rounds"], list)
+
+    def test_export_plot_data_json_includes_round_metrics(
+        self, mock_simulation_strategy, mock_directory_handler, tmp_path
+    ):
+        """Test export_plot_data_json includes round-level metrics"""
+        import json
+
+        mock_simulation_strategy.strategy_config.save_plots = True
+        mock_simulation_strategy.strategy_config.strategy_number = 0
+        mock_directory_handler.new_plots_dirname = str(tmp_path)
+
+        # Setup round metrics
+        rounds_history = mock_simulation_strategy.strategy_history.rounds_history
+        rounds_history.plottable_metrics = ["aggregated_loss", "average_accuracy"]
+        rounds_history.get_metric_by_name = Mock(
+            side_effect=lambda metric: [0.5, 0.4, 0.3]
+            if metric in ["aggregated_loss", "average_accuracy"]
+            else None
+        )
+
+        export_plot_data_json(mock_simulation_strategy, mock_directory_handler)
+
+        json_file = tmp_path / "plot_data_0.json"
+        with open(json_file, "r") as f:
+            data = json.load(f)
+
+        assert "aggregated_loss" in data["round_metrics"]
+        assert "average_accuracy" in data["round_metrics"]
+        assert data["round_metrics"]["aggregated_loss"] == [0.5, 0.4, 0.3]
+
+    def test_export_plot_data_json_includes_removal_threshold(
+        self, mock_simulation_strategy, mock_directory_handler, tmp_path
+    ):
+        """Test export_plot_data_json includes removal threshold when available"""
+        import json
+
+        mock_simulation_strategy.strategy_config.save_plots = True
+        mock_simulation_strategy.strategy_config.strategy_number = 0
+        mock_directory_handler.new_plots_dirname = str(tmp_path)
+
+        # Add removal threshold history
+        mock_simulation_strategy.strategy_history.rounds_history.removal_threshold_history = [
+            0.5,
+            0.6,
+            0.7,
+        ]
+
+        export_plot_data_json(mock_simulation_strategy, mock_directory_handler)
+
+        json_file = tmp_path / "plot_data_0.json"
+        with open(json_file, "r") as f:
+            data = json.load(f)
+
+        assert "removal_threshold_history" in data
+        assert data["removal_threshold_history"] == [0.5, 0.6, 0.7]
+
+    def test_export_plot_data_json_no_removal_threshold(
+        self, mock_simulation_strategy, mock_directory_handler, tmp_path
+    ):
+        """Test export_plot_data_json handles missing removal threshold"""
+        import json
+
+        mock_simulation_strategy.strategy_config.save_plots = True
+        mock_simulation_strategy.strategy_config.strategy_number = 0
+        mock_directory_handler.new_plots_dirname = str(tmp_path)
+
+        # No removal threshold
+        mock_simulation_strategy.strategy_history.rounds_history.removal_threshold_history = []
+
+        export_plot_data_json(mock_simulation_strategy, mock_directory_handler)
+
+        json_file = tmp_path / "plot_data_0.json"
+        with open(json_file, "r") as f:
+            data = json.load(f)
+
+        assert "removal_threshold_history" not in data
+
+    def test_export_plot_data_json_strategy_number_in_filename(
+        self, mock_simulation_strategy, mock_directory_handler, tmp_path
+    ):
+        """Test export_plot_data_json uses strategy_number in filename"""
+        mock_simulation_strategy.strategy_config.save_plots = True
+        mock_simulation_strategy.strategy_config.strategy_number = 42
+        mock_directory_handler.new_plots_dirname = str(tmp_path)
+
+        export_plot_data_json(mock_simulation_strategy, mock_directory_handler)
+
+        json_file = tmp_path / "plot_data_42.json"
+        assert json_file.exists()
+
+    def test_export_plot_data_json_empty_client_list(
+        self, mock_simulation_strategy, mock_directory_handler, tmp_path
+    ):
+        """Test export_plot_data_json handles empty client list"""
+        import json
+
+        mock_simulation_strategy.strategy_config.save_plots = True
+        mock_simulation_strategy.strategy_config.strategy_number = 0
+        mock_directory_handler.new_plots_dirname = str(tmp_path)
+
+        # Empty client list
+        mock_simulation_strategy.strategy_history.get_all_clients.return_value = []
+
+        export_plot_data_json(mock_simulation_strategy, mock_directory_handler)
+
+        json_file = tmp_path / "plot_data_0.json"
+        with open(json_file, "r") as f:
+            data = json.load(f)
+
+        assert data["per_client_metrics"] == []
+        assert data["rounds"] == []
+
+    def test_export_plot_data_json_skips_none_metrics(
+        self, mock_simulation_strategy, mock_directory_handler, tmp_path
+    ):
+        """Test export_plot_data_json skips None round metrics"""
+        import json
+
+        mock_simulation_strategy.strategy_config.save_plots = True
+        mock_simulation_strategy.strategy_config.strategy_number = 0
+        mock_directory_handler.new_plots_dirname = str(tmp_path)
+
+        # Setup round metrics with some None values
+        rounds_history = mock_simulation_strategy.strategy_history.rounds_history
+        rounds_history.plottable_metrics = ["metric1", "metric2"]
+        rounds_history.get_metric_by_name = Mock(
+            side_effect=lambda metric: [0.5, 0.4] if metric == "metric1" else None
+        )
+
+        export_plot_data_json(mock_simulation_strategy, mock_directory_handler)
+
+        json_file = tmp_path / "plot_data_0.json"
+        with open(json_file, "r") as f:
+            data = json.load(f)
+
+        # Should only include metric1, not metric2
+        assert "metric1" in data["round_metrics"]
+        assert "metric2" not in data["round_metrics"]
+
+    def test_export_plot_data_json_malicious_client_flag(
+        self, mock_simulation_strategy, mock_directory_handler, tmp_path
+    ):
+        """Test export_plot_data_json correctly exports is_malicious flag"""
+        import json
+
+        mock_simulation_strategy.strategy_config.save_plots = True
+        mock_simulation_strategy.strategy_config.strategy_number = 0
+        mock_directory_handler.new_plots_dirname = str(tmp_path)
+
+        # Set first client as malicious
+        clients = mock_simulation_strategy.strategy_history.get_all_clients()
+        clients[0].is_malicious = True
+        clients[1].is_malicious = False
+
+        export_plot_data_json(mock_simulation_strategy, mock_directory_handler)
+
+        json_file = tmp_path / "plot_data_0.json"
+        with open(json_file, "r") as f:
+            data = json.load(f)
+
+        assert data["per_client_metrics"][0]["is_malicious"] is True
+        assert data["per_client_metrics"][1]["is_malicious"] is False
+
+    def test_export_plot_data_json_aggregation_participation(
+        self, mock_simulation_strategy, mock_directory_handler, tmp_path
+    ):
+        """Test export_plot_data_json includes aggregation participation history"""
+        import json
+
+        mock_simulation_strategy.strategy_config.save_plots = True
+        mock_simulation_strategy.strategy_config.strategy_number = 0
+        mock_directory_handler.new_plots_dirname = str(tmp_path)
+
+        # Set aggregation participation
+        clients = mock_simulation_strategy.strategy_history.get_all_clients()
+        clients[0].aggregation_participation_history = [1, 1, 0]
+
+        export_plot_data_json(mock_simulation_strategy, mock_directory_handler)
+
+        json_file = tmp_path / "plot_data_0.json"
+        with open(json_file, "r") as f:
+            data = json.load(f)
+
+        assert data["per_client_metrics"][0]["aggregation_participation"] == [1, 1, 0]
+
+    def test_export_plot_data_json_json_formatting(
+        self, mock_simulation_strategy, mock_directory_handler, tmp_path
+    ):
+        """Test export_plot_data_json creates properly formatted JSON with indentation"""
+        mock_simulation_strategy.strategy_config.save_plots = True
+        mock_simulation_strategy.strategy_config.strategy_number = 0
+        mock_directory_handler.new_plots_dirname = str(tmp_path)
+
+        export_plot_data_json(mock_simulation_strategy, mock_directory_handler)
+
+        json_file = tmp_path / "plot_data_0.json"
+        content = json_file.read_text()
+
+        # Should have indentation (indent=2 in json.dump)
+        assert "  " in content
+        # Should be valid JSON
+        import json
+
+        json.loads(content)
+
+    def test_export_plot_data_json_multiple_strategies(
+        self, mock_simulation_strategy, mock_directory_handler, tmp_path
+    ):
+        """Test export_plot_data_json creates separate files for different strategies"""
+        mock_directory_handler.new_plots_dirname = str(tmp_path)
+
+        # Export for strategy 0
+        mock_simulation_strategy.strategy_config.save_plots = True
+        mock_simulation_strategy.strategy_config.strategy_number = 0
+        export_plot_data_json(mock_simulation_strategy, mock_directory_handler)
+
+        # Export for strategy 1
+        mock_simulation_strategy.strategy_config.strategy_number = 1
+        export_plot_data_json(mock_simulation_strategy, mock_directory_handler)
+
+        # Should create two separate files
+        assert (tmp_path / "plot_data_0.json").exists()
+        assert (tmp_path / "plot_data_1.json").exists()
+
+    def test_export_plot_data_json_client_id_types(
+        self, mock_simulation_strategy, mock_directory_handler, tmp_path
+    ):
+        """Test export_plot_data_json handles different client_id types"""
+        import json
+
+        mock_simulation_strategy.strategy_config.save_plots = True
+        mock_simulation_strategy.strategy_config.strategy_number = 0
+        mock_directory_handler.new_plots_dirname = str(tmp_path)
+
+        # Set various client ID types
+        clients = mock_simulation_strategy.strategy_history.get_all_clients()
+        clients[0].client_id = 0
+        clients[1].client_id = 1
+        clients[2].client_id = 2
+
+        export_plot_data_json(mock_simulation_strategy, mock_directory_handler)
+
+        json_file = tmp_path / "plot_data_0.json"
+        with open(json_file, "r") as f:
+            data = json.load(f)
+
+        # All client_ids should be preserved
+        client_ids = [c["client_id"] for c in data["per_client_metrics"]]
+        assert client_ids == [0, 1, 2]
