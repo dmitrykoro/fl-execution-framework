@@ -10,14 +10,13 @@ Tests cover:
 """
 
 import json
-import pytest
 from pathlib import Path
 from unittest.mock import MagicMock
 from src.api import main
 from fastapi.testclient import TestClient
 
 
-# --- Endpoint Tests (Basic Functionality) ---
+# --- Endpoint Tests ---
 
 
 def test_read_root(api_client: TestClient):
@@ -362,15 +361,6 @@ def test_csv_read_error_returns_500(
     response = api_client.get("/api/simulations/sim_bad_csv/results/bad.csv")
     # Pandas may handle binary data gracefully, so check for 200 or 500
     assert response.status_code in [200, 400, 500]
-
-
-def test_config_write_error_returns_500(
-    api_client: TestClient, tmp_path: Path, monkeypatch
-):
-    """POST /api/simulations handles write errors gracefully."""
-    # This test verifies error handling but may not trigger on all platforms
-    # Windows doesn't support Unix-style directory permissions
-    pytest.skip("Directory permission tests not reliable across platforms")
 
 
 # --- Edge Cases ---
