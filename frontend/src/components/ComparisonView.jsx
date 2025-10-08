@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { Card, Row, Col, Spinner, Alert, Button, Table, Badge } from 'react-bootstrap';
 import { getSimulationDetails, getSimulationStatus } from '../api';
@@ -6,7 +6,7 @@ import { getSimulationDetails, getSimulationStatus } from '../api';
 function ComparisonView() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  const simulationIds = searchParams.get('ids')?.split(',') || [];
+  const simulationIds = useMemo(() => searchParams.get('ids')?.split(',') || [], [searchParams]);
 
   const [simulations, setSimulations] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -21,15 +21,15 @@ function ComparisonView() {
 
     const fetchSimulations = async () => {
       try {
-        const promises = simulationIds.map(async (id) => {
+        const promises = simulationIds.map(async id => {
           const [detailsRes, statusRes] = await Promise.all([
             getSimulationDetails(id),
-            getSimulationStatus(id)
+            getSimulationStatus(id),
           ]);
           return {
             id,
             details: detailsRes.data,
-            status: statusRes.data
+            status: statusRes.data,
           };
         });
 
@@ -43,7 +43,7 @@ function ComparisonView() {
     };
 
     fetchSimulations();
-  }, []);
+  }, [simulationIds]);
 
   const getConfigDiff = () => {
     if (simulations.length < 2) return [];
@@ -64,27 +64,34 @@ function ComparisonView() {
   };
 
   const getMetricsComparison = () => {
-    return simulations.map(sim => {
-      const csvData = sim.details.csv_data || {};
-      const roundMetrics = csvData['csv/round_metrics_0.csv'] || [];
+    return simulations
+      .map(sim => {
+        const csvData = sim.details.csv_data || {};
+        const roundMetrics = csvData['csv/round_metrics_0.csv'] || [];
 
-      if (roundMetrics.length === 0) return null;
+        if (roundMetrics.length === 0) return null;
 
-      const firstRound = roundMetrics[0];
-      const lastRound = roundMetrics[roundMetrics.length - 1];
+        const firstRound = roundMetrics[0];
+        const lastRound = roundMetrics[roundMetrics.length - 1];
 
-      return {
-        id: sim.id,
-        strategyName: sim.details.config.strategy_name,
-        initialAccuracy: firstRound?.test_accuracy || 0,
-        finalAccuracy: lastRound?.test_accuracy || 0,
-        improvement: lastRound?.test_accuracy && firstRound?.test_accuracy
-          ? ((lastRound.test_accuracy - firstRound.test_accuracy) / firstRound.test_accuracy * 100).toFixed(1)
-          : 'N/A',
-        rounds: sim.details.config.num_of_rounds,
-        clients: sim.details.config.num_of_clients
-      };
-    }).filter(m => m !== null);
+        return {
+          id: sim.id,
+          strategyName: sim.details.config.strategy_name,
+          initialAccuracy: firstRound?.test_accuracy || 0,
+          finalAccuracy: lastRound?.test_accuracy || 0,
+          improvement:
+            lastRound?.test_accuracy && firstRound?.test_accuracy
+              ? (
+                  ((lastRound.test_accuracy - firstRound.test_accuracy) /
+                    firstRound.test_accuracy) *
+                  100
+                ).toFixed(1)
+              : 'N/A',
+          rounds: sim.details.config.num_of_rounds,
+          clients: sim.details.config.num_of_clients,
+        };
+      })
+      .filter(m => m !== null);
   };
 
   if (loading) {
@@ -138,14 +145,22 @@ function ComparisonView() {
             <tbody>
               {simulations.map(sim => (
                 <tr key={sim.id}>
-                  <td><code>{sim.id}</code></td>
+                  <td>
+                    <code>{sim.id}</code>
+                  </td>
                   <td>{sim.details.config.strategy_name}</td>
                   <td>
-                    <Badge bg={
-                      sim.status.status === 'completed' ? 'success' :
-                      sim.status.status === 'running' ? 'primary' :
-                      sim.status.status === 'failed' ? 'danger' : 'secondary'
-                    }>
+                    <Badge
+                      bg={
+                        sim.status.status === 'completed'
+                          ? 'success'
+                          : sim.status.status === 'running'
+                            ? 'primary'
+                            : sim.status.status === 'failed'
+                              ? 'danger'
+                              : 'secondary'
+                      }
+                    >
                       {sim.status.status}
                     </Badge>
                   </td>
@@ -210,7 +225,9 @@ function ComparisonView() {
               <tbody>
                 {configDiffs.map(diff => (
                   <tr key={diff.key}>
-                    <td><strong>{diff.key}</strong></td>
+                    <td>
+                      <strong>{diff.key}</strong>
+                    </td>
                     {diff.values.map((value, idx) => (
                       <td key={idx}>
                         <code>{JSON.stringify(value)}</code>
@@ -223,9 +240,7 @@ function ComparisonView() {
           </Card.Body>
         </Card>
       ) : (
-        <Alert variant="info">
-          All configurations are identical across selected simulations.
-        </Alert>
+        <Alert variant="info">All configurations are identical across selected simulations.</Alert>
       )}
 
       <Card className="mb-4">
@@ -238,7 +253,9 @@ function ComparisonView() {
               <Col key={idx}>
                 <Card>
                   <Card.Header>
-                    <small>Simulation {idx + 1}: {sim.id}</small>
+                    <small>
+                      Simulation {idx + 1}: {sim.id}
+                    </small>
                   </Card.Header>
                   <Card.Body>
                     {sim.details.plots && sim.details.plots.length > 0 ? (

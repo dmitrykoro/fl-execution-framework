@@ -1,4 +1,3 @@
-import React from 'react';
 import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
 import Dashboard from './components/Dashboard';
 import SimulationDetails from './components/SimulationDetails';
@@ -12,7 +11,7 @@ function App() {
   return (
     <ErrorBoundary>
       <Router>
-    <ThemeToggle />
+        <ThemeToggle />
         <div className="container mt-4">
           <Routes>
             <Route path="/" element={<Dashboard />} />

@@ -27,7 +27,8 @@ class ErrorBoundary extends React.Component {
           <Alert variant="danger">
             <Alert.Heading>Something went wrong</Alert.Heading>
             <p>
-              The application encountered an unexpected error. Please try returning to the dashboard.
+              The application encountered an unexpected error. Please try returning to the
+              dashboard.
             </p>
             <hr />
             <details className="mb-3">

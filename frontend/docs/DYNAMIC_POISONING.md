@@ -22,7 +22,7 @@
         "client_ids": [0, 1],
         "attack_config": {
           "type": "label_flipping",
-          "params": {"flip_fraction": 0.5, "num_classes": 10}
+          "params": { "flip_fraction": 0.5, "num_classes": 10 }
         }
       }
     ]
@@ -88,7 +88,7 @@ Rounds 11-20: Normal training ✅
         "client_ids": [0],
         "attack_config": {
           "type": "label_flipping",
-          "params": {"flip_fraction": 0.8, "num_classes": 10}
+          "params": { "flip_fraction": 0.8, "num_classes": 10 }
         }
       },
       {
@@ -97,7 +97,7 @@ Rounds 11-20: Normal training ✅
         "client_ids": [1, 2],
         "attack_config": {
           "type": "gaussian_noise",
-          "params": {"mean": 0.0, "std": 0.2}
+          "params": { "mean": 0.0, "std": 0.2 }
         }
       }
     ]
@@ -126,7 +126,7 @@ Use for: Studying specific client behavior in heterogeneous settings
 {
   "selection_strategy": "random",
   "num_clients": 3,
-  "_selected_clients": [2, 5, 7]  // Framework sets at runtime
+  "_selected_clients": [2, 5, 7] // Framework sets at runtime
 }
 ```
 
@@ -137,8 +137,8 @@ Use for: Simulating unpredictable adversaries
 ```json
 {
   "selection_strategy": "percentage",
-  "percentage": 0.2,  // 20% of clients
-  "_selected_clients": [1, 4, 6, 9]  // Framework sets
+  "percentage": 0.2, // 20% of clients
+  "_selected_clients": [1, 4, 6, 9] // Framework sets
 }
 ```
 
@@ -156,7 +156,7 @@ Use for: Scaling attacks with total client count
 {
   "type": "label_flipping",
   "params": {
-    "flip_fraction": 0.5,     // Flip 50% of labels
+    "flip_fraction": 0.5, // Flip 50% of labels
     "num_classes": 10
   }
 }
@@ -170,7 +170,7 @@ Use for: Scaling attacks with total client count
   "params": {
     "flip_fraction": 1.0,
     "num_classes": 10,
-    "target_class": 7         // All → class 7
+    "target_class": 7 // All → class 7
   }
 }
 ```
@@ -186,7 +186,7 @@ Use for: Testing label-based Byzantine defenses, studying targeted vs untargeted
   "type": "gaussian_noise",
   "params": {
     "mean": 0.0,
-    "std": 0.1    // Higher = more noise
+    "std": 0.1 // Higher = more noise
   }
 }
 ```
@@ -203,7 +203,7 @@ Use for: Testing defenses against gradient-based attacks, evaluating aggregation
 {
   "type": "brightness",
   "params": {
-    "factor": 0.3   // 0.0 = black, 1.0 = unchanged, >1.0 = brighter
+    "factor": 0.3 // 0.0 = black, 1.0 = unchanged, >1.0 = brighter
   }
 }
 ```
@@ -220,8 +220,8 @@ Use for: Testing robustness to lighting variations, evaluating defense sensitivi
 {
   "type": "token_replacement",
   "params": {
-    "replacement_prob": 0.2,   // Replace 20% of tokens
-    "vocab_size": 30522        // BERT default
+    "replacement_prob": 0.2, // Replace 20% of tokens
+    "vocab_size": 30522 // BERT default
   }
 }
 ```
@@ -243,15 +243,17 @@ Test if attacks bypass detection when introduced late:
   "aggregation_strategy_keyword": "krum",
   "dynamic_attacks": {
     "enabled": true,
-    "schedule": [{
-      "start_round": 15,      // Late attack
-      "end_round": 20,
-      "client_ids": [0, 1, 2],
-      "attack_config": {
-        "type": "label_flipping",
-        "params": {"flip_fraction": 0.8, "num_classes": 10}
+    "schedule": [
+      {
+        "start_round": 15, // Late attack
+        "end_round": 20,
+        "client_ids": [0, 1, 2],
+        "attack_config": {
+          "type": "label_flipping",
+          "params": { "flip_fraction": 0.8, "num_classes": 10 }
+        }
       }
-    }]
+    ]
   }
 }
 ```
@@ -273,7 +275,7 @@ Test defense adaptation to changing attack patterns:
         "client_ids": [0],
         "attack_config": {
           "type": "label_flipping",
-          "params": {"flip_fraction": 0.5, "num_classes": 10}
+          "params": { "flip_fraction": 0.5, "num_classes": 10 }
         }
       },
       {
@@ -282,7 +284,7 @@ Test defense adaptation to changing attack patterns:
         "client_ids": [1, 2],
         "attack_config": {
           "type": "brightness",
-          "params": {"factor": 0.3}
+          "params": { "factor": 0.3 }
         }
       }
     ]
@@ -300,20 +302,22 @@ Test attack effectiveness under data heterogeneity:
 {
   "hf_dataset_name": "uoft-cs/cifar10",
   "partitioning_strategy": "dirichlet",
-  "partitioning_params": {"alpha": 0.3},
+  "partitioning_params": { "alpha": 0.3 },
   "aggregation_strategy_keyword": "trimmed_mean",
   "dynamic_attacks": {
     "enabled": true,
-    "schedule": [{
-      "start_round": 3,
-      "end_round": 12,
-      "selection_strategy": "percentage",
-      "percentage": 0.3,
-      "attack_config": {
-        "type": "gaussian_noise",
-        "params": {"mean": 0.0, "std": 0.15}
+    "schedule": [
+      {
+        "start_round": 3,
+        "end_round": 12,
+        "selection_strategy": "percentage",
+        "percentage": 0.3,
+        "attack_config": {
+          "type": "gaussian_noise",
+          "params": { "mean": 0.0, "std": 0.15 }
+        }
       }
-    }]
+    ]
   }
 }
 ```
@@ -334,19 +338,28 @@ Find defense failure threshold:
         "start_round": 1,
         "end_round": 5,
         "client_ids": [0, 1],
-        "attack_config": {"type": "label_flipping", "params": {"flip_fraction": 0.2, "num_classes": 10}}
+        "attack_config": {
+          "type": "label_flipping",
+          "params": { "flip_fraction": 0.2, "num_classes": 10 }
+        }
       },
       {
         "start_round": 6,
         "end_round": 10,
         "client_ids": [0, 1],
-        "attack_config": {"type": "label_flipping", "params": {"flip_fraction": 0.5, "num_classes": 10}}
+        "attack_config": {
+          "type": "label_flipping",
+          "params": { "flip_fraction": 0.5, "num_classes": 10 }
+        }
       },
       {
         "start_round": 11,
         "end_round": 15,
         "client_ids": [0, 1],
-        "attack_config": {"type": "label_flipping", "params": {"flip_fraction": 0.8, "num_classes": 10}}
+        "attack_config": {
+          "type": "label_flipping",
+          "params": { "flip_fraction": 0.8, "num_classes": 10 }
+        }
       }
     ]
   }
@@ -364,19 +377,21 @@ Dynamic attacks work with HuggingFace datasets:
   "dataset_source": "huggingface",
   "hf_dataset_name": "ylecun/mnist",
   "partitioning_strategy": "dirichlet",
-  "partitioning_params": {"alpha": 0.5},
+  "partitioning_params": { "alpha": 0.5 },
   "aggregation_strategy_keyword": "krum",
   "dynamic_attacks": {
     "enabled": true,
-    "schedule": [{
-      "start_round": 5,
-      "end_round": 12,
-      "client_ids": [0, 1, 2, 3],
-      "attack_config": {
-        "type": "label_flipping",
-        "params": {"flip_fraction": 0.6, "num_classes": 10}
+    "schedule": [
+      {
+        "start_round": 5,
+        "end_round": 12,
+        "client_ids": [0, 1, 2, 3],
+        "attack_config": {
+          "type": "label_flipping",
+          "params": { "flip_fraction": 0.6, "num_classes": 10 }
+        }
       }
-    }]
+    ]
   }
 }
 ```
@@ -390,7 +405,7 @@ See [HUGGINGFACE_DATASETS.md](./HUGGINGFACE_DATASETS.md) for details.
 **Control groups:**
 
 ```json
-{"dynamic_attacks": {"enabled": false}}  // Baseline
+{ "dynamic_attacks": { "enabled": false } } // Baseline
 ```
 
 **Attack timing:**
@@ -415,18 +430,18 @@ See [HUGGINGFACE_DATASETS.md](./HUGGINGFACE_DATASETS.md) for details.
     "enabled": true,
     "schedule": [
       {
-        "start_round": 1,              // Required (1-indexed)
-        "end_round": 10,               // Required (inclusive)
+        "start_round": 1, // Required (1-indexed)
+        "end_round": 10, // Required (inclusive)
         "selection_strategy": "specific", // "specific" | "random" | "percentage"
-        "client_ids": [0, 1],          // Required for "specific"
-        "num_clients": 3,              // Required for "random"
-        "percentage": 0.2,             // Required for "percentage"
+        "client_ids": [0, 1], // Required for "specific"
+        "num_clients": 3, // Required for "random"
+        "percentage": 0.2, // Required for "percentage"
         "attack_config": {
-          "type": "label_flipping",    // Attack type
+          "type": "label_flipping", // Attack type
           "params": {
             "flip_fraction": 0.5,
             "num_classes": 10,
-            "target_class": null       // Optional
+            "target_class": null // Optional
           }
         }
       }

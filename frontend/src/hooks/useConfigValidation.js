@@ -15,7 +15,7 @@ export function useConfigValidation(config) {
     const result = validateConfig(config);
     return {
       ...result,
-      isValid: result.errors.length === 0
+      isValid: result.errors.length === 0,
     };
   }, [config]);
 }

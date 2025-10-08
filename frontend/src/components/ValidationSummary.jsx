@@ -26,7 +26,9 @@ function ValidationSummary({ errors = [], warnings = [], infos = [] }) {
       {/* Errors */}
       {errors.length > 0 && (
         <Alert variant="danger" className="mb-2">
-          <strong>❌ {errors.length} Error{errors.length > 1 ? 's' : ''}</strong>
+          <strong>
+            ❌ {errors.length} Error{errors.length > 1 ? 's' : ''}
+          </strong>
           <ul className="mb-0 mt-2">
             {errors.map((e, i) => (
               <li key={i}>
@@ -40,7 +42,9 @@ function ValidationSummary({ errors = [], warnings = [], infos = [] }) {
       {/* Warnings */}
       {warnings.length > 0 && (
         <Alert variant="warning" className="mb-2">
-          <strong>⚠️ {warnings.length} Warning{warnings.length > 1 ? 's' : ''}</strong>
+          <strong>
+            ⚠️ {warnings.length} Warning{warnings.length > 1 ? 's' : ''}
+          </strong>
           <ul className="mb-0 mt-2">
             {warnings.map((w, i) => (
               <li key={i}>

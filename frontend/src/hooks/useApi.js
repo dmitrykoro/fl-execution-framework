@@ -13,7 +13,7 @@ const useApi = (apiFunc, ...args) => {
       setData(response.data);
     } catch (err) {
       setError(err.response?.data?.detail || 'An unexpected error occurred.');
-      console.error("API call failed:", err);
+      console.error('API call failed:', err);
     }
     setLoading(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps

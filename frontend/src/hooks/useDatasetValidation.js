@@ -16,7 +16,7 @@ export function useDatasetValidation(datasetName) {
     valid: null,
     compatible: null,
     info: null,
-    error: null
+    error: null,
   });
 
   useEffect(() => {
@@ -31,21 +31,23 @@ export function useDatasetValidation(datasetName) {
       setStatus(prev => ({ ...prev, loading: true }));
 
       try {
-        const response = await axios.get(`/api/datasets/validate?name=${encodeURIComponent(datasetName)}`);
+        const response = await axios.get(
+          `/api/datasets/validate?name=${encodeURIComponent(datasetName)}`
+        );
         setStatus({
           loading: false,
           valid: response.data.valid,
           compatible: response.data.compatible,
           info: response.data.info,
-          error: response.data.error
+          error: response.data.error,
         });
-      } catch (err) {
+      } catch {
         setStatus({
           loading: false,
           valid: false,
           compatible: false,
           info: null,
-          error: 'Validation request failed'
+          error: 'Validation request failed',
         });
       }
     }, 500);

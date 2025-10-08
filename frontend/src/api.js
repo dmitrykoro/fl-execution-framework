@@ -11,15 +11,15 @@ export const getSimulations = () => {
   return apiClient.get('/simulations');
 };
 
-export const getSimulationDetails = (simulationId) => {
+export const getSimulationDetails = simulationId => {
   return apiClient.get(`/simulations/${simulationId}`);
 };
 
-export const createSimulation = (config) => {
+export const createSimulation = config => {
   return apiClient.post('/simulations', config);
 };
 
-export const getSimulationStatus = (simulationId) => {
+export const getSimulationStatus = simulationId => {
   return apiClient.get(`/simulations/${simulationId}/status`);
 };
 

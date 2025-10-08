@@ -103,7 +103,7 @@ Realistic non-uniform data distribution.
   "dataset_source": "huggingface",
   "hf_dataset_name": "uoft-cs/cifar10",
   "partitioning_strategy": "dirichlet",
-  "partitioning_params": {"alpha": 0.5}
+  "partitioning_params": { "alpha": 0.5 }
 }
 ```
 
@@ -171,7 +171,7 @@ Extreme heterogeneity for stress testing.
     "dataset_source": "huggingface",
     "hf_dataset_name": "uoft-cs/cifar10",
     "partitioning_strategy": "dirichlet",
-    "partitioning_params": {"alpha": 0.5},
+    "partitioning_params": { "alpha": 0.5 },
     "num_of_clients": 20,
     "num_of_rounds": 10,
     "model_type": "cnn",
@@ -201,9 +201,7 @@ Extreme heterogeneity for stress testing.
     "num_of_malicious_clients": 20,
     "aggregation_strategy_keyword": "krum"
   },
-  "simulation_strategies": [
-    {"attack_type": "label_flipping"}
-  ]
+  "simulation_strategies": [{ "attack_type": "label_flipping" }]
 }
 ```
 
@@ -215,12 +213,12 @@ Extreme heterogeneity for stress testing.
 
 Run same simulation with different α values:
 
-| α Value | Description | Expected Convergence |
-|---------|-------------|---------------------|
-| 0.1 | Very heterogeneous | Slowest |
-| 0.5 | Moderate | Medium |
-| 1.0 | Mild | Faster |
-| 10.0 | Nearly IID | Fastest |
+| α Value | Description        | Expected Convergence |
+| ------- | ------------------ | -------------------- |
+| 0.1     | Very heterogeneous | Slowest              |
+| 0.5     | Moderate           | Medium               |
+| 1.0     | Mild               | Faster               |
+| 10.0    | Nearly IID         | Fastest              |
 
 **Research Question:** At what α threshold does FedAvg performance degrade?
 
@@ -271,20 +269,22 @@ HuggingFace datasets work seamlessly with dynamic attack scheduling for round-ba
   "dataset_source": "huggingface",
   "hf_dataset_name": "uoft-cs/cifar10",
   "partitioning_strategy": "dirichlet",
-  "partitioning_params": {"alpha": 0.3},
+  "partitioning_params": { "alpha": 0.3 },
   "aggregation_strategy_keyword": "trimmed_mean",
   "dynamic_attacks": {
     "enabled": true,
-    "schedule": [{
-      "start_round": 5,
-      "end_round": 12,
-      "selection_strategy": "specific",
-      "client_ids": [0, 1, 2],
-      "attack_config": {
-        "type": "label_flipping",
-        "params": {"flip_fraction": 0.6, "num_classes": 10}
+    "schedule": [
+      {
+        "start_round": 5,
+        "end_round": 12,
+        "selection_strategy": "specific",
+        "client_ids": [0, 1, 2],
+        "attack_config": {
+          "type": "label_flipping",
+          "params": { "flip_fraction": 0.6, "num_classes": 10 }
+        }
       }
-    }]
+    ]
   }
 }
 ```

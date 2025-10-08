@@ -19,49 +19,49 @@ export function validateClientConfig(config) {
     min_fit_clients,
     min_evaluate_clients,
     min_available_clients,
-    strict_mode = "true"
+    strict_mode = 'true',
   } = config;
 
   // Min client bounds - all min_* values must be <= num_of_clients
   if (min_fit_clients > num_of_clients) {
     errors.push({
-      field: "min_fit_clients",
-      message: `Cannot require more fit clients (${min_fit_clients}) than total clients (${num_of_clients})`
+      field: 'min_fit_clients',
+      message: `Cannot require more fit clients (${min_fit_clients}) than total clients (${num_of_clients})`,
     });
   }
 
   if (min_evaluate_clients > num_of_clients) {
     errors.push({
-      field: "min_evaluate_clients",
-      message: `Cannot require more evaluate clients (${min_evaluate_clients}) than total clients (${num_of_clients})`
+      field: 'min_evaluate_clients',
+      message: `Cannot require more evaluate clients (${min_evaluate_clients}) than total clients (${num_of_clients})`,
     });
   }
 
   if (min_available_clients > num_of_clients) {
     errors.push({
-      field: "min_available_clients",
-      message: `Cannot require more available clients (${min_available_clients}) than total clients (${num_of_clients})`
+      field: 'min_available_clients',
+      message: `Cannot require more available clients (${min_available_clients}) than total clients (${num_of_clients})`,
     });
   }
 
   // Strict mode warnings
-  if (strict_mode === "true") {
+  if (strict_mode === 'true') {
     if (min_fit_clients !== num_of_clients && min_fit_clients <= num_of_clients) {
       warnings.push({
-        field: "min_fit_clients",
-        message: `Strict mode will set this to ${num_of_clients} (all clients participate)`
+        field: 'min_fit_clients',
+        message: `Strict mode will set this to ${num_of_clients} (all clients participate)`,
       });
     }
     if (min_evaluate_clients !== num_of_clients && min_evaluate_clients <= num_of_clients) {
       warnings.push({
-        field: "min_evaluate_clients",
-        message: `Strict mode will set this to ${num_of_clients} (all clients participate)`
+        field: 'min_evaluate_clients',
+        message: `Strict mode will set this to ${num_of_clients} (all clients participate)`,
       });
     }
     if (min_available_clients !== num_of_clients && min_available_clients <= num_of_clients) {
       warnings.push({
-        field: "min_available_clients",
-        message: `Strict mode will set this to ${num_of_clients} (all clients participate)`
+        field: 'min_available_clients',
+        message: `Strict mode will set this to ${num_of_clients} (all clients participate)`,
       });
     }
   }
@@ -81,49 +81,53 @@ export function validateStrategyParams(config) {
   const { aggregation_strategy_keyword } = config;
 
   // Trust strategy
-  if (aggregation_strategy_keyword === "trust") {
+  if (aggregation_strategy_keyword === 'trust') {
     const requiredParams = [
-      { key: "begin_removing_from_round", label: "Begin Removing From Round" },
-      { key: "trust_threshold", label: "Trust Threshold" },
-      { key: "beta_value", label: "Beta Value" },
-      { key: "num_of_clusters", label: "Number of Clusters" }
+      { key: 'begin_removing_from_round', label: 'Begin Removing From Round' },
+      { key: 'trust_threshold', label: 'Trust Threshold' },
+      { key: 'beta_value', label: 'Beta Value' },
+      { key: 'num_of_clusters', label: 'Number of Clusters' },
     ];
 
     requiredParams.forEach(({ key, label }) => {
       if (config[key] === undefined || config[key] === null || config[key] === '') {
         errors.push({
           field: key,
-          message: `${label} is required for trust aggregation strategy`
+          message: `${label} is required for trust aggregation strategy`,
         });
       }
     });
   }
 
   // PID strategies
-  if (["pid", "pid_scaled", "pid_standardized"].includes(aggregation_strategy_keyword)) {
+  if (['pid', 'pid_scaled', 'pid_standardized'].includes(aggregation_strategy_keyword)) {
     const requiredParams = [
-      { key: "num_std_dev", label: "Number of Std Deviations" },
-      { key: "Kp", label: "Kp (Proportional Gain)" },
-      { key: "Ki", label: "Ki (Integral Gain)" },
-      { key: "Kd", label: "Kd (Derivative Gain)" }
+      { key: 'num_std_dev', label: 'Number of Std Deviations' },
+      { key: 'Kp', label: 'Kp (Proportional Gain)' },
+      { key: 'Ki', label: 'Ki (Integral Gain)' },
+      { key: 'Kd', label: 'Kd (Derivative Gain)' },
     ];
 
     requiredParams.forEach(({ key, label }) => {
       if (config[key] === undefined || config[key] === null || config[key] === '') {
         errors.push({
           field: key,
-          message: `${label} is required for ${aggregation_strategy_keyword} strategy`
+          message: `${label} is required for ${aggregation_strategy_keyword} strategy`,
         });
       }
     });
   }
 
   // Krum-based strategies
-  if (["multi-krum", "krum", "multi-krum-based"].includes(aggregation_strategy_keyword)) {
-    if (config.num_krum_selections === undefined || config.num_krum_selections === null || config.num_krum_selections === '') {
+  if (['multi-krum', 'krum', 'multi-krum-based'].includes(aggregation_strategy_keyword)) {
+    if (
+      config.num_krum_selections === undefined ||
+      config.num_krum_selections === null ||
+      config.num_krum_selections === ''
+    ) {
       errors.push({
-        field: "num_krum_selections",
-        message: `Krum Selections is required for ${aggregation_strategy_keyword} strategy`
+        field: 'num_krum_selections',
+        message: `Krum Selections is required for ${aggregation_strategy_keyword} strategy`,
       });
     } else {
       const { num_krum_selections, num_of_clients, num_of_malicious_clients = 0 } = config;
@@ -131,8 +135,8 @@ export function validateStrategyParams(config) {
       // Error: num_krum_selections must be < num_of_clients
       if (num_krum_selections >= num_of_clients) {
         errors.push({
-          field: "num_krum_selections",
-          message: `Krum Selections (${num_krum_selections}) must be less than total clients (${num_of_clients})`
+          field: 'num_krum_selections',
+          message: `Krum Selections (${num_krum_selections}) must be less than total clients (${num_of_clients})`,
         });
       }
 
@@ -140,19 +144,23 @@ export function validateStrategyParams(config) {
       const recommended = num_of_clients - num_of_malicious_clients - 2;
       if (recommended > 0 && num_krum_selections > recommended) {
         warnings.push({
-          field: "num_krum_selections",
-          message: `For best Byzantine robustness with ${num_of_malicious_clients} malicious clients, consider setting to ${recommended} or lower`
+          field: 'num_krum_selections',
+          message: `For best Byzantine robustness with ${num_of_malicious_clients} malicious clients, consider setting to ${recommended} or lower`,
         });
       }
     }
   }
 
   // Bulyan strategy - special validation
-  if (aggregation_strategy_keyword === "bulyan") {
-    if (config.num_krum_selections === undefined || config.num_krum_selections === null || config.num_krum_selections === '') {
+  if (aggregation_strategy_keyword === 'bulyan') {
+    if (
+      config.num_krum_selections === undefined ||
+      config.num_krum_selections === null ||
+      config.num_krum_selections === ''
+    ) {
       errors.push({
-        field: "num_krum_selections",
-        message: "Krum Selections is required for bulyan strategy"
+        field: 'num_krum_selections',
+        message: 'Krum Selections is required for bulyan strategy',
       });
     } else {
       const { num_krum_selections, num_of_clients } = config;
@@ -161,31 +169,31 @@ export function validateStrategyParams(config) {
       const diff = num_of_clients - num_krum_selections;
       if (diff % 2 !== 0) {
         errors.push({
-          field: "num_krum_selections",
-          message: `Bulyan requires (clients - selections) to be even. With ${num_of_clients} clients, try ${num_krum_selections - 1} or ${num_krum_selections + 1} selections`
+          field: 'num_krum_selections',
+          message: `Bulyan requires (clients - selections) to be even. With ${num_of_clients} clients, try ${num_krum_selections - 1} or ${num_krum_selections + 1} selections`,
         });
       }
 
       if (num_krum_selections >= num_of_clients) {
         errors.push({
-          field: "num_krum_selections",
-          message: `Krum Selections (${num_krum_selections}) must be less than total clients (${num_of_clients})`
+          field: 'num_krum_selections',
+          message: `Krum Selections (${num_krum_selections}) must be less than total clients (${num_of_clients})`,
         });
       }
     }
   }
 
   // Trimmed mean strategy
-  if (aggregation_strategy_keyword === "trimmed_mean") {
+  if (aggregation_strategy_keyword === 'trimmed_mean') {
     if (config.trim_ratio === undefined || config.trim_ratio === null || config.trim_ratio === '') {
       errors.push({
-        field: "trim_ratio",
-        message: "Trim Ratio is required for trimmed mean strategy"
+        field: 'trim_ratio',
+        message: 'Trim Ratio is required for trimmed mean strategy',
       });
     } else if (config.trim_ratio <= 0 || config.trim_ratio >= 0.5) {
       errors.push({
-        field: "trim_ratio",
-        message: "Trim Ratio must be between 0 and 0.5 (exclusive)"
+        field: 'trim_ratio',
+        message: 'Trim Ratio must be between 0 and 0.5 (exclusive)',
       });
     }
   }
@@ -206,18 +214,18 @@ export function validateAttackConfig(config) {
 
   // Only validate attack params if there are malicious clients
   if (num_of_malicious_clients > 0) {
-    if (attack_type === "gaussian_noise") {
+    if (attack_type === 'gaussian_noise') {
       const requiredParams = [
-        { key: "gaussian_noise_mean", label: "Gaussian Noise Mean" },
-        { key: "gaussian_noise_std", label: "Gaussian Noise Std" },
-        { key: "attack_ratio", label: "Attack Ratio" }
+        { key: 'gaussian_noise_mean', label: 'Gaussian Noise Mean' },
+        { key: 'gaussian_noise_std', label: 'Gaussian Noise Std' },
+        { key: 'attack_ratio', label: 'Attack Ratio' },
       ];
 
       requiredParams.forEach(({ key, label }) => {
         if (config[key] === undefined || config[key] === null || config[key] === '') {
           errors.push({
             field: key,
-            message: `${label} is required for gaussian_noise attack`
+            message: `${label} is required for gaussian_noise attack`,
           });
         }
       });
@@ -238,21 +246,56 @@ export function validateDatasetModelCompatibility(config) {
   const { model_type, dataset_source, dataset_keyword, hf_dataset_name } = config;
 
   // Define dataset modalities
-  const IMAGE_DATASETS_LOCAL = ['femnist_iid', 'femnist_niid', 'its', 'pneumoniamnist', 'bloodmnist', 'lung_photos'];
+  const IMAGE_DATASETS_LOCAL = [
+    'femnist_iid',
+    'femnist_niid',
+    'its',
+    'pneumoniamnist',
+    'bloodmnist',
+    'lung_photos',
+  ];
   const TEXT_DATASETS_LOCAL = ['flair', 'medquad'];
 
   // Common HuggingFace dataset patterns
   const IMAGE_DATASET_PATTERNS = [
-    'mnist', 'cifar', 'femnist', 'fashion', 'svhn',
-    'imagenet', 'coco', 'celeb', 'flowers', 'food',
-    'medmnist', 'pneumonia', 'chest', 'xray', 'blood', 'skin'
+    'mnist',
+    'cifar',
+    'femnist',
+    'fashion',
+    'svhn',
+    'imagenet',
+    'coco',
+    'celeb',
+    'flowers',
+    'food',
+    'medmnist',
+    'pneumonia',
+    'chest',
+    'xray',
+    'blood',
+    'skin',
   ];
 
   const TEXT_DATASET_PATTERNS = [
-    'imdb', 'shakespeare', 'ag_news', 'yelp', 'sst',
-    'glue', 'squad', 'wikitext', 'bookcorpus', 'amazon',
-    'tweet', 'sentiment', 'review', 'qa', 'nli',
-    'flair', 'medquad', 'pubmed', 'mimic'
+    'imdb',
+    'shakespeare',
+    'ag_news',
+    'yelp',
+    'sst',
+    'glue',
+    'squad',
+    'wikitext',
+    'bookcorpus',
+    'amazon',
+    'tweet',
+    'sentiment',
+    'review',
+    'qa',
+    'nli',
+    'flair',
+    'medquad',
+    'pubmed',
+    'mimic',
   ];
 
   let datasetModality = null;
@@ -286,17 +329,18 @@ export function validateDatasetModelCompatibility(config) {
     if (model_type === 'cnn' && datasetModality === 'text') {
       errors.push({
         field: 'model_type',
-        message: `CNN models don't work with text datasets. Please select "Transformer" model type or choose an image dataset.`
+        message: `CNN models don't work with text datasets. Please select "Transformer" model type or choose an image dataset.`,
       });
     } else if (model_type === 'transformer' && datasetModality === 'image') {
       warnings.push({
         field: 'model_type',
-        message: `Transformer models are slower for image datasets. Consider using CNN for better performance, or keep Transformer if you need LLM finetuning.`
+        message: `Transformer models are slower for image datasets. Consider using CNN for better performance, or keep Transformer if you need LLM finetuning.`,
       });
     } else if (datasetModality === 'unknown') {
       infos.push({
         field: 'hf_dataset_name',
-        message: 'Unable to auto-detect dataset type. Ensure your model type (CNN for images, Transformer for text) matches your dataset.'
+        message:
+          'Unable to auto-detect dataset type. Ensure your model type (CNN for images, Transformer for text) matches your dataset.',
       });
     }
   }
@@ -315,56 +359,65 @@ export function validateLLMConfig(config) {
 
   const { use_llm, model_type, llm_task, llm_finetuning } = config;
 
-  if (use_llm === "true") {
+  if (use_llm === 'true') {
     // LLM only supported for transformer models
-    if (model_type !== "transformer") {
+    if (model_type !== 'transformer') {
       errors.push({
-        field: "use_llm",
-        message: "LLM finetuning is only supported for transformer models"
+        field: 'use_llm',
+        message: 'LLM finetuning is only supported for transformer models',
       });
     }
 
     // Required LLM parameters
     const requiredParams = [
-      { key: "llm_model", label: "LLM Model" },
-      { key: "llm_finetuning", label: "LLM Finetuning" },
-      { key: "llm_task", label: "LLM Task" },
-      { key: "llm_chunk_size", label: "LLM Chunk Size" }
+      { key: 'llm_model', label: 'LLM Model' },
+      { key: 'llm_finetuning', label: 'LLM Finetuning' },
+      { key: 'llm_task', label: 'LLM Task' },
+      { key: 'llm_chunk_size', label: 'LLM Chunk Size' },
     ];
 
     requiredParams.forEach(({ key, label }) => {
       if (config[key] === undefined || config[key] === null || config[key] === '') {
         errors.push({
           field: key,
-          message: `${label} is required for LLM finetuning`
+          message: `${label} is required for LLM finetuning`,
         });
       }
     });
 
     // MLM task-specific parameters
-    if (llm_task === "mlm") {
-      if (config.mlm_probability === undefined || config.mlm_probability === null || config.mlm_probability === '') {
+    if (llm_task === 'mlm') {
+      if (
+        config.mlm_probability === undefined ||
+        config.mlm_probability === null ||
+        config.mlm_probability === ''
+      ) {
         errors.push({
-          field: "mlm_probability",
-          message: "MLM Probability is required for MLM task"
+          field: 'mlm_probability',
+          message: 'MLM Probability is required for MLM task',
         });
       }
     }
 
     // LoRA finetuning-specific parameters
-    if (llm_finetuning === "lora") {
+    if (llm_finetuning === 'lora') {
       const loraParams = [
-        { key: "lora_rank", label: "LoRA Rank" },
-        { key: "lora_alpha", label: "LoRA Alpha" },
-        { key: "lora_dropout", label: "LoRA Dropout" },
-        { key: "lora_target_modules", label: "LoRA Target Modules" }
+        { key: 'lora_rank', label: 'LoRA Rank' },
+        { key: 'lora_alpha', label: 'LoRA Alpha' },
+        { key: 'lora_dropout', label: 'LoRA Dropout' },
+        { key: 'lora_target_modules', label: 'LoRA Target Modules' },
       ];
 
       loraParams.forEach(({ key, label }) => {
-        if (config[key] === undefined || config[key] === null || config[key] === '' || (Array.isArray(config[key]) && config[key].length === 0)) {
+        if (
+          config[key] === undefined ||
+          config[key] === null ||
+          config[key] === '' ||
+          (Array.isArray(config[key]) && config[key].length === 0)
+        ) {
           errors.push({
             field: key,
-            message: `${label} is required for LoRA finetuning`
+            message: `${label} is required for LoRA finetuning`,
           });
         }
       });
@@ -392,7 +445,7 @@ export function validateConfig(config) {
     ...strategyValidation.errors,
     ...attackValidation.errors,
     ...datasetModelValidation.errors,
-    ...llmValidation.errors
+    ...llmValidation.errors,
   ];
 
   const warnings = [
@@ -400,7 +453,7 @@ export function validateConfig(config) {
     ...strategyValidation.warnings,
     ...attackValidation.warnings,
     ...datasetModelValidation.warnings,
-    ...llmValidation.warnings
+    ...llmValidation.warnings,
   ];
 
   const infos = [
@@ -408,13 +461,13 @@ export function validateConfig(config) {
     ...strategyValidation.infos,
     ...attackValidation.infos,
     ...datasetModelValidation.infos,
-    ...llmValidation.infos
+    ...llmValidation.infos,
   ];
 
   return {
     isValid: errors.length === 0,
     errors,
     warnings,
-    infos
+    infos,
   };
 }

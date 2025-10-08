@@ -1,6 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Card, Row, Col, Spinner, Alert, Button, Badge, Tooltip, OverlayTrigger, Form } from 'react-bootstrap';
+import {
+  Card,
+  Row,
+  Col,
+  Spinner,
+  Alert,
+  Button,
+  Badge,
+  Tooltip,
+  OverlayTrigger,
+  Form,
+} from 'react-bootstrap';
 import useApi from '../hooks/useApi';
 import { getSimulations, getSimulationStatus } from '../api';
 
@@ -10,7 +21,7 @@ function Dashboard() {
   const [selectedSims, setSelectedSims] = useState([]);
   const navigate = useNavigate();
 
-  const getRelativeTime = (timestamp) => {
+  const getRelativeTime = timestamp => {
     if (!timestamp) return '';
     const now = new Date();
     const then = new Date(timestamp);
@@ -27,23 +38,23 @@ function Dashboard() {
     return then.toLocaleDateString();
   };
 
-  const parseErrorMessage = (errorText) => {
+  const parseErrorMessage = errorText => {
     if (!errorText) return 'Unknown error occurred';
 
     // Check for validation errors (missing required fields)
-    if (errorText.includes("is a required property")) {
+    if (errorText.includes('is a required property')) {
       const match = errorText.match(/'([^']+)' is a required property/);
       const field = match ? match[1] : 'field';
       return `Configuration Error: Missing required field '${field}'`;
     }
 
     // Check for config loading errors
-    if (errorText.includes("Error while loading config")) {
+    if (errorText.includes('Error while loading config')) {
       return 'Configuration Error: Invalid or incomplete configuration';
     }
 
     // Check for enum validation errors
-    if (errorText.includes("is not one of")) {
+    if (errorText.includes('is not one of')) {
       const match = errorText.match(/'([^']+)' is not one of/);
       const value = match ? match[1] : 'value';
       return `Configuration Error: Invalid value '${value}'`;
@@ -51,13 +62,16 @@ function Dashboard() {
 
     // Default: take first line of error if multiline
     const lines = errorText.split('\n');
-    const firstMeaningfulLine = lines.find(line =>
-      line.includes('ERROR') || line.includes('Error') || line.trim().length > 0
+    const firstMeaningfulLine = lines.find(
+      line => line.includes('ERROR') || line.includes('Error') || line.trim().length > 0
     );
 
     if (firstMeaningfulLine) {
       // Clean up the line (remove ERROR: prefix, trim)
-      return firstMeaningfulLine.replace(/^ERROR:root:/i, '').replace(/^ERROR:/i, '').trim();
+      return firstMeaningfulLine
+        .replace(/^ERROR:root:/i, '')
+        .replace(/^ERROR:/i, '')
+        .trim();
     }
 
     return 'An error occurred during simulation';
@@ -84,7 +98,7 @@ function Dashboard() {
     return () => clearInterval(interval);
   }, [simulations]);
 
-  const handleCheckboxChange = (simId) => {
+  const handleCheckboxChange = simId => {
     setSelectedSims(prev =>
       prev.includes(simId) ? prev.filter(id => id !== simId) : [...prev, simId]
     );
@@ -98,7 +112,7 @@ function Dashboard() {
     navigate(`/compare?ids=${selectedSims.join(',')}`);
   };
 
-  const getStatusBadge = (statusData) => {
+  const getStatusBadge = statusData => {
     if (!statusData) return <Badge bg="secondary">pending</Badge>;
 
     const { status, error: errorMsg } = statusData;
@@ -107,7 +121,7 @@ function Dashboard() {
       running: 'primary',
       completed: 'success',
       failed: 'danger',
-      unknown: 'warning'
+      unknown: 'warning',
     };
 
     const badge = <Badge bg={variants[status] || 'secondary'}>{status || 'pending'}</Badge>;
@@ -175,7 +189,15 @@ function Dashboard() {
 
             return (
               <Col key={sim.simulation_id}>
-                <Card className={isFailed ? 'border-danger' : selectedSims.includes(sim.simulation_id) ? 'border-primary' : ''}>
+                <Card
+                  className={
+                    isFailed
+                      ? 'border-danger'
+                      : selectedSims.includes(sim.simulation_id)
+                        ? 'border-primary'
+                        : ''
+                  }
+                >
                   <Card.Body>
                     <div className="d-flex justify-content-between align-items-start mb-2">
                       <div className="d-flex align-items-start gap-2">
