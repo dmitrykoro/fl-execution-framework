@@ -12,6 +12,7 @@ import {
 } from 'recharts';
 import { Card, Form, ButtonGroup, Button } from 'react-bootstrap';
 import { useTheme } from '../contexts/ThemeContext';
+import RoundMetricsPlot from './RoundMetricsPlot';
 
 const COLORS = [
   '#8884d8',
@@ -91,10 +92,29 @@ export default function InteractivePlots({ simulation }) {
     return <div className="text-center p-4">No plot data available</div>;
   }
 
-  const metrics =
+  // Get all metric names
+  const allMetrics =
     plotData.per_client_metrics.length > 0
       ? Object.keys(plotData.per_client_metrics[0].metrics)
       : [];
+
+  // Filter to only show metrics that have non-null data
+  const metrics = allMetrics.filter(metricName =>
+    plotData.per_client_metrics.some(client =>
+      client.metrics[metricName]?.some(value => value !== null && value !== undefined)
+    )
+  );
+
+  // Check if all metrics are null (empty data)
+  if (metrics.length === 0) {
+    // Show round-level metrics instead
+    return <RoundMetricsPlot plotData={plotData} />;
+  }
+
+  // Auto-select first available metric if current selection is not available
+  if (!selectedMetric || !metrics.includes(selectedMetric)) {
+    setSelectedMetric(metrics[0]);
+  }
 
   // Transform data for Recharts
   const chartData = plotData.rounds.map((round, idx) => {
