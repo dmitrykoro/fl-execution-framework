@@ -4,6 +4,8 @@
 . "$(dirname "$0")/common.sh"
 navigate_to_root
 
+setup_unicode_env
+
 log_info "🔍 Starting SonarQube Analysis"
 
 # Docker & SonarQube server

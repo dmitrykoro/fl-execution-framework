@@ -5,6 +5,7 @@
 . "$(dirname "$0")/scripts/common.sh"
 navigate_to_root
 
+setup_unicode_env
 setup_logging_with_file "tests/logs" "lint"
 
 if ! ensure_virtual_environment; then
