@@ -1,4 +1,5 @@
 import torch
+from typing import Optional
 from torch.utils.data import DataLoader, random_split
 from flwr_datasets import FederatedDataset
 from flwr_datasets.partitioner import (
@@ -22,7 +23,7 @@ class FederatedDatasetLoader:
         batch_size: int,
         training_subset_fraction: float,
         partitioning_strategy: str = "iid",
-        partitioning_params: dict | None = None,
+        partitioning_params: Optional[dict] = None,
     ) -> None:
         """
         Initialize FederatedDatasetLoader.

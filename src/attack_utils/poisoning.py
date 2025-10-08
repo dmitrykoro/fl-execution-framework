@@ -6,14 +6,14 @@ during client training loops. Supports both image and text-based attacks.
 """
 
 import torch
-from typing import Tuple
+from typing import Optional, Tuple, Union
 
 
 def apply_label_flipping(
     labels: torch.Tensor,
     flip_fraction: float = 0.5,
     num_classes: int = 10,
-    target_class: int | None = None,
+    target_class: Optional[int] = None,
 ) -> torch.Tensor:
     """
     Flip a fraction of labels to random or targeted class.
@@ -100,8 +100,8 @@ def apply_token_replacement(
 
 
 def should_poison_this_round(
-    current_round: int, client_id: int, attack_schedule: list | None
-) -> Tuple[bool, dict | None]:
+    current_round: int, client_id: int, attack_schedule: Optional[list]
+) -> Tuple[bool, Optional[dict]]:
     """
     Check if client should be poisoned in current round.
 
