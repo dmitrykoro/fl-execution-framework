@@ -19,14 +19,12 @@ import pandas as pd
 import psutil
 from pydantic import BaseModel
 
-# Configure logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 logger.info("=== API main.py loaded with latin-1 CSV encoding fix ===")
 
 app = FastAPI()
 
-# Configure CORS for frontend development
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
@@ -50,17 +48,16 @@ app.add_middleware(
 
 # --- Configuration and Constants ---
 
-# Use pathlib for robust path handling
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 OUTPUT_DIR = BASE_DIR / "out"
 
-# In-memory storage for running processes
 running_processes: Dict[str, subprocess.Popen] = {}
 
 # --- Pydantic Models ---
 
 
 class SimulationConfig(BaseModel):
+    display_name: Optional[str] = None
     aggregation_strategy_keyword: Optional[str] = None
     remove_clients: Optional[str] = None
     begin_removing_from_round: Optional[int] = None
@@ -111,6 +108,7 @@ class SimulationConfig(BaseModel):
 
 class SimulationMetadata(BaseModel):
     simulation_id: str
+    display_name: Optional[str] = None
     strategy_name: str
     num_of_rounds: Union[int, str]
     num_of_clients: Union[int, str]
@@ -129,12 +127,10 @@ class SimulationDetails(BaseModel):
 def secure_join(base: Path, *paths: str) -> Path:
     """Safely join a base directory with other paths, preventing path traversal."""
     try:
-        # Resolve the path and check it's within the base directory
         final_path = (base / Path(*paths)).resolve()
         final_path.relative_to(base.resolve())
         return final_path
     except (ValueError, FileNotFoundError):
-        # ValueError is raised by relative_to if the path is outside the base
         raise HTTPException(status_code=400, detail="Invalid path specified.")
 
 
@@ -155,9 +151,7 @@ def get_simulation_path(simulation_id: str) -> Path:
 
 @app.get("/api/simulations", response_model=List[SimulationMetadata])
 def get_simulations() -> List[SimulationMetadata]:
-    """
-    Scans the output directory for all simulation runs and returns their metadata.
-    """
+    """Scans the output directory for all simulation runs and returns their metadata."""
     simulations = []
     if not OUTPUT_DIR.is_dir():
         return []
@@ -170,10 +164,8 @@ def get_simulations() -> List[SimulationMetadata]:
                     with config_path.open("r") as f:
                         config = json.load(f)
 
-                    # Handle both flat and nested config structures
                     settings = config.get("shared_settings", config)
 
-                    # Get directory creation time
                     created_at = datetime.datetime.fromtimestamp(
                         sim_dir.stat().st_ctime
                     ).isoformat()
@@ -181,6 +173,7 @@ def get_simulations() -> List[SimulationMetadata]:
                     simulations.append(
                         SimulationMetadata(
                             simulation_id=sim_dir.name,
+                            display_name=settings.get("display_name"),
                             strategy_name=settings.get(
                                 "aggregation_strategy_keyword", "Unknown"
                             ),
@@ -201,9 +194,7 @@ def get_simulations() -> List[SimulationMetadata]:
 def get_simulation_details(
     sim_path: Path = Depends(get_simulation_path), simulation_id: str = ""
 ) -> SimulationDetails:
-    """
-    Returns the configuration and a list of result files for a specific simulation.
-    """
+    """Returns the configuration and a list of result files for a specific simulation."""
     config_path = sim_path / "config.json"
     if not config_path.is_file():
         raise HTTPException(status_code=404, detail="Simulation config.json not found.")
@@ -221,14 +212,10 @@ def get_simulation_details(
             and item.name != "config.json"
             and item.suffix in [".png", ".pdf", ".csv", ".json"]
         ):
-            # Get relative path from sim_path
             rel_path = item.relative_to(sim_path)
             rel_path_str = str(rel_path).replace("\\", "/")
-            # Skip dataset directories (contain raw training data, not results)
             if not rel_path_str.startswith("dataset_"):
                 result_files.append(rel_path_str)
-
-    # Determine status
     if simulation_id in running_processes:
         process = running_processes[simulation_id]
         if process.poll() is None:
@@ -241,7 +228,6 @@ def get_simulation_details(
                 else "failed"
             )
     else:
-        # Check for existing results
         has_results = result_files or list(sim_path.glob("*.pdf"))
         error_log = sim_path / "error.log"
         if has_results:
@@ -280,9 +266,7 @@ def get_result_file(
         raise HTTPException(status_code=404, detail="Result file not found.")
 
     if result_filename.endswith(".csv"):
-        # If download=true, return the actual CSV file for download
         if download:
-            # Extract just the filename (without path) for download
             filename = Path(result_filename).name
             return FileResponse(
                 file_path,
@@ -290,7 +274,6 @@ def get_result_file(
                 headers={"Content-Disposition": f'attachment; filename="{filename}"'},
             )
 
-        # Otherwise, return JSON for frontend display
         try:
             df = pd.read_csv(file_path, encoding="latin-1")
             return JSONResponse(content=df.to_dict(orient="records"))
@@ -306,9 +289,7 @@ def get_result_file(
 
 @app.post("/api/simulations", status_code=201)
 async def create_simulation(config: SimulationConfig) -> Dict[str, str]:
-    """
-    Creates and runs a new simulation from a configuration payload.
-    """
+    """Creates and runs a new simulation from a configuration payload."""
     config_dict = config.model_dump(exclude_unset=True)
     timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
     simulation_id = f"api_run_{timestamp}"
@@ -318,12 +299,9 @@ async def create_simulation(config: SimulationConfig) -> Dict[str, str]:
 
     config_filepath = output_sim_path / "config.json"
 
-    # Wrap config in the expected structure for ConfigLoader
     wrapped_config = {
         "shared_settings": config_dict,
-        "simulation_strategies": [
-            {}
-        ],  # Single empty strategy inherits all shared_settings
+        "simulation_strategies": [{}],
     }
 
     try:
@@ -333,11 +311,8 @@ async def create_simulation(config: SimulationConfig) -> Dict[str, str]:
         raise HTTPException(status_code=500, detail=f"Failed to write config file: {e}")
 
     try:
-        # Run as a module to preserve package structure
-        # Redirect stderr to capture error messages
         error_log_path = output_sim_path / "error.log"
 
-        # Set up environment to suppress joblib/loky warnings
         env = dict(os.environ)
         try:
             physical_cores = (
@@ -345,7 +320,6 @@ async def create_simulation(config: SimulationConfig) -> Dict[str, str]:
             )
             env["LOKY_MAX_CPU_COUNT"] = str(physical_cores)
         except ImportError:
-            # If psutil not available, use cpu_count as fallback
             env["LOKY_MAX_CPU_COUNT"] = str(multiprocessing.cpu_count())
         env["PYTHONWARNINGS"] = "ignore::RuntimeWarning:threadpoolctl"
 
@@ -368,10 +342,7 @@ async def create_simulation(config: SimulationConfig) -> Dict[str, str]:
 def get_simulation_status(
     sim_path: Path = Depends(get_simulation_path), simulation_id: str = ""
 ) -> Dict[str, Any]:
-    """
-    Returns the current status of a simulation (running/completed/failed).
-    """
-    # Check if process is still running
+    """Returns the current status of a simulation (running/completed/failed)."""
     if simulation_id in running_processes:
         process = running_processes[simulation_id]
         poll_result = process.poll()
@@ -379,21 +350,17 @@ def get_simulation_status(
         if poll_result is None:
             return {"status": "running", "progress": 0.0}
         else:
-            # Process finished, remove from tracking
             del running_processes[simulation_id]
 
-            # Check for result files first - simulation may return non-zero but still succeed
             result_files = list(sim_path.glob("*.pdf")) + list(
                 sim_path.glob("csv/*.csv")
             )
             if result_files:
                 return {"status": "completed", "progress": 1.0}
 
-            # No results and exit code is 0 - completed but no output yet
             if poll_result == 0:
                 return {"status": "completed", "progress": 1.0}
             else:
-                # Non-zero exit and no results - truly failed
                 error_log_path = sim_path / "error.log"
                 error_message = None
                 if error_log_path.is_file():
@@ -404,25 +371,20 @@ def get_simulation_status(
                         pass
                 return {"status": "failed", "progress": 0.0, "error": error_message}
 
-    # Check if results exist (simulation completed before server restart)
     result_files = list(sim_path.glob("*.pdf")) + list(sim_path.glob("csv/*.csv"))
     if result_files:
         return {"status": "completed", "progress": 1.0}
 
-    # Check if error log exists AND no results (failed before server restart)
-    # Note: error.log contains stderr which includes INFO logs, not just errors
     error_log_path = sim_path / "error.log"
     if error_log_path.is_file() and not result_files:
         try:
             with error_log_path.open("r") as f:
                 error_message = f.read().strip()
-            # Only treat as failed if we have content but no results
             if error_message:
                 return {"status": "failed", "progress": 0.0, "error": error_message}
         except IOError:
             pass
 
-    # Default to pending if no process and no results
     return {"status": "pending", "progress": 0.0}
 
 
@@ -430,17 +392,13 @@ def get_simulation_status(
 def delete_simulation(
     sim_path: Path = Depends(get_simulation_path), simulation_id: str = ""
 ) -> Dict[str, str]:
-    """
-    Delete a simulation and all its files.
-    """
-    # Prevent deleting running simulations
+    """Delete a simulation and all its files."""
     if simulation_id in running_processes:
         process = running_processes[simulation_id]
         if process.poll() is None:
             raise HTTPException(
                 status_code=409, detail="Cannot delete a running simulation."
             )
-        # Process finished, safe to remove from tracking
         del running_processes[simulation_id]
 
     try:
@@ -458,15 +416,12 @@ def delete_simulation(
 def delete_multiple_simulations(
     simulation_ids: List[str] = Body(..., embed=True),
 ) -> Dict[str, Any]:
-    """
-    Delete multiple simulations at once.
-    """
+    """Delete multiple simulations at once."""
     deleted = []
     failed = []
 
     for simulation_id in simulation_ids:
         try:
-            # Validate and get simulation path
             if not simulation_id.isalnum() and "_" not in simulation_id:
                 failed.append(
                     {"simulation_id": simulation_id, "error": "Invalid simulation ID"}
@@ -481,7 +436,6 @@ def delete_multiple_simulations(
                 )
                 continue
 
-            # Prevent deleting running simulations
             if simulation_id in running_processes:
                 process = running_processes[simulation_id]
                 if process.poll() is None:
@@ -492,10 +446,8 @@ def delete_multiple_simulations(
                         }
                     )
                     continue
-                # Process finished, safe to remove from tracking
                 del running_processes[simulation_id]
 
-            # Delete simulation
             shutil.rmtree(sim_path)
             deleted.append(simulation_id)
             logger.info(f"Deleted simulation: {simulation_id}")
@@ -505,6 +457,63 @@ def delete_multiple_simulations(
             failed.append({"simulation_id": simulation_id, "error": str(e)})
 
     return {"deleted": deleted, "failed": failed}
+
+
+@app.patch("/api/simulations/{simulation_id}/rename", status_code=200)
+def rename_simulation(
+    simulation_id: str,
+    display_name: str = Body(..., embed=True),
+    sim_path: Path = Depends(get_simulation_path),
+) -> Dict[str, str]:
+    """Update the display name of a simulation."""
+    if not display_name or not display_name.strip():
+        raise HTTPException(
+            status_code=400, detail="Display name cannot be empty or whitespace only"
+        )
+
+    display_name = display_name.strip()
+
+    if len(display_name) > 100:
+        raise HTTPException(
+            status_code=400, detail="Display name must be 100 characters or less"
+        )
+
+    import re
+
+    if not re.match(r"^[a-zA-Z0-9\s\-_]+$", display_name):
+        raise HTTPException(
+            status_code=400,
+            detail="Display name can only contain letters, numbers, spaces, hyphens, and underscores",
+        )
+
+    config_path = sim_path / "config.json"
+    if not config_path.is_file():
+        raise HTTPException(status_code=404, detail="Simulation config.json not found.")
+
+    try:
+        with config_path.open("r") as f:
+            config = json.load(f)
+
+        if "shared_settings" in config:
+            config["shared_settings"]["display_name"] = display_name
+        else:
+            config["display_name"] = display_name
+
+        with config_path.open("w") as f:
+            json.dump(config, f, indent=4)
+
+        logger.info(f"Renamed simulation {simulation_id} to '{display_name}'")
+        return {
+            "message": "renamed",
+            "simulation_id": simulation_id,
+            "display_name": display_name,
+        }
+
+    except (json.JSONDecodeError, IOError) as e:
+        logger.error(f"Failed to rename simulation {simulation_id}: {e}")
+        raise HTTPException(
+            status_code=500, detail=f"Failed to update simulation config: {str(e)}"
+        )
 
 
 @app.get("/")
@@ -518,14 +527,12 @@ async def get_plot_data(simulation_id: str) -> Dict:
     try:
         sim_dir = OUTPUT_DIR / simulation_id
 
-        # Check if simulation directory exists
         if not sim_dir.exists():
             raise HTTPException(
                 status_code=404,
                 detail=f"Simulation directory not found for {simulation_id}",
             )
 
-        # Find plot_data_*.json file in simulation root directory
         json_files = [
             f
             for f in os.listdir(sim_dir)
@@ -538,7 +545,6 @@ async def get_plot_data(simulation_id: str) -> Dict:
                 detail="Plot data not yet available - simulation may still be running",
             )
 
-        # Use first JSON file (usually plot_data_0.json)
         json_path = sim_dir / json_files[0]
 
         with open(json_path, "r") as f:
@@ -567,26 +573,20 @@ async def validate_dataset(name: str) -> Dict[str, Any]:
         {
             "valid": bool,
             "compatible": bool,
-            "info": {
-                "splits": list,
-                "num_examples": int,
-                "features": str,
-                "has_label": bool,
-                "key_features": list
-            } | null,
+            "info": {"splits": list, "num_examples": int, "features": str,
+                     "has_label": bool, "key_features": list} | null,
             "error": str | null
         }
     """
     try:
-        # Lightweight check - just load metadata, not the dataset
+        # Only load metadata to avoid downloading full dataset
         builder = load_dataset_builder(name)
 
-        # Extract dataset info
         splits = list(builder.info.splits.keys())
         num_examples = sum(s.num_examples for s in builder.info.splits.values())
         features = str(builder.info.features)
 
-        # Enhanced label detection - check for various label field names
+        # Check for supervised learning label fields
         label_field_indicators = [
             "label",
             "labels",
@@ -597,23 +597,16 @@ async def validate_dataset(name: str) -> Dict[str, Any]:
         ]
         has_label = any(field in features.lower() for field in label_field_indicators)
 
-        # Parse key features from the features string for cleaner display
         key_features = []
         if builder.info.features:
             try:
-                # Extract feature names (works for most HF dataset feature formats)
-                # Match patterns like "'feature_name':" or "feature_name:"
-                feature_matches = re.findall(r"['\"]?(\w+)['\"]?\s*:", features)
+                feature_matches = re.findall(r"(?:['\"](\w+)['\"]|(\w+))\s*:", features)
+                feature_matches = [m[0] or m[1] for m in feature_matches]
                 if feature_matches:
-                    key_features = list(dict.fromkeys(feature_matches))[
-                        :5
-                    ]  # Remove duplicates, limit to 5
+                    key_features = list(dict.fromkeys(feature_matches))[:5]
             except Exception:
-                # Fallback if parsing fails
                 key_features = []
 
-        # Assume compatible - actual compatibility test would require downloading dataset
-        # which we want to avoid for performance
         compatible = True
 
         return {
@@ -630,7 +623,6 @@ async def validate_dataset(name: str) -> Dict[str, Any]:
         }
 
     except Exception as e:
-        # Categorize common errors for better user feedback
         error_message = str(e)
         error_lower = error_message.lower()
 
@@ -659,7 +651,6 @@ async def validate_dataset(name: str) -> Dict[str, Any]:
         elif len(name) < 2 or "/" not in name:
             error_message = "Invalid dataset name format. Expected format: 'username/dataset-name' (e.g., 'ylecun/mnist')."
         else:
-            # Keep original error for unexpected cases, but make it more user-friendly
             error_message = f"Unable to validate dataset: {error_message}"
 
         return {
