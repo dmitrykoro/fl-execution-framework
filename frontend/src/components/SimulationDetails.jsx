@@ -635,17 +635,24 @@ function SimulationDetails() {
     );
   };
 
+  const displayName = cfg.display_name;
+
   return (
     <div>
       <Link to="/">&larr; Back to Dashboard</Link>
-      <div className="d-flex align-items-center gap-3 mt-3 mb-3">
-        <h4 className="mb-0 text-muted">
-          Simulation: <span className="text-dark">{simulationId}</span>
-        </h4>
-        <span className={`badge bg-${statusVariant}`}>{displayStatus}</span>
-        <Button variant="outline-primary" onClick={handleRunAgain} disabled={isCloning}>
-          {isCloning ? 'Starting...' : 'Run Again'}
-        </Button>
+      <div className="d-flex flex-column gap-2 mt-3 mb-3">
+        <div className="d-flex align-items-center gap-3">
+          <h4 className="mb-0">{displayName || simulationId}</h4>
+          <span className={`badge bg-${statusVariant}`}>{displayStatus}</span>
+          <Button variant="outline-primary" onClick={handleRunAgain} disabled={isCloning}>
+            {isCloning ? 'Starting...' : 'Run Again'}
+          </Button>
+        </div>
+        {displayName && (
+          <div className="text-muted small">
+            ID: <code>{simulationId}</code>
+          </div>
+        )}
       </div>
 
       {displayStatus === 'running' && (
@@ -681,7 +688,7 @@ function SimulationDetails() {
         </Alert>
       )}
 
-      <Tabs defaultActiveKey="insights" className="mt-4">
+      <Tabs defaultActiveKey="insights" className="mt-4 flex-nowrap overflow-auto">
         <Tab eventKey="insights" title="Insights">
           <Card className="mt-3">
             <Card.Body>
@@ -946,24 +953,24 @@ function SimulationDetails() {
                         return (
                           <>
                             <div className="row g-3">
-                              <div className="col-md-4">
+                              <div className="col-12 col-sm-6 col-md-4">
                                 <div className="p-3 border rounded">
                                   <div className="small text-muted">Final Accuracy</div>
-                                  <div className="h4 mb-0 text-light">
+                                  <div className="h4 mb-0 text-dark">
                                     {(meanAccuracy * 100).toFixed(1)}%
                                   </div>
                                 </div>
                               </div>
-                              <div className="col-md-4">
+                              <div className="col-12 col-sm-6 col-md-4">
                                 <div className="p-3 border rounded">
                                   <div className="small text-muted">Total Rounds</div>
-                                  <div className="h4 mb-0 text-light">{cfg.num_of_rounds}</div>
+                                  <div className="h4 mb-0 text-dark">{cfg.num_of_rounds}</div>
                                 </div>
                               </div>
-                              <div className="col-md-4">
+                              <div className="col-12 col-sm-6 col-md-4">
                                 <div className="p-3 border rounded">
                                   <div className="small text-muted">Total Clients</div>
-                                  <div className="h4 mb-0 text-light">{cfg.num_of_clients}</div>
+                                  <div className="h4 mb-0 text-dark">{cfg.num_of_clients}</div>
                                 </div>
                               </div>
                             </div>
