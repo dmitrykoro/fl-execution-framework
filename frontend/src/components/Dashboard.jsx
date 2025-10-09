@@ -10,8 +10,8 @@ import {
   Badge,
   Tooltip,
   OverlayTrigger,
-  Form,
 } from 'react-bootstrap';
+import { Trash2 } from 'lucide-react';
 import useApi from '../hooks/useApi';
 import {
   getSimulations,
@@ -19,6 +19,7 @@ import {
   deleteSimulation,
   deleteMultipleSimulations,
 } from '../api';
+import EditableSimName from './EditableSimName';
 
 function Dashboard() {
   const { data: simulations, loading, error, refetch } = useApi(getSimulations);
@@ -104,7 +105,16 @@ function Dashboard() {
     return () => clearInterval(interval);
   }, [simulations]);
 
-  const handleCheckboxChange = simId => {
+  const handleCardClick = (simId, e) => {
+    // Don't toggle selection if clicking on interactive elements
+    if (
+      e.target.closest('a') ||
+      e.target.closest('button') ||
+      e.target.closest('input') ||
+      e.target.closest('.editable-sim-name')
+    ) {
+      return;
+    }
     setSelectedSims(prev =>
       prev.includes(simId) ? prev.filter(id => id !== simId) : [...prev, simId]
     );
@@ -226,18 +236,23 @@ function Dashboard() {
   };
 
   const getStatusBadge = statusData => {
-    if (!statusData) return <Badge bg="secondary">pending</Badge>;
+    if (!statusData) {
+      return (
+        <span className="status-badge status-pending">
+          <span className="status-dot"></span>
+          pending
+        </span>
+      );
+    }
 
     const { status, error: errorMsg } = statusData;
-    const variants = {
-      pending: 'secondary',
-      running: 'primary',
-      completed: 'success',
-      failed: 'danger',
-      unknown: 'warning',
-    };
 
-    const badge = <Badge bg={variants[status] || 'secondary'}>{status || 'pending'}</Badge>;
+    const badge = (
+      <span className={`status-badge status-${status || 'pending'}`}>
+        <span className="status-dot"></span>
+        {status || 'pending'}
+      </span>
+    );
 
     if (status === 'failed' && errorMsg) {
       return (
@@ -281,26 +296,45 @@ function Dashboard() {
 
   return (
     <div>
-      <div className="d-flex justify-content-between align-items-center mb-4">
-        <h1>Simulation Dashboard</h1>
-        <div className="d-flex gap-2">
+      <div className="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center mb-4 gap-3">
+        <h1 className="mb-0">Simulation Dashboard</h1>
+        <div className="d-flex flex-wrap gap-2 w-100 w-md-auto">
           {selectedSims.length > 0 && (
             <>
-              <Button variant="danger" onClick={handleDeleteSelected} disabled={deleting}>
-                🗑️ Delete Selected ({selectedSims.length})
+              <Button
+                variant="danger"
+                size="sm"
+                onClick={handleDeleteSelected}
+                disabled={deleting}
+                className="flex-grow-1 flex-md-grow-0"
+              >
+                🗑️ Delete ({selectedSims.length})
               </Button>
-              <Button variant="info" onClick={handleCompare}>
-                📊 Compare Selected ({selectedSims.length})
+              <Button
+                variant="info"
+                size="sm"
+                onClick={handleCompare}
+                className="flex-grow-1 flex-md-grow-0"
+              >
+                📊 Compare ({selectedSims.length})
               </Button>
             </>
           )}
           {simulations && simulations.length > 0 && (
-            <Button variant="outline-danger" onClick={handleClearAll} disabled={deleting}>
+            <Button
+              variant="outline-danger"
+              size="sm"
+              onClick={handleClearAll}
+              disabled={deleting}
+              className="flex-grow-1 flex-md-grow-0"
+            >
               🗑️ Clear All
             </Button>
           )}
-          <Link to="/simulations/new">
-            <Button variant="primary">+ New Simulation</Button>
+          <Link to="/simulations/new" className="flex-grow-1 flex-md-grow-0">
+            <Button variant="primary" size="sm" className="w-100">
+              + New Simulation
+            </Button>
           </Link>
         </div>
       </div>
@@ -313,43 +347,59 @@ function Dashboard() {
             return (
               <Col key={sim.simulation_id}>
                 <Card
-                  className={
+                  onClick={e => handleCardClick(sim.simulation_id, e)}
+                  className={`simulation-card ${
                     isFailed
                       ? 'border-danger'
                       : selectedSims.includes(sim.simulation_id)
-                        ? 'border-primary'
+                        ? 'selected'
                         : ''
-                  }
+                  }`}
+                  style={{ cursor: 'pointer', position: 'relative' }}
                 >
+                  <button
+                    className="delete-btn"
+                    onClick={e => {
+                      e.stopPropagation();
+                      handleDeleteOne(sim.simulation_id);
+                    }}
+                    disabled={deleting || statusData?.status === 'running'}
+                    title="Delete simulation"
+                    aria-label="Delete simulation"
+                  >
+                    <Trash2 size={16} />
+                  </button>
                   <Card.Body>
-                    <div className="d-flex justify-content-between align-items-start mb-2">
-                      <div className="d-flex align-items-start gap-2">
-                        <Form.Check
-                          type="checkbox"
-                          checked={selectedSims.includes(sim.simulation_id)}
-                          onChange={() => handleCheckboxChange(sim.simulation_id)}
-                          style={{ marginTop: '0.25rem' }}
-                        />
-                        <Card.Title className="mb-0">{sim.strategy_name}</Card.Title>
+                    <div
+                      className="d-flex justify-content-between align-items-start mb-2"
+                      style={{ minWidth: 0 }}
+                    >
+                      <div style={{ minWidth: 0, flex: '1 1 auto' }}>
+                        <Card.Title className="mb-0">
+                          <div className="editable-sim-name">
+                            <EditableSimName
+                              simulationId={sim.simulation_id}
+                              displayName={sim.display_name}
+                              onRename={() => refetch()}
+                            />
+                          </div>
+                        </Card.Title>
                       </div>
-                      <div className="d-flex gap-2 align-items-center">
-                        {getStatusBadge(statusData)}
-                        <Button
-                          variant="link"
-                          size="sm"
-                          className="text-danger p-0"
-                          onClick={() => handleDeleteOne(sim.simulation_id)}
-                          disabled={deleting}
-                          title="Delete simulation"
-                        >
-                          🗑️
-                        </Button>
-                      </div>
+                      <div className="flex-shrink-0 ms-2">{getStatusBadge(statusData)}</div>
                     </div>
                     <Card.Subtitle className="mb-2 text-muted">
-                      {sim.simulation_id}
+                      {sim.display_name && (
+                        <span className="small">
+                          ID: <code>{sim.simulation_id}</code>
+                          <span className="mx-2">•</span>
+                        </span>
+                      )}
+                      {!sim.display_name && <code>{sim.simulation_id}</code>}
                       {sim.created_at && (
-                        <span className="ms-2 small">• {getRelativeTime(sim.created_at)}</span>
+                        <span className="ms-2 small">
+                          {sim.display_name && ''}
+                          {getRelativeTime(sim.created_at)}
+                        </span>
                       )}
                     </Card.Subtitle>
                     {isFailed && statusData.error && (
