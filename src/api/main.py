@@ -259,10 +259,17 @@ def get_simulation_details(
     response_model=None,
 )
 def get_result_file(
-    result_filename: str, sim_path: Path = Depends(get_simulation_path)
+    result_filename: str,
+    sim_path: Path = Depends(get_simulation_path),
+    download: bool = False,
 ) -> Union[FileResponse, JSONResponse]:
     """
     Serves a specific result file (e.g., a plot image, PDF, or CSV).
+
+    Args:
+        result_filename: Name of the result file to retrieve
+        sim_path: Path to simulation directory (injected by dependency)
+        download: If True, return file for download instead of JSON (CSV only)
     """
     if not result_filename.endswith((".png", ".pdf", ".csv", ".json")):
         raise HTTPException(status_code=400, detail="Unsupported file type.")
@@ -273,6 +280,17 @@ def get_result_file(
         raise HTTPException(status_code=404, detail="Result file not found.")
 
     if result_filename.endswith(".csv"):
+        # If download=true, return the actual CSV file for download
+        if download:
+            # Extract just the filename (without path) for download
+            filename = Path(result_filename).name
+            return FileResponse(
+                file_path,
+                media_type="text/csv",
+                headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+            )
+
+        # Otherwise, return JSON for frontend display
         try:
             df = pd.read_csv(file_path, encoding="latin-1")
             return JSONResponse(content=df.to_dict(orient="records"))
