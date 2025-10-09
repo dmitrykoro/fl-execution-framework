@@ -18,6 +18,9 @@ import ValidationSummary from './ValidationSummary';
 
 // Defaults from config/simulation_strategies/example_strategy_config.json
 const initialConfig = {
+  // Simulation Naming
+  display_name: '',
+
   // Core Simulation Settings
   num_of_rounds: 4,
   num_of_clients: 5,
@@ -335,7 +338,13 @@ function NewSimulation() {
     setError(null);
 
     try {
-      const response = await createSimulation(config);
+      // Remove display_name if empty (use auto-generated ID instead)
+      const submissionConfig = { ...config };
+      if (!submissionConfig.display_name || !submissionConfig.display_name.trim()) {
+        delete submissionConfig.display_name;
+      }
+
+      const response = await createSimulation(submissionConfig);
       const { simulation_id } = response.data;
       // Clear draft on successful submission
       localStorage.removeItem('simulation-draft');
@@ -704,7 +713,8 @@ function NewSimulation() {
 
       <div className="mb-4">
         <h5 className="mb-3">Choose a Preset Template</h5>
-        <Row xs={1} md={2} lg={3} xl={5} className="g-3">
+        {/* Desktop: Grid layout */}
+        <Row xs={1} md={2} lg={3} xl={5} className="g-3 d-none d-md-flex">
           {Object.entries(PRESETS).map(([key, preset]) => (
             <Col key={key}>
               <Card
@@ -766,6 +776,72 @@ function NewSimulation() {
             </Card>
           </Col>
         </Row>
+        {/* Mobile: Horizontal scroll */}
+        <div className="d-md-none overflow-auto pb-2" style={{ WebkitOverflowScrolling: 'touch' }}>
+          <div className="d-flex gap-3" style={{ minWidth: 'min-content' }}>
+            {Object.entries(PRESETS).map(([key, preset]) => (
+              <Card
+                key={key}
+                className={`flex-shrink-0 ${selectedPreset === key ? 'border-primary' : ''}`}
+                style={{
+                  cursor: 'pointer',
+                  transition: 'all 0.2s',
+                  backgroundColor: selectedPreset === key ? 'rgba(13, 110, 253, 0.1)' : '',
+                  minWidth: '280px',
+                  maxWidth: '280px',
+                }}
+                onClick={() => handlePresetChange(key)}
+              >
+                <Card.Body>
+                  <div className="d-flex align-items-start gap-2 mb-2">
+                    <span style={{ fontSize: '2rem' }}>{preset.icon}</span>
+                    <div className="flex-grow-1">
+                      <h6 className="mb-0">{preset.name}</h6>
+                      <small className="text-muted">{preset.subtitle}</small>
+                    </div>
+                    {selectedPreset === key && (
+                      <span style={{ fontSize: '1.5rem', color: '#0d6efd' }}>✓</span>
+                    )}
+                  </div>
+                  <p className="small mb-2">{preset.description}</p>
+                  <div className="text-muted small">
+                    <strong>Est. time:</strong> {preset.estimatedTime}
+                  </div>
+                </Card.Body>
+              </Card>
+            ))}
+            <Card
+              className={`flex-shrink-0 ${selectedPreset === null ? 'border-primary' : ''}`}
+              style={{
+                cursor: 'pointer',
+                transition: 'all 0.2s',
+                backgroundColor: selectedPreset === null ? 'rgba(13, 110, 253, 0.1)' : '',
+                minWidth: '280px',
+                maxWidth: '280px',
+              }}
+              onClick={() => handlePresetChange(null)}
+            >
+              <Card.Body>
+                <div className="d-flex align-items-start gap-2 mb-2">
+                  <span style={{ fontSize: '2rem' }}>⚙️</span>
+                  <div className="flex-grow-1">
+                    <h6 className="mb-0">Custom</h6>
+                    <small className="text-muted">Advanced configuration</small>
+                  </div>
+                  {selectedPreset === null && (
+                    <span style={{ fontSize: '1.5rem', color: '#0d6efd' }}>✓</span>
+                  )}
+                </div>
+                <p className="small mb-2">
+                  Configure all parameters manually for specialized experiments
+                </p>
+                <div className="text-muted small">
+                  <strong>Est. time:</strong> Varies
+                </div>
+              </Card.Body>
+            </Card>
+          </div>
+        </div>
       </div>
 
       <Form onSubmit={handleSubmit}>
@@ -784,6 +860,37 @@ function NewSimulation() {
               </span>
             </Accordion.Header>
             <Accordion.Body>
+              <Form.Group className="mb-3">
+                <Form.Label>
+                  Simulation Name (Optional){' '}
+                  <OverlayTrigger
+                    placement="right"
+                    overlay={
+                      <Tooltip>
+                        Give your simulation a memorable name to easily identify it later. Leave
+                        blank to use auto-generated ID. Examples: "PID vs FedAvg on MNIST",
+                        "Byzantine Attack Test", "CNN Performance Baseline"
+                      </Tooltip>
+                    }
+                  >
+                    <span style={{ cursor: 'help' }}>ℹ️</span>
+                  </OverlayTrigger>
+                </Form.Label>
+                <Form.Control
+                  type="text"
+                  name="display_name"
+                  value={config.display_name}
+                  onChange={handleChange}
+                  placeholder="e.g., PID vs FedAvg on MNIST"
+                  maxLength={100}
+                />
+                <Form.Text className="text-muted">
+                  {config.display_name
+                    ? `${config.display_name.length}/100 characters`
+                    : 'Leave blank to use auto-generated ID'}
+                </Form.Text>
+              </Form.Group>
+
               <Form.Group className="mb-3">
                 <Form.Label>
                   Strategy <span className="text-danger">*</span>{' '}
