@@ -111,29 +111,18 @@ export default function InteractivePlots({ simulation }) {
     }
   }, [plotData, selectedMetric]);
 
-  // Responsive chart dimensions
-  const [chartDimensions, setChartDimensions] = useState({
-    width:
-      window.innerWidth < 768
-        ? Math.max(window.innerWidth - 100, 300)
-        : Math.min(window.innerWidth - 200, 1000),
-    height: window.innerWidth < 768 ? 250 : 400,
-  });
+  // Responsive chart height
+  const [chartHeight, setChartHeight] = useState(window.innerWidth < 768 ? 350 : 500);
 
   useEffect(() => {
-    const updateDimensions = () => {
+    const updateHeight = () => {
       const isMobile = window.innerWidth < 768;
-      setChartDimensions({
-        width: isMobile
-          ? Math.max(window.innerWidth - 100, 300)
-          : Math.min(window.innerWidth - 200, 1000),
-        height: isMobile ? 250 : 400,
-      });
+      setChartHeight(isMobile ? 350 : 500);
     };
 
-    updateDimensions();
-    window.addEventListener('resize', updateDimensions);
-    return () => window.removeEventListener('resize', updateDimensions);
+    updateHeight();
+    window.addEventListener('resize', updateHeight);
+    return () => window.removeEventListener('resize', updateHeight);
   }, []);
 
   if (loading) return <div className="text-center p-4">Loading interactive plots...</div>;
@@ -225,9 +214,9 @@ export default function InteractivePlots({ simulation }) {
         </Form.Group>
 
         {/* Legend Controls */}
-        <div className="mb-3">
+        <div className="mb-3 text-center">
           <small className="text-muted d-block mb-2">Toggle clients:</small>
-          <div className="d-flex flex-wrap gap-2">
+          <div className="d-flex flex-wrap gap-2 justify-content-center">
             {plotData.per_client_metrics.map((client, idx) => {
               const clientKey = `client_${client.client_id}`;
               const color = client.is_malicious ? MALICIOUS_COLOR : COLORS[idx % COLORS.length];
@@ -264,33 +253,31 @@ export default function InteractivePlots({ simulation }) {
         </div>
 
         {/* Chart */}
-        <div
-          className="d-flex justify-content-center"
-          style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}
-        >
-          <LineChart width={chartDimensions.width} height={chartDimensions.height} data={chartData}>
+        <ResponsiveContainer width="100%" height={chartHeight}>
+          <LineChart data={chartData} margin={{ top: 10, right: 30, left: 20, bottom: 80 }}>
             <CartesianGrid strokeDasharray="3 3" stroke={chartColors.grid} />
             <XAxis
               dataKey="round"
               stroke={chartColors.axis}
-              tick={{ fill: chartColors.text, fontSize: chartDimensions.height < 300 ? 10 : 12 }}
+              tick={{ fill: chartColors.text, fontSize: chartHeight < 400 ? 10 : 12 }}
               label={{
                 value: 'Round #',
                 position: 'insideBottom',
-                offset: -5,
+                offset: -10,
                 fill: chartColors.text,
-                fontSize: chartDimensions.height < 300 ? 10 : 12,
+                fontSize: chartHeight < 400 ? 10 : 12,
               }}
+              height={60}
             />
             <YAxis
               stroke={chartColors.axis}
-              tick={{ fill: chartColors.text, fontSize: chartDimensions.height < 300 ? 10 : 12 }}
+              tick={{ fill: chartColors.text, fontSize: chartHeight < 400 ? 10 : 12 }}
               label={{
                 value: METRIC_LABELS[selectedMetric] || selectedMetric,
                 angle: -90,
                 position: 'insideLeft',
                 fill: chartColors.text,
-                fontSize: chartDimensions.height < 300 ? 10 : 12,
+                fontSize: chartHeight < 400 ? 10 : 12,
               }}
             />
             <Tooltip
@@ -300,13 +287,13 @@ export default function InteractivePlots({ simulation }) {
                 color: chartColors.text,
               }}
             />
-            <Legend wrapperStyle={{ color: chartColors.text }} verticalAlign="bottom" height={50} />
+            <Legend wrapperStyle={{ color: chartColors.text }} />
             <Brush
               dataKey="round"
-              y={chartDimensions.height - 30}
-              height={25}
+              height={30}
               stroke={chartColors.brush}
               fill={theme === 'dark' ? '#1a1a1a' : '#f5f5f5'}
+              y={chartHeight - 70}
             />
 
             {plotData.per_client_metrics.map((client, idx) => {
@@ -341,7 +328,7 @@ export default function InteractivePlots({ simulation }) {
                 />
               )}
           </LineChart>
-        </div>
+        </ResponsiveContainer>
 
         <div className="mt-3 text-muted">
           <small>
