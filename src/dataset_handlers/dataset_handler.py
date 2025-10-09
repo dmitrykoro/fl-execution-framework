@@ -5,6 +5,7 @@ import random
 import sys
 import cv2
 import numpy as np
+import json
 
 
 class DatasetHandler:
@@ -72,6 +73,8 @@ class DatasetHandler:
                 self._flip_labels(client_dir)
             elif attack_type == "gaussian_noise":
                 self._add_noise(client_dir)
+            elif attack_type == "ner_label_flipping":
+                self._flip_ner_labels(client_dir)
             else:
                 raise NotImplementedError(f"Not supported attack type: {attack_type}")
 
@@ -192,6 +195,96 @@ class DatasetHandler:
                     logging.info(f"Added noise to: {filepath}")
                 else:
                     logging.error(f"Failed to write image: {filepath}")
+
+    def _flip_ner_labels(self, client_dir: str) -> None:
+        rng = random.Random()
+        try:
+            base_seed = 1337
+            cid = int(client_dir.split("_")[1])
+            rng.seed(base_seed+cid)
+        except Exception:
+            rng.seed()
+        attack_ratio = getattr(self._strategy_config, "attack_ratio", 1.0)
+        client_path = os.path.join(self.dst_dataset, client_dir)
+
+        # Which files to mutate
+        json_files = []
+        for fname in ("train.json", "validation.json", "test.json"):
+            fpath = os.path.join(client_path, fname)
+            if os.path.isfile(fpath):
+                json_files.append(fpath)
+
+        if not json_files:
+            logging.warning(f"No JSON files found for NER poisoning in {client_path}")
+            return
+
+        # 1) Collect full label set from this client's files (you could also load a global set if you prefer)
+        label_set = set()
+        for f in json_files:
+            try:
+                with open(f, "r", encoding="utf-8") as fp:
+                    records = json.load(fp)
+                for rec in records:
+                    # robust to key naming
+                    tags = rec.get("ner_tags") or rec.get("labels") or []
+                    for t in tags:
+                        label_set.add(t)
+            except Exception as e:
+                logging.error(f"Failed reading {f}: {e}")
+
+        label_list = sorted(list(label_set))
+        if len(label_list) <= 1:
+            logging.warning(f"Insufficient label variety found in {client_path}; skipping flip.")
+            return
+
+        # 2) Rewrite each file with flipped labels
+        for f in json_files:
+            try:
+                with open(f, "r", encoding="utf-8") as fp:
+                    records = json.load(fp)
+
+                for rec in records:
+                    tags = rec.get("ner_tags") or rec.get("labels")
+                    if tags is None:
+                        continue
+
+                    new_tags = []
+                    for t in tags:
+                        # Respect attack_ratio (flip only some tokens if ratio < 1.0)
+                        if rng.random() > attack_ratio:
+                            new_tags.append(t)
+                            continue
+
+                        # Pick a different label uniformly at random
+                        # Build a small candidate list without t
+                        # (Avoids bias; fast for modest label sets)
+                        while True:
+                            candidate = rng.choice(label_list)
+                            if candidate != t:
+                                new_tags.append(candidate)
+                                break
+
+                    rec["ner_tags"] = new_tags  # standardize back to ner_tags
+
+                # Overwrite with poisoned version
+                with open(f, "w", encoding="utf-8") as fp:
+                    json.dump(records, fp, ensure_ascii=False, indent=2)
+
+                logging.info(f"Poisoned NER labels in {f}")
+
+            except Exception as e:
+                logging.error(f"Failed poisoning {f}: {e}")
+
+        # 3) Mark the client folder as poisoned (keeps parity with image attacks)
+        try:
+            os.rename(
+                os.path.join(self.dst_dataset, client_dir),
+                os.path.join(self.dst_dataset, client_dir + "_bad")
+            )
+        except Exception as e:
+            logging.error(f"Failed to mark poisoned client folder: {e}")
+        
+        
 
     def _assign_poisoned_client_ids(
             self, bad_client_dirs: list
