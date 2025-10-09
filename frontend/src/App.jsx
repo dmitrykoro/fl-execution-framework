@@ -1,4 +1,5 @@
-import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
+import { BrowserRouter as Router, Route, Routes, Link } from 'react-router-dom';
+import { Navbar, Nav, Container } from 'react-bootstrap';
 import Dashboard from './components/Dashboard';
 import SimulationDetails from './components/SimulationDetails';
 import NewSimulation from './components/NewSimulation';
@@ -11,15 +12,34 @@ function App() {
   return (
     <ErrorBoundary>
       <Router>
-        <ThemeToggle />
-        <div className="container mt-4">
+        <Navbar
+          expand="md"
+          className="mb-3"
+          style={{ backgroundColor: 'var(--md-sys-color-surface-variant)' }}
+        >
+          <Container>
+            <Navbar.Brand as={Link} to="/">
+              FL Framework
+            </Navbar.Brand>
+            <Navbar.Toggle aria-controls="navbar-nav" />
+            <Navbar.Collapse id="navbar-nav">
+              <Nav className="me-auto">
+                <Nav.Link as={Link} to="/">
+                  Dashboard
+                </Nav.Link>
+              </Nav>
+              <ThemeToggle />
+            </Navbar.Collapse>
+          </Container>
+        </Navbar>
+        <Container className="mt-4">
           <Routes>
             <Route path="/" element={<Dashboard />} />
             <Route path="/simulations/new" element={<NewSimulation />} />
             <Route path="/simulations/:simulationId" element={<SimulationDetails />} />
             <Route path="/compare" element={<ComparisonView />} />
           </Routes>
-        </div>
+        </Container>
       </Router>
     </ErrorBoundary>
   );
