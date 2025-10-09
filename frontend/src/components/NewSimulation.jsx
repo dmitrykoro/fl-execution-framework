@@ -1,20 +1,13 @@
 import { useState, useEffect, useCallback } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
-import {
-  Form,
-  Button,
-  Card,
-  Alert,
-  Accordion,
-  OverlayTrigger,
-  Tooltip,
-  Row,
-  Col,
-} from 'react-bootstrap';
+import { useNavigate } from 'react-router-dom';
+import { Form, Button, Card, Alert, Accordion, Row, Col } from 'react-bootstrap';
 import { createSimulation } from '../api';
 import { useConfigValidation } from '../hooks/useConfigValidation';
 import { useDatasetValidation } from '../hooks/useDatasetValidation';
 import ValidationSummary from './ValidationSummary';
+import ConfirmModal from './ConfirmModal';
+import OutlineButton from './OutlineButton';
+import { useToast } from '../contexts/ToastContext';
 
 // Defaults from config/simulation_strategies/example_strategy_config.json
 const initialConfig = {
@@ -287,6 +280,8 @@ function NewSimulation() {
   const [selectedPreset, setSelectedPreset] = useState(null);
   const [draftSaved, setDraftSaved] = useState(false);
   const navigate = useNavigate();
+  const { showSuccess } = useToast();
+  const [showClearModal, setShowClearModal] = useState(false);
 
   // Real-time validation
   const validation = useConfigValidation(config);
@@ -357,11 +352,15 @@ function NewSimulation() {
   };
 
   const handleClearDraft = () => {
-    if (window.confirm('Clear saved draft and reset to defaults?')) {
-      localStorage.removeItem('simulation-draft');
-      setConfig(initialConfig);
-      setSelectedPreset(null);
-    }
+    setShowClearModal(true);
+  };
+
+  const confirmClearDraft = () => {
+    localStorage.removeItem('simulation-draft');
+    setConfig(initialConfig);
+    setSelectedPreset(null);
+    setShowClearModal(false);
+    showSuccess('Draft cleared and reset to defaults');
   };
 
   const needsTrustParams = config.aggregation_strategy_keyword === 'trust';
@@ -663,43 +662,33 @@ function NewSimulation() {
         <h1 className="mb-0">Create New Simulation</h1>
         <div className="d-flex align-items-center gap-2">
           {draftSaved && <span className="badge bg-success">Draft saved</span>}
-          <OverlayTrigger
-            placement="bottom"
-            overlay={<Tooltip>Export current configuration for reuse or sharing</Tooltip>}
+          <OutlineButton
+            onClick={handleExportConfig}
+            tooltip="Export current configuration for reuse or sharing"
           >
-            <Button variant="outline-secondary" size="sm" onClick={handleExportConfig}>
-              Export JSON
-            </Button>
-          </OverlayTrigger>
-          <OverlayTrigger
-            placement="bottom"
-            overlay={<Tooltip>Import previously saved configuration</Tooltip>}
+            Export JSON
+          </OutlineButton>
+          <OutlineButton
+            as="label"
+            htmlFor="import-config"
+            style={{ cursor: 'pointer', marginBottom: 0 }}
+            tooltip="Import previously saved configuration"
           >
-            <Button
-              variant="outline-secondary"
-              size="sm"
-              as="label"
-              htmlFor="import-config"
-              style={{ cursor: 'pointer', marginBottom: 0 }}
-            >
-              Import JSON
-              <input
-                type="file"
-                id="import-config"
-                accept=".json"
-                style={{ display: 'none' }}
-                onChange={handleImportConfig}
-              />
-            </Button>
-          </OverlayTrigger>
-          <OverlayTrigger
-            placement="bottom"
-            overlay={<Tooltip>Clear all changes and restore default values</Tooltip>}
+            Import JSON
+            <input
+              type="file"
+              id="import-config"
+              accept=".json"
+              style={{ display: 'none' }}
+              onChange={handleImportConfig}
+            />
+          </OutlineButton>
+          <OutlineButton
+            onClick={handleClearDraft}
+            tooltip="Clear all changes and restore default values"
           >
-            <Button variant="outline-secondary" size="sm" onClick={handleClearDraft}>
-              Reset to Defaults
-            </Button>
-          </OverlayTrigger>
+            Reset to Defaults
+          </OutlineButton>
         </div>
       </div>
 
@@ -2630,6 +2619,16 @@ function NewSimulation() {
           </Alert>
         )}
       </Form>
+
+      <ConfirmModal
+        show={showClearModal}
+        title="🗑️ Clear Draft"
+        message="Clear saved draft and reset to defaults?"
+        variant="warning"
+        confirmText="Clear Draft"
+        onConfirm={confirmClearDraft}
+        onCancel={() => setShowClearModal(false)}
+      />
     </div>
   );
 }
