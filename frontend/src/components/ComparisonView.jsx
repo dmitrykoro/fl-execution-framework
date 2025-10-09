@@ -48,11 +48,14 @@ function ComparisonView() {
   const getConfigDiff = () => {
     if (simulations.length < 2) return [];
 
-    const baseConfig = simulations[0].details.config;
+    // Handle both API-created (nested) and CLI-created (flat) configs
+    const getSettings = config => config.shared_settings || config;
+
+    const baseConfig = getSettings(simulations[0].details.config);
     const diffs = [];
 
     Object.keys(baseConfig).forEach(key => {
-      const values = simulations.map(sim => sim.details.config[key]);
+      const values = simulations.map(sim => getSettings(sim.details.config)[key]);
       const allSame = values.every(v => JSON.stringify(v) === JSON.stringify(values[0]));
 
       if (!allSame) {
@@ -74,9 +77,12 @@ function ComparisonView() {
         const firstRound = roundMetrics[0];
         const lastRound = roundMetrics[roundMetrics.length - 1];
 
+        // Handle both API-created (nested) and CLI-created (flat) configs
+        const settings = sim.details.config.shared_settings || sim.details.config;
+
         return {
           id: sim.id,
-          strategyName: sim.details.config.strategy_name,
+          strategyName: settings.aggregation_strategy_keyword,
           initialAccuracy: firstRound?.test_accuracy || 0,
           finalAccuracy: lastRound?.test_accuracy || 0,
           improvement:
@@ -87,8 +93,8 @@ function ComparisonView() {
                   100
                 ).toFixed(1)
               : 'N/A',
-          rounds: sim.details.config.num_of_rounds,
-          clients: sim.details.config.num_of_clients,
+          rounds: settings.num_of_rounds,
+          clients: settings.num_of_clients,
         };
       })
       .filter(m => m !== null);
@@ -143,31 +149,38 @@ function ComparisonView() {
               </tr>
             </thead>
             <tbody>
-              {simulations.map(sim => (
-                <tr key={sim.id}>
-                  <td>
-                    <code>{sim.id}</code>
-                  </td>
-                  <td>{sim.details.config.strategy_name}</td>
-                  <td>
-                    <Badge
-                      bg={
-                        sim.status.status === 'completed'
-                          ? 'success'
-                          : sim.status.status === 'running'
-                            ? 'primary'
-                            : sim.status.status === 'failed'
-                              ? 'danger'
-                              : 'secondary'
-                      }
-                    >
-                      {sim.status.status}
-                    </Badge>
-                  </td>
-                  <td>{sim.details.config.num_of_rounds}</td>
-                  <td>{sim.details.config.num_of_clients}</td>
-                </tr>
-              ))}
+              {simulations.map(sim => {
+                const settings = sim.details.config.shared_settings || sim.details.config;
+                const displayName = settings.display_name;
+                return (
+                  <tr key={sim.id}>
+                    <td>
+                      <div>
+                        {displayName && <div className="fw-semibold mb-1">{displayName}</div>}
+                        <code className="small">{sim.id}</code>
+                      </div>
+                    </td>
+                    <td>{settings.aggregation_strategy_keyword}</td>
+                    <td>
+                      <Badge
+                        bg={
+                          sim.status.status === 'completed'
+                            ? 'success'
+                            : sim.status.status === 'running'
+                              ? 'primary'
+                              : sim.status.status === 'failed'
+                                ? 'danger'
+                                : 'secondary'
+                        }
+                      >
+                        {sim.status.status}
+                      </Badge>
+                    </td>
+                    <td>{settings.num_of_rounds}</td>
+                    <td>{settings.num_of_clients}</td>
+                  </tr>
+                );
+              })}
             </tbody>
           </Table>
         </Card.Body>
@@ -249,33 +262,51 @@ function ComparisonView() {
         </Card.Header>
         <Card.Body>
           <Row xs={1} md={2} className="g-3">
-            {simulations.map((sim, idx) => (
-              <Col key={idx}>
-                <Card>
-                  <Card.Header>
-                    <small>
-                      Simulation {idx + 1}: {sim.id}
-                    </small>
-                  </Card.Header>
-                  <Card.Body>
-                    {sim.details.plots && sim.details.plots.length > 0 ? (
-                      sim.details.plots.map((plot, plotIdx) => (
-                        <div key={plotIdx} className="mb-3">
-                          <img
-                            src={`data:image/png;base64,${plot.data}`}
-                            alt={plot.filename}
-                            style={{ width: '100%', height: 'auto' }}
-                          />
-                          <small className="text-muted">{plot.filename}</small>
+            {simulations.map((sim, idx) => {
+              // Get PDF plot files from result_files (API doesn't provide base64 plots in comparison)
+              const plotFiles = sim.details.result_files.filter(
+                file => file.endsWith('.pdf') && !file.includes('/')
+              );
+
+              const settings = sim.details.config.shared_settings || sim.details.config;
+              const displayName = settings.display_name;
+
+              return (
+                <Col key={idx}>
+                  <Card>
+                    <Card.Header>
+                      <div>
+                        <small className="text-muted">Simulation {idx + 1}</small>
+                        <div className="mt-1">
+                          {displayName && <div className="fw-semibold">{displayName}</div>}
+                          <code className="small">{sim.id}</code>
                         </div>
-                      ))
-                    ) : (
-                      <p className="text-muted">No plots available</p>
-                    )}
-                  </Card.Body>
-                </Card>
-              </Col>
-            ))}
+                      </div>
+                    </Card.Header>
+                    <Card.Body>
+                      {plotFiles.length > 0 ? (
+                        <div className="d-flex flex-column gap-2">
+                          {plotFiles.map((filename, plotIdx) => (
+                            <div key={plotIdx}>
+                              <a
+                                href={`http://localhost:8000/api/simulations/${sim.id}/results/${filename}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-decoration-none"
+                              >
+                                📈 {filename.replace('.pdf', '').replace(/_/g, ' ')}
+                              </a>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="text-muted">No plots available</p>
+                      )}
+                    </Card.Body>
+                  </Card>
+                </Col>
+              );
+            })}
           </Row>
         </Card.Body>
       </Card>
