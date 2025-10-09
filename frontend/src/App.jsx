@@ -27,8 +27,13 @@ function App() {
                 <Nav.Link as={Link} to="/">
                   Dashboard
                 </Nav.Link>
+                <Nav.Link as={Link} to="/simulations/new">
+                  New Simulation
+                </Nav.Link>
               </Nav>
-              <ThemeToggle />
+              <Nav>
+                <ThemeToggle />
+              </Nav>
             </Navbar.Collapse>
           </Container>
         </Navbar>
