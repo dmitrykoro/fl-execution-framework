@@ -659,14 +659,6 @@ function NewSimulation() {
 
   return (
     <div>
-      <div className="mb-3">
-        <Button variant="outline-secondary" size="sm" as={Link} to="/">
-          &larr; Back to Dashboard
-        </Button>
-        <span className="text-muted ms-2" style={{ fontSize: '0.85rem' }}>
-          (or press Esc to cancel)
-        </span>
-      </div>
       <div className="d-flex align-items-center justify-content-between mb-2">
         <h1 className="mb-0">Create New Simulation</h1>
         <div className="d-flex align-items-center gap-2">

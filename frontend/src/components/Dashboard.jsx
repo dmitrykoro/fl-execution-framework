@@ -331,11 +331,6 @@ function Dashboard() {
               🗑️ Clear All
             </Button>
           )}
-          <Link to="/simulations/new" className="flex-grow-1 flex-md-grow-0">
-            <Button variant="primary" size="sm" className="w-100">
-              + New Simulation
-            </Button>
-          </Link>
         </div>
       </div>
       <Row xs={1} md={2} lg={3} className="g-4">
