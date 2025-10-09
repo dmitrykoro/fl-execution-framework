@@ -17,6 +17,7 @@ import {
 import useApi from '../hooks/useApi';
 import { getSimulationDetails, getSimulationStatus, getResultFile, createSimulation } from '../api';
 import InteractivePlots from './InteractivePlots';
+import OutlineButton from './OutlineButton';
 
 function SimulationDetails() {
   const { simulationId } = useParams();
@@ -351,9 +352,7 @@ function SimulationDetails() {
         <>
           <div className="d-flex justify-content-between align-items-center mb-3">
             <h5 className="mb-0">📋 Raw Configuration JSON</h5>
-            <Button variant="outline-secondary" size="sm" onClick={() => setShowRawJSON(false)}>
-              View Human-Readable
-            </Button>
+            <OutlineButton onClick={() => setShowRawJSON(false)}>View Human-Readable</OutlineButton>
           </div>
           <pre
             style={{
@@ -374,9 +373,7 @@ function SimulationDetails() {
       <>
         <div className="d-flex justify-content-between align-items-center mb-3">
           <h5 className="mb-0">📋 Configuration</h5>
-          <Button variant="outline-secondary" size="sm" onClick={() => setShowRawJSON(true)}>
-            View Raw JSON
-          </Button>
+          <OutlineButton onClick={() => setShowRawJSON(true)}>View Raw JSON</OutlineButton>
         </div>
 
         <Accordion defaultActiveKey="0">
@@ -646,14 +643,14 @@ function SimulationDetails() {
             <h4 className="mb-0">{displayName || simulationId}</h4>
             <span className={`badge bg-${statusVariant}`}>{displayStatus}</span>
           </div>
-          <Button
+          <OutlineButton
             variant="outline-primary"
             onClick={handleRunAgain}
             disabled={isCloning}
             className="flex-shrink-0"
           >
             {isCloning ? 'Starting...' : 'Run Again'}
-          </Button>
+          </OutlineButton>
         </div>
         {displayName && (
           <div className="text-muted small">
@@ -1020,20 +1017,18 @@ function SimulationDetails() {
                                 <a
                                   href={downloadUrl}
                                   download={file.split('/').pop()}
-                                  className="btn btn-outline-primary btn-sm text-nowrap"
+                                  className="btn btn-outline-primary btn-sm text-nowrap d-flex align-items-center justify-content-center"
                                   title="Download CSV file to your computer"
                                 >
                                   📥 Download CSV
                                 </a>
-                                <Button
-                                  variant="outline-secondary"
-                                  size="sm"
+                                <OutlineButton
                                   onClick={() => copyCSVToClipboard(data, file)}
                                   title="Copy data to clipboard for pasting into Excel/Google Sheets"
                                   className="text-nowrap"
                                 >
                                   📋 Copy to Clipboard
-                                </Button>
+                                </OutlineButton>
                               </div>
                             </div>
                             <div style={{ overflowX: 'auto', fontSize: '0.75rem' }}>
