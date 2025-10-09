@@ -46,7 +46,6 @@ export default function InteractivePlots({ simulation }) {
   const [selectedMetric, setSelectedMetric] = useState('');
   const [visibleClients, setVisibleClients] = useState({});
   const [loading, setLoading] = useState(true);
-  const [chartHeight, setChartHeight] = useState(400);
 
   useEffect(() => {
     // Only fetch plot data if simulation is completed
@@ -112,15 +111,29 @@ export default function InteractivePlots({ simulation }) {
     }
   }, [plotData, selectedMetric]);
 
-  // Responsive chart height
+  // Responsive chart dimensions
+  const [chartDimensions, setChartDimensions] = useState({
+    width:
+      window.innerWidth < 768
+        ? Math.max(window.innerWidth - 100, 300)
+        : Math.min(window.innerWidth - 200, 1000),
+    height: window.innerWidth < 768 ? 250 : 400,
+  });
+
   useEffect(() => {
-    const updateHeight = () => {
-      setChartHeight(window.innerWidth < 768 ? 250 : 400);
+    const updateDimensions = () => {
+      const isMobile = window.innerWidth < 768;
+      setChartDimensions({
+        width: isMobile
+          ? Math.max(window.innerWidth - 100, 300)
+          : Math.min(window.innerWidth - 200, 1000),
+        height: isMobile ? 250 : 400,
+      });
     };
 
-    updateHeight();
-    window.addEventListener('resize', updateHeight);
-    return () => window.removeEventListener('resize', updateHeight);
+    updateDimensions();
+    window.addEventListener('resize', updateDimensions);
+    return () => window.removeEventListener('resize', updateDimensions);
   }, []);
 
   if (loading) return <div className="text-center p-4">Loading interactive plots...</div>;
@@ -196,11 +209,9 @@ export default function InteractivePlots({ simulation }) {
         };
 
   return (
-    <Card className="mb-4">
-      <Card.Header>
-        <h5>Interactive Plots</h5>
-      </Card.Header>
-      <Card.Body>
+    <div className="mb-4">
+      <h5 className="mb-3">Interactive Plots</h5>
+      <div>
         {/* Metric Selector */}
         <Form.Group className="mb-3">
           <Form.Label>Select Metric:</Form.Label>
@@ -215,16 +226,18 @@ export default function InteractivePlots({ simulation }) {
 
         {/* Legend Controls */}
         <div className="mb-3">
-          <small className="text-muted">Toggle clients:</small>
-          <ButtonGroup size="sm" className="ms-2 flex-wrap">
+          <small className="text-muted d-block mb-2">Toggle clients:</small>
+          <div className="d-flex flex-wrap gap-2">
             {plotData.per_client_metrics.map((client, idx) => {
               const clientKey = `client_${client.client_id}`;
               const color = client.is_malicious ? MALICIOUS_COLOR : COLORS[idx % COLORS.length];
               return (
                 <Button
                   key={clientKey}
+                  size="sm"
                   variant={visibleClients[clientKey] ? 'primary' : 'outline-secondary'}
                   onClick={() => toggleClient(clientKey)}
+                  className="py-2 px-3"
                   style={{
                     backgroundColor: visibleClients[clientKey] ? color : 'transparent',
                     borderColor: color,
@@ -239,40 +252,45 @@ export default function InteractivePlots({ simulation }) {
             {plotData.removal_threshold_history &&
               selectedMetric === 'removal_criterion_history' && (
                 <Button
+                  size="sm"
                   variant={visibleClients.threshold ? 'danger' : 'outline-danger'}
                   onClick={() => toggleClient('threshold')}
+                  className="py-2 px-3"
                 >
                   Threshold
                 </Button>
               )}
-          </ButtonGroup>
+          </div>
         </div>
 
         {/* Chart */}
-        <ResponsiveContainer width="100%" height={chartHeight}>
-          <LineChart data={chartData}>
+        <div
+          className="d-flex justify-content-center"
+          style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}
+        >
+          <LineChart width={chartDimensions.width} height={chartDimensions.height} data={chartData}>
             <CartesianGrid strokeDasharray="3 3" stroke={chartColors.grid} />
             <XAxis
               dataKey="round"
               stroke={chartColors.axis}
-              tick={{ fill: chartColors.text, fontSize: window.innerWidth < 768 ? 10 : 12 }}
+              tick={{ fill: chartColors.text, fontSize: chartDimensions.height < 300 ? 10 : 12 }}
               label={{
                 value: 'Round #',
                 position: 'insideBottom',
                 offset: -5,
                 fill: chartColors.text,
-                fontSize: window.innerWidth < 768 ? 10 : 12,
+                fontSize: chartDimensions.height < 300 ? 10 : 12,
               }}
             />
             <YAxis
               stroke={chartColors.axis}
-              tick={{ fill: chartColors.text, fontSize: window.innerWidth < 768 ? 10 : 12 }}
+              tick={{ fill: chartColors.text, fontSize: chartDimensions.height < 300 ? 10 : 12 }}
               label={{
                 value: METRIC_LABELS[selectedMetric] || selectedMetric,
                 angle: -90,
                 position: 'insideLeft',
                 fill: chartColors.text,
-                fontSize: window.innerWidth < 768 ? 10 : 12,
+                fontSize: chartDimensions.height < 300 ? 10 : 12,
               }}
             />
             <Tooltip
@@ -282,10 +300,11 @@ export default function InteractivePlots({ simulation }) {
                 color: chartColors.text,
               }}
             />
-            <Legend wrapperStyle={{ color: chartColors.text }} />
+            <Legend wrapperStyle={{ color: chartColors.text }} verticalAlign="bottom" height={50} />
             <Brush
               dataKey="round"
-              height={30}
+              y={chartDimensions.height - 30}
+              height={25}
               stroke={chartColors.brush}
               fill={theme === 'dark' ? '#1a1a1a' : '#f5f5f5'}
             />
@@ -322,15 +341,15 @@ export default function InteractivePlots({ simulation }) {
                 />
               )}
           </LineChart>
-        </ResponsiveContainer>
+        </div>
 
         <div className="mt-3 text-muted">
           <small>
-            📊 Zoom: Drag on brush below chart | 🖱️ Toggle: Click client buttons to show/hide lines
-            | ℹ️ Hover: View exact values
+            📊 Zoom: Drag on brush below chart | 👆 Toggle: Tap client buttons to show/hide lines |
+            ℹ️ Tap chart: View exact values
           </small>
         </div>
-      </Card.Body>
-    </Card>
+      </div>
+    </div>
   );
 }
