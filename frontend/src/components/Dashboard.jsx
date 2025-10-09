@@ -178,6 +178,53 @@ function Dashboard() {
     }
   };
 
+  const handleClearAll = async () => {
+    if (!simulations || simulations.length === 0) {
+      alert('⚠️ No simulations to clear');
+      return;
+    }
+
+    const runningSimulations = simulations.filter(
+      sim => statuses[sim.simulation_id]?.status === 'running'
+    );
+    if (runningSimulations.length > 0) {
+      alert(
+        `❌ Cannot clear all: ${runningSimulations.length} simulation(s) still running. Please wait for them to complete or fail first.`
+      );
+      return;
+    }
+
+    if (
+      !window.confirm(
+        `🗑️ Clear ALL ${simulations.length} simulation(s)?\n\nThis will permanently delete all simulation data and cannot be undone.`
+      )
+    ) {
+      return;
+    }
+
+    setDeleting(true);
+    try {
+      const allSimIds = simulations.map(sim => sim.simulation_id);
+      const response = await deleteMultipleSimulations(allSimIds);
+      const { deleted, failed } = response.data;
+
+      if (failed.length > 0) {
+        const failedList = failed.map(f => `${f.simulation_id}: ${f.error}`).join('\n');
+        alert(`⚠️ Some deletions failed:\n${failedList}`);
+      }
+
+      if (deleted.length > 0) {
+        setSelectedSims([]);
+        await refetch();
+        alert(`✅ Successfully cleared ${deleted.length} simulation(s)`);
+      }
+    } catch (err) {
+      alert(`❌ Failed to clear simulations: ${err.response?.data?.detail || err.message}`);
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   const getStatusBadge = statusData => {
     if (!statusData) return <Badge bg="secondary">pending</Badge>;
 
@@ -246,6 +293,11 @@ function Dashboard() {
                 📊 Compare Selected ({selectedSims.length})
               </Button>
             </>
+          )}
+          {simulations && simulations.length > 0 && (
+            <Button variant="outline-danger" onClick={handleClearAll} disabled={deleting}>
+              🗑️ Clear All
+            </Button>
           )}
           <Link to="/simulations/new">
             <Button variant="primary">+ New Simulation</Button>
