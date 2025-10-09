@@ -711,6 +711,7 @@ html {
     opacity: 1;
     transform: scale(1);
   }
+
   50% {
     opacity: 0.6;
     transform: scale(1.1);
@@ -737,5 +738,156 @@ html {
 
   .simulation-card:hover {
     transform: none;
+  }
+}
+
+/* ===== TOAST NOTIFICATIONS ===== */
+
+/* Toast container - Fixed position top-right */
+.toast-container {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-width: 400px;
+  pointer-events: none;
+}
+
+/* Individual toast notification */
+.toast-notification {
+  pointer-events: auto;
+  min-width: 300px;
+  animation: slideInRight 300ms cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+  border-radius: 8px;
+  border-width: 1px;
+  font-size: 0.875rem;
+}
+
+:root[data-theme='dark'] .toast-notification {
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.4);
+}
+
+/* Toast icon styling */
+.toast-icon {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+}
+
+.toast-message {
+  flex: 1;
+  word-break: break-word;
+}
+
+/* Toast animations */
+@keyframes slideInRight {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+/* Mobile toast adjustments */
+@media (max-width: 767px) {
+  .toast-container {
+    top: 10px;
+    right: 10px;
+    left: 10px;
+    max-width: none;
+  }
+
+  .toast-notification {
+    min-width: 0;
+    width: 100%;
+  }
+}
+
+/* ===== CONFIRM MODAL ENHANCEMENTS ===== */
+
+/* Modal theming */
+:root[data-theme='dark'] .modal-content {
+  background-color: #2b2930;
+  color: #e6e1e5;
+  border-color: #49454f;
+}
+
+:root[data-theme='dark'] .modal-header {
+  background-color: #2b2930;
+  border-bottom-color: #49454f;
+  color: #e6e1e5;
+}
+
+:root[data-theme='dark'] .modal-body {
+  background-color: #2b2930;
+  color: #cac4d0;
+}
+
+:root[data-theme='dark'] .modal-footer {
+  background-color: #2b2930;
+  border-top-color: #49454f;
+}
+
+:root[data-theme='dark'] .modal-title {
+  color: #e6e1e5;
+}
+
+:root[data-theme='dark'] .btn-close {
+  filter: invert(1) grayscale(100%) brightness(200%);
+}
+
+/* Modal animations */
+.confirm-modal .modal {
+  animation: fadeIn 200ms ease-out;
+}
+
+.confirm-modal .modal-dialog {
+  animation: scaleIn 200ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes scaleIn {
+  from {
+    transform: scale(0.9);
+    opacity: 0;
+  }
+
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+/* Mobile modal adjustments */
+@media (max-width: 767px) {
+  .modal-dialog {
+    margin: 1rem;
+  }
+
+  .modal-header,
+  .modal-body,
+  .modal-footer {
+    padding: 0.75rem;
+  }
+
+  .modal-title {
+    font-size: 1.1rem;
   }
 }
