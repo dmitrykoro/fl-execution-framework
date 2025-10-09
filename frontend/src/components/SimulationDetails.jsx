@@ -641,10 +641,17 @@ function SimulationDetails() {
     <div>
       <Link to="/">&larr; Back to Dashboard</Link>
       <div className="d-flex flex-column gap-2 mt-3 mb-3">
-        <div className="d-flex align-items-center gap-3">
-          <h4 className="mb-0">{displayName || simulationId}</h4>
-          <span className={`badge bg-${statusVariant}`}>{displayStatus}</span>
-          <Button variant="outline-primary" onClick={handleRunAgain} disabled={isCloning}>
+        <div className="d-flex flex-column flex-md-row align-items-stretch align-items-md-center gap-2 gap-md-3">
+          <div className="d-flex align-items-center gap-2 flex-wrap flex-grow-1">
+            <h4 className="mb-0">{displayName || simulationId}</h4>
+            <span className={`badge bg-${statusVariant}`}>{displayStatus}</span>
+          </div>
+          <Button
+            variant="outline-primary"
+            onClick={handleRunAgain}
+            disabled={isCloning}
+            className="flex-shrink-0"
+          >
             {isCloning ? 'Starting...' : 'Run Again'}
           </Button>
         </div>
@@ -1007,13 +1014,13 @@ function SimulationDetails() {
 
                         return (
                           <div key={file} className="mb-4">
-                            <div className="d-flex justify-content-between align-items-center mb-2">
+                            <div className="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center gap-2 mb-2">
                               <h6 className="text-muted font-monospace small mb-0">{file}</h6>
-                              <div className="d-flex gap-2">
+                              <div className="d-flex flex-column flex-sm-row gap-2 w-100 w-md-auto">
                                 <a
                                   href={downloadUrl}
                                   download={file.split('/').pop()}
-                                  className="btn btn-outline-primary btn-sm"
+                                  className="btn btn-outline-primary btn-sm text-nowrap"
                                   title="Download CSV file to your computer"
                                 >
                                   📥 Download CSV
@@ -1023,6 +1030,7 @@ function SimulationDetails() {
                                   size="sm"
                                   onClick={() => copyCSVToClipboard(data, file)}
                                   title="Copy data to clipboard for pasting into Excel/Google Sheets"
+                                  className="text-nowrap"
                                 >
                                   📋 Copy to Clipboard
                                 </Button>
