@@ -300,3 +300,442 @@
   background-color: #49454f !important;
   color: #cac4d0;
 }
+
+/* ===== MOBILE RESPONSIVE DESIGN ===== */
+
+/* Prevent iOS input zoom on focus */
+@media (max-width: 767px) {
+  input[type='text'],
+  input[type='number'],
+  input[type='email'],
+  input[type='password'],
+  select,
+  textarea,
+  .form-control,
+  .form-select {
+    font-size: 16px !important;
+  }
+}
+
+/* Touch target sizes (min 44x44px for accessibility) */
+.btn {
+  min-height: 44px;
+}
+
+.nav-link {
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+}
+
+/* Mobile-specific button sizing */
+@media (max-width: 767px) {
+  .btn {
+    padding: 0.5rem 0.75rem;
+    font-size: 0.875rem;
+  }
+
+  .btn-sm {
+    padding: 0.375rem 0.5rem;
+    font-size: 0.8125rem;
+    min-height: 38px;
+  }
+}
+
+/* Tables - Responsive scrolling */
+@media (max-width: 767px) {
+  .table-responsive {
+    display: block;
+    width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+}
+
+/* Cards - Reduce padding on mobile */
+@media (max-width: 767px) {
+  .card-body {
+    padding: 0.75rem;
+  }
+
+  .card-title {
+    font-size: 1rem;
+  }
+
+  .card-subtitle {
+    font-size: 0.875rem;
+  }
+}
+
+/* Status badges - Smaller on mobile */
+@media (max-width: 767px) {
+  .badge {
+    font-size: 0.7rem;
+    padding: 0.25em 0.5em;
+  }
+}
+
+/* Tabs - Scrollable on mobile */
+@media (max-width: 767px) {
+  .nav-tabs {
+    flex-wrap: nowrap !important;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    border-bottom: 1px solid #dee2e6;
+  }
+
+  .nav-tabs .nav-link {
+    white-space: nowrap;
+    font-size: 0.875rem;
+    padding: 0.5rem 0.75rem;
+  }
+
+  :root[data-theme='dark'] .nav-tabs {
+    border-bottom-color: #49454f;
+  }
+}
+
+/* Modals - Full screen on mobile */
+@media (max-width: 767px) {
+  .modal-dialog {
+    margin: 0;
+    max-width: 100%;
+    height: 100%;
+  }
+
+  .modal-content {
+    height: 100%;
+    border-radius: 0;
+  }
+}
+
+/* Navbar - Better mobile menu styling */
+@media (max-width: 767px) {
+  .navbar-collapse {
+    margin-top: 0.5rem;
+    padding: 1rem;
+    border-radius: 0.375rem;
+    background-color: rgba(0, 0, 0, 0.03);
+  }
+
+  :root[data-theme='dark'] .navbar-collapse {
+    background-color: rgba(255, 255, 255, 0.05);
+  }
+}
+
+/* Charts - Reduce complexity on mobile */
+@media (max-width: 767px) {
+  .recharts-wrapper {
+    max-width: 100%;
+    font-size: 10px;
+  }
+
+  .recharts-surface {
+    overflow: visible;
+  }
+
+  .recharts-text {
+    font-size: 10px;
+  }
+}
+
+/* List Groups - Mobile optimization */
+@media (max-width: 767px) {
+  .list-group-item {
+    padding: 0.5rem 0.75rem;
+    font-size: 0.875rem;
+  }
+}
+
+/* Forms - Better mobile layout */
+@media (max-width: 767px) {
+  .form-label {
+    font-size: 0.875rem;
+    margin-bottom: 0.25rem;
+  }
+
+  .form-text {
+    font-size: 0.75rem;
+  }
+}
+
+/* Accordions - Mobile touch optimization */
+@media (max-width: 767px) {
+  .accordion-button {
+    padding: 0.75rem;
+    font-size: 0.9375rem;
+  }
+
+  .accordion-body {
+    padding: 0.75rem;
+  }
+}
+
+/* Dark mode - Mobile specific adjustments */
+@media (max-width: 767px) {
+  :root[data-theme='dark'] .card,
+  :root[data-theme='dark'] .list-group-item,
+  :root[data-theme='dark'] .table {
+    border-width: 1px;
+  }
+
+  :root[data-theme='dark'] .btn-outline-primary,
+  :root[data-theme='dark'] .btn-outline-secondary {
+    border-width: 1.5px;
+  }
+}
+
+/* Smooth scrolling */
+html {
+  scroll-behavior: smooth;
+}
+
+.overflow-auto,
+.modal-body,
+.table-responsive {
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Headings - Responsive sizing */
+@media (max-width: 767px) {
+  h1 {
+    font-size: 1.75rem;
+  }
+
+  h2 {
+    font-size: 1.5rem;
+  }
+
+  h3 {
+    font-size: 1.25rem;
+  }
+
+  h4 {
+    font-size: 1.1rem;
+  }
+}
+
+/* ===== MODERN DASHBOARD CARD UX ===== */
+
+/* Simulation Card - Click to select */
+.simulation-card {
+  transition: all 200ms cubic-bezier(0.4, 0, 0.2, 1);
+  border-width: 2px;
+}
+
+.simulation-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+:root[data-theme='dark'] .simulation-card:hover {
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+}
+
+/* Selected state */
+.simulation-card.selected {
+  border-color: #6750a4 !important;
+  background: linear-gradient(135deg, rgba(103, 80, 164, 0.05) 0%, rgba(103, 80, 164, 0.02) 100%);
+}
+
+:root[data-theme='dark'] .simulation-card.selected {
+  border-color: #d0bcff !important;
+  background: linear-gradient(135deg, rgba(208, 188, 255, 0.15) 0%, rgba(208, 188, 255, 0.08) 100%);
+  box-shadow: 0 0 0 1px rgba(208, 188, 255, 0.3);
+}
+
+/* Hover delete button */
+.delete-btn {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  background: rgba(0, 0, 0, 0.04);
+  border: none;
+  padding: 6px;
+  border-radius: 6px;
+  color: #495057;
+  opacity: 0;
+  transition: all 200ms cubic-bezier(0.4, 0, 0.2, 1);
+  cursor: pointer;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.simulation-card:hover .delete-btn {
+  opacity: 1;
+}
+
+.delete-btn:hover:not(:disabled) {
+  background-color: #dc3545;
+  color: white;
+  transform: scale(1.1);
+}
+
+.delete-btn:disabled {
+  color: #adb5bd;
+  cursor: not-allowed;
+}
+
+:root[data-theme='dark'] .delete-btn {
+  background: rgba(255, 255, 255, 0.06);
+  color: #cac4d0;
+}
+
+:root[data-theme='dark'] .delete-btn:hover:not(:disabled) {
+  background-color: #c92a2a;
+  color: white;
+}
+
+:root[data-theme='dark'] .delete-btn:disabled {
+  color: #49454f;
+}
+
+/* Status badge - Subtle dot style */
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  padding: 4px 10px;
+  border-radius: 12px;
+  white-space: nowrap;
+}
+
+.status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+/* Status variants - Light mode */
+.status-pending {
+  color: #6c757d;
+  background-color: rgba(108, 117, 125, 0.1);
+}
+
+.status-pending .status-dot {
+  background-color: #6c757d;
+}
+
+.status-running {
+  color: #0d6efd;
+  background-color: rgba(13, 110, 253, 0.1);
+}
+
+.status-running .status-dot {
+  background-color: #0d6efd;
+  animation: pulse 2s ease-in-out infinite;
+}
+
+.status-completed {
+  color: #198754;
+  background-color: rgba(25, 135, 84, 0.1);
+}
+
+.status-completed .status-dot {
+  background-color: #198754;
+}
+
+.status-failed {
+  color: #dc3545;
+  background-color: rgba(220, 53, 69, 0.1);
+}
+
+.status-failed .status-dot {
+  background-color: #dc3545;
+}
+
+.status-unknown {
+  color: #fd7e14;
+  background-color: rgba(253, 126, 20, 0.1);
+}
+
+.status-unknown .status-dot {
+  background-color: #fd7e14;
+}
+
+/* Status variants - Dark mode */
+:root[data-theme='dark'] .status-pending {
+  color: #cac4d0;
+  background-color: rgba(202, 196, 208, 0.12);
+}
+
+:root[data-theme='dark'] .status-pending .status-dot {
+  background-color: #938f99;
+}
+
+:root[data-theme='dark'] .status-running {
+  color: #9dc6f0;
+  background-color: rgba(157, 198, 240, 0.12);
+}
+
+:root[data-theme='dark'] .status-running .status-dot {
+  background-color: #5b9dd9;
+}
+
+:root[data-theme='dark'] .status-completed {
+  color: #9dd6b8;
+  background-color: rgba(157, 214, 184, 0.12);
+}
+
+:root[data-theme='dark'] .status-completed .status-dot {
+  background-color: #4caf50;
+}
+
+:root[data-theme='dark'] .status-failed {
+  color: #f2b8b5;
+  background-color: rgba(242, 184, 181, 0.12);
+}
+
+:root[data-theme='dark'] .status-failed .status-dot {
+  background-color: #e57373;
+}
+
+:root[data-theme='dark'] .status-unknown {
+  color: #ffd89e;
+  background-color: rgba(255, 216, 158, 0.12);
+}
+
+:root[data-theme='dark'] .status-unknown .status-dot {
+  background-color: #ff9800;
+}
+
+/* Pulse animation for running status */
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.6;
+    transform: scale(1.1);
+  }
+}
+
+/* Mobile adjustments */
+@media (max-width: 767px) {
+  .delete-btn {
+    opacity: 1;
+    top: 8px;
+    right: 8px;
+  }
+
+  .status-badge {
+    font-size: 0.75rem;
+    padding: 3px 8px;
+  }
+
+  .status-dot {
+    width: 5px;
+    height: 5px;
+  }
+
+  .simulation-card:hover {
+    transform: none;
+  }
+}
