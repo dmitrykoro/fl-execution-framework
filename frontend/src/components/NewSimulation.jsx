@@ -143,11 +143,30 @@ const POPULAR_DATASETS = [
 ];
 
 const PRESETS = {
+  quickstart: {
+    name: 'Quick Start',
+    subtitle: '5 rounds / 5 clients',
+    description:
+      'Fast baseline to verify setup. Perfect first simulation for students learning federated learning.',
+    estimatedTime: '20-40 seconds',
+    icon: '🚀',
+    config: {
+      num_of_rounds: 5,
+      num_of_clients: 5,
+      num_of_malicious_clients: 0,
+      aggregation_strategy_keyword: 'fedavg',
+      min_fit_clients: 5,
+      min_evaluate_clients: 5,
+      min_available_clients: 5,
+      dataset_source: 'local',
+      dataset_keyword: 'femnist_iid',
+    },
+  },
   convergence: {
-    name: 'Convergence Test',
+    name: 'Convergence Study',
     subtitle: '15 rounds / 8 clients',
     description:
-      'Tests federated learning convergence with PID defense. 15 rounds produces smooth plots.',
+      'PID defense with smooth convergence curves. Best for demos and understanding adaptive defense dynamics.',
     estimatedTime: '60-90 seconds',
     icon: '📈',
     config: {
@@ -158,38 +177,90 @@ const PRESETS = {
       min_fit_clients: 8,
       min_evaluate_clients: 8,
       min_available_clients: 8,
+      dataset_source: 'local',
+      dataset_keyword: 'femnist_iid',
     },
   },
-  attack: {
-    name: 'Attack Test',
-    subtitle: '10 rounds / 2 malicious',
+  byzantine: {
+    name: 'Byzantine Attack',
+    subtitle: 'Dynamic attacks + Krum',
     description:
-      'Tests Byzantine attack detection with 2 malicious clients using Gaussian noise. PID defense adapts threshold over 10 rounds.',
-    estimatedTime: '2-3 minutes',
+      'Demonstrates Krum defense against label flipping attacks scheduled in rounds 3-8. Watch defenses adapt in real-time!',
+    estimatedTime: '90-120 seconds',
     icon: '⚔️',
     config: {
-      num_of_rounds: 10,
-      num_of_clients: 5,
-      num_of_malicious_clients: 2,
-      min_fit_clients: 5,
-      min_evaluate_clients: 5,
-      min_available_clients: 5,
-    },
-  },
-  full: {
-    name: 'Full Run',
-    subtitle: '10 rounds / 10 clients',
-    description:
-      '10 rounds with 10 clients for detailed experiments. Use for research and benchmarking.',
-    estimatedTime: '2-3 minutes',
-    icon: '🔬',
-    config: {
-      num_of_rounds: 10,
+      num_of_rounds: 12,
       num_of_clients: 10,
       num_of_malicious_clients: 0,
+      aggregation_strategy_keyword: 'krum',
+      num_krum_selections: 6,
       min_fit_clients: 10,
       min_evaluate_clients: 10,
       min_available_clients: 10,
+      dataset_source: 'local',
+      dataset_keyword: 'femnist_iid',
+      dynamic_attacks: {
+        enabled: true,
+        schedule: [
+          {
+            start_round: 3,
+            end_round: 8,
+            selection_strategy: 'specific',
+            client_ids: [0, 1, 2],
+            attack_config: {
+              type: 'label_flipping',
+              params: { flip_fraction: 0.7, num_classes: 62 },
+            },
+          },
+        ],
+      },
+    },
+  },
+  medical: {
+    name: 'Federated Handwriting',
+    subtitle: 'FEMNIST + Trimmed Mean',
+    description:
+      'Federated handwriting recognition with Dirichlet heterogeneity (α=0.3). Demonstrates robust aggregation across distributed writers.',
+    estimatedTime: '2-3 minutes',
+    icon: '✍️',
+    config: {
+      num_of_rounds: 10,
+      num_of_clients: 8,
+      num_of_malicious_clients: 0,
+      aggregation_strategy_keyword: 'trimmed_mean',
+      trim_ratio: 0.2,
+      min_fit_clients: 8,
+      min_evaluate_clients: 8,
+      min_available_clients: 8,
+      dataset_source: 'huggingface',
+      hf_dataset_name: 'flwrlabs/femnist',
+      partitioning_strategy: 'dirichlet',
+      partitioning_params: { alpha: 0.3 },
+      model_type: 'cnn',
+      batch_size: 32,
+    },
+  },
+  sentiment: {
+    name: 'Sentiment Analysis',
+    subtitle: 'SST2 + Transformer',
+    description:
+      'Movie review sentiment classification with pathological partitioning. Showcases transformer models and extreme non-IID challenges.',
+    estimatedTime: '3-4 minutes',
+    icon: '📝',
+    config: {
+      num_of_rounds: 8,
+      num_of_clients: 6,
+      num_of_malicious_clients: 0,
+      aggregation_strategy_keyword: 'fedavg',
+      min_fit_clients: 6,
+      min_evaluate_clients: 6,
+      min_available_clients: 6,
+      dataset_source: 'huggingface',
+      hf_dataset_name: 'stanfordnlp/sst2',
+      partitioning_strategy: 'pathological',
+      model_type: 'transformer',
+      batch_size: 16,
+      num_of_client_epochs: 1,
     },
   },
 };
@@ -1185,7 +1256,23 @@ function NewSimulation() {
                   name="num_of_rounds"
                   value={config.num_of_rounds}
                   onChange={handleChange}
+                  isInvalid={!!getFieldError('num_of_rounds')}
+                  isValid={
+                    !getFieldError('num_of_rounds') &&
+                    !getFieldWarning('num_of_rounds') &&
+                    config.num_of_rounds !== ''
+                  }
                 />
+                {getFieldError('num_of_rounds') && (
+                  <Form.Control.Feedback type="invalid">
+                    {getFieldError('num_of_rounds').message}
+                  </Form.Control.Feedback>
+                )}
+                {getFieldWarning('num_of_rounds') && !getFieldError('num_of_rounds') && (
+                  <Form.Text className="text-warning">
+                    ⚠️ {getFieldWarning('num_of_rounds').message}
+                  </Form.Text>
+                )}
               </Form.Group>
 
               <Form.Group className="mb-3">
@@ -1210,7 +1297,23 @@ function NewSimulation() {
                   name="num_of_clients"
                   value={config.num_of_clients}
                   onChange={handleChange}
+                  isInvalid={!!getFieldError('num_of_clients')}
+                  isValid={
+                    !getFieldError('num_of_clients') &&
+                    !getFieldWarning('num_of_clients') &&
+                    config.num_of_clients !== ''
+                  }
                 />
+                {getFieldError('num_of_clients') && (
+                  <Form.Control.Feedback type="invalid">
+                    {getFieldError('num_of_clients').message}
+                  </Form.Control.Feedback>
+                )}
+                {getFieldWarning('num_of_clients') && !getFieldError('num_of_clients') && (
+                  <Form.Text className="text-warning">
+                    ⚠️ {getFieldWarning('num_of_clients').message}
+                  </Form.Text>
+                )}
               </Form.Group>
 
               <Form.Group className="mb-3">
@@ -1235,7 +1338,23 @@ function NewSimulation() {
                   name="batch_size"
                   value={config.batch_size}
                   onChange={handleChange}
+                  isInvalid={!!getFieldError('batch_size')}
+                  isValid={
+                    !getFieldError('batch_size') &&
+                    !getFieldWarning('batch_size') &&
+                    config.batch_size !== ''
+                  }
                 />
+                {getFieldError('batch_size') && (
+                  <Form.Control.Feedback type="invalid">
+                    {getFieldError('batch_size').message}
+                  </Form.Control.Feedback>
+                )}
+                {getFieldWarning('batch_size') && !getFieldError('batch_size') && (
+                  <Form.Text className="text-warning">
+                    ⚠️ {getFieldWarning('batch_size').message}
+                  </Form.Text>
+                )}
               </Form.Group>
 
               <Form.Group className="mb-3">
@@ -1260,7 +1379,24 @@ function NewSimulation() {
                   name="num_of_client_epochs"
                   value={config.num_of_client_epochs}
                   onChange={handleChange}
+                  isInvalid={!!getFieldError('num_of_client_epochs')}
+                  isValid={
+                    !getFieldError('num_of_client_epochs') &&
+                    !getFieldWarning('num_of_client_epochs') &&
+                    config.num_of_client_epochs !== ''
+                  }
                 />
+                {getFieldError('num_of_client_epochs') && (
+                  <Form.Control.Feedback type="invalid">
+                    {getFieldError('num_of_client_epochs').message}
+                  </Form.Control.Feedback>
+                )}
+                {getFieldWarning('num_of_client_epochs') &&
+                  !getFieldError('num_of_client_epochs') && (
+                    <Form.Text className="text-warning">
+                      ⚠️ {getFieldWarning('num_of_client_epochs').message}
+                    </Form.Text>
+                  )}
               </Form.Group>
             </Accordion.Body>
           </Accordion.Item>
@@ -1298,7 +1434,24 @@ function NewSimulation() {
                   name="num_of_malicious_clients"
                   value={config.num_of_malicious_clients}
                   onChange={handleChange}
+                  isInvalid={!!getFieldError('num_of_malicious_clients')}
+                  isValid={
+                    !getFieldError('num_of_malicious_clients') &&
+                    !getFieldWarning('num_of_malicious_clients') &&
+                    config.num_of_malicious_clients !== ''
+                  }
                 />
+                {getFieldError('num_of_malicious_clients') && (
+                  <Form.Control.Feedback type="invalid">
+                    {getFieldError('num_of_malicious_clients').message}
+                  </Form.Control.Feedback>
+                )}
+                {getFieldWarning('num_of_malicious_clients') &&
+                  !getFieldError('num_of_malicious_clients') && (
+                    <Form.Text className="text-warning">
+                      ⚠️ {getFieldWarning('num_of_malicious_clients').message}
+                    </Form.Text>
+                  )}
               </Form.Group>
 
               <Form.Group className="mb-3">
@@ -1887,7 +2040,24 @@ function NewSimulation() {
                   name="training_subset_fraction"
                   value={config.training_subset_fraction}
                   onChange={handleChange}
+                  isInvalid={!!getFieldError('training_subset_fraction')}
+                  isValid={
+                    !getFieldError('training_subset_fraction') &&
+                    !getFieldWarning('training_subset_fraction') &&
+                    config.training_subset_fraction !== ''
+                  }
                 />
+                {getFieldError('training_subset_fraction') && (
+                  <Form.Control.Feedback type="invalid">
+                    {getFieldError('training_subset_fraction').message}
+                  </Form.Control.Feedback>
+                )}
+                {getFieldWarning('training_subset_fraction') &&
+                  !getFieldError('training_subset_fraction') && (
+                    <Form.Text className="text-warning">
+                      ⚠️ {getFieldWarning('training_subset_fraction').message}
+                    </Form.Text>
+                  )}
               </Form.Group>
 
               <Form.Group className="mb-3">
@@ -2057,11 +2227,25 @@ function NewSimulation() {
                         placement="right"
                         overlay={
                           <Tooltip>
-                            Enforce all clients participate every round (auto-sets
-                            min_fit/evaluate/available_clients = num_clients). Enabled = full
-                            synchronous FL (realistic, prevents stragglers). Disabled = allow
-                            partial participation (flexible but less common). Recommended: keep
-                            enabled for standard FL experiments.
+                            <div style={{ maxWidth: '320px', lineHeight: '1.5' }}>
+                              <div style={{ marginBottom: '8px' }}>
+                                <strong>Enforce all clients participate every round</strong>
+                              </div>
+                              <div style={{ fontSize: '0.95em' }}>
+                                Auto-sets min_fit/evaluate/available_clients = num_clients
+                              </div>
+                              <div style={{ marginTop: '8px', marginBottom: '4px' }}>
+                                <strong>✅ Enabled:</strong> Full synchronous FL (realistic,
+                                prevents stragglers)
+                              </div>
+                              <div style={{ marginBottom: '8px' }}>
+                                <strong>❌ Disabled:</strong> Allow partial participation (flexible
+                                but less common)
+                              </div>
+                              <div style={{ fontSize: '0.9em', fontStyle: 'italic' }}>
+                                💡 Recommended: Keep enabled for standard FL experiments
+                              </div>
+                            </div>
                           </Tooltip>
                         }
                       >
