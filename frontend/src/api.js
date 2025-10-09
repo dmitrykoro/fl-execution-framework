@@ -34,3 +34,7 @@ export const deleteSimulation = simulationId => {
 export const deleteMultipleSimulations = simulationIds => {
   return apiClient.delete('/simulations', { data: { simulation_ids: simulationIds } });
 };
+
+export const renameSimulation = (simulationId, displayName) => {
+  return apiClient.patch(`/simulations/${simulationId}/rename`, { display_name: displayName });
+};
