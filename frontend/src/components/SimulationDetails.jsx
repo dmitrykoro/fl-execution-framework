@@ -248,6 +248,46 @@ function SimulationDetails() {
 
   const insights = displayStatus === 'completed' ? generateInsights() : [];
 
+  // Helper function to copy CSV data to clipboard
+  const copyCSVToClipboard = (jsonData, filename) => {
+    try {
+      if (!jsonData || jsonData.length === 0) {
+        alert('No data to copy');
+        return;
+      }
+
+      // Convert JSON to CSV string
+      const columns = Object.keys(jsonData[0]);
+      const header = columns.join(',');
+      const rows = jsonData.map(row =>
+        columns
+          .map(col => {
+            const value = row[col];
+            // Escape values containing commas or quotes
+            if (typeof value === 'string' && (value.includes(',') || value.includes('"'))) {
+              return `"${value.replace(/"/g, '""')}"`;
+            }
+            return value;
+          })
+          .join(',')
+      );
+      const csvString = [header, ...rows].join('\n');
+
+      // Copy to clipboard
+      navigator.clipboard.writeText(csvString).then(
+        () => {
+          alert(`✓ Copied ${filename} to clipboard!`);
+        },
+        () => {
+          alert('Failed to copy to clipboard. Please try again.');
+        }
+      );
+    } catch (error) {
+      console.error('Error copying to clipboard:', error);
+      alert('Failed to copy to clipboard. Please try again.');
+    }
+  };
+
   // Human-readable config display component
   const ConfigDisplay = ({ config }) => {
     const [showRawJSON, setShowRawJSON] = useState(false);
@@ -321,6 +361,7 @@ function SimulationDetails() {
               wordBreak: 'break-word',
               fontFamily: 'monospace',
               fontSize: '0.875rem',
+              color: '#E6E1E5', // Light text for dark mode
             }}
           >
             {JSON.stringify(config, null, 2)}
@@ -687,45 +728,334 @@ function SimulationDetails() {
         <Tab eventKey="metrics" title="Metrics">
           <div className="mt-3">
             {csvFiles.length > 0 ? (
-              csvFiles.map(file => {
-                const data = csvData[file];
-                if (!data || data.length === 0) {
-                  return (
-                    <div key={file} className="mb-4">
-                      <h5>{file}</h5>
-                      <Spinner animation="border" size="sm" />
-                    </div>
-                  );
-                }
-                const columns = Object.keys(data[0]);
-                return (
-                  <div key={file} className="mb-4">
-                    <h5>{file}</h5>
-                    <div style={{ overflowX: 'auto' }}>
-                      <Table striped bordered hover size="sm">
-                        <thead>
-                          <tr>
-                            {columns.map(col => (
-                              <th key={col}>{col}</th>
-                            ))}
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {data.map((row, idx) => (
-                            <tr key={idx}>
-                              {columns.map(col => (
-                                <td key={col}>{row[col]}</td>
-                              ))}
+              <>
+                {/* Render Round-Level Summary */}
+                {csvData['csv/round_metrics_0.csv'] && (
+                  <Card className="mb-4">
+                    <Card.Header>
+                      <div className="d-flex justify-content-between align-items-center">
+                        <h5 className="mb-0">📊 Round-by-Round Performance</h5>
+                        <small className="text-muted">Key metrics for each training round</small>
+                      </div>
+                    </Card.Header>
+                    <Card.Body>
+                      <div style={{ overflowX: 'auto' }}>
+                        <Table striped hover size="sm">
+                          <thead>
+                            <tr>
+                              <th
+                                style={{
+                                  position: 'sticky',
+                                  left: 0,
+                                  backgroundColor: 'var(--bs-table-bg)',
+                                  zIndex: 1,
+                                }}
+                              >
+                                Round
+                              </th>
+                              <th>
+                                <OverlayTrigger
+                                  placement="top"
+                                  overlay={
+                                    <Tooltip>Average accuracy across all clients (0-100%)</Tooltip>
+                                  }
+                                >
+                                  <span style={{ cursor: 'help' }}>Accuracy 📈</span>
+                                </OverlayTrigger>
+                              </th>
+                              <th>
+                                <OverlayTrigger
+                                  placement="top"
+                                  overlay={
+                                    <Tooltip>
+                                      Average loss across all clients (lower is better)
+                                    </Tooltip>
+                                  }
+                                >
+                                  <span style={{ cursor: 'help' }}>Loss 📉</span>
+                                </OverlayTrigger>
+                              </th>
+                              {cfg.num_of_malicious_clients > 0 &&
+                                cfg.remove_clients === 'true' && (
+                                  <>
+                                    <th>
+                                      <OverlayTrigger
+                                        placement="top"
+                                        overlay={
+                                          <Tooltip>
+                                            Percentage of malicious clients correctly identified
+                                          </Tooltip>
+                                        }
+                                      >
+                                        <span style={{ cursor: 'help' }}>
+                                          Detection Accuracy 🎯
+                                        </span>
+                                      </OverlayTrigger>
+                                    </th>
+                                    <th>
+                                      <OverlayTrigger
+                                        placement="top"
+                                        overlay={
+                                          <Tooltip>
+                                            Of flagged clients, what % were actually malicious
+                                          </Tooltip>
+                                        }
+                                      >
+                                        <span style={{ cursor: 'help' }}>Precision ✓</span>
+                                      </OverlayTrigger>
+                                    </th>
+                                    <th>
+                                      <OverlayTrigger
+                                        placement="top"
+                                        overlay={
+                                          <Tooltip>
+                                            Of all malicious clients, what % were caught
+                                          </Tooltip>
+                                        }
+                                      >
+                                        <span style={{ cursor: 'help' }}>Recall 🔍</span>
+                                      </OverlayTrigger>
+                                    </th>
+                                  </>
+                                )}
                             </tr>
-                          ))}
-                        </tbody>
-                      </Table>
-                    </div>
-                  </div>
-                );
-              })
+                          </thead>
+                          <tbody>
+                            {csvData['csv/round_metrics_0.csv'].map((row, idx) => {
+                              const accuracy = parseFloat(row.average_accuracy_history || 0);
+                              const loss = parseFloat(row.aggregated_loss_history || 0);
+                              const detectionAcc = parseFloat(row.removal_accuracy_history || 0);
+                              const precision = parseFloat(row.removal_precision_history || 0);
+                              const recall = parseFloat(row.removal_recall_history || 0);
+
+                              return (
+                                <tr key={idx}>
+                                  <td
+                                    style={{
+                                      position: 'sticky',
+                                      left: 0,
+                                      backgroundColor: 'var(--bs-table-bg)',
+                                      fontWeight: 'bold',
+                                    }}
+                                  >
+                                    {parseInt(row['round #'] || row.round || idx + 1)}
+                                  </td>
+                                  <td
+                                    className={
+                                      accuracy > 0.7
+                                        ? 'text-success fw-semibold'
+                                        : accuracy > 0.4
+                                          ? 'text-warning'
+                                          : 'text-danger'
+                                    }
+                                  >
+                                    {(accuracy * 100).toFixed(1)}%
+                                  </td>
+                                  <td
+                                    className={
+                                      loss < 0.1 ? 'text-success' : loss < 0.5 ? 'text-warning' : ''
+                                    }
+                                  >
+                                    {loss.toFixed(4)}
+                                  </td>
+                                  {cfg.num_of_malicious_clients > 0 &&
+                                    cfg.remove_clients === 'true' && (
+                                      <>
+                                        <td
+                                          className={
+                                            detectionAcc === 1.0
+                                              ? 'text-success fw-bold'
+                                              : detectionAcc > 0.7
+                                                ? 'text-success'
+                                                : detectionAcc > 0
+                                                  ? 'text-warning'
+                                                  : ''
+                                          }
+                                        >
+                                          {isNaN(detectionAcc) || detectionAcc === 0
+                                            ? '—'
+                                            : (detectionAcc * 100).toFixed(0) + '%'}
+                                        </td>
+                                        <td>
+                                          {isNaN(precision) || precision === 0
+                                            ? '—'
+                                            : (precision * 100).toFixed(0) + '%'}
+                                        </td>
+                                        <td>
+                                          {isNaN(recall) || recall === 0
+                                            ? '—'
+                                            : (recall * 100).toFixed(0) + '%'}
+                                        </td>
+                                      </>
+                                    )}
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </Table>
+                      </div>
+                      <div className="mt-3 small text-muted">
+                        <strong>📖 How to interpret:</strong>
+                        <div className="mb-0 mt-2">
+                          <div>
+                            <strong>Accuracy:</strong> Higher is better.{' '}
+                            <span className="text-success">Green (&gt;70%)</span> = good,{' '}
+                            <span className="text-warning">yellow (40-70%)</span> = learning,{' '}
+                            <span className="text-danger">red (&lt;40%)</span> = poor
+                          </div>
+                          <div>
+                            <strong>Loss:</strong> Lower is better. Shows how far predictions are
+                            from true values
+                          </div>
+                          {cfg.num_of_malicious_clients > 0 && cfg.remove_clients === 'true' && (
+                            <>
+                              <div>
+                                <strong>Detection Accuracy:</strong> How well the defense identifies
+                                malicious clients. 100% = perfect detection!
+                              </div>
+                              <div>
+                                <strong>Precision:</strong> Avoids false positives (flagging honest
+                                clients as malicious)
+                              </div>
+                              <div>
+                                <strong>Recall:</strong> Catches all actual malicious clients (no
+                                false negatives)
+                              </div>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    </Card.Body>
+                  </Card>
+                )}
+
+                {/* Render Per-Client Summary (only show if interesting metrics exist) */}
+                {csvData['csv/exec_stats_0.csv'] && (
+                  <Card className="mb-4">
+                    <Card.Header>
+                      <div className="d-flex justify-content-between align-items-center">
+                        <h5 className="mb-0">⏱️ Execution Statistics</h5>
+                        <small className="text-muted">Performance timing breakdown</small>
+                      </div>
+                    </Card.Header>
+                    <Card.Body>
+                      {(() => {
+                        const stats = csvData['csv/exec_stats_0.csv'][0];
+                        const meanAccuracy = parseFloat(stats.mean_average_accuracy_history || 0);
+
+                        return (
+                          <>
+                            <div className="row g-3">
+                              <div className="col-md-4">
+                                <div className="p-3 border rounded">
+                                  <div className="small text-muted">Final Accuracy</div>
+                                  <div className="h4 mb-0 text-light">
+                                    {(meanAccuracy * 100).toFixed(1)}%
+                                  </div>
+                                </div>
+                              </div>
+                              <div className="col-md-4">
+                                <div className="p-3 border rounded">
+                                  <div className="small text-muted">Total Rounds</div>
+                                  <div className="h4 mb-0 text-light">{cfg.num_of_rounds}</div>
+                                </div>
+                              </div>
+                              <div className="col-md-4">
+                                <div className="p-3 border rounded">
+                                  <div className="small text-muted">Total Clients</div>
+                                  <div className="h4 mb-0 text-light">{cfg.num_of_clients}</div>
+                                </div>
+                              </div>
+                            </div>
+                            <div className="mt-3 small text-muted">
+                              <strong>💡 Tip:</strong> Compare these metrics across different
+                              aggregation strategies to see which defends best against attacks!
+                            </div>
+                          </>
+                        );
+                      })()}
+                    </Card.Body>
+                  </Card>
+                )}
+
+                {/* Raw Data Accordion (for advanced users) */}
+                <Accordion>
+                  <Accordion.Item eventKey="raw">
+                    <Accordion.Header>
+                      🔬 Advanced: Raw CSV Data (for export/analysis)
+                    </Accordion.Header>
+                    <Accordion.Body>
+                      {csvFiles.map(file => {
+                        const data = csvData[file];
+                        if (!data || data.length === 0) {
+                          return (
+                            <div key={file} className="mb-4">
+                              <h6 className="text-muted">{file}</h6>
+                              <Spinner animation="border" size="sm" />
+                            </div>
+                          );
+                        }
+                        const columns = Object.keys(data[0]);
+                        const downloadUrl = `/api/simulations/${simulationId}/results/${file}?download=true`;
+
+                        return (
+                          <div key={file} className="mb-4">
+                            <div className="d-flex justify-content-between align-items-center mb-2">
+                              <h6 className="text-muted font-monospace small mb-0">{file}</h6>
+                              <div className="d-flex gap-2">
+                                <a
+                                  href={downloadUrl}
+                                  download={file.split('/').pop()}
+                                  className="btn btn-outline-primary btn-sm"
+                                  title="Download CSV file to your computer"
+                                >
+                                  📥 Download CSV
+                                </a>
+                                <Button
+                                  variant="outline-secondary"
+                                  size="sm"
+                                  onClick={() => copyCSVToClipboard(data, file)}
+                                  title="Copy data to clipboard for pasting into Excel/Google Sheets"
+                                >
+                                  📋 Copy to Clipboard
+                                </Button>
+                              </div>
+                            </div>
+                            <div style={{ overflowX: 'auto', fontSize: '0.75rem' }}>
+                              <Table striped bordered hover size="sm">
+                                <thead>
+                                  <tr>
+                                    {columns.map(col => (
+                                      <th key={col} className="font-monospace">
+                                        {col}
+                                      </th>
+                                    ))}
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {data.map((row, idx) => (
+                                    <tr key={idx}>
+                                      {columns.map(col => (
+                                        <td key={col} className="font-monospace">
+                                          {row[col]}
+                                        </td>
+                                      ))}
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </Table>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </Accordion.Body>
+                  </Accordion.Item>
+                </Accordion>
+              </>
             ) : (
-              <p className="text-muted">No metrics available</p>
+              <Alert variant="info">
+                No metrics available yet. Metrics will appear once the simulation completes.
+              </Alert>
             )}
           </div>
         </Tab>
