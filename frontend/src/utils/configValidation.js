@@ -6,6 +6,116 @@
  */
 
 /**
+ * Validate basic numeric parameters
+ */
+export function validateBasicParams(config) {
+  const errors = [];
+  const warnings = [];
+  const infos = [];
+
+  const {
+    num_of_rounds,
+    num_of_clients,
+    batch_size,
+    num_of_client_epochs,
+    training_subset_fraction,
+  } = config;
+
+  // num_of_rounds validation
+  if (num_of_rounds === undefined || num_of_rounds === null || num_of_rounds === '') {
+    errors.push({
+      field: 'num_of_rounds',
+      message: 'Number of rounds is required',
+    });
+  } else if (num_of_rounds <= 0) {
+    errors.push({
+      field: 'num_of_rounds',
+      message: 'Number of rounds must be greater than 0',
+    });
+  } else if (num_of_rounds < 3) {
+    warnings.push({
+      field: 'num_of_rounds',
+      message:
+        'Very few rounds may not show meaningful convergence. Consider at least 5-10 rounds.',
+    });
+  }
+
+  // num_of_clients validation
+  if (num_of_clients === undefined || num_of_clients === null || num_of_clients === '') {
+    errors.push({
+      field: 'num_of_clients',
+      message: 'Number of clients is required',
+    });
+  } else if (num_of_clients <= 0) {
+    errors.push({
+      field: 'num_of_clients',
+      message: 'Number of clients must be greater than 0',
+    });
+  } else if (num_of_clients > 50) {
+    warnings.push({
+      field: 'num_of_clients',
+      message:
+        'Large client counts (>50) may significantly slow down simulation. Consider using fewer clients for faster testing.',
+    });
+  }
+
+  // batch_size validation
+  if (batch_size === undefined || batch_size === null || batch_size === '') {
+    errors.push({
+      field: 'batch_size',
+      message: 'Batch size is required',
+    });
+  } else if (batch_size <= 0) {
+    errors.push({
+      field: 'batch_size',
+      message: 'Batch size must be greater than 0',
+    });
+  } else if (batch_size < 10) {
+    warnings.push({
+      field: 'batch_size',
+      message:
+        'Very small batch sizes (<10) may cause training instability and slower convergence.',
+    });
+  }
+
+  // num_of_client_epochs validation
+  if (
+    num_of_client_epochs === undefined ||
+    num_of_client_epochs === null ||
+    num_of_client_epochs === ''
+  ) {
+    errors.push({
+      field: 'num_of_client_epochs',
+      message: 'Client epochs is required',
+    });
+  } else if (num_of_client_epochs <= 0) {
+    errors.push({
+      field: 'num_of_client_epochs',
+      message: 'Client epochs must be greater than 0',
+    });
+  }
+
+  // training_subset_fraction validation
+  if (
+    training_subset_fraction === undefined ||
+    training_subset_fraction === null ||
+    training_subset_fraction === ''
+  ) {
+    errors.push({
+      field: 'training_subset_fraction',
+      message: 'Training subset fraction is required',
+    });
+  } else if (training_subset_fraction <= 0 || training_subset_fraction > 1) {
+    errors.push({
+      field: 'training_subset_fraction',
+      message: 'Training subset fraction must be between 0 and 1 (exclusive of 0, inclusive of 1)',
+    });
+  }
+
+  return { errors, warnings, infos };
+}
+
+/**
  * Validate client configuration
  * Source: validate_strategy_config.py:207-253
  */
@@ -219,7 +329,22 @@ export function validateAttackConfig(config) {
   const warnings = [];
   const infos = [];
 
-  const { attack_type, num_of_malicious_clients } = config;
+  const { attack_type, num_of_malicious_clients, num_of_clients } = config;
+
+  // Validate malicious client count
+  if (num_of_malicious_clients < 0) {
+    errors.push({
+      field: 'num_of_malicious_clients',
+      message: 'Number of malicious clients cannot be negative',
+    });
+  }
+
+  if (num_of_malicious_clients > num_of_clients) {
+    errors.push({
+      field: 'num_of_malicious_clients',
+      message: `Cannot have more malicious clients (${num_of_malicious_clients}) than total clients (${num_of_clients})`,
+    });
+  }
 
   // Only validate attack params if there are malicious clients
   if (num_of_malicious_clients > 0) {
@@ -238,6 +363,34 @@ export function validateAttackConfig(config) {
           });
         }
       });
+
+      // Validate gaussian_noise_std >= 0
+      if (
+        config.gaussian_noise_std !== undefined &&
+        config.gaussian_noise_std !== null &&
+        config.gaussian_noise_std !== ''
+      ) {
+        if (config.gaussian_noise_std < 0) {
+          errors.push({
+            field: 'gaussian_noise_std',
+            message: 'Gaussian Noise Std cannot be negative',
+          });
+        }
+      }
+
+      // Validate attack_ratio between 0 and 1
+      if (
+        config.attack_ratio !== undefined &&
+        config.attack_ratio !== null &&
+        config.attack_ratio !== ''
+      ) {
+        if (config.attack_ratio <= 0 || config.attack_ratio > 1) {
+          errors.push({
+            field: 'attack_ratio',
+            message: 'Attack Ratio must be between 0 and 1 (exclusive of 0, inclusive of 1)',
+          });
+        }
+      }
     }
   }
 
@@ -430,6 +583,44 @@ export function validateLLMConfig(config) {
           });
         }
       });
+
+      // Validate lora_rank > 0
+      if (config.lora_rank !== undefined && config.lora_rank !== null && config.lora_rank !== '') {
+        if (config.lora_rank <= 0) {
+          errors.push({
+            field: 'lora_rank',
+            message: 'LoRA Rank must be greater than 0',
+          });
+        }
+      }
+
+      // Validate lora_alpha > 0
+      if (
+        config.lora_alpha !== undefined &&
+        config.lora_alpha !== null &&
+        config.lora_alpha !== ''
+      ) {
+        if (config.lora_alpha <= 0) {
+          errors.push({
+            field: 'lora_alpha',
+            message: 'LoRA Alpha must be greater than 0',
+          });
+        }
+      }
+
+      // Validate lora_dropout between 0 and 1
+      if (
+        config.lora_dropout !== undefined &&
+        config.lora_dropout !== null &&
+        config.lora_dropout !== ''
+      ) {
+        if (config.lora_dropout < 0 || config.lora_dropout > 1) {
+          errors.push({
+            field: 'lora_dropout',
+            message: 'LoRA Dropout must be between 0 and 1 (inclusive)',
+          });
+        }
+      }
     }
   }
 
@@ -442,6 +633,7 @@ export function validateLLMConfig(config) {
  */
 export function validateConfig(config) {
   // Run all validation checks
+  const basicValidation = validateBasicParams(config);
   const clientValidation = validateClientConfig(config);
   const strategyValidation = validateStrategyParams(config);
   const attackValidation = validateAttackConfig(config);
@@ -450,6 +642,7 @@ export function validateConfig(config) {
 
   // Aggregate all errors, warnings, and infos
   const errors = [
+    ...basicValidation.errors,
     ...clientValidation.errors,
     ...strategyValidation.errors,
     ...attackValidation.errors,
@@ -458,6 +651,7 @@ export function validateConfig(config) {
   ];
 
   const warnings = [
+    ...basicValidation.warnings,
     ...clientValidation.warnings,
     ...strategyValidation.warnings,
     ...attackValidation.warnings,
@@ -466,6 +660,7 @@ export function validateConfig(config) {
   ];
 
   const infos = [
+    ...basicValidation.infos,
     ...clientValidation.infos,
     ...strategyValidation.infos,
     ...attackValidation.infos,
