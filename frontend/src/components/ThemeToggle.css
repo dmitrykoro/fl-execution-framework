@@ -1,26 +1,33 @@
 .theme-toggle {
-  position: fixed;
-  top: 1rem;
-  right: 1rem;
-  padding: 0.5rem;
-  border-radius: 50%;
-  width: 2.5rem;
-  height: 2.5rem;
+  display: flex !important;
+  align-items: center;
+  gap: 0.5rem;
+  border: none;
+  background: none;
+  padding: 0.5rem 1rem 0.5rem 0;
+}
+
+/* Hide text on desktop (≥768px), show only icon */
+.theme-toggle-text {
+  display: none;
+}
+
+.theme-toggle-icon {
   display: flex;
   align-items: center;
   justify-content: center;
-  background-color: var(--button-bg);
-  border: 1px solid var(--border-color);
-  cursor: pointer;
-  transition: all 0.3s ease;
-  z-index: 1000;
 }
 
-.theme-toggle:hover {
-  background-color: var(--button-hover-bg);
-  transform: scale(1.1);
+/* Desktop: Make it look like a navbar item but icon-only */
+@media (min-width: 768px) {
+  .theme-toggle {
+    padding: 0.5rem 1rem;
+  }
 }
 
-.theme-toggle:active {
-  transform: scale(0.95);
+/* Mobile: Show icon + text to match other nav links */
+@media (max-width: 767px) {
+  .theme-toggle-text {
+    display: inline;
+  }
 }
