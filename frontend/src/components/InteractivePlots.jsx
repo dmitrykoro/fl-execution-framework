@@ -29,6 +29,17 @@ const COLORS = [
 
 const MALICIOUS_COLOR = '#ff4444';
 
+// Human-readable metric labels
+const METRIC_LABELS = {
+  removal_criterion_history: 'Removal Criterion',
+  absolute_distance_history: 'Model Distance',
+  loss_history: 'Training Loss',
+  accuracy_history: 'Training Accuracy',
+  trust_score_history: 'Trust Score',
+  participation_history: 'Participation',
+  aggregation_participation_history: 'Aggregation Participation',
+};
+
 export default function InteractivePlots({ simulation }) {
   const { theme } = useTheme();
   const [plotData, setPlotData] = useState(null);
@@ -80,6 +91,26 @@ export default function InteractivePlots({ simulation }) {
     fetchPlotData();
   }, [simulation.id, simulation.status]);
 
+  // Auto-select first available metric if current selection is not available
+  useEffect(() => {
+    if (!plotData) return;
+
+    const allMetrics =
+      plotData.per_client_metrics.length > 0
+        ? Object.keys(plotData.per_client_metrics[0].metrics)
+        : [];
+
+    const metrics = allMetrics.filter(metricName =>
+      plotData.per_client_metrics.some(client =>
+        client.metrics[metricName]?.some(value => value !== null && value !== undefined)
+      )
+    );
+
+    if (metrics.length > 0 && (!selectedMetric || !metrics.includes(selectedMetric))) {
+      setSelectedMetric(metrics[0]);
+    }
+  }, [plotData, selectedMetric]);
+
   if (loading) return <div className="text-center p-4">Loading interactive plots...</div>;
   if (!plotData) {
     if (simulation.status === 'running') {
@@ -109,11 +140,6 @@ export default function InteractivePlots({ simulation }) {
   if (metrics.length === 0) {
     // Show round-level metrics instead
     return <RoundMetricsPlot plotData={plotData} />;
-  }
-
-  // Auto-select first available metric if current selection is not available
-  if (!selectedMetric || !metrics.includes(selectedMetric)) {
-    setSelectedMetric(metrics[0]);
   }
 
   // Transform data for Recharts
@@ -169,7 +195,7 @@ export default function InteractivePlots({ simulation }) {
           <Form.Select value={selectedMetric} onChange={e => setSelectedMetric(e.target.value)}>
             {metrics.map(metric => (
               <option key={metric} value={metric}>
-                {metric}
+                {METRIC_LABELS[metric] || metric}
               </option>
             ))}
           </Form.Select>
@@ -229,7 +255,7 @@ export default function InteractivePlots({ simulation }) {
               stroke={chartColors.axis}
               tick={{ fill: chartColors.text }}
               label={{
-                value: selectedMetric,
+                value: METRIC_LABELS[selectedMetric] || selectedMetric,
                 angle: -90,
                 position: 'insideLeft',
                 fill: chartColors.text,
