@@ -1,4 +1,3 @@
-import React from 'react';
 import { Sun, Moon } from 'lucide-react';
 import { Nav } from 'react-bootstrap';
 import { useTheme } from '../contexts/ThemeContext';
@@ -17,9 +16,7 @@ function ThemeToggle() {
       <span className="theme-toggle-icon">
         {theme === 'light' ? <Moon size={20} /> : <Sun size={20} />}
       </span>
-      <span className="theme-toggle-text">
-        {theme === 'light' ? 'Dark Mode' : 'Light Mode'}
-      </span>
+      <span className="theme-toggle-text">{theme === 'light' ? 'Dark Mode' : 'Light Mode'}</span>
     </Nav.Link>
   );
 }
