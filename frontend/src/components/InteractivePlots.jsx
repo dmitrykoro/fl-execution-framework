@@ -46,6 +46,7 @@ export default function InteractivePlots({ simulation }) {
   const [selectedMetric, setSelectedMetric] = useState('');
   const [visibleClients, setVisibleClients] = useState({});
   const [loading, setLoading] = useState(true);
+  const [chartHeight, setChartHeight] = useState(400);
 
   useEffect(() => {
     // Only fetch plot data if simulation is completed
@@ -110,6 +111,17 @@ export default function InteractivePlots({ simulation }) {
       setSelectedMetric(metrics[0]);
     }
   }, [plotData, selectedMetric]);
+
+  // Responsive chart height
+  useEffect(() => {
+    const updateHeight = () => {
+      setChartHeight(window.innerWidth < 768 ? 250 : 400);
+    };
+
+    updateHeight();
+    window.addEventListener('resize', updateHeight);
+    return () => window.removeEventListener('resize', updateHeight);
+  }, []);
 
   if (loading) return <div className="text-center p-4">Loading interactive plots...</div>;
   if (!plotData) {
@@ -237,28 +249,30 @@ export default function InteractivePlots({ simulation }) {
         </div>
 
         {/* Chart */}
-        <ResponsiveContainer width="100%" height={400}>
+        <ResponsiveContainer width="100%" height={chartHeight}>
           <LineChart data={chartData}>
             <CartesianGrid strokeDasharray="3 3" stroke={chartColors.grid} />
             <XAxis
               dataKey="round"
               stroke={chartColors.axis}
-              tick={{ fill: chartColors.text }}
+              tick={{ fill: chartColors.text, fontSize: window.innerWidth < 768 ? 10 : 12 }}
               label={{
                 value: 'Round #',
                 position: 'insideBottom',
                 offset: -5,
                 fill: chartColors.text,
+                fontSize: window.innerWidth < 768 ? 10 : 12,
               }}
             />
             <YAxis
               stroke={chartColors.axis}
-              tick={{ fill: chartColors.text }}
+              tick={{ fill: chartColors.text, fontSize: window.innerWidth < 768 ? 10 : 12 }}
               label={{
                 value: METRIC_LABELS[selectedMetric] || selectedMetric,
                 angle: -90,
                 position: 'insideLeft',
                 fill: chartColors.text,
+                fontSize: window.innerWidth < 768 ? 10 : 12,
               }}
             />
             <Tooltip
