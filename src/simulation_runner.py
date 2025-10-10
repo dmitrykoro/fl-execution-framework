@@ -81,5 +81,6 @@ class SimulationRunner:
 # simulation_runner = SimulationRunner("example_strategy_config.json")
 # simulation_runner = SimulationRunner("PubMedBERT_llm_strategy.json")
 # simulation_runner = SimulationRunner("BioLinkBERT_llm_strategy.json")
-simulation_runner = SimulationRunner("BioMedBERT_baseline_llm_strategy.json")
+# simulation_runner = SimulationRunner("BioMedBERT_baseline_llm_strategy.json")
+simulation_runner = SimulationRunner("BioMegatron345m_llm_strategy.json")
 simulation_runner.run()
