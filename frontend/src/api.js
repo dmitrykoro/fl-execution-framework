@@ -38,3 +38,7 @@ export const deleteMultipleSimulations = simulationIds => {
 export const renameSimulation = (simulationId, displayName) => {
   return apiClient.patch(`/simulations/${simulationId}/rename`, { display_name: displayName });
 };
+
+export const stopSimulation = simulationId => {
+  return apiClient.post(`/simulations/${simulationId}/stop`);
+};
