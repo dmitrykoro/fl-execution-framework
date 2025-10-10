@@ -1,11 +1,10 @@
 import { useState, useEffect, useMemo } from 'react';
-import { useSearchParams, useNavigate } from 'react-router-dom';
-import { Card, Row, Col, Spinner, Alert, Button, Table, Badge } from 'react-bootstrap';
+import { useSearchParams } from 'react-router-dom';
+import { Card, Row, Col, Spinner, Alert, Table, Badge } from 'react-bootstrap';
 import { getSimulationDetails, getSimulationStatus } from '../api';
 
 function ComparisonView() {
   const [searchParams] = useSearchParams();
-  const navigate = useNavigate();
   const simulationIds = useMemo(() => searchParams.get('ids')?.split(',') || [], [searchParams]);
 
   const [simulations, setSimulations] = useState([]);
@@ -48,7 +47,6 @@ function ComparisonView() {
   const getConfigDiff = () => {
     if (simulations.length < 2) return [];
 
-    // Handle both API-created (nested) and CLI-created (flat) configs
     const getSettings = config => config.shared_settings || config;
 
     const baseConfig = getSettings(simulations[0].details.config);
@@ -77,7 +75,6 @@ function ComparisonView() {
         const firstRound = roundMetrics[0];
         const lastRound = roundMetrics[roundMetrics.length - 1];
 
-        // Handle both API-created (nested) and CLI-created (flat) configs
         const settings = sim.details.config.shared_settings || sim.details.config;
 
         return {
@@ -116,7 +113,6 @@ function ComparisonView() {
       <div>
         <h1>📊 Simulation Comparison</h1>
         <Alert variant="danger">{error}</Alert>
-        <Button onClick={() => navigate('/')}>Back to Dashboard</Button>
       </div>
     );
   }
@@ -126,12 +122,7 @@ function ComparisonView() {
 
   return (
     <div>
-      <div className="d-flex justify-content-between align-items-center mb-4">
-        <h1>📊 Simulation Comparison</h1>
-        <Button variant="secondary" onClick={() => navigate('/')}>
-          Back to Dashboard
-        </Button>
-      </div>
+      <h1 className="mb-4">📊 Simulation Comparison</h1>
 
       <Card className="mb-4">
         <Card.Header>
@@ -263,7 +254,6 @@ function ComparisonView() {
         <Card.Body>
           <Row xs={1} md={2} className="g-3">
             {simulations.map((sim, idx) => {
-              // Get PDF plot files from result_files (API doesn't provide base64 plots in comparison)
               const plotFiles = sim.details.result_files.filter(
                 file => file.endsWith('.pdf') && !file.includes('/')
               );
