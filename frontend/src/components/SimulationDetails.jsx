@@ -7,7 +7,6 @@ import {
   Tabs,
   Tab,
   Table,
-  Button,
   ProgressBar,
   ListGroup,
   Accordion,
@@ -17,7 +16,8 @@ import {
 import useApi from '../hooks/useApi';
 import { getSimulationDetails, getSimulationStatus, getResultFile, createSimulation } from '../api';
 import InteractivePlots from './InteractivePlots';
-import OutlineButton from './OutlineButton';
+import OutlineButton from './common/Button/OutlineButton';
+import { MaterialIcon } from './common/Icon/MaterialIcon';
 
 function SimulationDetails() {
   const { simulationId } = useParams();
@@ -108,7 +108,9 @@ function SimulationDetails() {
   const handleRunAgain = async () => {
     setIsCloning(true);
     try {
-      const response = await createSimulation(config);
+      // Unwrap shared_settings if present, since API will wrap it again
+      const configToSend = config.shared_settings || config;
+      const response = await createSimulation(configToSend);
       navigate(`/simulations/${response.data.simulation_id}`);
     } catch (err) {
       console.error('Failed to clone simulation:', err);
@@ -636,8 +638,7 @@ function SimulationDetails() {
 
   return (
     <div>
-      <Link to="/">&larr; Back to Dashboard</Link>
-      <div className="d-flex flex-column gap-2 mt-3 mb-3">
+      <div className="d-flex flex-column gap-2 mb-3">
         <div className="d-flex flex-column flex-md-row align-items-stretch align-items-md-center gap-2 gap-md-3">
           <div className="d-flex align-items-center gap-2 flex-wrap flex-grow-1">
             <h4 className="mb-0">{displayName || simulationId}</h4>
@@ -647,8 +648,9 @@ function SimulationDetails() {
             variant="outline-primary"
             onClick={handleRunAgain}
             disabled={isCloning}
-            className="flex-shrink-0"
+            className="flex-shrink-0 d-flex align-items-center gap-2"
           >
+            <MaterialIcon name="replay" size={20} />
             {isCloning ? 'Starting...' : 'Run Again'}
           </OutlineButton>
         </div>
@@ -664,7 +666,6 @@ function SimulationDetails() {
           <Card.Body>
             <div className="d-flex align-items-center gap-3 mb-2">
               <h6 className="mb-0">Simulation in Progress</h6>
-              <Spinner animation="border" size="sm" />
             </div>
             <ProgressBar animated now={100} variant="primary" className="mb-2" />
             <div className="text-muted small">
@@ -1017,17 +1018,17 @@ function SimulationDetails() {
                                 <a
                                   href={downloadUrl}
                                   download={file.split('/').pop()}
-                                  className="btn btn-outline-primary btn-sm text-nowrap d-flex align-items-center justify-content-center"
+                                  className="btn btn-outline-primary btn-sm d-flex align-items-center justify-content-center"
                                   title="Download CSV file to your computer"
                                 >
-                                  📥 Download CSV
+                                  <span className="material-symbols-outlined">download</span>
                                 </a>
                                 <OutlineButton
                                   onClick={() => copyCSVToClipboard(data, file)}
                                   title="Copy data to clipboard for pasting into Excel/Google Sheets"
-                                  className="text-nowrap"
+                                  className="d-flex align-items-center justify-content-center"
                                 >
-                                  📋 Copy to Clipboard
+                                  <span className="material-symbols-outlined">content_copy</span>
                                 </OutlineButton>
                               </div>
                             </div>
