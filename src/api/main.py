@@ -216,7 +216,12 @@ def get_simulation_details(
             rel_path_str = str(rel_path).replace("\\", "/")
             if not rel_path_str.startswith("dataset_"):
                 result_files.append(rel_path_str)
-    if simulation_id in running_processes:
+
+    # Check if simulation was manually stopped (must be checked first)
+    stopped_marker = sim_path / ".stopped"
+    if stopped_marker.is_file():
+        status = "stopped"
+    elif simulation_id in running_processes:
         process = running_processes[simulation_id]
         if process.poll() is None:
             status = "running"
@@ -342,7 +347,15 @@ async def create_simulation(config: SimulationConfig) -> Dict[str, str]:
 def get_simulation_status(
     sim_path: Path = Depends(get_simulation_path), simulation_id: str = ""
 ) -> Dict[str, Any]:
-    """Returns the current status of a simulation (running/completed/failed)."""
+    """Returns the current status of a simulation (running/completed/failed/stopped)."""
+    # Check if simulation was manually stopped
+    stopped_marker = sim_path / ".stopped"
+    stopped_exists = stopped_marker.is_file()
+    # print(f"DEBUG: Checking {stopped_marker}, exists={stopped_exists}", flush=True)
+    if stopped_exists:
+        # print(f"DEBUG: Returning stopped status for {simulation_id}", flush=True)
+        return {"status": "stopped", "progress": 0.0}
+
     if simulation_id in running_processes:
         process = running_processes[simulation_id]
         poll_result = process.poll()
@@ -559,6 +572,48 @@ async def get_plot_data(simulation_id: str) -> Dict:
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/simulations/{simulation_id}/stop", status_code=200)
+def stop_simulation(simulation_id: str) -> Dict[str, str]:
+    """Stop a running simulation."""
+    if simulation_id not in running_processes:
+        raise HTTPException(
+            status_code=404, detail="Simulation is not running or does not exist."
+        )
+
+    process = running_processes[simulation_id]
+
+    if process.poll() is not None:
+        del running_processes[simulation_id]
+        raise HTTPException(status_code=409, detail="Simulation has already completed.")
+
+    try:
+        process.terminate()
+        try:
+            process.wait(timeout=5)
+        except subprocess.TimeoutExpired:
+            process.kill()
+            process.wait()
+
+        del running_processes[simulation_id]
+
+        # Write stopped status marker file
+        sim_path = OUTPUT_DIR / simulation_id
+        stopped_marker = sim_path / ".stopped"
+        try:
+            with stopped_marker.open("w") as f:
+                f.write(f"Simulation stopped at {datetime.datetime.now().isoformat()}")
+        except IOError as e:
+            logger.warning(f"Failed to write stopped marker for {simulation_id}: {e}")
+
+        logger.info(f"Stopped simulation: {simulation_id}")
+        return {"message": "stopped", "simulation_id": simulation_id}
+    except Exception as e:
+        logger.error(f"Failed to stop simulation {simulation_id}: {e}")
+        raise HTTPException(
+            status_code=500, detail=f"Failed to stop simulation: {str(e)}"
+        )
 
 
 @app.get("/api/datasets/validate")
