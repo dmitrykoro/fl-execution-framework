@@ -1,12 +1,12 @@
 {
   "shared_settings": {
     "aggregation_strategy_keyword": "pid",
-    "remove_clients": "false",
+    "remove_clients": "true",
     "dataset_keyword": "medmentions",
     "use_llm": "true",
     "num_of_rounds": 10,
-    "num_of_clients": 5,
-    "num_of_malicious_clients": 0,
+    "num_of_clients": 10,
+    "num_of_malicious_clients": 3,
     "attack_ratio": 1.0,
     "gaussian_noise_mean": 0,
     "gaussian_noise_std": 75,
@@ -46,9 +46,8 @@
   },
   "simulation_strategies": [
     {
-      "attack_type": "gaussian_noise",
+      "attack_type": "ner_label_flipping",
       "num_std_dev": 2
     }
   ]
 }
-
