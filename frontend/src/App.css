@@ -46,6 +46,17 @@
 
 /* Dark Mode - Material Design 3 */
 
+/* Navbar */
+:root[data-theme='dark'] .navbar .navbar-brand,
+:root[data-theme='dark'] .navbar .nav-link {
+  color: #e6e1e5 !important;
+}
+
+:root[data-theme='dark'] .navbar .nav-link:hover,
+:root[data-theme='dark'] .navbar .nav-link:focus {
+  color: #ffffff !important;
+}
+
 /* Form Controls */
 :root[data-theme='dark'] .form-control,
 :root[data-theme='dark'] .form-select {
@@ -563,7 +574,30 @@ html {
   justify-content: center;
 }
 
+/* Stop button for running simulations */
+.stop-btn {
+  position: absolute;
+  top: 12px;
+  right: 48px;
+  background: rgba(255, 193, 7, 0.1);
+  border: 1px solid rgba(255, 193, 7, 0.3);
+  padding: 6px;
+  border-radius: 6px;
+  color: #ff9800;
+  opacity: 0;
+  transition: all 200ms cubic-bezier(0.4, 0, 0.2, 1);
+  cursor: pointer;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
 .simulation-card:hover .delete-btn {
+  opacity: 1;
+}
+
+.simulation-card:hover .stop-btn {
   opacity: 1;
 }
 
@@ -575,6 +609,19 @@ html {
 
 .delete-btn:disabled {
   color: #adb5bd;
+  cursor: not-allowed;
+}
+
+.stop-btn:hover:not(:disabled) {
+  background-color: #ff9800;
+  color: white;
+  border-color: #ff9800;
+  transform: scale(1.1);
+}
+
+.stop-btn:disabled {
+  color: #ffc107;
+  opacity: 0.5;
   cursor: not-allowed;
 }
 
@@ -590,6 +637,18 @@ html {
 
 :root[data-theme='dark'] .delete-btn:disabled {
   color: #49454f;
+}
+
+:root[data-theme='dark'] .stop-btn {
+  background: rgba(255, 152, 0, 0.15);
+  border-color: rgba(255, 152, 0, 0.4);
+  color: #ffd89e;
+}
+
+:root[data-theme='dark'] .stop-btn:hover:not(:disabled) {
+  background-color: #f57c00;
+  border-color: #f57c00;
+  color: white;
 }
 
 /* Status badge - Subtle dot style */
@@ -649,6 +708,15 @@ html {
   background-color: #dc3545;
 }
 
+.status-stopped {
+  color: #fd7e14;
+  background-color: rgba(253, 126, 20, 0.1);
+}
+
+.status-stopped .status-dot {
+  background-color: #fd7e14;
+}
+
 .status-unknown {
   color: #fd7e14;
   background-color: rgba(253, 126, 20, 0.1);
@@ -695,6 +763,15 @@ html {
   background-color: #e57373;
 }
 
+:root[data-theme='dark'] .status-stopped {
+  color: #ffd89e;
+  background-color: rgba(255, 216, 158, 0.12);
+}
+
+:root[data-theme='dark'] .status-stopped .status-dot {
+  background-color: #ff9800;
+}
+
 :root[data-theme='dark'] .status-unknown {
   color: #ffd89e;
   background-color: rgba(255, 216, 158, 0.12);
@@ -724,6 +801,12 @@ html {
     opacity: 1;
     top: 8px;
     right: 8px;
+  }
+
+  .stop-btn {
+    opacity: 1;
+    top: 8px;
+    right: 44px;
   }
 
   .status-badge {
