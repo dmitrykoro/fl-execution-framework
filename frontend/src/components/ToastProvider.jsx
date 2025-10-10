@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react';
 import { Alert } from 'react-bootstrap';
-import { CheckCircle, XCircle, AlertTriangle, Info } from 'lucide-react';
+import { MaterialIcon } from './common/Icon/MaterialIcon';
 import { ToastContext } from '../contexts/ToastContext';
 
 /**
@@ -49,14 +49,14 @@ export function ToastProvider({ children }) {
   const getIcon = variant => {
     switch (variant) {
       case 'success':
-        return <CheckCircle size={20} />;
+        return <MaterialIcon name="check_circle" size={20} fill={1} />;
       case 'danger':
-        return <XCircle size={20} />;
+        return <MaterialIcon name="cancel" size={20} fill={1} />;
       case 'warning':
-        return <AlertTriangle size={20} />;
+        return <MaterialIcon name="warning" size={20} fill={1} />;
       case 'info':
       default:
-        return <Info size={20} />;
+        return <MaterialIcon name="info" size={20} fill={1} />;
     }
   };
 

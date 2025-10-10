@@ -1,8 +1,8 @@
 import { BrowserRouter as Router, Route, Routes, Link } from 'react-router-dom';
 import { Navbar, Nav, Container } from 'react-bootstrap';
-import Dashboard from './components/Dashboard';
-import SimulationDetails from './components/SimulationDetails';
-import NewSimulation from './components/NewSimulation';
+import { Dashboard } from './pages/Dashboard/Dashboard';
+import { SimulationDetails } from './pages/SimulationDetails/SimulationDetails';
+import { NewSimulation } from './pages/NewSimulation/NewSimulation';
 import ComparisonView from './components/ComparisonView';
 import ErrorBoundary from './components/ErrorBoundary';
 import ThemeToggle from './components/ThemeToggle';

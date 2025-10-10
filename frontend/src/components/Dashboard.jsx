@@ -1,17 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import {
-  Card,
-  Row,
-  Col,
-  Spinner,
-  Alert,
-  Button,
-  Badge,
-  Tooltip,
-  OverlayTrigger,
-} from 'react-bootstrap';
-import { Trash2 } from 'lucide-react';
+import { Card, Row, Col, Spinner, Alert, Button, Tooltip, OverlayTrigger } from 'react-bootstrap';
+import { MaterialIcon } from './common/Icon/MaterialIcon';
 import useApi from '../hooks/useApi';
 import {
   getSimulations,
@@ -20,7 +10,7 @@ import {
   deleteMultipleSimulations,
 } from '../api';
 import EditableSimName from './EditableSimName';
-import ConfirmModal from './ConfirmModal';
+import ConfirmModal from './common/Modal/ConfirmModal';
 import { useToast } from '../contexts/ToastContext';
 
 function Dashboard() {
@@ -387,7 +377,7 @@ function Dashboard() {
                     title="Delete simulation"
                     aria-label="Delete simulation"
                   >
-                    <Trash2 size={16} />
+                    <MaterialIcon name="delete" size={16} />
                   </button>
                   <Card.Body>
                     <div

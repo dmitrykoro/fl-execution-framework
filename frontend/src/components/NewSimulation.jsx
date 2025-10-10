@@ -1,12 +1,22 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Form, Button, Card, Alert, Accordion, Row, Col } from 'react-bootstrap';
+import {
+  Form,
+  Button,
+  Card,
+  Alert,
+  Accordion,
+  Row,
+  Col,
+  OverlayTrigger,
+  Tooltip,
+} from 'react-bootstrap';
 import { createSimulation } from '../api';
 import { useConfigValidation } from '../hooks/useConfigValidation';
 import { useDatasetValidation } from '../hooks/useDatasetValidation';
 import ValidationSummary from './ValidationSummary';
-import ConfirmModal from './ConfirmModal';
-import OutlineButton from './OutlineButton';
+import ConfirmModal from './common/Modal/ConfirmModal';
+import OutlineButton from './common/Button/OutlineButton';
 import { useToast } from '../contexts/ToastContext';
 
 // Defaults from config/simulation_strategies/example_strategy_config.json
