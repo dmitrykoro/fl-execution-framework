@@ -17,6 +17,8 @@ export const PRESETS = {
       min_available_clients: 5,
       dataset_source: 'local',
       dataset_keyword: 'femnist_iid',
+      remove_clients: 'false',
+      begin_removing_from_round: 1,
     },
   },
   convergence: {
@@ -36,6 +38,8 @@ export const PRESETS = {
       min_available_clients: 8,
       dataset_source: 'local',
       dataset_keyword: 'femnist_iid',
+      remove_clients: 'true',
+      begin_removing_from_round: 2,
     },
   },
   byzantine: {
@@ -56,6 +60,8 @@ export const PRESETS = {
       min_available_clients: 10,
       dataset_source: 'local',
       dataset_keyword: 'femnist_iid',
+      remove_clients: 'true',
+      begin_removing_from_round: 2,
       dynamic_attacks: {
         enabled: true,
         schedule: [
@@ -95,6 +101,8 @@ export const PRESETS = {
       partitioning_params: { alpha: 0.3 },
       model_type: 'cnn',
       batch_size: 32,
+      remove_clients: 'true',
+      begin_removing_from_round: 2,
     },
   },
   sentiment: {
@@ -118,6 +126,68 @@ export const PRESETS = {
       model_type: 'transformer',
       batch_size: 16,
       num_of_client_epochs: 1,
+      remove_clients: 'false',
+      begin_removing_from_round: 1,
+    },
+  },
+  adaptive_defense: {
+    name: 'Adaptive Defense Showcase',
+    subtitle: 'Multi-phase attacks + PID',
+    description:
+      'Dynamic poisoning attack simulation with adaptive PID defense. Watch attacks intensify while defenses respond in real-time across 3 distinct phases.',
+    estimatedTime: '2-3 minutes',
+    icon: '🛡️',
+    config: {
+      num_of_rounds: 20,
+      num_of_clients: 12,
+      num_of_malicious_clients: 0,
+      aggregation_strategy_keyword: 'pid',
+      min_fit_clients: 12,
+      min_evaluate_clients: 12,
+      min_available_clients: 12,
+      dataset_source: 'local',
+      dataset_keyword: 'femnist_iid',
+      remove_clients: 'true',
+      begin_removing_from_round: 2,
+      Kp: 1.0,
+      Ki: 0.05,
+      Kd: 0.05,
+      num_std_dev: 2.0,
+      dynamic_attacks: {
+        enabled: true,
+        schedule: [
+          {
+            start_round: 3,
+            end_round: 7,
+            selection_strategy: 'specific',
+            client_ids: [0, 1],
+            attack_config: {
+              type: 'label_flipping',
+              params: { flip_fraction: 0.3, num_classes: 62 },
+            },
+          },
+          {
+            start_round: 8,
+            end_round: 14,
+            selection_strategy: 'specific',
+            client_ids: [0, 1, 2, 3],
+            attack_config: {
+              type: 'gaussian_noise',
+              params: { mean: 0, std: 50 },
+            },
+          },
+          {
+            start_round: 15,
+            end_round: 20,
+            selection_strategy: 'specific',
+            client_ids: [4, 5, 6],
+            attack_config: {
+              type: 'label_flipping',
+              params: { flip_fraction: 0.8, num_classes: 62 },
+            },
+          },
+        ],
+      },
     },
   },
 };
