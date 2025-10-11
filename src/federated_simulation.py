@@ -177,7 +177,21 @@ class FederatedSimulation:
                     self.strategy_config, "partitioning_params", None
                 ),
             )
-            self._network_model = FemnistReducedIIDNetwork()
+
+            # Select model based on model_type
+            model_type = self.strategy_config.model_type
+            if model_type == "transformer":
+                logging.warning(
+                    f"Transformer models for HuggingFace datasets require proper tokenization. "
+                    f"Currently using CNN fallback for dataset: {self.strategy_config.hf_dataset_name}"
+                )
+                self._network_model = FemnistReducedIIDNetwork()
+            elif model_type == "cnn":
+                self._network_model = FemnistReducedIIDNetwork()
+            else:
+                raise ValueError(
+                    f"Unsupported model_type '{model_type}' for HuggingFace dataset source"
+                )
 
         elif dataset_keyword == "its":
             dataset_loader = ImageDatasetLoader(
