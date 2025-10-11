@@ -17,7 +17,7 @@ export const METRIC_TOOLTIPS = {
   precision:
     'Precision: Ratio of true positives to all positive predictions. Formula: TP / (TP + FP). Measures exactness.',
   recall:
-    'Recall (Sensitivity): Ratio of true positives to all actual positives. Formula: TP / (TP + FN). Measures completeness.',
+    'Recall (Sensitivity, TPR): Ratio of true positives to all actual positives. Formula: TP / (TP + FN). Measures completeness. Also called Sensitivity or True Positive Rate.',
   f1: 'F1 Score: Harmonic mean of precision and recall. Formula: 2 × (Precision × Recall) / (Precision + Recall). Balanced performance metric.',
   f1_score:
     'F1 Score: Harmonic mean of precision and recall. Formula: 2 × (Precision × Recall) / (Precision + Recall). Balanced performance metric.',
@@ -63,9 +63,9 @@ export const METRIC_TOOLTIPS = {
   // Model Information
   model: 'Neural network architecture used for learning (e.g., CNN, ResNet, MLP)',
   learning_rate:
-    'Learning rate (α) controlling the step size in gradient descent optimization. Typical values: 0.001-0.1.',
+    'Learning rate (α) controlling the step size in gradient descent optimization. Common ranges: 0.001-0.1 for SGD, 0.0001-0.01 for Adam.',
   batch_size:
-    'Number of training samples processed in one forward/backward pass before updating model weights',
+    'Number of training samples processed in one forward/backward pass before updating model weights. Often powers of 2 (32, 64, 128) for GPU efficiency.',
   epochs: 'Number of complete passes through the entire local training dataset',
 
   // Advanced Metrics (Removal/Detection)
