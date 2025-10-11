@@ -1,3 +1,5 @@
+import numpy as np
+
 from dataclasses import dataclass, field
 from typing import Optional
 
@@ -116,6 +118,8 @@ class SimulationStrategyHistory:
             num_aggregated_clients = 0
             sum_aggregated_accuracies = 0
 
+            round_client_accuracies = []
+
             for client_info in self.get_all_clients():
 
                 client_is_malicious = client_info.is_malicious
@@ -135,15 +139,17 @@ class SimulationStrategyHistory:
                     if client_is_malicious and client_was_aggregated:
                         round_fn_count += 1
 
-                # sum of accuracies of aggregated benign clients
-                if not client_is_malicious and client_was_aggregated:
+                # sum of accuracies of aggregated clients
+                if client_was_aggregated:
                     num_aggregated_clients += 1
                     sum_aggregated_accuracies += client_info.accuracy_history[round_num]
+                    round_client_accuracies.append(client_info.accuracy_history[round_num])
 
             self.rounds_history.append_tp_tn_fp_fn(round_tp_count, round_tn_count, round_fp_count, round_fn_count)
             self.rounds_history.average_accuracy_history.append(
-                sum_aggregated_accuracies / num_aggregated_clients if num_aggregated_clients > 0 else 0
+                f"{(sum_aggregated_accuracies / num_aggregated_clients):.3f}" if num_aggregated_clients > 0 else 0.000
             )
+            self.rounds_history.average_accuracy_std_history.append(f"{np.std(round_client_accuracies):.3f}")
 
         if self.strategy_config.remove_clients:
             self.rounds_history.calculate_additional_metrics()

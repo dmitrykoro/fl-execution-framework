@@ -65,7 +65,7 @@ class DirectoryHandler:
         with open(csv_filepath, mode="w", newline="") as client_csv:
             writer = csv.writer(client_csv)
 
-            csv_headers = ["round #"]
+            csv_headers = ["round"]
             savable_metrics = self.simulation_strategy_history.get_all_clients()[0].savable_metrics
 
             for metric_name in savable_metrics:
@@ -99,7 +99,7 @@ class DirectoryHandler:
 
             savable_metrics = self.simulation_strategy_history.rounds_history.savable_metrics
 
-            csv_headers = ["round #"] + [metric_name for metric_name in savable_metrics]
+            csv_headers = ["round"] + [metric_name for metric_name in savable_metrics]
             writer.writerow(csv_headers)
 
             for round_num in range(1, self.simulation_strategy_history.strategy_config.num_of_rounds + 1):
