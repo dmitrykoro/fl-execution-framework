@@ -1,18 +1,12 @@
-import flwr as fl
-import numpy as np
-import torch
-
 from collections import OrderedDict
 from typing import List
 
-from src.network_models.bert_model_definition import (
-    get_peft_model_state_dict,
-    set_peft_model_state_dict,
-)
-from src.attack_utils.poisoning import (
-    should_poison_this_round,
-    apply_poisoning_attack,
-)
+import flwr as fl
+import numpy as np
+import torch
+from peft import get_peft_model_state_dict, set_peft_model_state_dict
+
+from src.attack_utils.poisoning import apply_poisoning_attack, should_poison_this_round
 
 
 class FlowerClient(fl.client.NumPyClient):
@@ -78,7 +72,32 @@ class FlowerClient(fl.client.NumPyClient):
             for epoch in range(epochs):
                 correct, total, epoch_loss = 0, 0, 0.0
 
-                for images, labels in trainloader:
+                for batch in trainloader:
+                    if isinstance(batch, dict):
+                        images = batch.get(
+                            "image", batch.get("img", batch.get("pixel_values"))
+                        )
+                        labels = batch.get(
+                            "label", batch.get("character", batch.get("labels"))
+                        )
+
+                        if images is None:
+                            raise ValueError(
+                                f"Could not find image column in batch. "
+                                f"Expected one of: ['image', 'img', 'pixel_values']. "
+                                f"Available keys: {list(batch.keys())}"
+                            )
+                        if labels is None:
+                            raise ValueError(
+                                f"Could not find label column in batch. "
+                                f"Expected one of: ['label', 'character', 'labels']. "
+                                f"Available keys: {list(batch.keys())}"
+                            )
+
+                        if images.dtype == torch.uint8:
+                            images = images.float() / 255.0
+                    else:
+                        images, labels = batch
                     should_poison, attack_config = should_poison_this_round(
                         current_round, self.client_id, self.dynamic_attacks_schedule
                     )
@@ -189,7 +208,33 @@ class FlowerClient(fl.client.NumPyClient):
             net.eval()
 
             with torch.no_grad():
-                for images, labels in testloader:
+                for batch in testloader:
+                    if isinstance(batch, dict):
+                        images = batch.get(
+                            "image", batch.get("img", batch.get("pixel_values"))
+                        )
+                        labels = batch.get(
+                            "label", batch.get("character", batch.get("labels"))
+                        )
+
+                        if images is None:
+                            raise ValueError(
+                                f"Could not find image column in batch. "
+                                f"Expected one of: ['image', 'img', 'pixel_values']. "
+                                f"Available keys: {list(batch.keys())}"
+                            )
+                        if labels is None:
+                            raise ValueError(
+                                f"Could not find label column in batch. "
+                                f"Expected one of: ['label', 'character', 'labels']. "
+                                f"Available keys: {list(batch.keys())}"
+                            )
+
+                        if images.dtype == torch.uint8:
+                            images = images.float() / 255.0
+                    else:
+                        images, labels = batch
+
                     images, labels = (
                         images.to(self.training_device),
                         labels.to(self.training_device),
@@ -255,29 +300,6 @@ class FlowerClient(fl.client.NumPyClient):
             global_params=global_params,
             config=config,
         )
-
-        # calculate gradients
-        optimizer = torch.optim.Adam(self.net.parameters())
-        optimizer.zero_grad()
-
-        if self.model_type == "cnn":
-            criterion = torch.nn.CrossEntropyLoss()
-            for images, labels in self.trainloader:
-                images, labels = (
-                    images.to(self.training_device),
-                    labels.to(self.training_device),
-                )
-                outputs = self.net(images)
-                loss = criterion(outputs, labels)
-                loss.backward()
-
-        elif self.model_type == "transformer":
-            pass
-
-        else:
-            raise ValueError(
-                f"Unsupported model type: {self.model_type}. Supported types are 'cnn' and 'transformer'."
-            )
 
         return (
             self.get_parameters(config),
