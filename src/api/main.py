@@ -62,6 +62,7 @@ class SimulationConfig(BaseModel):
     remove_clients: Optional[str] = None
     begin_removing_from_round: Optional[int] = None
     dataset_keyword: Optional[str] = None
+    dataset_source: Optional[str] = None  # 'local' or 'huggingface'
     num_of_rounds: Optional[int] = None
     num_of_clients: Optional[int] = None
     num_of_malicious_clients: Optional[int] = None
@@ -104,6 +105,15 @@ class SimulationConfig(BaseModel):
     llm_task: Optional[str] = None
     llm_chunk_size: Optional[int] = None
     mlm_probability: Optional[float] = None
+    hf_dataset_name: Optional[str] = None
+    partitioning_strategy: Optional[str] = None
+    partitioning_params: Optional[dict] = None
+    transformer_model: Optional[str] = None
+    max_seq_length: Optional[int] = None
+    text_column: Optional[str] = None
+    label_column: Optional[str] = None
+    use_lora: Optional[bool] = None
+    lora_rank: Optional[int] = None
 
 
 class SimulationMetadata(BaseModel):

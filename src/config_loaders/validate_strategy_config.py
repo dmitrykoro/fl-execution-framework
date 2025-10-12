@@ -37,6 +37,38 @@ config_schema = {
             ],
         },
         "model_type": {"type": "string", "enum": ["cnn", "transformer"]},
+        "transformer_model": {
+            "type": "string",
+            "description": "HuggingFace model for text classification (e.g., distilbert-base-uncased)",
+        },
+        "max_seq_length": {
+            "type": "integer",
+            "minimum": 32,
+            "maximum": 512,
+            "description": "Maximum sequence length for tokenization",
+        },
+        "text_column": {
+            "type": "string",
+            "description": "Name of text column in dataset",
+        },
+        "text2_column": {
+            "type": "string",
+            "description": "Optional second text column for sentence pairs (NLI, etc.)",
+        },
+        "label_column": {
+            "type": "string",
+            "description": "Name of label column in dataset",
+        },
+        "use_lora": {
+            "type": "boolean",
+            "description": "Use LoRA for parameter-efficient fine-tuning",
+        },
+        "lora_rank": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 64,
+            "description": "Rank of LoRA adaptation matrices",
+        },
         "num_of_rounds": {"type": "integer"},
         "num_of_clients": {"type": "integer"},
         "num_of_malicious_clients": {"type": "integer"},
@@ -56,7 +88,6 @@ config_schema = {
         "mlm_probability": {"type": "number"},
         "llm_chunk_size": {"type": "integer"},
         "llm_finetuning": {"type": "string", "enum": ["full", "lora"]},
-        "lora_rank": {"type": "integer"},
         "lora_alpha": {"type": "integer"},
         "lora_dropout": {"type": "number"},
         "lora_target_modules": {

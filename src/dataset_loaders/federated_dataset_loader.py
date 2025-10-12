@@ -1,5 +1,5 @@
 import torch
-from typing import Optional
+from typing import Optional, Tuple, List
 from torch.utils.data import DataLoader, random_split
 from flwr_datasets import FederatedDataset
 from flwr_datasets.partitioner import (
@@ -24,6 +24,7 @@ class FederatedDatasetLoader:
         training_subset_fraction: float,
         partitioning_strategy: str = "iid",
         partitioning_params: Optional[dict] = None,
+        label_column: str = "label",
     ) -> None:
         """
         Initialize FederatedDatasetLoader.
@@ -35,6 +36,7 @@ class FederatedDatasetLoader:
             training_subset_fraction: Fraction of data for training (0.0-1.0)
             partitioning_strategy: "iid", "dirichlet", or "pathological"
             partitioning_params: Strategy-specific parameters (e.g., {"alpha": 0.5})
+            label_column: Name of the label column in the dataset (default: "label")
         """
         self.dataset_name = dataset_name
         self.num_of_clients = num_of_clients
@@ -42,13 +44,17 @@ class FederatedDatasetLoader:
         self.training_subset_fraction = training_subset_fraction
         self.partitioning_strategy = partitioning_strategy
         self.partitioning_params = partitioning_params or {}
+        self.label_column = label_column
 
-    def load_datasets(self):
+    def load_datasets(self) -> Tuple[List[DataLoader], List[DataLoader], Optional[int]]:
         """
         Load and partition dataset from HuggingFace Hub.
 
         Returns:
-            tuple: (trainloaders, valloaders) - Lists of PyTorch DataLoaders
+            tuple: (trainloaders, valloaders, num_classes)
+                - trainloaders: List of PyTorch DataLoaders for training
+                - valloaders: List of PyTorch DataLoaders for validation
+                - num_classes: Number of classification labels (None if not detected)
         """
         # Create partitioner based on strategy
         partitioner = self._create_partitioner()
@@ -60,6 +66,20 @@ class FederatedDatasetLoader:
 
         trainloaders = []
         valloaders = []
+        num_classes = None
+
+        # Try to detect number of classes from the dataset features
+        try:
+            if (
+                hasattr(fds.dataset, "features")
+                and self.label_column in fds.dataset.features
+            ):
+                label_feature = fds.dataset.features[self.label_column]
+                if hasattr(label_feature, "names"):
+                    num_classes = len(label_feature.names)
+        except Exception:
+            # If detection fails, num_classes remains None
+            pass
 
         for client_id in range(self.num_of_clients):
             # Load partition for this client
@@ -84,7 +104,7 @@ class FederatedDatasetLoader:
             )
             valloaders.append(DataLoader(val_dataset, batch_size=self.batch_size))
 
-        return trainloaders, valloaders
+        return trainloaders, valloaders, num_classes
 
     def _create_partitioner(self):
         """
@@ -103,7 +123,7 @@ class FederatedDatasetLoader:
             alpha = self.partitioning_params.get("alpha", 0.5)
             return DirichletPartitioner(
                 num_partitions=self.num_of_clients,
-                partition_by="label",
+                partition_by=self.label_column,
                 alpha=alpha,
             )
 
@@ -111,7 +131,7 @@ class FederatedDatasetLoader:
             num_classes = self.partitioning_params.get("num_classes_per_partition", 2)
             return PathologicalPartitioner(
                 num_partitions=self.num_of_clients,
-                partition_by="label",
+                partition_by=self.label_column,
                 num_classes_per_partition=num_classes,
             )
 
