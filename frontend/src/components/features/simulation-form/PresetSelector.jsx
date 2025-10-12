@@ -2,6 +2,13 @@ import { Card, Row, Col } from 'react-bootstrap';
 import { PRESETS } from '@constants/presets';
 
 export function PresetSelector({ selectedPreset, onPresetChange }) {
+  const handleKeyDown = (event, key) => {
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault();
+      onPresetChange(key);
+    }
+  };
+
   return (
     <div className="mb-4">
       <h5 className="mb-3">Quick Start Presets</h5>
@@ -14,23 +21,25 @@ export function PresetSelector({ selectedPreset, onPresetChange }) {
           <Col key={key}>
             <Card
               onClick={() => onPresetChange(key)}
+              onKeyDown={e => handleKeyDown(e, key)}
               className={`preset-card ${selectedPreset === key ? 'border-primary' : ''}`}
-              style={{
-                cursor: 'pointer',
-                transition: 'all 0.2s',
-                borderWidth: selectedPreset === key ? '2px' : '1px',
-              }}
+              tabIndex={0}
+              role="button"
+              aria-pressed={selectedPreset === key}
+              aria-label={`Select ${preset.name} preset`}
             >
               <Card.Body>
-                <div className="d-flex align-items-start gap-2 mb-2">
-                  <span style={{ fontSize: '2rem' }}>{preset.icon}</span>
-                  <div>
-                    <Card.Title className="mb-0 h6">{preset.name}</Card.Title>
+                <div className="preset-header">
+                  <span className="preset-icon" aria-hidden="true">
+                    {preset.icon}
+                  </span>
+                  <div className="preset-title-section">
+                    <Card.Title className="h6">{preset.name}</Card.Title>
                     <Card.Subtitle className="text-muted small">{preset.subtitle}</Card.Subtitle>
                   </div>
                 </div>
-                <Card.Text className="small mb-2">{preset.description}</Card.Text>
-                <div className="small text-muted">
+                <Card.Text className="small preset-description">{preset.description}</Card.Text>
+                <div className="small text-muted preset-footer">
                   <strong>Est. time:</strong> {preset.estimatedTime}
                 </div>
               </Card.Body>

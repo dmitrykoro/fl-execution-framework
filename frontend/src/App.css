@@ -974,3 +974,114 @@ html {
     font-size: 1.1rem;
   }
 }
+
+/* ===== PRESET TEMPLATE CARDS ===== */
+
+/* Preset card */
+.preset-card {
+  cursor: pointer;
+  transition: all 200ms cubic-bezier(0.4, 0, 0.2, 1);
+  border-width: 1px;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.preset-card .card-body {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.preset-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  border-color: #6750a4;
+}
+
+:root[data-theme='dark'] .preset-card:hover {
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+  border-color: #d0bcff;
+}
+
+/* Selected state */
+.preset-card.border-primary {
+  border-width: 2px;
+  border-color: #6750a4 !important;
+  background: linear-gradient(135deg, rgba(103, 80, 164, 0.05) 0%, rgba(103, 80, 164, 0.02) 100%);
+}
+
+:root[data-theme='dark'] .preset-card.border-primary {
+  border-color: #d0bcff !important;
+  background: linear-gradient(135deg, rgba(208, 188, 255, 0.15) 0%, rgba(208, 188, 255, 0.08) 100%);
+  box-shadow: 0 0 0 1px rgba(208, 188, 255, 0.3);
+}
+
+/* Preset card header */
+.preset-header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+
+/* Preset card icon */
+.preset-icon {
+  font-size: 2rem;
+  line-height: 1;
+  flex-shrink: 0;
+  width: 2rem;
+  height: 2rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Preset card title section */
+.preset-title-section {
+  flex: 1;
+  min-width: 0;
+}
+
+.preset-title-section .card-title {
+  margin-bottom: 0.125rem;
+  font-weight: 600;
+}
+
+.preset-title-section .card-subtitle {
+  margin-bottom: 0;
+}
+
+/* Preset card description */
+.preset-description {
+  flex: 1;
+  min-height: 4em;
+  line-height: 1.5;
+  margin-bottom: 0.75rem;
+}
+
+/* Preset card footer */
+.preset-footer {
+  margin-top: auto;
+  padding-top: 0.5rem;
+  border-top: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+:root[data-theme='dark'] .preset-footer {
+  border-top-color: rgba(255, 255, 255, 0.1);
+}
+
+/* Mobile preset cards */
+@media (max-width: 767px) {
+  .preset-card:hover {
+    transform: none;
+  }
+
+  .preset-icon {
+    font-size: 1.75rem;
+  }
+
+  .preset-description {
+    min-height: auto;
+  }
+}
