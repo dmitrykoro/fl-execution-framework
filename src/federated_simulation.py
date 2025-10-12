@@ -1,18 +1,22 @@
 import logging
 import sys
+from typing import Sequence, Tuple, Union
 
 import flwr
-
 from flwr.client import Client
 from flwr.common import ndarrays_to_parameters
-from typing import Tuple, Union, Sequence
-
 from peft import PeftModel, get_peft_model_state_dict
 
-
+from src.client_models.flower_client import FlowerClient
+from src.data_models.round_info import RoundsInfo
+from src.data_models.simulation_strategy_config import StrategyConfig
+from src.data_models.simulation_strategy_history import SimulationStrategyHistory
+from src.dataset_handlers.dataset_handler import DatasetHandler
+from src.dataset_loaders.dataset_inspector import DatasetInspector
+from src.dataset_loaders.federated_dataset_loader import FederatedDatasetLoader
 from src.dataset_loaders.image_dataset_loader import ImageDatasetLoader
-from src.dataset_loaders.image_transformers.its_image_transformer import (
-    its_image_transformer,
+from src.dataset_loaders.image_transformers.bloodmnist_image_transformer import (
+    bloodmnist_image_transformer,
 )
 from src.dataset_loaders.image_transformers.femnist_image_transformer import (
     femnist_image_transformer,
@@ -20,56 +24,51 @@ from src.dataset_loaders.image_transformers.femnist_image_transformer import (
 from src.dataset_loaders.image_transformers.flair_image_transformer import (
     flair_image_transformer,
 )
-from src.dataset_loaders.image_transformers.pneumoniamnist_image_transformer import (
-    pneumoniamnist_image_transformer,
-)
-from src.dataset_loaders.image_transformers.bloodmnist_image_transformer import (
-    bloodmnist_image_transformer,
+from src.dataset_loaders.image_transformers.its_image_transformer import (
+    its_image_transformer,
 )
 from src.dataset_loaders.image_transformers.lung_photos_image_transformer import (
     lung_cancer_image_transformer,
 )
-from src.dataset_loaders.medquad_dataset_loader import MedQuADDatasetLoader
-
-from src.network_models.its_network_definition import ITSNetwork
-from src.network_models.femnist_reduced_iid_network_definition import (
-    FemnistReducedIIDNetwork,
+from src.dataset_loaders.image_transformers.pneumoniamnist_image_transformer import (
+    pneumoniamnist_image_transformer,
 )
+from src.dataset_loaders.medquad_dataset_loader import MedQuADDatasetLoader
+from src.dataset_loaders.text_classification_loader import TextClassificationLoader
+from src.network_models.bert_model_definition import load_model, load_model_with_lora
+from src.network_models.bloodmnist_network_definition import BloodmnistNetwork
+from src.network_models.dynamic_cnn import DynamicCNN
 from src.network_models.femnist_full_niid_network_definition import (
     FemnistFullNIIDNetwork,
 )
-from src.network_models.flair_network_definition import FlairNetwork
-from src.network_models.pneumoniamnist_network_definition import PneumoniamnistNetwork
-from src.network_models.bloodmnist_network_definition import BloodmnistNetwork
-from src.network_models.lung_photos_network_definition import LungCancerCNN
-
-from src.network_models.bert_model_definition import load_model, load_model_with_lora
-
-from src.client_models.flower_client import FlowerClient
-
-from src.simulation_strategies.fedavg_strategy import FedAvgStrategy
-from src.simulation_strategies.trust_based_removal_strategy import (
-    TrustBasedRemovalStrategy,
+from src.network_models.femnist_reduced_iid_network_definition import (
+    FemnistReducedIIDNetwork,
 )
-from src.simulation_strategies.pid_based_removal_strategy import PIDBasedRemovalStrategy
+from src.network_models.flair_network_definition import FlairNetwork
+from src.network_models.its_network_definition import ITSNetwork
+from src.network_models.lung_photos_network_definition import LungCancerCNN
+from src.network_models.pneumoniamnist_network_definition import PneumoniamnistNetwork
+from src.network_models.text_classifier_model import (
+    load_text_classifier_with_lora,
+    load_text_classifier_without_lora,
+)
+from src.simulation_strategies.bulyan_strategy import BulyanStrategy
+from src.simulation_strategies.fedavg_strategy import FedAvgStrategy
 from src.simulation_strategies.krum_based_removal_strategy import (
     KrumBasedRemovalStrategy,
 )
 from src.simulation_strategies.multi_krum_based_removal_strategy import (
     MultiKrumBasedRemovalStrategy,
 )
+from src.simulation_strategies.mutli_krum_strategy import MultiKrumStrategy
+from src.simulation_strategies.pid_based_removal_strategy import PIDBasedRemovalStrategy
+from src.simulation_strategies.rfa_based_removal_strategy import RFABasedRemovalStrategy
 from src.simulation_strategies.trimmed_mean_based_removal_strategy import (
     TrimmedMeanBasedRemovalStrategy,
 )
-from src.simulation_strategies.mutli_krum_strategy import MultiKrumStrategy
-from src.simulation_strategies.rfa_based_removal_strategy import RFABasedRemovalStrategy
-from src.simulation_strategies.bulyan_strategy import BulyanStrategy
-
-from src.data_models.simulation_strategy_config import StrategyConfig
-from src.data_models.simulation_strategy_history import SimulationStrategyHistory
-from src.data_models.round_info import RoundsInfo
-
-from src.dataset_handlers.dataset_handler import DatasetHandler
+from src.simulation_strategies.trust_based_removal_strategy import (
+    TrustBasedRemovalStrategy,
+)
 
 
 def weighted_average(metrics: Sequence[Tuple[Union[int, float], dict]]) -> dict:
@@ -161,33 +160,134 @@ class FederatedSimulation:
         dataset_source = getattr(self.strategy_config, "dataset_source", "local")
 
         if dataset_source == "huggingface":
-            from src.dataset_loaders.federated_dataset_loader import (
-                FederatedDatasetLoader,
-            )
-
-            dataset_loader = FederatedDatasetLoader(
-                dataset_name=self.strategy_config.hf_dataset_name,
-                num_of_clients=num_of_clients,
-                batch_size=batch_size,
-                training_subset_fraction=training_subset_fraction,
-                partitioning_strategy=getattr(
-                    self.strategy_config, "partitioning_strategy", "iid"
-                ),
-                partitioning_params=getattr(
-                    self.strategy_config, "partitioning_params", None
-                ),
-            )
-
-            # Select model based on model_type
             model_type = self.strategy_config.model_type
+
             if model_type == "transformer":
-                logging.warning(
-                    f"Transformer models for HuggingFace datasets require proper tokenization. "
-                    f"Currently using CNN fallback for dataset: {self.strategy_config.hf_dataset_name}"
+                transformer_model = getattr(
+                    self.strategy_config, "transformer_model", "distilbert-base-uncased"
                 )
-                self._network_model = FemnistReducedIIDNetwork()
+                max_seq_length = getattr(self.strategy_config, "max_seq_length", 128)
+                text_column = getattr(self.strategy_config, "text_column", "text")
+                text2_column = getattr(self.strategy_config, "text2_column", None)
+                label_column = getattr(self.strategy_config, "label_column", "label")
+                use_lora = getattr(self.strategy_config, "use_lora", True)
+                lora_rank = getattr(self.strategy_config, "lora_rank", 8)
+
+                dataset_loader = TextClassificationLoader(
+                    dataset_name=self.strategy_config.hf_dataset_name,
+                    tokenizer_model=transformer_model,
+                    num_of_clients=num_of_clients,
+                    batch_size=batch_size,
+                    training_subset_fraction=training_subset_fraction,
+                    max_seq_length=max_seq_length,
+                    text_column=text_column,
+                    text2_column=text2_column,
+                    label_column=label_column,
+                    partitioning_strategy=getattr(
+                        self.strategy_config, "partitioning_strategy", "iid"
+                    ),
+                    partitioning_params=getattr(
+                        self.strategy_config, "partitioning_params", None
+                    ),
+                )
+
+                self._dataset_loader = dataset_loader
+                self._trainloaders, self._valloaders, num_labels = (
+                    dataset_loader.load_datasets()
+                )
+
+                logging.info(
+                    f"Loaded text classification dataset with {num_labels} labels"
+                )
+                if use_lora:
+                    self._network_model = load_text_classifier_with_lora(
+                        model_name=transformer_model,
+                        num_labels=num_labels,
+                        lora_rank=lora_rank,
+                    )
+                    logging.info(
+                        f"Loaded {transformer_model} with LoRA (rank={lora_rank})"
+                    )
+                else:
+                    self._network_model = load_text_classifier_without_lora(
+                        model_name=transformer_model,
+                        num_labels=num_labels,
+                    )
+                    logging.info(f"Loaded {transformer_model} without LoRA")
+
+                dataset_loader = None
+
             elif model_type == "cnn":
-                self._network_model = FemnistReducedIIDNetwork()
+                label_column = getattr(self.strategy_config, "label_column", "label")
+
+                # Inspect dataset to get metadata for dynamic model creation
+                logging.info(
+                    f"Inspecting HuggingFace dataset: {self.strategy_config.hf_dataset_name}"
+                )
+                dataset_metadata = DatasetInspector.inspect_dataset(
+                    self.strategy_config.hf_dataset_name, label_column
+                )
+
+                logging.info(
+                    f"Dataset analysis: {dataset_metadata['num_classes']} classes, "
+                    f"modality={dataset_metadata['modality']}, "
+                    f"image_shape={dataset_metadata['image_shape']}"
+                )
+
+                # Create dataset loader
+                dataset_loader = FederatedDatasetLoader(
+                    dataset_name=self.strategy_config.hf_dataset_name,
+                    num_of_clients=num_of_clients,
+                    batch_size=batch_size,
+                    training_subset_fraction=training_subset_fraction,
+                    partitioning_strategy=getattr(
+                        self.strategy_config, "partitioning_strategy", "iid"
+                    ),
+                    partitioning_params=getattr(
+                        self.strategy_config, "partitioning_params", None
+                    ),
+                    label_column=label_column,
+                )
+
+                self._dataset_loader = dataset_loader
+                self._trainloaders, self._valloaders, num_classes = (
+                    dataset_loader.load_datasets()
+                )
+
+                # Use detected num_classes from loader, fallback to inspector metadata
+                final_num_classes = num_classes or dataset_metadata["num_classes"]
+
+                if final_num_classes is None:
+                    raise ValueError(
+                        f"Could not detect number of classes for dataset "
+                        f"'{self.strategy_config.hf_dataset_name}' with label column '{label_column}'"
+                    )
+
+                # Create dynamic CNN based on dataset characteristics
+                if dataset_metadata["modality"] == "image":
+                    img_shape = dataset_metadata["image_shape"]
+                    if img_shape is None:
+                        logging.warning(
+                            "Could not detect image shape, using defaults (1, 28, 28)"
+                        )
+                        img_shape = (1, 28, 28)
+
+                    self._network_model = DynamicCNN(
+                        num_classes=final_num_classes,
+                        input_channels=img_shape[0],
+                        input_height=img_shape[1],
+                        input_width=img_shape[2],
+                    )
+                    logging.info(
+                        f"Created {self._network_model} for {final_num_classes} classes"
+                    )
+                else:
+                    raise ValueError(
+                        f"CNN model type only supports image datasets, "
+                        f"got modality: {dataset_metadata['modality']}"
+                    )
+
+                dataset_loader = None
             else:
                 raise ValueError(
                     f"Unsupported model_type '{model_type}' for HuggingFace dataset source"
@@ -290,8 +390,9 @@ class FederatedSimulation:
             )
             sys.exit(-1)
 
-        self._dataset_loader = dataset_loader
-        self._trainloaders, self._valloaders = dataset_loader.load_datasets()
+        if dataset_loader is not None:
+            self._dataset_loader = dataset_loader
+            self._trainloaders, self._valloaders = dataset_loader.load_datasets()
 
     def _assign_aggregation_strategy(self) -> None:
         """Assign aggregation strategy"""
@@ -333,10 +434,18 @@ class FederatedSimulation:
                 strategy_history=self.strategy_history,
                 network_model=self._network_model,
                 aggregation_strategy_keyword=aggregation_strategy_keyword,
-                use_lora=True
-                if self.strategy_config.use_llm
-                and self.strategy_config.llm_finetuning == "lora"
-                else False,
+                use_lora=(
+                    True
+                    if (
+                        self.strategy_config.use_llm
+                        and self.strategy_config.llm_finetuning == "lora"
+                    )
+                    or (
+                        hasattr(self.strategy_config, "use_lora")
+                        and self.strategy_config.use_lora
+                    )
+                    else False
+                ),
             )
         elif aggregation_strategy_keyword == "krum":
             self._aggregation_strategy = KrumBasedRemovalStrategy(
@@ -467,12 +576,17 @@ class FederatedSimulation:
 
         net = self._network_model.to(self.strategy_config.training_device)
 
-        use_lora = (
-            True
-            if self.strategy_config.use_llm
+        # Determine if LoRA is being used
+        use_lora = False
+        if (
+            self.strategy_config.use_llm
             and self.strategy_config.llm_finetuning == "lora"
-            else False
-        )
+        ):
+            use_lora = True
+        elif (
+            hasattr(self.strategy_config, "use_lora") and self.strategy_config.use_lora
+        ):
+            use_lora = True
 
         trainloader = self._trainloaders[int(cid)]
         valloader = self._valloaders[int(cid)]
