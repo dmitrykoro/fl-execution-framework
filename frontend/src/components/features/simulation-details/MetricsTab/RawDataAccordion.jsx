@@ -1,6 +1,7 @@
 import { Accordion, Table, Spinner } from 'react-bootstrap';
 import OutlineButton from '@components/common/Button/OutlineButton';
 import { InfoTooltip } from '@components/common/Tooltip/InfoTooltip';
+import { MaterialIcon } from '@components/common/Icon/MaterialIcon';
 import { copyCSVToClipboard, filterEmptyColumns, formatColumnName } from '@utils/csvHelpers';
 import { getMetricTooltip } from '@constants/metricTooltips';
 
@@ -37,32 +38,24 @@ export function RawDataAccordion({ csvFiles, csvData, simulationId }) {
                       href={downloadUrl}
                       download={file.split('/').pop()}
                       title="Download CSV file to your computer"
-                      className="d-flex align-items-center justify-content-center"
                       style={{
                         padding: '0.25rem 0.5rem',
                         minWidth: 'auto',
-                        fontSize: '0.875rem',
                         border: 'none',
                       }}
                     >
-                      <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>
-                        download
-                      </span>
+                      <MaterialIcon name="download" size={16} />
                     </OutlineButton>
                     <OutlineButton
                       onClick={() => copyCSVToClipboard(data, file)}
                       title="Copy data to clipboard for pasting into Excel/Google Sheets"
-                      className="d-flex align-items-center justify-content-center"
                       style={{
                         padding: '0.25rem 0.5rem',
                         minWidth: 'auto',
-                        fontSize: '0.875rem',
                         border: 'none',
                       }}
                     >
-                      <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>
-                        content_copy
-                      </span>
+                      <MaterialIcon name="content_copy" size={16} />
                     </OutlineButton>
                   </div>
                 </div>
