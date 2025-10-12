@@ -3,11 +3,10 @@
 from typing import Any, Dict, List
 from unittest.mock import patch
 
-from tests.common import Mock, pytest
 from src.data_models.simulation_strategy_config import StrategyConfig
 from src.federated_simulation import FederatedSimulation
 from src.simulation_runner import SimulationRunner
-
+from tests.common import Mock, pytest
 from tests.fixtures.mock_datasets import (
     MockDatasetHandler,
     generate_byzantine_client_parameters,

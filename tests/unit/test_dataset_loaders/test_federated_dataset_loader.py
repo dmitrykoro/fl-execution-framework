@@ -2,15 +2,17 @@
 Tests for FederatedDatasetLoader.
 """
 
+from unittest.mock import MagicMock, Mock, patch
+
 import pytest
-from unittest.mock import Mock, patch, MagicMock
-from torch.utils.data import DataLoader
-from src.dataset_loaders.federated_dataset_loader import FederatedDatasetLoader
 from flwr_datasets.partitioner import (
-    IidPartitioner,
     DirichletPartitioner,
+    IidPartitioner,
     PathologicalPartitioner,
 )
+from torch.utils.data import DataLoader
+
+from src.dataset_loaders.federated_dataset_loader import FederatedDatasetLoader
 
 
 class TestFederatedDatasetLoaderInit:
@@ -173,7 +175,7 @@ class TestLoadDatasets:
             training_subset_fraction=0.8,
         )
 
-        trainloaders, valloaders = loader.load_datasets()
+        trainloaders, valloaders, num_classes = loader.load_datasets()
 
         assert len(trainloaders) == 5
         assert len(valloaders) == 5
@@ -450,7 +452,7 @@ class TestIntegration:
             partitioning_strategy="iid",
         )
 
-        trainloaders, valloaders = loader.load_datasets()
+        trainloaders, valloaders, num_classes = loader.load_datasets()
 
         assert len(trainloaders) == 3
         assert len(valloaders) == 3
@@ -475,7 +477,7 @@ class TestIntegration:
             partitioning_params={"alpha": 0.1},
         )
 
-        trainloaders, valloaders = loader.load_datasets()
+        trainloaders, valloaders, num_classes = loader.load_datasets()
 
         assert len(trainloaders) == 5
         assert len(valloaders) == 5
@@ -500,7 +502,7 @@ class TestIntegration:
             partitioning_params={"num_classes_per_partition": 3},
         )
 
-        trainloaders, valloaders = loader.load_datasets()
+        trainloaders, valloaders, num_classes = loader.load_datasets()
 
         assert len(trainloaders) == 4
         assert len(valloaders) == 4

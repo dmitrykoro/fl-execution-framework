@@ -1,6 +1,6 @@
-import os
 import json
 import logging
+import os
 import sys
 
 from src.config_loaders.validate_strategy_config import validate_strategy_config

@@ -4,10 +4,9 @@ from pathlib import Path
 from typing import Any, Dict, List
 from unittest.mock import patch
 
-from tests.common import Mock, np, pytest
 from src.data_models.simulation_strategy_config import StrategyConfig
 from src.federated_simulation import FederatedSimulation
-
+from tests.common import Mock, np, pytest
 from tests.fixtures.mock_datasets import MockDatasetHandler
 from tests.fixtures.sample_models import MockNetwork
 

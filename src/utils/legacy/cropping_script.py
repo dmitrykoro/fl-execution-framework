@@ -1,5 +1,6 @@
-import cv2
 import os
+
+import cv2
 
 
 def crop_center(image_path, output_path, crop_size):

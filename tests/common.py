@@ -10,15 +10,14 @@ Separation of concerns:
 # CONSOLIDATED IMPORTS
 # =============================================================================
 
-# Standard library
-import sys
-import os
+import contextlib
+import inspect
 import io
 import locale
 import logging
-import contextlib
-import inspect
-from typing import Generator, List, Tuple, Any, Dict, Optional
+import os
+import sys
+from typing import Any, Dict, Generator, List, Optional, Tuple
 from unittest.mock import Mock
 
 # Third-party imports (conditional to avoid import errors)

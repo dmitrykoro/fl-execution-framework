@@ -9,10 +9,10 @@ from collections import OrderedDict
 from typing import Any, Dict
 from unittest.mock import patch
 
-from tests.common import Mock, np, pytest
 import torch
-from src.client_models.flower_client import FlowerClient
 
+from src.client_models.flower_client import FlowerClient
+from tests.common import Mock, np, pytest
 from tests.fixtures.sample_models import MockCNNNetwork
 
 NDArray = np.ndarray

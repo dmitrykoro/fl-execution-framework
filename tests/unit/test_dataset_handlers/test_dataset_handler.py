@@ -10,10 +10,10 @@ from pathlib import Path
 from typing import Dict, List, Set
 from unittest.mock import call, patch
 
-from tests.common import Mock, np, pytest
 from src.data_models.simulation_strategy_config import StrategyConfig
 from src.dataset_handlers.dataset_handler import DatasetHandler
 from src.output_handlers.directory_handler import DirectoryHandler
+from tests.common import Mock, np, pytest
 
 
 class TestDatasetHandler:

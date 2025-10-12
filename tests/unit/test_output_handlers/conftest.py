@@ -1,7 +1,8 @@
 """Shared fixtures for output handler tests."""
 
-import pytest
 from unittest.mock import Mock, patch
+
+import pytest
 
 
 @pytest.fixture

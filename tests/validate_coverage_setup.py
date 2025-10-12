@@ -6,6 +6,7 @@ Tests that core testing components are properly configured
 
 from pathlib import Path
 from typing import List, Tuple
+
 from tests.common import init_test_environment
 
 logger = init_test_environment()

@@ -10,13 +10,13 @@ import os
 from typing import Any, Generator, List, Optional, Tuple
 from unittest.mock import patch
 
-from tests.common import Mock, np, pytest
 import psutil
+
 from src.data_models.client_info import ClientInfo
 from src.data_models.round_info import RoundsInfo
 from src.data_models.simulation_strategy_config import StrategyConfig
 from src.data_models.simulation_strategy_history import SimulationStrategyHistory
-
+from tests.common import Mock, np, pytest
 from tests.fixtures.mock_datasets import (
     MockDatasetHandler,
     MockFederatedDataset,

@@ -11,9 +11,9 @@ from pathlib import Path
 from typing import Any, Dict, List
 from unittest.mock import patch
 
-from tests.common import Mock, pytest
 from src.data_models.simulation_strategy_config import StrategyConfig
 from src.simulation_runner import SimulationRunner
+from tests.common import Mock, pytest
 
 
 def _create_mock_strategy_config() -> Dict[str, Any]:

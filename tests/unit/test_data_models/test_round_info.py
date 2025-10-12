@@ -1,6 +1,6 @@
-from tests.common import pytest
 from src.data_models.round_info import RoundsInfo
 from src.data_models.simulation_strategy_config import StrategyConfig
+from tests.common import pytest
 
 
 class TestRoundsInfo:

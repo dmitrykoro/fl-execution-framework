@@ -8,7 +8,6 @@ from typing import Any, Dict, List
 from unittest.mock import MagicMock, patch
 
 from tests.common import np, pytest
-
 from tests.fixtures.mock_flower_components import (
     MockClient,
     MockFitRes,

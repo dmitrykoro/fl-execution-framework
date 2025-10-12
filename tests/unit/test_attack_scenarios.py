@@ -1,7 +1,6 @@
 """Parameterized tests for attack scenarios in federated learning."""
 
 from tests.common import Mock, np, pytest
-
 from tests.fixtures.mock_datasets import (
     MockDatasetHandler,
     generate_byzantine_client_parameters,

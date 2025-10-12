@@ -1,22 +1,19 @@
-import time
-import numpy as np
-import flwr as fl
-import torch
 import logging
 import os
-
+import time
 from typing import Dict, List, Optional, Tuple, Union
 
+import flwr as fl
+import numpy as np
+import torch
+from flwr.common import EvaluateRes, FitRes, Parameters, Scalar
+from flwr.server.client_proxy import ClientProxy
+from flwr.server.strategy.aggregate import weighted_loss_avg
 from sklearn.cluster import KMeans
 from sklearn.preprocessing import MinMaxScaler
 
-from flwr.common import FitRes, Parameters, EvaluateRes, Scalar
-from flwr.server.strategy.aggregate import weighted_loss_avg
-from flwr.server.client_proxy import ClientProxy
-
-from src.output_handlers.directory_handler import DirectoryHandler
-
 from src.data_models.simulation_strategy_history import SimulationStrategyHistory
+from src.output_handlers.directory_handler import DirectoryHandler
 
 
 class MultiKrumStrategy(fl.server.strategy.FedAvg):

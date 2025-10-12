@@ -1,12 +1,13 @@
+from typing import List, Optional, Tuple
+
 import torch
-from typing import Optional, Tuple, List
-from torch.utils.data import DataLoader, random_split
 from flwr_datasets import FederatedDataset
 from flwr_datasets.partitioner import (
-    IidPartitioner,
     DirichletPartitioner,
+    IidPartitioner,
     PathologicalPartitioner,
 )
+from torch.utils.data import DataLoader, random_split
 
 
 class FederatedDatasetLoader:

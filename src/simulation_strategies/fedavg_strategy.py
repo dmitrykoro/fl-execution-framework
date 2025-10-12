@@ -1,10 +1,10 @@
-import flwr as fl
 import logging
-
 from typing import Dict, List, Optional, Tuple, Union
-from flwr.server.strategy.aggregate import weighted_loss_avg
-from flwr.common import EvaluateRes, Scalar, FitRes, Parameters
+
+import flwr as fl
+from flwr.common import EvaluateRes, FitRes, Parameters, Scalar
 from flwr.server.client_proxy import ClientProxy
+from flwr.server.strategy.aggregate import weighted_loss_avg
 
 from src.data_models.simulation_strategy_history import SimulationStrategyHistory
 

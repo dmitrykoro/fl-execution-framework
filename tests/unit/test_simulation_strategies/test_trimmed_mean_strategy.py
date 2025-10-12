@@ -7,21 +7,20 @@ Tests trimmed mean aggregation and client removal logic.
 import warnings
 from unittest.mock import patch
 
-from tests.common import (
-    Mock,
-    np,
-    pytest,
-    FitRes,
-    ndarrays_to_parameters,
-    parameters_to_ndarrays,
-    ClientProxy,
-)
 from src.data_models.simulation_strategy_history import SimulationStrategyHistory
 from src.simulation_strategies.trimmed_mean_based_removal_strategy import (
     TrimmedMeanBasedRemovalStrategy,
 )
-
-from tests.common import generate_mock_client_data
+from tests.common import (
+    ClientProxy,
+    FitRes,
+    Mock,
+    generate_mock_client_data,
+    ndarrays_to_parameters,
+    np,
+    parameters_to_ndarrays,
+    pytest,
+)
 
 
 class TestTrimmedMeanBasedRemovalStrategy:

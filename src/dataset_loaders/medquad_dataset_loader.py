@@ -1,9 +1,10 @@
-import os
 import glob
-from datasets import load_dataset
-from transformers import AutoTokenizer
+import os
+
 from torch.utils.data import DataLoader
-from transformers import DataCollatorForLanguageModeling
+from transformers import AutoTokenizer, DataCollatorForLanguageModeling
+
+from datasets import load_dataset
 
 
 class MedQuADDatasetLoader:

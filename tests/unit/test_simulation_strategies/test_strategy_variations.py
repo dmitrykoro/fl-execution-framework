@@ -8,7 +8,6 @@ Verifies each strategy's specific behavior across different configurations.
 import importlib
 from unittest.mock import patch
 
-from tests.common import Mock, pytest
 from src.data_models.simulation_strategy_history import SimulationStrategyHistory
 from src.simulation_strategies.krum_based_removal_strategy import (
     KrumBasedRemovalStrategy,
@@ -17,8 +16,7 @@ from src.simulation_strategies.pid_based_removal_strategy import PIDBasedRemoval
 from src.simulation_strategies.trust_based_removal_strategy import (
     TrustBasedRemovalStrategy,
 )
-
-from tests.common import generate_mock_client_data
+from tests.common import Mock, generate_mock_client_data, pytest
 
 
 class TestStrategyVariations:

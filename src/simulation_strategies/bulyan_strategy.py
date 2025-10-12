@@ -1,27 +1,26 @@
-import time
-import numpy as np
-import flwr as fl
-import torch
 import logging
 import os
+import time
 from typing import Dict, List, Optional, Tuple, Union
 
-from sklearn.cluster import KMeans
-from sklearn.preprocessing import MinMaxScaler
-
+import flwr as fl
+import numpy as np
+import torch
 from flwr.common import (
-    FitRes,
     EvaluateRes,
+    FitRes,
     Parameters,
     Scalar,
-    parameters_to_ndarrays,
     ndarrays_to_parameters,
+    parameters_to_ndarrays,
 )
 from flwr.server.client_proxy import ClientProxy
 from flwr.server.strategy.aggregate import weighted_loss_avg
+from sklearn.cluster import KMeans
+from sklearn.preprocessing import MinMaxScaler
 
-from src.output_handlers.directory_handler import DirectoryHandler
 from src.data_models.simulation_strategy_history import SimulationStrategyHistory
+from src.output_handlers.directory_handler import DirectoryHandler
 
 
 class BulyanStrategy(fl.server.strategy.FedAvg):

@@ -1,7 +1,8 @@
-import os
+import csv
 import datetime
 import json
-import csv
+import os
+
 import numpy as np
 
 from src.data_models.simulation_strategy_history import SimulationStrategyHistory
@@ -139,63 +140,100 @@ class DirectoryHandler:
 
     def _save_per_execution_to_csv(self):
         """
-        Save MAD stats per execution:
-            mean for (TP, TN, FP, FN, accuracy, precision, recall, f1)
-                    ± std
+        Save execution summary statistics for all experiments.
+
+        Universal metrics (all experiments):
+            - final_accuracy: Last accuracy value
+            - final_loss: Last loss value
+            - avg_score_calc_time_ms: Average score calculation time
+            - total_rounds: Number of rounds
+            - total_clients: Number of clients
+
+        Defense metrics (only when remove_clients=true):
+            - mean/std for TP, TN, FP, FN, accuracy, precision, recall, f1
         """
 
-        if not self.simulation_strategy_history.strategy_config.remove_clients:
-            return
+        rounds_history = self.simulation_strategy_history.rounds_history
+        config = self.simulation_strategy_history.strategy_config
 
-        csv_filepath = (
-            f"{self.new_csv_dirname}/"
-            f"exec_stats_{self.simulation_strategy_history.strategy_config.strategy_number}.csv"
-        )
+        csv_filepath = f"{self.new_csv_dirname}/exec_stats_{config.strategy_number}.csv"
+
         with open(csv_filepath, mode="w", newline="") as exec_stats:
             writer = csv.writer(exec_stats)
 
-            statsable_metrics = (
-                self.simulation_strategy_history.rounds_history.statsable_metrics
+            # Calculate universal metrics
+            final_accuracy = (
+                rounds_history.average_accuracy_history[-1]
+                if rounds_history.average_accuracy_history
+                else 0.0
+            )
+            final_loss = (
+                rounds_history.aggregated_loss_history[-1]
+                if rounds_history.aggregated_loss_history
+                else 0.0
+            )
+            avg_score_time_ms = (
+                np.mean(rounds_history.score_calculation_time_nanos_history) / 1e6
+                if rounds_history.score_calculation_time_nanos_history
+                else 0.0
             )
 
-            csv_headers = [f"mean_{metric_name}" for metric_name in statsable_metrics]
-            writer.writerow(csv_headers)
+            # Build headers and data row
+            csv_headers = [
+                "final_accuracy",
+                "final_loss",
+                "avg_score_calc_time_ms",
+                "total_rounds",
+                "total_clients",
+            ]
 
-            metric_cells = []
-            started_removing_from = self.simulation_strategy_history.strategy_config.begin_removing_from_round
+            data_row = [
+                f"{final_accuracy:.6f}",
+                f"{final_loss:.6f}",
+                f"{avg_score_time_ms:.2f}",
+                config.num_of_rounds,
+                config.num_of_clients,
+            ]
 
-            for metric_name in statsable_metrics:
-                collected_history = (
-                    self.simulation_strategy_history.rounds_history.get_metric_by_name(
-                        metric_name
-                    )[started_removing_from : -1 - 1]
-                )
+            # Add defense metrics if client removal is enabled
+            if config.remove_clients:
+                statsable_metrics = rounds_history.statsable_metrics
+                started_removing_from = config.begin_removing_from_round
 
-                metric_mean = np.mean(collected_history) if collected_history else 0.0
-                metric_std = np.std(collected_history) if collected_history else 0.0
+                for metric_name in statsable_metrics:
+                    csv_headers.append(f"mean_{metric_name}")
 
-                if metric_name in (
-                    "average_accuracy_history",
-                    "removal_accuracy_history",
-                    "removal_precision_history",
-                    "removal_recall_history",
-                    "removal_f1_history",
-                ):
-                    metric_mean *= 100
-                    metric_std *= 100
+                    collected_history = rounds_history.get_metric_by_name(metric_name)[
+                        started_removing_from:-2
+                    ]
 
-                if metric_name in (
-                    "tp_history",
-                    "tn_history",
-                    "fp_history",
-                    "fn_history",
-                ):
-                    total_cases = (
-                        self.simulation_strategy_history.strategy_config.num_of_clients
+                    metric_mean = (
+                        np.mean(collected_history) if collected_history else 0.0
                     )
-                    metric_mean = metric_mean / total_cases * 100
-                    metric_std = metric_std / total_cases * 100
+                    metric_std = np.std(collected_history) if collected_history else 0.0
 
-                metric_cells.append(f"{metric_mean:.2f} ± {metric_std:.2f}")
+                    # Convert to percentages where appropriate
+                    if metric_name in (
+                        "average_accuracy_history",
+                        "removal_accuracy_history",
+                        "removal_precision_history",
+                        "removal_recall_history",
+                        "removal_f1_history",
+                    ):
+                        metric_mean *= 100
+                        metric_std *= 100
 
-            writer.writerow(metric_cells)
+                    if metric_name in (
+                        "tp_history",
+                        "tn_history",
+                        "fp_history",
+                        "fn_history",
+                    ):
+                        total_cases = config.num_of_clients
+                        metric_mean = metric_mean / total_cases * 100
+                        metric_std = metric_std / total_cases * 100
+
+                    data_row.append(f"{metric_mean:.2f} ± {metric_std:.2f}")
+
+            writer.writerow(csv_headers)
+            writer.writerow(data_row)

@@ -11,11 +11,12 @@ import logging
 from unittest.mock import Mock
 
 from flwr.common import parameters_to_ndarrays
-from tests.common import generate_mock_client_data
+
+from src.data_models.simulation_strategy_history import SimulationStrategyHistory
 from src.simulation_strategies.trust_based_removal_strategy import (
     TrustBasedRemovalStrategy,
 )
-from src.data_models.simulation_strategy_history import SimulationStrategyHistory
+from tests.common import generate_mock_client_data
 
 logger = logging.getLogger(__name__)
 

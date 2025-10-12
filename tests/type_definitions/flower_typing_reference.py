@@ -19,6 +19,7 @@ from enum import Enum
 from typing import Any, Callable, Optional, Union
 
 import numpy.typing as npt
+
 from tests.common import np
 
 NDArray = npt.NDArray[Any]

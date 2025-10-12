@@ -8,12 +8,12 @@ and performance scaling across different configurations.
 import statistics
 import time
 from typing import Any, Dict, List, Optional, Tuple
-from tests.common import Mock, np, pytest
+
 from src.data_models.client_info import ClientInfo
 from src.data_models.round_info import RoundsInfo
 from src.data_models.simulation_strategy_config import StrategyConfig
 from src.data_models.simulation_strategy_history import SimulationStrategyHistory
-
+from tests.common import Mock, np, pytest
 from tests.fixtures.mock_datasets import (
     MockDatasetHandler,
     MockFederatedDataset,

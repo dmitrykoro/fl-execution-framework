@@ -5,14 +5,15 @@ Tests FedAvg wrapper with metrics tracking, round-level aggregation, and history
 """
 
 from unittest.mock import Mock
+
+import numpy as np
 import pytest
 from flwr.common import EvaluateRes, FitRes
 from flwr.server.client_proxy import ClientProxy
 
-from src.simulation_strategies.fedavg_strategy import FedAvgStrategy
 from src.data_models.simulation_strategy_history import SimulationStrategyHistory
+from src.simulation_strategies.fedavg_strategy import FedAvgStrategy
 from tests.common import ndarrays_to_parameters
-import numpy as np
 
 
 class TestFedAvgStrategy:

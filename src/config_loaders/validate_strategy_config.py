@@ -1,5 +1,6 @@
 import logging
-from jsonschema import validate, ValidationError
+
+from jsonschema import ValidationError, validate
 
 config_schema = {
     "type": "object",

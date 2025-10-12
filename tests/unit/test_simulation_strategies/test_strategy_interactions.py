@@ -6,15 +6,6 @@ Tests Trust + PID strategy combinations, Krum variant interactions, and Byzantin
 
 from unittest.mock import patch
 
-from tests.common import (
-    Mock,
-    np,
-    pytest,
-    FitRes,
-    ndarrays_to_parameters,
-    parameters_to_ndarrays,
-    ClientProxy,
-)
 from src.data_models.simulation_strategy_history import SimulationStrategyHistory
 from src.simulation_strategies.bulyan_strategy import BulyanStrategy
 from src.simulation_strategies.krum_based_removal_strategy import (
@@ -31,8 +22,16 @@ from src.simulation_strategies.trimmed_mean_based_removal_strategy import (
 from src.simulation_strategies.trust_based_removal_strategy import (
     TrustBasedRemovalStrategy,
 )
-
-from tests.common import generate_mock_client_data
+from tests.common import (
+    ClientProxy,
+    FitRes,
+    Mock,
+    generate_mock_client_data,
+    ndarrays_to_parameters,
+    np,
+    parameters_to_ndarrays,
+    pytest,
+)
 
 
 class TestStrategyInteractions:

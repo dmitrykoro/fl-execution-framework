@@ -7,18 +7,19 @@ Tests trust score calculation algorithms, client removal logic, and threshold be
 from unittest.mock import patch
 
 from flwr.common import EvaluateRes
-from tests.common import (
-    Mock,
-    np,
-    pytest,
-    FitRes,
-    ndarrays_to_parameters,
-    ClientProxy,
-    generate_mock_client_data,
-)
+
 from src.data_models.simulation_strategy_history import SimulationStrategyHistory
 from src.simulation_strategies.trust_based_removal_strategy import (
     TrustBasedRemovalStrategy,
+)
+from tests.common import (
+    ClientProxy,
+    FitRes,
+    Mock,
+    generate_mock_client_data,
+    ndarrays_to_parameters,
+    np,
+    pytest,
 )
 
 

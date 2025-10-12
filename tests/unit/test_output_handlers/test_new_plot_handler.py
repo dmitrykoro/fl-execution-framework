@@ -1,7 +1,7 @@
 from unittest.mock import patch
 
 import matplotlib
-from tests.common import Mock, np, pytest
+
 from src.data_models.client_info import ClientInfo
 from src.data_models.round_info import RoundsInfo
 from src.data_models.simulation_strategy_config import StrategyConfig
@@ -12,11 +12,12 @@ from src.output_handlers.new_plot_handler import (
     _generate_multi_string_strategy_label,
     _generate_single_string_strategy_label,
     bar_width,
+    export_plot_data_json,
     plot_size,
     show_inter_strategy_plots,
     show_plots_within_strategy,
-    export_plot_data_json,
 )
+from tests.common import Mock, np, pytest
 
 matplotlib.use("Agg")
 

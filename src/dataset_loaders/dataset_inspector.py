@@ -5,9 +5,10 @@ Automatically extracts metadata from HuggingFace datasets to enable dynamic
 model configuration and dataset-agnostic federated learning.
 """
 
-from datasets import load_dataset_builder, load_dataset
-from typing import Dict, List, Optional, Tuple
 import logging
+from typing import Dict, List, Optional, Tuple
+
+from datasets import load_dataset, load_dataset_builder
 
 
 class DatasetInspector:

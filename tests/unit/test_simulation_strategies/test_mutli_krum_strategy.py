@@ -6,12 +6,19 @@ Tests Multi-Krum aggregation algorithms and client scoring logic.
 
 from unittest.mock import patch
 
-from tests.common import Mock, np, pytest, FitRes, ndarrays_to_parameters, ClientProxy
 from flwr.common import EvaluateRes
+
 from src.data_models.simulation_strategy_history import SimulationStrategyHistory
 from src.simulation_strategies.mutli_krum_strategy import MultiKrumStrategy
-
-from tests.common import generate_mock_client_data
+from tests.common import (
+    ClientProxy,
+    FitRes,
+    Mock,
+    generate_mock_client_data,
+    ndarrays_to_parameters,
+    np,
+    pytest,
+)
 
 
 class TestMultiKrumStrategy:

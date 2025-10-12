@@ -1,14 +1,13 @@
 import sys
 from unittest.mock import MagicMock
 
-from tests.common import Mock, pytest
 from src.data_models.client_info import ClientInfo
 from src.data_models.round_info import RoundsInfo
 from src.data_models.simulation_strategy_config import StrategyConfig
 from src.data_models.simulation_strategy_history import SimulationStrategyHistory
 from src.dataset_handlers.dataset_handler import DatasetHandler
+from tests.common import Mock, pytest
 
-# Mock cv2 before importing modules that depend on it
 sys.modules["cv2"] = MagicMock()
 
 
@@ -529,3 +528,31 @@ class TestSimulationStrategyHistory:
         assert len(history._clients_dict) == 1
         assert history.rounds_history is not None
         assert history.rounds_history.average_accuracy_history[0] == 0.9
+
+    def test_insert_round_history_entry_with_zero_values(self):
+        """Test that zero values are properly recorded (not treated as falsy)"""
+        mock_dataset_handler = Mock(spec=DatasetHandler)
+        mock_dataset_handler.poisoned_client_ids = set()
+
+        config = StrategyConfig(num_of_rounds=2, num_of_clients=2)
+
+        history = SimulationStrategyHistory(
+            strategy_config=config,
+            dataset_handler=mock_dataset_handler,
+            rounds_history=None,
+        )
+
+        # Insert round history with zero values - should be recorded, not skipped
+        history.insert_round_history_entry(
+            score_calculation_time_nanos=0,  # Zero time (very fast calculation)
+            removal_threshold=0.0,  # Zero threshold
+            loss_aggregated=0.0,  # Perfect loss (zero)
+        )
+
+        rounds_info = history.rounds_history
+        assert rounds_info is not None
+
+        # Verify all zero values were recorded correctly
+        assert rounds_info.score_calculation_time_nanos_history == [0]
+        assert rounds_info.removal_threshold_history == [0.0]
+        assert rounds_info.aggregated_loss_history == [0.0]

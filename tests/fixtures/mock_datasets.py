@@ -7,8 +7,8 @@ from typing import Callable, Dict, List, Optional, Tuple
 import torch
 from torch.utils.data import DataLoader, Dataset
 
-from tests.common import np
 from src.dataset_handlers.dataset_handler import DatasetHandler
+from tests.common import np
 
 NDArray = np.ndarray
 

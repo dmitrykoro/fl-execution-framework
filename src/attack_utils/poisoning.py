@@ -5,8 +5,9 @@ This module provides modular attack functions that can be applied dynamically
 during client training loops. Supports both image and text-based attacks.
 """
 
-import torch
 from typing import Optional, Tuple
+
+import torch
 
 
 def apply_label_flipping(

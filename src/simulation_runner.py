@@ -4,15 +4,11 @@ import os
 import sys
 
 from src.config_loaders.config_loader import ConfigLoader
-
-from src.output_handlers.directory_handler import DirectoryHandler
-from src.output_handlers import new_plot_handler
-
-from src.federated_simulation import FederatedSimulation
-
 from src.data_models.simulation_strategy_config import StrategyConfig
-
 from src.dataset_handlers.dataset_handler import DatasetHandler
+from src.federated_simulation import FederatedSimulation
+from src.output_handlers import new_plot_handler
+from src.output_handlers.directory_handler import DirectoryHandler
 
 
 class SimulationRunner:

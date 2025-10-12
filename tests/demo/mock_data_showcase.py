@@ -7,30 +7,29 @@ Usage:
   python -m pytest tests/demo/mock_data_showcase.py -v -s
 """
 
-import time
 import logging
 import os
+import time
 
-# Set environment variables before importing joblib-dependent libraries
 os.environ.setdefault("LOKY_MAX_CPU_COUNT", "1")
 os.environ.setdefault("JOBLIB_START_METHOD", "spawn")
 
-from tests.common import (
-    Mock,
-    np,
-    parameters_to_ndarrays,
-    ndarrays_to_parameters,
-    generate_mock_client_data,
-    init_demo_output,
-    init_test_environment,
+from src.data_models.simulation_strategy_history import SimulationStrategyHistory
+from src.simulation_strategies.krum_based_removal_strategy import (
+    KrumBasedRemovalStrategy,
 )
 from src.simulation_strategies.trust_based_removal_strategy import (
     TrustBasedRemovalStrategy,
 )
-from src.simulation_strategies.krum_based_removal_strategy import (
-    KrumBasedRemovalStrategy,
+from tests.common import (
+    Mock,
+    generate_mock_client_data,
+    init_demo_output,
+    init_test_environment,
+    ndarrays_to_parameters,
+    np,
+    parameters_to_ndarrays,
 )
-from src.data_models.simulation_strategy_history import SimulationStrategyHistory
 
 logger = logging.getLogger(__name__)
 

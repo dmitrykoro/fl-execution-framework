@@ -1,8 +1,9 @@
-import shutil
-import os
 import logging
+import os
 import random
+import shutil
 import sys
+
 import cv2
 import numpy as np
 

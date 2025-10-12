@@ -1,18 +1,17 @@
-import numpy as np
-import flwr as fl
 import logging
+from typing import Dict, List, Optional, Set, Tuple, Union
 
-from typing import Dict, List, Optional, Tuple, Union, Set
-
+import flwr as fl
+import numpy as np
 from flwr.common import (
-    Parameters,
     EvaluateRes,
-    parameters_to_ndarrays,
-    ndarrays_to_parameters,
+    Parameters,
     Scalar,
+    ndarrays_to_parameters,
+    parameters_to_ndarrays,
 )
-from flwr.server.strategy.aggregate import weighted_loss_avg
 from flwr.server.client_proxy import ClientProxy
+from flwr.server.strategy.aggregate import weighted_loss_avg
 from flwr.server.strategy.fedavg import FedAvg
 
 from src.data_models.simulation_strategy_history import SimulationStrategyHistory

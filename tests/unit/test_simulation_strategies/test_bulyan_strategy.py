@@ -6,19 +6,18 @@ Tests Bulyan aggregation algorithm combining Multi-Krum and trimmed mean.
 
 from unittest.mock import patch
 
-from tests.common import (
-    Mock,
-    np,
-    pytest,
-    FitRes,
-    ndarrays_to_parameters,
-    parameters_to_ndarrays,
-    ClientProxy,
-)
 from src.data_models.simulation_strategy_history import SimulationStrategyHistory
 from src.simulation_strategies.bulyan_strategy import BulyanStrategy
-
-from tests.common import generate_mock_client_data
+from tests.common import (
+    ClientProxy,
+    FitRes,
+    Mock,
+    generate_mock_client_data,
+    ndarrays_to_parameters,
+    np,
+    parameters_to_ndarrays,
+    pytest,
+)
 
 
 class TestBulyanStrategy:

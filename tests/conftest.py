@@ -9,15 +9,15 @@ import json
 import logging
 import os
 import warnings
-import pytest
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict
 
+import pytest
 from fastapi import BackgroundTasks
 from fastapi.testclient import TestClient
-from src.api.main import app
 
+from src.api.main import app
 from tests.common import STRATEGY_CONFIGS, np
 
 # Deterministic test environment

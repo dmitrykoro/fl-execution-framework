@@ -12,9 +12,10 @@ Tests cover:
 import json
 from pathlib import Path
 from unittest.mock import MagicMock
-from src.api import main
+
 from fastapi.testclient import TestClient
 
+from src.api import main
 
 # --- Endpoint Tests ---
 
@@ -841,7 +842,7 @@ def test_validate_dataset_invalid_format(api_client: TestClient, monkeypatch):
 
 def test_secure_join_prevents_traversal(tmp_path):
     """secure_join prevents path traversal attacks."""
-    from src.api.main import secure_join, HTTPException
+    from src.api.main import HTTPException, secure_join
 
     # Use tmp_path to ensure base exists on Windows
     base = tmp_path / "safe"
@@ -863,7 +864,7 @@ def test_secure_join_prevents_traversal(tmp_path):
 
 def test_get_simulation_path_invalid_id():
     """get_simulation_path rejects invalid simulation IDs."""
-    from src.api.main import get_simulation_path, HTTPException
+    from src.api.main import HTTPException, get_simulation_path
 
     # Invalid characters in simulation ID
     try:

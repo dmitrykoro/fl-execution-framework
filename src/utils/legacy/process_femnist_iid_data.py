@@ -1,7 +1,8 @@
 """Convert JSON FEMNIST data to PNG images for IID."""
 
-import os
 import json
+import os
+
 import numpy as np
 from PIL import Image
 

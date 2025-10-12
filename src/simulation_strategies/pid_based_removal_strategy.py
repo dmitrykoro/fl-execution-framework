@@ -1,18 +1,18 @@
-import numpy as np
-import flwr as fl
-import torch
 import logging
-import time
 import os
-
+import time
 from typing import Dict, List, Optional, Tuple, Union
-from sklearn.cluster import KMeans
-from flwr.server.strategy.aggregate import weighted_loss_avg
-from flwr.common import EvaluateRes, Scalar, FitRes, Parameters
-from flwr.server.client_proxy import ClientProxy
 
-from src.output_handlers.directory_handler import DirectoryHandler
+import flwr as fl
+import numpy as np
+import torch
+from flwr.common import EvaluateRes, FitRes, Parameters, Scalar
+from flwr.server.client_proxy import ClientProxy
+from flwr.server.strategy.aggregate import weighted_loss_avg
+from sklearn.cluster import KMeans
+
 from src.data_models.simulation_strategy_history import SimulationStrategyHistory
+from src.output_handlers.directory_handler import DirectoryHandler
 
 
 class PIDBasedRemovalStrategy(fl.server.strategy.FedAvg):
