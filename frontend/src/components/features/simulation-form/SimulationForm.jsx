@@ -5,6 +5,7 @@ import { AttackSettings } from './ConfigSections/AttackSettings';
 import { DefenseSettings } from './ConfigSections/DefenseSettings';
 import { TrainingSettings } from './ConfigSections/TrainingSettings';
 import { FlowerSettings } from './ConfigSections/FlowerSettings';
+import { TransformerSettings } from './ConfigSections/TransformerSettings';
 import { LLMSettings } from './ConfigSections/LLMSettings';
 import { OutputSettings } from './ConfigSections/OutputSettings';
 import { DynamicAttacks } from './ConfigSections/DynamicAttacks';
@@ -87,21 +88,30 @@ export function SimulationForm({
           </Accordion.Body>
         </Accordion.Item>
 
-        <Accordion.Item eventKey="5">
+        {config.model_type === 'transformer' && (
+          <Accordion.Item eventKey="5">
+            <Accordion.Header>Transformer Configuration</Accordion.Header>
+            <Accordion.Body>
+              <TransformerSettings config={config} onChange={onConfigChange} />
+            </Accordion.Body>
+          </Accordion.Item>
+        )}
+
+        <Accordion.Item eventKey="6">
           <Accordion.Header>LLM Settings</Accordion.Header>
           <Accordion.Body>
             <LLMSettings config={config} onChange={onConfigChange} />
           </Accordion.Body>
         </Accordion.Item>
 
-        <Accordion.Item eventKey="6">
+        <Accordion.Item eventKey="7">
           <Accordion.Header>Output Settings</Accordion.Header>
           <Accordion.Body>
             <OutputSettings config={config} onChange={onConfigChange} />
           </Accordion.Body>
         </Accordion.Item>
 
-        <Accordion.Item eventKey="7">
+        <Accordion.Item eventKey="8">
           <Accordion.Header>Dynamic Attacks (Advanced)</Accordion.Header>
           <Accordion.Body>
             <DynamicAttacks config={config} onChange={onConfigChange} />
