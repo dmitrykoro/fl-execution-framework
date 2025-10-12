@@ -146,7 +146,7 @@ From the project root, install API dependencies and start the server:
 pip install -r src/api/requirements.txt
 
 # Start the backend server
-uvicorn src.api.main:app --reload
+python -m uvicorn src.api.main:app --reload --port 8000
 ```
 
 #### 2. Start Frontend
