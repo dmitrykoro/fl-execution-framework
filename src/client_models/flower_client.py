@@ -74,26 +74,22 @@ class FlowerClient(fl.client.NumPyClient):
 
                 for batch in trainloader:
                     if isinstance(batch, dict):
-                        images = batch.get(
-                            "image", batch.get("img", batch.get("pixel_values"))
-                        )
-                        labels = batch.get(
-                            "label", batch.get("character", batch.get("labels"))
-                        )
-
-                        if images is None:
+                        # Expect standardized column names from loaders
+                        if "pixel_values" not in batch:
                             raise ValueError(
-                                f"Could not find image column in batch. "
-                                f"Expected one of: ['image', 'img', 'pixel_values']. "
+                                f"Expected 'pixel_values' in batch. "
                                 f"Available keys: {list(batch.keys())}"
                             )
-                        if labels is None:
+                        if "labels" not in batch:
                             raise ValueError(
-                                f"Could not find label column in batch. "
-                                f"Expected one of: ['label', 'character', 'labels']. "
+                                f"Expected 'labels' in batch. "
                                 f"Available keys: {list(batch.keys())}"
                             )
 
+                        images = batch["pixel_values"]
+                        labels = batch["labels"]
+
+                        # Convert HuggingFace uint8 images to float32 and normalize
                         if images.dtype == torch.uint8:
                             images = images.float() / 255.0
                     else:
@@ -210,26 +206,22 @@ class FlowerClient(fl.client.NumPyClient):
             with torch.no_grad():
                 for batch in testloader:
                     if isinstance(batch, dict):
-                        images = batch.get(
-                            "image", batch.get("img", batch.get("pixel_values"))
-                        )
-                        labels = batch.get(
-                            "label", batch.get("character", batch.get("labels"))
-                        )
-
-                        if images is None:
+                        # Expect standardized column names from loaders
+                        if "pixel_values" not in batch:
                             raise ValueError(
-                                f"Could not find image column in batch. "
-                                f"Expected one of: ['image', 'img', 'pixel_values']. "
+                                f"Expected 'pixel_values' in batch. "
                                 f"Available keys: {list(batch.keys())}"
                             )
-                        if labels is None:
+                        if "labels" not in batch:
                             raise ValueError(
-                                f"Could not find label column in batch. "
-                                f"Expected one of: ['label', 'character', 'labels']. "
+                                f"Expected 'labels' in batch. "
                                 f"Available keys: {list(batch.keys())}"
                             )
 
+                        images = batch["pixel_values"]
+                        labels = batch["labels"]
+
+                        # Convert HuggingFace uint8 images to float32 and normalize
                         if images.dtype == torch.uint8:
                             images = images.float() / 255.0
                     else:
