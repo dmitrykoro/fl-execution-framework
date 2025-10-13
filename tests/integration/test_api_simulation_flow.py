@@ -336,8 +336,8 @@ def test_simulation_with_failed_status(
     sim_id = response.json()["simulation_id"]
     sim_dir = tmp_path / "out" / sim_id
 
-    # Create error log
-    (sim_dir / "error.log").write_text("Simulation failed: Out of memory")
+    # Create execution log
+    (sim_dir / "execution.log").write_text("Simulation failed: Out of memory")
 
     # Status should show failure
     response = api_client.get(f"/api/simulations/{sim_id}/status")

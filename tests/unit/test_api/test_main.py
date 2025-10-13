@@ -402,10 +402,10 @@ def test_simulation_status_failed_with_error_log(
     sim_dir = tmp_path / "out" / "failed_sim"
     sim_dir.mkdir(parents=True)
 
-    # Create config and error log but no results
+    # Create config and execution log but no results
     config = {"shared_settings": {}, "simulation_strategies": [{}]}
     (sim_dir / "config.json").write_text(json.dumps(config))
-    (sim_dir / "error.log").write_text("Critical error: Out of memory")
+    (sim_dir / "execution.log").write_text("Critical error: Out of memory")
 
     response = api_client.get("/api/simulations/failed_sim/status")
     assert response.status_code == 200
@@ -418,14 +418,14 @@ def test_simulation_status_failed_with_error_log(
 def test_simulation_details_with_failed_status(
     api_client: TestClient, tmp_path: Path, monkeypatch
 ):
-    """GET /api/simulations/{id} returns 'failed' status when error.log exists."""
+    """GET /api/simulations/{id} returns 'failed' status when execution.log exists."""
     monkeypatch.setattr("src.api.main.OUTPUT_DIR", tmp_path / "out")
     sim_dir = tmp_path / "out" / "failed_details"
     sim_dir.mkdir(parents=True)
 
     config = {"shared_settings": {}, "simulation_strategies": [{}]}
     (sim_dir / "config.json").write_text(json.dumps(config))
-    (sim_dir / "error.log").write_text("Simulation failed")
+    (sim_dir / "execution.log").write_text("Simulation failed")
 
     response = api_client.get("/api/simulations/failed_details")
     assert response.status_code == 200
@@ -457,7 +457,7 @@ def test_simulation_status_with_finished_process_no_results(
 
     config = {"shared_settings": {}, "simulation_strategies": [{}]}
     (sim_dir / "config.json").write_text(json.dumps(config))
-    (sim_dir / "error.log").write_text("Process exited with code 1")
+    (sim_dir / "execution.log").write_text("Process exited with code 1")
 
     # Mock a finished process with error
     mock_process = MagicMock()
@@ -642,41 +642,41 @@ def test_create_simulation_subprocess_error(
     assert "failed to start simulation" in response.json()["detail"].lower()
 
 
-def test_get_simulation_status_error_log_io_error(
+def test_get_simulation_status_execution_log_io_error(
     api_client: TestClient, tmp_path: Path, monkeypatch
 ):
-    """GET /api/simulations/{id}/status handles error.log read errors."""
+    """GET /api/simulations/{id}/status handles execution.log read errors."""
     monkeypatch.setattr("src.api.main.OUTPUT_DIR", tmp_path / "out")
-    sim_dir = tmp_path / "out" / "error_log_issue"
+    sim_dir = tmp_path / "out" / "execution_log_issue"
     sim_dir.mkdir(parents=True)
 
     config = {"shared_settings": {}, "simulation_strategies": [{}]}
     (sim_dir / "config.json").write_text(json.dumps(config))
-    (sim_dir / "error.log").write_text("Some error")
+    (sim_dir / "execution.log").write_text("Some error")
 
     # Mock a finished process
     mock_process = MagicMock()
     mock_process.poll.return_value = 1  # Non-zero exit
 
-    main.running_processes["error_log_issue"] = mock_process
+    main.running_processes["execution_log_issue"] = mock_process
 
-    # Mock Path.open to raise IOError when reading error.log
+    # Mock Path.open to raise IOError when reading execution.log
     from pathlib import Path as PathLib
 
     original_open = PathLib.open
 
     def mock_open(self, *args, **kwargs):
-        if "error.log" in str(self):
-            raise IOError("Cannot read error log")
+        if "execution.log" in str(self):
+            raise IOError("Cannot read execution log")
         return original_open(self, *args, **kwargs)
 
     monkeypatch.setattr("pathlib.Path.open", mock_open)
 
-    response = api_client.get("/api/simulations/error_log_issue/status")
+    response = api_client.get("/api/simulations/execution_log_issue/status")
     assert response.status_code == 200
     data = response.json()
     assert data["status"] == "failed"
-    # error field should be None or absent when error.log can't be read
+    # error field should be None or absent when execution.log can't be read
     assert data.get("error") is None
 
 
