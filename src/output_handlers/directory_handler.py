@@ -58,11 +58,7 @@ class DirectoryHandler:
             f"strategy_config_{self.simulation_strategy_history.strategy_config.strategy_number}.json",
             "w",
         ) as file:
-            json.dump(
-                self.simulation_strategy_history.strategy_config.__dict__,
-                file,
-                indent=4,
-            )
+            file.write(self.simulation_strategy_history.strategy_config.to_json())
 
     def _save_per_client_to_csv(self):
         """Save per-client metrics to csv"""
