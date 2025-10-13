@@ -69,13 +69,44 @@ export function NewSimulation() {
     }
   };
 
+  /**
+   * Sanitize config by removing incompatible fields based on dataset_source.
+   * Prevents HuggingFace configs from including local dataset fields and vice versa.
+   */
+  const sanitizeConfig = config => {
+    const sanitized = { ...config };
+
+    if (config.dataset_source === 'huggingface') {
+      delete sanitized.dataset_keyword;
+    } else {
+      delete sanitized.hf_dataset_name;
+      delete sanitized.transformer_model;
+      delete sanitized.max_seq_length;
+      delete sanitized.text_column;
+      delete sanitized.text2_column;
+      delete sanitized.label_column;
+      delete sanitized.use_lora;
+      delete sanitized.lora_rank;
+      delete sanitized.partitioning_strategy;
+      delete sanitized.partitioning_params;
+
+      // Transformers only supported with HuggingFace datasets
+      if (sanitized.model_type === 'transformer') {
+        sanitized.model_type = 'cnn';
+      }
+    }
+
+    return sanitized;
+  };
+
   const handleSubmit = async e => {
     e.preventDefault();
     setSubmitting(true);
     setError(null);
 
     try {
-      const response = await createSimulation(config);
+      const sanitizedConfig = sanitizeConfig(config);
+      const response = await createSimulation(sanitizedConfig);
       const { simulation_id } = response.data;
       localStorage.removeItem('simulation-draft');
       navigate(`/simulations/${simulation_id}`);
