@@ -588,7 +588,7 @@ async def get_plot_data(simulation_id: str) -> Dict:
 
 @app.post("/api/simulations/{simulation_id}/stop", status_code=200)
 def stop_simulation(simulation_id: str) -> Dict[str, str]:
-    """Stop a running simulation."""
+    """Stop a running simulation and all its child processes."""
     if simulation_id not in running_processes:
         raise HTTPException(
             status_code=404, detail="Simulation is not running or does not exist."
@@ -601,12 +601,30 @@ def stop_simulation(simulation_id: str) -> Dict[str, str]:
         raise HTTPException(status_code=409, detail="Simulation has already completed.")
 
     try:
-        process.terminate()
+        # Kill entire process tree to ensure child processes are terminated
+        parent = psutil.Process(process.pid)
+        children = parent.children(recursive=True)
+
+        # Terminate parent and all children
+        parent.terminate()
+        for child in children:
+            try:
+                child.terminate()
+            except psutil.NoSuchProcess:
+                pass
+
+        # Wait for graceful termination
         try:
-            process.wait(timeout=5)
-        except subprocess.TimeoutExpired:
-            process.kill()
-            process.wait()
+            parent.wait(timeout=5)
+        except psutil.TimeoutExpired:
+            # Force kill if still running
+            parent.kill()
+            for child in children:
+                try:
+                    child.kill()
+                except psutil.NoSuchProcess:
+                    pass
+            parent.wait()
 
         del running_processes[simulation_id]
 
@@ -619,7 +637,12 @@ def stop_simulation(simulation_id: str) -> Dict[str, str]:
         except IOError as e:
             logger.warning(f"Failed to write stopped marker for {simulation_id}: {e}")
 
-        logger.info(f"Stopped simulation: {simulation_id}")
+        logger.info(f"Stopped simulation {simulation_id} and all child processes")
+        return {"message": "stopped", "simulation_id": simulation_id}
+    except psutil.NoSuchProcess:
+        # Process already terminated
+        del running_processes[simulation_id]
+        logger.info(f"Simulation {simulation_id} already terminated")
         return {"message": "stopped", "simulation_id": simulation_id}
     except Exception as e:
         logger.error(f"Failed to stop simulation {simulation_id}: {e}")
