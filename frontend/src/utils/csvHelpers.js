@@ -1,9 +1,11 @@
 // CSV utility functions for exporting and copying data
 
-export const copyCSVToClipboard = (jsonData, filename) => {
+export const copyCSVToClipboard = (jsonData, filename, showSuccess, showError) => {
   try {
     if (!jsonData || jsonData.length === 0) {
-      alert('No data to copy');
+      if (showError) {
+        showError('No data to copy');
+      }
       return;
     }
 
@@ -27,15 +29,21 @@ export const copyCSVToClipboard = (jsonData, filename) => {
     // Copy to clipboard
     navigator.clipboard.writeText(csvString).then(
       () => {
-        alert(`Copied ${filename} to clipboard!`);
+        if (showSuccess) {
+          showSuccess(`Copied ${filename} to clipboard!`);
+        }
       },
       () => {
-        alert('Failed to copy to clipboard. Please try again.');
+        if (showError) {
+          showError('Failed to copy to clipboard. Please try again.');
+        }
       }
     );
   } catch (error) {
     console.error('Error copying to clipboard:', error);
-    alert('Failed to copy to clipboard. Please try again.');
+    if (showError) {
+      showError('Failed to copy to clipboard. Please try again.');
+    }
   }
 };
 
