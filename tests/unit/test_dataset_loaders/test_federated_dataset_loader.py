@@ -506,3 +506,174 @@ class TestIntegration:
 
         assert len(trainloaders) == 4
         assert len(valloaders) == 4
+
+
+class TestStandardizeColumns:
+    """Test column standardization functionality."""
+
+    def test_standardize_image_column(self):
+        """Should rename 'image' column to 'pixel_values'."""
+        loader = FederatedDatasetLoader(
+            dataset_name="mnist",
+            num_of_clients=1,
+            batch_size=32,
+            training_subset_fraction=0.8,
+        )
+
+        mock_dataset = MagicMock()
+        mock_dataset.column_names = ["image", "label"]
+        mock_dataset.rename_columns = Mock(return_value=mock_dataset)
+
+        loader._standardize_columns(mock_dataset)
+
+        mock_dataset.rename_columns.assert_called_once_with(
+            {"image": "pixel_values", "label": "labels"}
+        )
+
+    def test_standardize_img_column(self):
+        """Should rename 'img' column to 'pixel_values'."""
+        loader = FederatedDatasetLoader(
+            dataset_name="mnist",
+            num_of_clients=1,
+            batch_size=32,
+            training_subset_fraction=0.8,
+        )
+
+        mock_dataset = MagicMock()
+        mock_dataset.column_names = ["img", "label"]
+        mock_dataset.rename_columns = Mock(return_value=mock_dataset)
+
+        loader._standardize_columns(mock_dataset)
+
+        mock_dataset.rename_columns.assert_called_once_with(
+            {"img": "pixel_values", "label": "labels"}
+        )
+
+    def test_standardize_character_column(self):
+        """Should rename 'character' column to 'labels' (FEMNIST)."""
+        loader = FederatedDatasetLoader(
+            dataset_name="flwrlabs/femnist",
+            num_of_clients=1,
+            batch_size=32,
+            training_subset_fraction=0.8,
+            label_column="character",
+        )
+
+        mock_dataset = MagicMock()
+        mock_dataset.column_names = ["image", "character"]
+        mock_dataset.rename_columns = Mock(return_value=mock_dataset)
+
+        loader._standardize_columns(mock_dataset)
+
+        mock_dataset.rename_columns.assert_called_once_with(
+            {"image": "pixel_values", "character": "labels"}
+        )
+
+    def test_standardize_label_column_singular(self):
+        """Should rename 'label' (singular) to 'labels' (plural)."""
+        loader = FederatedDatasetLoader(
+            dataset_name="mnist",
+            num_of_clients=1,
+            batch_size=32,
+            training_subset_fraction=0.8,
+        )
+
+        mock_dataset = MagicMock()
+        mock_dataset.column_names = ["image", "label"]
+        mock_dataset.rename_columns = Mock(return_value=mock_dataset)
+
+        loader._standardize_columns(mock_dataset)
+
+        mock_dataset.rename_columns.assert_called_once_with(
+            {"image": "pixel_values", "label": "labels"}
+        )
+
+    def test_no_rename_if_already_standard(self):
+        """Should not rename if columns are already standardized."""
+        loader = FederatedDatasetLoader(
+            dataset_name="mnist",
+            num_of_clients=1,
+            batch_size=32,
+            training_subset_fraction=0.8,
+        )
+
+        mock_dataset = MagicMock()
+        mock_dataset.column_names = ["pixel_values", "labels"]
+        mock_dataset.rename_columns = Mock(return_value=mock_dataset)
+
+        loader._standardize_columns(mock_dataset)
+
+        mock_dataset.rename_columns.assert_not_called()
+
+    def test_standardize_fine_label_column(self):
+        """Should rename 'fine_label' to 'labels'."""
+        loader = FederatedDatasetLoader(
+            dataset_name="cifar10",
+            num_of_clients=1,
+            batch_size=32,
+            training_subset_fraction=0.8,
+        )
+
+        mock_dataset = MagicMock()
+        mock_dataset.column_names = ["img", "fine_label"]
+        mock_dataset.rename_columns = Mock(return_value=mock_dataset)
+
+        loader._standardize_columns(mock_dataset)
+
+        mock_dataset.rename_columns.assert_called_once_with(
+            {"img": "pixel_values", "fine_label": "labels"}
+        )
+
+    def test_respects_label_column_parameter(self):
+        """Should prioritize label_column parameter for renaming."""
+        loader = FederatedDatasetLoader(
+            dataset_name="custom_dataset",
+            num_of_clients=1,
+            batch_size=32,
+            training_subset_fraction=0.8,
+            label_column="custom_label",
+        )
+
+        mock_dataset = MagicMock()
+        mock_dataset.column_names = ["image", "custom_label", "label"]
+        mock_dataset.rename_columns = Mock(return_value=mock_dataset)
+
+        loader._standardize_columns(mock_dataset)
+
+        mock_dataset.rename_columns.assert_called_once_with(
+            {"image": "pixel_values", "custom_label": "labels"}
+        )
+
+    def test_only_renames_image_if_label_already_standardized(self):
+        """Should only rename image column if labels is already standardized."""
+        loader = FederatedDatasetLoader(
+            dataset_name="mnist",
+            num_of_clients=1,
+            batch_size=32,
+            training_subset_fraction=0.8,
+        )
+
+        mock_dataset = MagicMock()
+        mock_dataset.column_names = ["image", "labels"]
+        mock_dataset.rename_columns = Mock(return_value=mock_dataset)
+
+        loader._standardize_columns(mock_dataset)
+
+        mock_dataset.rename_columns.assert_called_once_with({"image": "pixel_values"})
+
+    def test_only_renames_label_if_image_already_standardized(self):
+        """Should only rename label column if pixel_values is already standardized."""
+        loader = FederatedDatasetLoader(
+            dataset_name="mnist",
+            num_of_clients=1,
+            batch_size=32,
+            training_subset_fraction=0.8,
+        )
+
+        mock_dataset = MagicMock()
+        mock_dataset.column_names = ["pixel_values", "label"]
+        mock_dataset.rename_columns = Mock(return_value=mock_dataset)
+
+        loader._standardize_columns(mock_dataset)
+
+        mock_dataset.rename_columns.assert_called_once_with({"label": "labels"})
