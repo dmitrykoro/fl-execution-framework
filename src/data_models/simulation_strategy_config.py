@@ -1,6 +1,8 @@
 import json
 from dataclasses import asdict, dataclass
-from typing import Any, Optional
+from typing import Any, Optional, Union
+
+import torch
 
 
 @dataclass
@@ -19,7 +21,7 @@ class StrategyConfig:
     show_plots: bool = None
     save_plots: bool = None
     save_csv: bool = None
-    training_device: str = None
+    training_device: Union[str, torch.device] = None
     cpus_per_client: int = None
     gpus_per_client: float = None
 
@@ -85,4 +87,8 @@ class StrategyConfig:
 
     def to_json(self):
         """Convert config to json"""
-        return json.dumps(asdict(self))
+        config_dict = asdict(self)
+        # Convert torch.device to string for JSON serialization
+        if isinstance(config_dict.get("training_device"), torch.device):
+            config_dict["training_device"] = str(config_dict["training_device"])
+        return json.dumps(config_dict)
