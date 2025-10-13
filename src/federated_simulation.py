@@ -159,6 +159,18 @@ class FederatedSimulation:
 
         dataset_source = getattr(self.strategy_config, "dataset_source", "local")
 
+        if (
+            dataset_source == "huggingface"
+            and dataset_keyword
+            and dataset_keyword != ""
+        ):
+            raise ValueError(
+                f"Invalid configuration: Cannot use both HuggingFace dataset source "
+                f"(dataset_source='huggingface') and local dataset keyword "
+                f"(dataset_keyword='{dataset_keyword}'). "
+                f"Remove dataset_keyword when using HuggingFace datasets."
+            )
+
         if dataset_source == "huggingface":
             model_type = self.strategy_config.model_type
 
@@ -247,6 +259,7 @@ class FederatedSimulation:
                         self.strategy_config, "partitioning_params", None
                     ),
                     label_column=label_column,
+                    dataset_dir=self._dataset_dir,
                 )
 
                 self._dataset_loader = dataset_loader

@@ -189,7 +189,6 @@ config_schema = {
     "required": [
         "aggregation_strategy_keyword",
         "remove_clients",
-        "dataset_keyword",
         "model_type",
         "use_llm",
         "num_of_rounds",
