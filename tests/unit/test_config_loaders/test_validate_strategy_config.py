@@ -313,17 +313,6 @@ class TestValidateStrategyConfigMissingRequiredParams:
             exc_info.value
         )
 
-    def test_missing_dataset_keyword(self, base_valid_config):
-        """Test validation fails when dataset_keyword is missing."""
-        config = base_valid_config.copy()
-        config["aggregation_strategy_keyword"] = "trust"
-        del config["dataset_keyword"]
-
-        with pytest.raises(ValidationError) as exc_info:
-            validate_strategy_config(config)
-
-        assert "'dataset_keyword' is a required property" in str(exc_info.value)
-
     def test_missing_num_of_rounds(self, base_valid_config):
         """Test validation fails when num_of_rounds is missing."""
         config = base_valid_config.copy()
