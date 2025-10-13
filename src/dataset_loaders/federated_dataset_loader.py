@@ -65,33 +65,17 @@ class FederatedDatasetLoader:
             dataset=self.dataset_name, partitioners={"train": partitioner}
         )
 
+        num_classes = self._detect_num_classes(fds)
+
         trainloaders = []
         valloaders = []
-        num_classes = None
-
-        # Try to detect number of classes from the dataset features
-        try:
-            if (
-                hasattr(fds.dataset, "features")
-                and self.label_column in fds.dataset.features
-            ):
-                label_feature = fds.dataset.features[self.label_column]
-                if hasattr(label_feature, "names"):
-                    num_classes = len(label_feature.names)
-        except Exception:
-            # If detection fails, num_classes remains None
-            pass
 
         for client_id in range(self.num_of_clients):
-            # Load partition for this client
             partition = fds.load_partition(partition_id=client_id, split="train")
 
-            # Standardize column names before setting format
             partition = self._standardize_columns(partition)
-
             partition.set_format("torch")
 
-            # Split into train/val
             train_size = int(len(partition) * self.training_subset_fraction)
             val_size = len(partition) - train_size
 
@@ -104,12 +88,50 @@ class FederatedDatasetLoader:
                 partition, [train_size, val_size], torch.Generator().manual_seed(42)
             )
 
+            use_cuda = torch.cuda.is_available()
             trainloaders.append(
-                DataLoader(train_dataset, batch_size=self.batch_size, shuffle=True)
+                DataLoader(
+                    train_dataset,
+                    batch_size=self.batch_size,
+                    shuffle=True,
+                    num_workers=2,
+                    pin_memory=use_cuda,
+                    persistent_workers=True,
+                )
             )
-            valloaders.append(DataLoader(val_dataset, batch_size=self.batch_size))
+            valloaders.append(
+                DataLoader(
+                    val_dataset,
+                    batch_size=self.batch_size,
+                    num_workers=2,
+                    pin_memory=use_cuda,
+                    persistent_workers=True,
+                )
+            )
 
         return trainloaders, valloaders, num_classes
+
+    def _detect_num_classes(self, fds: FederatedDataset) -> Optional[int]:
+        """
+        Detect number of classes from dataset features.
+
+        Args:
+            fds: FederatedDataset instance
+
+        Returns:
+            int: Number of classes, or None if not detected
+        """
+        try:
+            if (
+                hasattr(fds.dataset, "features")
+                and self.label_column in fds.dataset.features
+            ):
+                label_feature = fds.dataset.features[self.label_column]
+                if hasattr(label_feature, "names"):
+                    return len(label_feature.names)
+        except Exception:
+            pass
+        return None
 
     def _create_partitioner(self):
         """
