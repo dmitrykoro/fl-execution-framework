@@ -246,10 +246,10 @@ def get_simulation_details(
             )
     else:
         has_results = result_files or list(sim_path.glob("*.pdf"))
-        error_log = sim_path / "error.log"
+        execution_log = sim_path / "execution.log"
         if has_results:
             status = "completed"
-        elif error_log.is_file():
+        elif execution_log.is_file():
             status = "failed"
         else:
             status = "pending"
@@ -328,7 +328,7 @@ async def create_simulation(config: SimulationConfig) -> Dict[str, str]:
         raise HTTPException(status_code=500, detail=f"Failed to write config file: {e}")
 
     try:
-        error_log_path = output_sim_path / "error.log"
+        error_log_path = output_sim_path / "execution.log"
 
         env = dict(os.environ)
         try:
@@ -386,11 +386,11 @@ def get_simulation_status(
             if poll_result == 0:
                 return {"status": "completed", "progress": 1.0}
             else:
-                error_log_path = sim_path / "error.log"
+                execution_log_path = sim_path / "execution.log"
                 error_message = None
-                if error_log_path.is_file():
+                if execution_log_path.is_file():
                     try:
-                        with error_log_path.open("r") as f:
+                        with execution_log_path.open("r") as f:
                             error_message = f.read().strip()
                     except IOError:
                         pass
@@ -400,10 +400,10 @@ def get_simulation_status(
     if result_files:
         return {"status": "completed", "progress": 1.0}
 
-    error_log_path = sim_path / "error.log"
-    if error_log_path.is_file() and not result_files:
+    execution_log_path = sim_path / "execution.log"
+    if execution_log_path.is_file() and not result_files:
         try:
-            with error_log_path.open("r") as f:
+            with execution_log_path.open("r") as f:
                 error_message = f.read().strip()
             if error_message:
                 return {"status": "failed", "progress": 0.0, "error": error_message}
