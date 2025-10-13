@@ -1,4 +1,4 @@
-import { Card, Row, Col } from 'react-bootstrap';
+import { Card, Row, Col, Badge, Alert } from 'react-bootstrap';
 import { PRESETS } from '@constants/presets';
 
 export function PresetSelector({ selectedPreset, onPresetChange }) {
@@ -39,6 +39,20 @@ export function PresetSelector({ selectedPreset, onPresetChange }) {
                   </div>
                 </div>
                 <Card.Text className="small preset-description">{preset.description}</Card.Text>
+                {preset.tags && (
+                  <div className="mb-2">
+                    {preset.tags.map(tag => (
+                      <Badge key={tag} bg="secondary" className="me-1">
+                        {tag}
+                      </Badge>
+                    ))}
+                  </div>
+                )}
+                {preset.warningNote && (
+                  <Alert variant="warning" className="small py-1 px-2 mb-2">
+                    ⚠️ {preset.warningNote}
+                  </Alert>
+                )}
                 <div className="small text-muted preset-footer">
                   <strong>Est. time:</strong> {preset.estimatedTime}
                 </div>
