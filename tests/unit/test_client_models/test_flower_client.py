@@ -568,6 +568,8 @@ class TestFlowerClient:
     @pytest.mark.skipif(not torch.cuda.is_available(), reason="CUDA not available")
     def test_device_handling(self, mock_network, mock_trainloader, mock_valloader):
         """Test that client handles different devices correctly."""
+        mock_network = mock_network.to("cuda")
+
         client = FlowerClient(
             client_id=1,
             net=mock_network,
