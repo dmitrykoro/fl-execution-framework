@@ -52,15 +52,19 @@ def show_plots_within_strategy(
 
     plottable_metrics = list_of_client_histories[0].plottable_metrics
 
+    defense_metrics = ["removal_criterion_history", "absolute_distance_history"]
+
     for metric_name in plottable_metrics:
+        if (
+            not simulation_strategy.strategy_config.remove_clients
+            and metric_name in defense_metrics
+        ):
+            continue
         plt.figure(figsize=plot_size)
 
         removal_threshold_history = simulation_strategy.strategy_history.rounds_history.removal_threshold_history
 
-        if (
-            metric_name == "removal_criterion_history" and removal_threshold_history
-        ):  # Only plot if threshold was collected
-            # Ensure rounds and removal_threshold_history have matching dimensions
+        if metric_name == "removal_criterion_history" and removal_threshold_history:
             client_rounds = list_of_client_histories[0].rounds
             min_length = min(len(client_rounds), len(removal_threshold_history))
             plt.plot(
@@ -74,7 +78,6 @@ def show_plots_within_strategy(
         for client_info in list_of_client_histories:
             metric_values = client_info.get_metric_by_name(metric_name)
 
-            # Ensure rounds and metric_values have matching dimensions
             min_length = min(len(client_info.rounds), len(metric_values))
             plt.plot(
                 client_info.rounds[:min_length],
@@ -84,7 +87,6 @@ def show_plots_within_strategy(
                 else f"client_{client_info.client_id}_bad",
             )
 
-            # to put X on values of clients that were excluded
             excluded_values = [
                 metric if participated == 0 else None
                 for metric, participated in zip(
@@ -139,12 +141,19 @@ def show_inter_strategy_plots(
         executed_simulation_strategies[0].strategy_history.get_all_clients()[0].rounds
     )
 
-    # line plots
     plottable_metrics = executed_simulation_strategies[
         0
     ].strategy_history.rounds_history.plottable_metrics
 
+    defense_line_metrics = ["score_calculation_time_nanos_history"]
+
     for metric_name in plottable_metrics:
+        if (
+            not executed_simulation_strategies[0].strategy_config.remove_clients
+            and metric_name in defense_line_metrics
+        ):
+            continue
+
         plt.figure(figsize=plot_size)
 
         for simulation_strategy in executed_simulation_strategies:
@@ -152,8 +161,7 @@ def show_inter_strategy_plots(
 
             metric_values = round_info.get_metric_by_name(metric_name)
 
-            if metric_values:  # plot only if metrics were actually collected
-                # Ensure rounds and metric_values have matching dimensions
+            if metric_values:
                 min_length = min(len(rounds), len(metric_values))
                 plt.plot(
                     rounds[:min_length],
@@ -166,7 +174,6 @@ def show_inter_strategy_plots(
         plt.ylabel(metric_name)
         plt.title(f"{metric_name} across strategies")
         ax = plt.gca()
-        # Only show legend if there are labeled artists
         if any(ax.get_legend_handles_labels()):
             plt.legend(
                 title="strategies", loc="upper center", bbox_to_anchor=(0.5, -0.1)
@@ -180,10 +187,12 @@ def show_inter_strategy_plots(
         if executed_simulation_strategies[0].strategy_config.show_plots:
             plt.show()
 
-    # bar plots
     barable_metrics = executed_simulation_strategies[
         0
     ].strategy_history.rounds_history.barable_metrics
+
+    if not executed_simulation_strategies[0].strategy_config.remove_clients:
+        return
 
     for metric_name in barable_metrics:
         plt.figure(figsize=plot_size)
@@ -195,9 +204,9 @@ def show_inter_strategy_plots(
             round_info = simulation_strategy.strategy_history.rounds_history
             metric_values = round_info.get_metric_by_name(metric_name)
 
-            if metric_values:  # Plot only if metrics were collected
+            if metric_values:
                 plt.bar(
-                    rounds_array + i * bar_width,  # Offset bars to avoid overlap
+                    rounds_array + i * bar_width,
                     metric_values,
                     width=bar_width,
                     label=_generate_single_string_strategy_label(
@@ -210,15 +219,12 @@ def show_inter_strategy_plots(
         plt.ylabel(metric_name)
         plt.title(f"{metric_name} across strategies")
         ax = plt.gca()
-        # Only show legend if there are labeled artists
         if any(ax.get_legend_handles_labels()):
             plt.legend(
                 title="strategies", loc="upper center", bbox_to_anchor=(0.5, -0.1)
             )
         ax.xaxis.set_major_locator(MaxNLocator(integer=True, steps=[2, 5]))
-        ax.set_xticks(
-            rounds_array + (num_strategies - 1) * bar_width / 2
-        )  # Adjust x-ticks to align
+        ax.set_xticks(rounds_array + (num_strategies - 1) * bar_width / 2)
         ax.set_xticklabels(rounds)
         plt.tight_layout()
 
