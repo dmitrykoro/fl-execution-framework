@@ -133,6 +133,40 @@ This automatically:
 
 Press `Ctrl+C` to stop both servers.
 
+### GPU Acceleration (Optional)
+
+For faster training (3-10x speedup with CUDA-enabled GPUs):
+
+**Requirements:**
+
+- NVIDIA GPU (e.g., RTX 3060 Ti or better)
+- [NVIDIA CUDA Toolkit](https://developer.nvidia.com/cuda-downloads) installed
+- Updated NVIDIA drivers
+
+**Setup:**
+
+After running `./reinstall_requirements.sh`, install PyTorch with CUDA support:
+
+```bash
+pip uninstall torch torchvision -y
+pip install torch==2.2.2 torchvision==0.17.2 --index-url https://download.pytorch.org/whl/cu118
+```
+
+**Verify:**
+
+```bash
+python -c "import torch; print(f'PyTorch: {torch.__version__}'); print(f'CUDA: {torch.cuda.is_available()}')"
+```
+
+Expected output:
+
+```bash
+PyTorch: 2.2.2+cu118
+CUDA: True
+```
+
+The framework automatically detects and uses GPU when available.
+
 ### Manual Setup (Alternative)
 
 Requires two separate terminals.
