@@ -85,6 +85,10 @@ class FederatedDatasetLoader:
         for client_id in range(self.num_of_clients):
             # Load partition for this client
             partition = fds.load_partition(partition_id=client_id, split="train")
+
+            # Standardize column names before setting format
+            partition = self._standardize_columns(partition)
+
             partition.set_format("torch")
 
             # Split into train/val
@@ -140,3 +144,59 @@ class FederatedDatasetLoader:
             raise ValueError(
                 f"Unknown partitioning strategy: {self.partitioning_strategy}"
             )
+
+    def _standardize_columns(self, dataset):
+        """
+        Rename dataset columns to standard format and remove extra columns.
+
+        Standard format matches transformers library conventions:
+            - Images: "pixel_values"
+            - Labels: "labels" (plural)
+            - Text: "input_ids", "attention_mask", "labels"
+
+        Args:
+            dataset: HuggingFace dataset partition
+
+        Returns:
+            dataset: Dataset with standardized column names and only required columns
+        """
+        rename_mapping = {}
+
+        # Detect and rename image column
+        image_cols = ["image", "img"]
+        for col in image_cols:
+            if col in dataset.column_names and col != "pixel_values":
+                rename_mapping[col] = "pixel_values"
+                break
+
+        # Detect and rename label column
+        # Priority: self.label_column > common label columns
+        label_col = None
+        if self.label_column in dataset.column_names:
+            label_col = self.label_column
+        else:
+            # Fallback: search for common label columns
+            for col in ["label", "character", "fine_label"]:
+                if col in dataset.column_names:
+                    label_col = col
+                    break
+
+        if label_col and label_col != "labels":
+            rename_mapping[label_col] = "labels"
+
+        # Apply renaming if needed
+        if rename_mapping:
+            dataset = dataset.rename_columns(rename_mapping)
+
+        # Remove extra columns - keep only standard ones
+        # Image datasets: pixel_values + labels
+        # Text datasets: input_ids + attention_mask + labels
+        standard_columns = {"pixel_values", "labels", "input_ids", "attention_mask"}
+        columns_to_remove = [
+            col for col in dataset.column_names if col not in standard_columns
+        ]
+
+        if columns_to_remove:
+            dataset = dataset.remove_columns(columns_to_remove)
+
+        return dataset
