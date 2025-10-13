@@ -13,13 +13,24 @@ class DatasetHandler:
         self._strategy_config = strategy_config
 
         self.dst_dataset = directory_handler.dataset_dir
-        self.src_dataset = dataset_config_list[self._strategy_config.dataset_keyword]
+
+        # For HuggingFace datasets, dataset_keyword is None - skip local dataset lookup
+        if self._strategy_config.dataset_keyword is not None:
+            self.src_dataset = dataset_config_list[
+                self._strategy_config.dataset_keyword
+            ]
+        else:
+            self.src_dataset = None
 
         self.poisoned_client_ids = set()
         self.all_poisoned_img_snrs = []
 
     def setup_dataset(self) -> None:
         """Copy the specified number of clients' subsets to runtime folder and perform poisoning"""
+
+        if self.src_dataset is None:
+            logging.info("Skipping dataset setup for HuggingFace dataset")
+            return
 
         self._copy_dataset(self._strategy_config.num_of_clients)
         self._poison_clients(
@@ -86,13 +97,11 @@ class DatasetHandler:
             else:
                 raise NotImplementedError(f"Not supported attack type: {attack_type}")
 
-        if attack_type == "gaussian_noise":
+        if attack_type == "gaussian_noise" and num_to_poison > 0:
             if len(self.all_poisoned_img_snrs) > 0:
                 logging.warning(
                     f"Avg. SNR for poisoned images: {np.average(self.all_poisoned_img_snrs)}"
                 )
-            else:
-                logging.warning("No poisoned images to calculate SNR average")
 
     def _flip_labels(self, client_dir: str) -> None:
         """Perform 100% label flipping for the specified client"""
