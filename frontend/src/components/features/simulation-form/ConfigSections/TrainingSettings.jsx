@@ -58,10 +58,10 @@ export function TrainingSettings({ config, onChange }) {
         label="Training Subset Fraction"
         value={config.training_subset_fraction}
         onChange={onChange}
-        step={0.1}
-        min={0.1}
+        step={0.001}
+        min={0.001}
         max={1.0}
-        tooltip="Fraction of training data to use (0.1-1.0). Lower values = faster training for testing."
+        tooltip="Fraction of training data to use (0.001-1.0). Lower values = faster training for testing."
       />
     </>
   );
