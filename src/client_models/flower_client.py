@@ -136,7 +136,7 @@ class FlowerClient(fl.client.NumPyClient):
                 total_loss = 0
                 correct, total = 0, 0
 
-                for batch in trainloader:
+                for batch_idx, batch in enumerate(trainloader):
                     should_poison, attack_config = should_poison_this_round(
                         current_round, self.client_id, self.dynamic_attacks_schedule
                     )
@@ -240,7 +240,6 @@ class FlowerClient(fl.client.NumPyClient):
             accuracy = correct / total if total > 0 else 0.0
             return loss, accuracy
 
-        # add check for mlm as well
         elif self.model_type == "transformer":
             net.eval()
             total_loss = 0
@@ -293,11 +292,14 @@ class FlowerClient(fl.client.NumPyClient):
             config=config,
         )
 
-        return (
-            self.get_parameters(config),
+        num_samples = (
             len(self.trainloader.dataset)
             if hasattr(self.trainloader, "dataset")
-            else len(self.trainloader),
+            else len(self.trainloader)
+        )
+        return (
+            self.get_parameters(config),
+            num_samples,
             {"loss": epoch_loss, "accuracy": epoch_acc},
         )
 
