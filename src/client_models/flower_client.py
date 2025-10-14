@@ -1,3 +1,5 @@
+import logging
+
 import flwr as fl
 import numpy as np
 import torch
@@ -71,6 +73,7 @@ class FlowerClient(fl.client.NumPyClient):
                     epoch_loss += loss
                     total += labels.size(0)
                     correct += (torch.max(outputs.data, 1)[1] == labels).sum().item()
+
                 epoch_loss /= len(trainloader.dataset) if len(trainloader.dataset) > 0 else 1
                 epoch_acc = correct / total if total > 0 else 0.0
                 if verbose:
@@ -179,24 +182,6 @@ class FlowerClient(fl.client.NumPyClient):
             global_params = [torch.tensor(p, device=self.training_device) for p in self.get_parameters(config=None)]
 
         epoch_loss, epoch_acc = self.train(self.net, self.trainloader, epochs=self.num_of_client_epochs, global_params=global_params)
-
-        # calculate gradients
-        optimizer = torch.optim.Adam(self.net.parameters())
-        optimizer.zero_grad()
-
-        if self.model_type == "cnn":
-            criterion = torch.nn.CrossEntropyLoss()
-            for images, labels in self.trainloader:
-                images, labels = images.to(self.training_device), labels.to(self.training_device)
-                outputs = self.net(images)
-                loss = criterion(outputs, labels)
-                loss.backward()
-
-        elif self.model_type == "transformer":
-            pass
-
-        else:
-            raise ValueError(f"Unsupported model type: {self.model_type}. Supported types are 'cnn' and 'transformer'.")
 
         return self.get_parameters(self.net), len(self.trainloader), {"loss": epoch_loss, "accuracy": epoch_acc}
 

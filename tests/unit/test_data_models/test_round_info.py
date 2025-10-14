@@ -83,6 +83,7 @@ class TestRoundsInfo:
             "removal_threshold_history",
             "aggregated_loss_history",
             "average_accuracy_history",
+            "average_accuracy_std_history",
         ]
 
         # Should only include base metrics, not stats metrics

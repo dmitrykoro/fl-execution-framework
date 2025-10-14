@@ -147,9 +147,9 @@ class SimulationStrategyHistory:
 
             self.rounds_history.append_tp_tn_fp_fn(round_tp_count, round_tn_count, round_fp_count, round_fn_count)
             self.rounds_history.average_accuracy_history.append(
-                f"{(sum_aggregated_accuracies / num_aggregated_clients):.3f}" if num_aggregated_clients > 0 else 0.000
+                float(f"{(sum_aggregated_accuracies / num_aggregated_clients * 100):.2f}") if num_aggregated_clients > 0 else 0.000
             )
-            self.rounds_history.average_accuracy_std_history.append(f"{np.std(round_client_accuracies):.3f}")
+            self.rounds_history.average_accuracy_std_history.append(float( f"{np.std(round_client_accuracies) * 100:.2f}"))
 
         if self.strategy_config.remove_clients:
             self.rounds_history.calculate_additional_metrics()

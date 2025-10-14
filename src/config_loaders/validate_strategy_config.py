@@ -21,7 +21,25 @@ config_schema = {
         },
         "dataset_keyword": {
             "type": "string",
-            "enum": ["femnist_iid", "femnist_niid", "its", "pneumoniamnist", "flair", "bloodmnist", "medquad", "lung_photos"]
+            "enum": [
+                "femnist_iid",
+                "femnist_niid",
+                "its",
+                "pneumoniamnist",
+                "flair",
+                "bloodmnist",
+                "medquad",
+                "lung_photos",
+                "breastmnist",
+                "pathmnist",
+                "dermamnist",
+                "octmnist",
+                "retinamnist",
+                "tissuemnist",
+                "organamnist",
+                "organcmnist",
+                "organsmnist"
+            ]
         },
         "model_type": {
             "type": "string",
