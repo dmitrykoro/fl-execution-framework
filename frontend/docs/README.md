@@ -276,11 +276,12 @@ frontend/
 ### **Available Scripts**
 
 ```bash
-npm run dev       # Start Vite dev server (port 5173)
-npm run build     # Production build
-npm run preview   # Preview production build
-npm run lint      # Run ESLint
-npm run format    # Format code with Prettier
+npm run dev        # Start Vite dev server (port 5173)
+npm run build      # Production build
+npm run preview    # Preview production build
+npm run lint       # Run ESLint
+npm run format     # Format code with Prettier
+npm run css:audit  # Analyze CSS for unused classes
 ```
 
 ### **Environment**
