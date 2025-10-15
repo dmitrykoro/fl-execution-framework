@@ -55,19 +55,14 @@ class PIDBasedRemovalStrategy(fl.server.strategy.FedAvg):
 
         self.aggregation_strategy_keyword = aggregation_strategy_keyword
 
-        # Create a logger
         self.logger = logging.getLogger(f"pid_strategy_{id(self)}")
-        self.logger.setLevel(
-            logging.INFO
-        )  # Set the logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL)
+        self.logger.setLevel(logging.INFO)
 
-        # Create handlers
         out_dir = DirectoryHandler.dirname
         os.makedirs(out_dir, exist_ok=True)
         file_handler = logging.FileHandler(f"{out_dir}/output.log")
         console_handler = logging.StreamHandler()
 
-        # Add the handlers to the logger
         self.logger.addHandler(file_handler)
         self.logger.addHandler(console_handler)
         self.logger.propagate = False
@@ -384,6 +379,14 @@ class PIDBasedRemovalStrategy(fl.server.strategy.FedAvg):
                 number_of_clients_in_loss_calc += 1
                 weighted_accuracy_sum += accuracy * num_examples
                 total_examples += num_examples
+
+        # Graceful termination if no clients remain
+        if len(aggregate_value) == 0:
+            self.logger.warning(
+                f"Round {server_round}: No clients remaining for evaluation. "
+                f"Terminating simulation gracefully."
+            )
+            return None, {"termination_reason": "insufficient_clients"}
 
         loss_aggregated = weighted_loss_avg(aggregate_value)
         average_accuracy = (

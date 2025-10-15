@@ -209,13 +209,13 @@ config_schema = {
         "evaluate_metrics_aggregation_fn",
         "num_of_client_epochs",
         "batch_size",
+        "dataset_source",
     ],
 }
 
 
 def validate_dependent_params(strategy_config: dict) -> None:
-    """Validate that all params that require additional params are correct."""
-
+    """Validate strategy-specific required parameters based on aggregation strategy and attack type."""
     aggregation_strategy_keyword = strategy_config["aggregation_strategy_keyword"]
 
     if aggregation_strategy_keyword == "trust":
@@ -264,8 +264,7 @@ def validate_dependent_params(strategy_config: dict) -> None:
 
 
 def check_llm_specific_parameters(strategy_config: dict) -> None:
-    """Check if LLM specific parameters are valid"""
-
+    """Validate LLM-specific parameters for transformer models."""
     if strategy_config["model_type"] != "transformer":
         raise ValidationError("LLM finetuning is only supported for transformer models")
 
@@ -344,17 +343,44 @@ def _handle_strict_mode_validation(config: dict) -> None:
             logging.info("  - This ensures all clients participate in every round")
 
 
-def validate_huggingface_dataset(config: dict) -> None:
-    """Validate HuggingFace dataset configuration."""
+def validate_dataset_config(config: dict) -> None:
+    """Validate dataset configuration based on dataset_source."""
 
     dataset_source = config.get("dataset_source", "local")
 
-    if dataset_source == "huggingface":
+    if dataset_source == "local":
+        # Local datasets require dataset_keyword
+        if "dataset_keyword" not in config:
+            raise ValidationError(
+                "dataset_keyword is required when dataset_source='local'"
+            )
+
+        # Validate dataset_keyword is in the allowed enum
+        allowed_keywords = [
+            "femnist_iid",
+            "femnist_niid",
+            "its",
+            "pneumoniamnist",
+            "flair",
+            "bloodmnist",
+            "medquad",
+            "lung_photos",
+        ]
+        dataset_keyword = config["dataset_keyword"]
+        if dataset_keyword not in allowed_keywords:
+            raise ValidationError(
+                f"'{dataset_keyword}' is not a valid dataset_keyword. "
+                f"Must be one of: {', '.join(allowed_keywords)}"
+            )
+
+    elif dataset_source == "huggingface":
+        # HuggingFace datasets require hf_dataset_name
         if not config.get("hf_dataset_name"):
             raise ValidationError(
                 "hf_dataset_name is required when dataset_source='huggingface'"
             )
 
+        # Validate partitioning strategy
         valid_strategies = ["iid", "dirichlet", "pathological"]
         strategy = config.get("partitioning_strategy", "iid")
         if strategy not in valid_strategies:
@@ -379,6 +405,11 @@ def validate_huggingface_dataset(config: dict) -> None:
                     f"num_classes_per_partition must be >= 1, got: {num_classes}"
                 )
 
+    else:
+        raise ValidationError(
+            f"Invalid dataset_source: {dataset_source}. Must be 'local' or 'huggingface'"
+        )
+
 
 def validate_strategy_config(config: dict) -> None:
     """Validate config based on the schema, will raise an exception if invalid"""
@@ -392,8 +423,8 @@ def validate_strategy_config(config: dict) -> None:
     if use_llm_keyword == "true":
         check_llm_specific_parameters(config)
 
-    # Validate HuggingFace dataset configuration
-    validate_huggingface_dataset(config)
+    # Validate dataset configuration (local or HuggingFace)
+    validate_dataset_config(config)
 
     # Handle strict_mode logic
     _handle_strict_mode_validation(config)

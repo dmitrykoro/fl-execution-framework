@@ -21,14 +21,14 @@ class ImageDatasetLoader:
         self.training_subset_fraction = training_subset_fraction
 
     def load_datasets(self):
-        """Function to partition and load the dataset for each client."""
-
+        """Partition and load the dataset for each client."""
         trainloaders = []
         valloaders = []
 
         client_folders = [
             d for d in os.listdir(self.dataset_dir) if d.startswith("client_")
         ]
+
         for client_folder in sorted(
             client_folders, key=lambda string: int(string.split("_")[1])
         ):
