@@ -4,10 +4,9 @@ import { InfoTooltip } from '@components/common/Tooltip/InfoTooltip';
 import { MaterialIcon } from '@components/common/Icon/MaterialIcon';
 import { copyCSVToClipboard, filterEmptyColumns, formatColumnName } from '@utils/csvHelpers';
 import { getMetricTooltip } from '@constants/metricTooltips';
-import { useToast } from '@contexts/ToastContext';
+import { toast } from 'sonner';
 
 export function RawDataAccordion({ csvFiles, csvData, simulationId }) {
-  const { showSuccess, showError } = useToast();
   if (!csvFiles || csvFiles.length === 0) {
     return null;
   }
@@ -39,7 +38,7 @@ export function RawDataAccordion({ csvFiles, csvData, simulationId }) {
                       as="a"
                       href={downloadUrl}
                       download={file.split('/').pop()}
-                      onClick={() => showSuccess(`Downloading ${file.split('/').pop()}...`)}
+                      onClick={() => toast.success(`Downloading ${file.split('/').pop()}...`)}
                       title="Download CSV file to your computer"
                       style={{
                         padding: '0.25rem 0.5rem',
@@ -50,7 +49,7 @@ export function RawDataAccordion({ csvFiles, csvData, simulationId }) {
                       <MaterialIcon name="download" size={16} />
                     </OutlineButton>
                     <OutlineButton
-                      onClick={() => copyCSVToClipboard(data, file, showSuccess, showError)}
+                      onClick={() => copyCSVToClipboard(data, file, toast.success, toast.error)}
                       title="Copy data to clipboard for pasting into Excel/Google Sheets"
                       style={{
                         padding: '0.25rem 0.5rem',
