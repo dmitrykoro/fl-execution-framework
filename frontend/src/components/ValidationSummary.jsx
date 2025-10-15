@@ -14,7 +14,7 @@ function ValidationSummary({ errors = [], warnings = [], infos = [] }) {
   // If no validation messages, show success
   if (errors.length === 0 && warnings.length === 0 && infos.length === 0) {
     return (
-      <Alert variant="success" className="mb-3">
+      <Alert variant="success" className="mb-3 py-2 validation-success-alert">
         ✓ Configuration valid - ready to launch
       </Alert>
     );
