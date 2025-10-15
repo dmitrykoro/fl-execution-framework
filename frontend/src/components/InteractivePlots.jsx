@@ -202,7 +202,7 @@ export default function InteractivePlots({ simulation }) {
       <h5 className="mb-3">Interactive Plots</h5>
       <div>
         {/* Metric Selector */}
-        <Form.Group className="mb-3">
+        <Form.Group className="mb-3" style={{ maxWidth: '60%', margin: '0 auto' }}>
           <Form.Label>Select Metric:</Form.Label>
           <Form.Select value={selectedMetric} onChange={e => setSelectedMetric(e.target.value)}>
             {metrics.map(metric => (
