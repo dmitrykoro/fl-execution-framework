@@ -64,6 +64,58 @@ Rounds 11-20: Normal training ✅
 
 ---
 
+## ⚙️ How Poisoning Works
+
+### When Does Poisoning Happen?
+
+Poisoning occurs **during training rounds at the batch level**, not before:
+
+```text
+Round 5 (poisoning enabled for client 0)
+  ├─ Load batch 1 (32 images) → Check schedule → Poison batch → Train
+  ├─ Load batch 2 (32 images) → Check schedule → Poison batch → Train
+  ├─ Load batch 3 (32 images) → Check schedule → Poison batch → Train
+  └─ ... continue for all batches
+```
+
+### What is a Batch?
+
+A **batch** is a small subset of training data processed together. Instead of training on one example at a time (slow) or all examples at once (memory-intensive), data is split into chunks.
+
+**Example:** 1,000 images with `batch_size = 32`:
+
+- **Batch 1**: Images 1-32
+- **Batch 2**: Images 33-64
+- **Batch 3**: Images 65-96
+- ... and so on
+
+### Poisoning Flow
+
+For each batch in a poisoned round:
+
+1. **Load batch** - DataLoader provides next batch (e.g., 32 images + labels)
+2. **Check schedule** - `should_poison_this_round(current_round, client_id, schedule)`
+3. **Apply attack** - If conditions met, poison the batch in-memory
+4. **Train** - Model trains on the (possibly poisoned) batch
+5. **Repeat** - Next batch
+
+**Key Points:**
+
+- Original dataset is **never modified** - poisoning happens temporarily in memory
+- Each batch is checked and poisoned independently
+- Poisoning is **real-time during training**, not a preprocessing step
+- Once the round ends, poisoned data is discarded (not persistent)
+
+### Code Reference
+
+See implementation in:
+
+- `src/attack_utils/poisoning.py:103-149` - Schedule checking logic
+- `src/client_models/flower_client.py:97-104` - Batch-level poisoning for CNNs
+- `src/client_models/flower_client.py:140-148` - Batch-level poisoning for transformers
+
+---
+
 ## 🕒 Schedule Configuration
 
 **Basic:**
