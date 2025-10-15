@@ -9,7 +9,7 @@ import { ConfirmModal } from '@components/common/Modal/ConfirmModal';
 import { useSimulations } from '@hooks/useSimulations';
 import { useSimulationStatus } from '@hooks/useSimulationStatus';
 import { deleteSimulation, deleteMultipleSimulations, stopSimulation } from '@api';
-import { useToast } from '@contexts/ToastContext';
+import { toast } from 'sonner';
 
 export function Dashboard() {
   const { simulations, loading, error, refetch } = useSimulations();
@@ -18,7 +18,6 @@ export function Dashboard() {
   const [deleting, setDeleting] = useState(false);
   const [stopping, setStopping] = useState(false);
   const navigate = useNavigate();
-  const { showSuccess, showError, showWarning } = useToast();
 
   const [confirmModal, setConfirmModal] = useState({
     show: false,
@@ -44,7 +43,7 @@ export function Dashboard() {
 
   const handleCompare = () => {
     if (selectedSims.length < 2) {
-      showWarning('Please select at least 2 simulations to compare');
+      toast.warning('Please select at least 2 simulations to compare');
       return;
     }
     navigate(`/compare?ids=${selectedSims.join(',')}`);
@@ -62,9 +61,9 @@ export function Dashboard() {
         try {
           await stopSimulation(simId);
           await refetch();
-          showSuccess('Simulation stopped successfully');
+          toast.success('Simulation stopped successfully');
         } catch (err) {
-          showError(`Failed to stop: ${err.response?.data?.detail || err.message}`);
+          toast.error(`Failed to stop: ${err.response?.data?.detail || err.message}`);
         } finally {
           setStopping(false);
         }
@@ -75,7 +74,7 @@ export function Dashboard() {
   const handleDeleteOne = async simId => {
     const statusData = statuses[simId];
     if (statusData?.status === 'running') {
-      showError('Cannot delete a running simulation');
+      toast.error('Cannot delete a running simulation');
       return;
     }
 
@@ -91,9 +90,9 @@ export function Dashboard() {
           await deleteSimulation(simId);
           setSelectedSims(prev => prev.filter(id => id !== simId));
           await refetch();
-          showSuccess('Simulation deleted successfully');
+          toast.success('Simulation deleted successfully');
         } catch (err) {
-          showError(`Failed to delete: ${err.response?.data?.detail || err.message}`);
+          toast.error(`Failed to delete: ${err.response?.data?.detail || err.message}`);
         } finally {
           setDeleting(false);
         }
@@ -103,13 +102,13 @@ export function Dashboard() {
 
   const handleDeleteSelected = async () => {
     if (selectedSims.length === 0) {
-      showWarning('No simulations selected');
+      toast.warning('No simulations selected');
       return;
     }
 
     const runningSimulations = selectedSims.filter(simId => statuses[simId]?.status === 'running');
     if (runningSimulations.length > 0) {
-      showError(`Cannot delete running simulations: ${runningSimulations.join(', ')}`);
+      toast.error(`Cannot delete running simulations: ${runningSimulations.join(', ')}`);
       return;
     }
 
@@ -127,16 +126,16 @@ export function Dashboard() {
 
           if (failed.length > 0) {
             const failedList = failed.map(f => `${f.simulation_id}: ${f.error}`).join('\n');
-            showWarning(`Some deletions failed:\n${failedList}`);
+            toast.warning(`Some deletions failed:\n${failedList}`);
           }
 
           if (deleted.length > 0) {
             setSelectedSims([]);
             await refetch();
-            showSuccess(`Successfully deleted ${deleted.length} simulation(s)`);
+            toast.success(`Successfully deleted ${deleted.length} simulation(s)`);
           }
         } catch (err) {
-          showError(`Failed to delete: ${err.response?.data?.detail || err.message}`);
+          toast.error(`Failed to delete: ${err.response?.data?.detail || err.message}`);
         } finally {
           setDeleting(false);
         }
@@ -146,7 +145,7 @@ export function Dashboard() {
 
   const handleClearAll = async () => {
     if (!simulations || simulations.length === 0) {
-      showWarning('No simulations to clear');
+      toast.warning('No simulations to clear');
       return;
     }
 
@@ -154,7 +153,7 @@ export function Dashboard() {
       sim => statuses[sim.simulation_id]?.status === 'running'
     );
     if (runningSimulations.length > 0) {
-      showError(
+      toast.error(
         `Cannot clear all: ${runningSimulations.length} simulation(s) still running. Please wait for them to complete or fail first.`
       );
       return;
@@ -175,16 +174,16 @@ export function Dashboard() {
 
           if (failed.length > 0) {
             const failedList = failed.map(f => `${f.simulation_id}: ${f.error}`).join('\n');
-            showWarning(`Some deletions failed:\n${failedList}`);
+            toast.warning(`Some deletions failed:\n${failedList}`);
           }
 
           if (deleted.length > 0) {
             setSelectedSims([]);
             await refetch();
-            showSuccess(`Successfully cleared ${deleted.length} simulation(s)`);
+            toast.success(`Successfully cleared ${deleted.length} simulation(s)`);
           }
         } catch (err) {
-          showError(`Failed to clear simulations: ${err.response?.data?.detail || err.message}`);
+          toast.error(`Failed to clear simulations: ${err.response?.data?.detail || err.message}`);
         } finally {
           setDeleting(false);
         }

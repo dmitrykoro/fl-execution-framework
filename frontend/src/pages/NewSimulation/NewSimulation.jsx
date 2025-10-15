@@ -9,7 +9,7 @@ import { createSimulation } from '@api';
 import { useConfigValidation } from '@hooks/useConfigValidation';
 import { initialConfig } from '@constants/initialConfig';
 import { PRESETS } from '@constants/presets';
-import { useToast } from '@contexts/ToastContext';
+import { toast } from 'sonner';
 
 export function NewSimulation() {
   const [config, setConfig] = useState(() => {
@@ -28,10 +28,8 @@ export function NewSimulation() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState(null);
   const [selectedPreset, setSelectedPreset] = useState(null);
-  const [draftSaved, setDraftSaved] = useState(false);
   const [showClearModal, setShowClearModal] = useState(false);
   const navigate = useNavigate();
-  const { showSuccess } = useToast();
 
   const validation = useConfigValidation(config);
 
@@ -39,8 +37,6 @@ export function NewSimulation() {
   useEffect(() => {
     const timeoutId = setTimeout(() => {
       localStorage.setItem('simulation-draft', JSON.stringify(config));
-      setDraftSaved(true);
-      setTimeout(() => setDraftSaved(false), 2000);
     }, 1000);
 
     return () => clearTimeout(timeoutId);
@@ -109,33 +105,94 @@ export function NewSimulation() {
       const response = await createSimulation(sanitizedConfig);
       const { simulation_id } = response.data;
       localStorage.removeItem('simulation-draft');
+      toast.success('Simulation created successfully!');
       navigate(`/simulations/${simulation_id}`);
     } catch (err) {
       console.error('Failed to create simulation:', err);
-      setError(err.response?.data?.detail || 'An unexpected error occurred.');
+      const errorMsg = err.response?.data?.detail || 'An unexpected error occurred.';
+      setError(errorMsg);
+      toast.error(errorMsg, {
+        duration: 5000,
+        action: {
+          label: 'Retry',
+          onClick: () => handleSubmit(e),
+        },
+      });
       setSubmitting(false);
     }
   };
 
-  const handleClearDraft = () => {
+  const handleResetConfig = () => {
     setShowClearModal(true);
   };
 
-  const confirmClearDraft = () => {
+  const confirmResetConfig = () => {
     localStorage.removeItem('simulation-draft');
     setConfig(initialConfig);
     setSelectedPreset(null);
     setShowClearModal(false);
-    showSuccess('Draft cleared and reset to defaults');
+    toast.success('Configuration reset to defaults');
+  };
+
+  const handleDownloadJSON = () => {
+    const sanitizedConfig = sanitizeConfig(config);
+    const dataStr = JSON.stringify(sanitizedConfig, null, 2);
+    const dataBlob = new Blob([dataStr], { type: 'application/json' });
+    const url = URL.createObjectURL(dataBlob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `${config.display_name || 'simulation'}-config.json`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    toast.success('Configuration downloaded');
+  };
+
+  const handleUploadJSON = e => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = event => {
+      try {
+        const uploadedConfig = JSON.parse(event.target.result);
+        setConfig(prev => ({ ...prev, ...uploadedConfig }));
+        setSelectedPreset(null);
+        toast.success('Configuration loaded from file');
+      } catch (err) {
+        console.error('Failed to parse JSON:', err);
+        toast.error('Invalid JSON file');
+      }
+    };
+    reader.readAsText(file);
+    e.target.value = '';
   };
 
   return (
     <PageContainer>
       <PageHeader title="New Simulation">
-        {draftSaved && <span className="text-muted small">Draft saved...</span>}
-        <OutlineButton onClick={handleClearDraft} variant="outline-secondary">
-          Clear Draft
-        </OutlineButton>
+        <div className="d-flex gap-2">
+          <input
+            type="file"
+            accept=".json"
+            onChange={handleUploadJSON}
+            style={{ display: 'none' }}
+            id="upload-json-input"
+          />
+          <OutlineButton
+            onClick={() => document.getElementById('upload-json-input').click()}
+            variant="outline-secondary"
+          >
+            Upload JSON
+          </OutlineButton>
+          <OutlineButton onClick={handleDownloadJSON} variant="outline-secondary">
+            Download JSON
+          </OutlineButton>
+          <OutlineButton onClick={handleResetConfig} variant="outline-secondary">
+            Reset Configuration
+          </OutlineButton>
+        </div>
       </PageHeader>
 
       <SimulationForm
@@ -151,10 +208,10 @@ export function NewSimulation() {
 
       <ConfirmModal
         show={showClearModal}
-        title="Clear Draft"
+        title="Reset Configuration"
         message="This will reset all fields to default values. Continue?"
         variant="warning"
-        onConfirm={confirmClearDraft}
+        onConfirm={confirmResetConfig}
         onCancel={() => setShowClearModal(false)}
       />
     </PageContainer>

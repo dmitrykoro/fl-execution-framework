@@ -10,7 +10,7 @@ import { PlotsTab } from '@components/features/simulation-details/PlotsTab/Plots
 import { useSimulationDetails } from '@hooks/useSimulationDetails';
 import { useCSVData } from '@hooks/useCSVData';
 import { createSimulation, stopSimulation } from '@api/endpoints/simulations';
-import { useToast } from '@contexts/ToastContext';
+import { toast } from 'sonner';
 
 export function SimulationDetails() {
   const { simulationId } = useParams();
@@ -19,7 +19,6 @@ export function SimulationDetails() {
   const { csvData } = useCSVData(simulationId, details?.result_files);
   const [isCloning, setIsCloning] = useState(false);
   const [isStopping, setIsStopping] = useState(false);
-  const { showSuccess, showError } = useToast();
 
   const handleRunAgain = async () => {
     setIsCloning(true);
@@ -38,10 +37,10 @@ export function SimulationDetails() {
     setIsStopping(true);
     try {
       await stopSimulation(simulationId);
-      showSuccess('Simulation stopped successfully');
+      toast.success('Simulation stopped successfully');
     } catch (err) {
       console.error('Failed to stop simulation:', err);
-      showError(`Failed to stop: ${err.response?.data?.detail || err.message}`);
+      toast.error(`Failed to stop: ${err.response?.data?.detail || err.message}`);
     } finally {
       setIsStopping(false);
     }
