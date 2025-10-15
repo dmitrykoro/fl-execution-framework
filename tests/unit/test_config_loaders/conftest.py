@@ -9,6 +9,7 @@ def base_valid_config():
     return {
         "remove_clients": "true",
         "dataset_keyword": "femnist_iid",
+        "dataset_source": "local",
         "model_type": "cnn",
         "use_llm": "false",
         "num_of_rounds": 5,

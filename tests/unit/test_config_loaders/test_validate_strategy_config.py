@@ -9,8 +9,8 @@ from jsonschema import ValidationError
 
 from src.config_loaders.validate_strategy_config import (
     check_llm_specific_parameters,
+    validate_dataset_config,
     validate_dependent_params,
-    validate_huggingface_dataset,
     validate_strategy_config,
 )
 from tests.common import pytest
@@ -537,6 +537,7 @@ class TestValidateStrategyConfigEdgeCases:
             "aggregation_strategy_keyword": "rfa",
             "remove_clients": "true",
             "dataset_keyword": "flair",
+            "dataset_source": "local",
             "model_type": "cnn",
             "use_llm": "false",
             "num_of_rounds": 4,
@@ -568,6 +569,7 @@ class TestValidateStrategyConfigEdgeCases:
             "aggregation_strategy_keyword": "bulyan",
             "remove_clients": "false",
             "dataset_keyword": "lung_photos",
+            "dataset_source": "local",
             "model_type": "cnn",
             "use_llm": "false",
             "num_of_rounds": 3,
@@ -624,6 +626,7 @@ class TestValidateStrategyConfigEdgeCases:
             "aggregation_strategy_keyword": "trust",
             "remove_clients": "true",
             "dataset_keyword": "femnist_iid",
+            "dataset_source": "local",
             "model_type": "cnn",
             "use_llm": "false",
             "num_of_rounds": 5,
@@ -737,6 +740,7 @@ class TestStrictModeValidation:
             "aggregation_strategy_keyword": "trust",
             "remove_clients": "true",
             "dataset_keyword": "femnist_iid",
+            "dataset_source": "local",
             "model_type": "cnn",
             "use_llm": "false",
             "num_of_rounds": 5,
@@ -778,6 +782,7 @@ class TestStrictModeValidation:
             "aggregation_strategy_keyword": "trust",
             "remove_clients": "true",
             "dataset_keyword": "femnist_iid",
+            "dataset_source": "local",
             "model_type": "cnn",
             "use_llm": "false",
             "num_of_rounds": 5,
@@ -818,6 +823,7 @@ class TestStrictModeValidation:
             "aggregation_strategy_keyword": "trust",
             "remove_clients": "true",
             "dataset_keyword": "femnist_iid",
+            "dataset_source": "local",
             "model_type": "cnn",
             "use_llm": "false",
             "num_of_rounds": 5,
@@ -858,6 +864,7 @@ class TestStrictModeValidation:
             "aggregation_strategy_keyword": "trust",
             "remove_clients": "true",
             "dataset_keyword": "femnist_iid",
+            "dataset_source": "local",
             "model_type": "cnn",
             "use_llm": "false",
             "num_of_rounds": 5,
@@ -902,6 +909,7 @@ class TestStrictModeValidation:
             "aggregation_strategy_keyword": "trust",
             "remove_clients": "true",
             "dataset_keyword": "femnist_iid",
+            "dataset_source": "local",
             "model_type": "cnn",
             "use_llm": "false",
             "num_of_rounds": 5,
@@ -942,6 +950,7 @@ class TestStrictModeValidation:
             "aggregation_strategy_keyword": "trust",
             "remove_clients": "true",
             "dataset_keyword": "femnist_iid",
+            "dataset_source": "local",
             "model_type": "cnn",
             "use_llm": "false",
             "num_of_rounds": 5,
@@ -985,6 +994,7 @@ class TestValidateStrategyConfigLlmIntegration:
             "aggregation_strategy_keyword": "trust",
             "remove_clients": "true",
             "dataset_keyword": "medquad",
+            "dataset_source": "local",
             "model_type": "transformer",
             "use_llm": "true",
             "num_of_rounds": 5,
@@ -1025,6 +1035,7 @@ class TestValidateStrategyConfigLlmIntegration:
             "aggregation_strategy_keyword": "trust",
             "remove_clients": "true",
             "dataset_keyword": "femnist_iid",
+            "dataset_source": "local",
             "model_type": "cnn",
             "use_llm": "false",
             "num_of_rounds": 5,
@@ -1062,6 +1073,7 @@ class TestValidateStrategyConfigLlmIntegration:
             "aggregation_strategy_keyword": "trust",
             "remove_clients": "true",
             "dataset_keyword": "femnist_iid",
+            "dataset_source": "local",
             "model_type": "cnn",
             "use_llm": "false",
             "num_of_rounds": 5,
@@ -1108,7 +1120,7 @@ class TestValidateHuggingFaceDataset:
         }
 
         # Should not raise any exception
-        validate_huggingface_dataset(config)
+        validate_dataset_config(config)
 
     def test_default_dataset_source_no_validation_required(self):
         """Test that missing dataset_source defaults to local and doesn't require HF parameters."""
@@ -1117,7 +1129,7 @@ class TestValidateHuggingFaceDataset:
         }
 
         # Should not raise any exception
-        validate_huggingface_dataset(config)
+        validate_dataset_config(config)
 
     def test_huggingface_source_requires_dataset_name(self):
         """Test that HuggingFace source requires hf_dataset_name parameter."""
@@ -1126,7 +1138,7 @@ class TestValidateHuggingFaceDataset:
         }
 
         with pytest.raises(ValidationError) as exc_info:
-            validate_huggingface_dataset(config)
+            validate_dataset_config(config)
 
         assert "hf_dataset_name is required when dataset_source='huggingface'" in str(
             exc_info.value
@@ -1140,7 +1152,7 @@ class TestValidateHuggingFaceDataset:
         }
 
         with pytest.raises(ValidationError) as exc_info:
-            validate_huggingface_dataset(config)
+            validate_dataset_config(config)
 
         assert "hf_dataset_name is required when dataset_source='huggingface'" in str(
             exc_info.value
@@ -1155,7 +1167,7 @@ class TestValidateHuggingFaceDataset:
         }
 
         # Should not raise any exception
-        validate_huggingface_dataset(config)
+        validate_dataset_config(config)
 
     def test_huggingface_with_default_iid_strategy(self):
         """Test that partitioning_strategy defaults to IID when not specified."""
@@ -1165,7 +1177,7 @@ class TestValidateHuggingFaceDataset:
         }
 
         # Should not raise any exception (defaults to iid)
-        validate_huggingface_dataset(config)
+        validate_dataset_config(config)
 
     def test_huggingface_with_valid_dirichlet_strategy(self):
         """Test that Dirichlet partitioning strategy is valid for HuggingFace datasets."""
@@ -1177,7 +1189,7 @@ class TestValidateHuggingFaceDataset:
         }
 
         # Should not raise any exception
-        validate_huggingface_dataset(config)
+        validate_dataset_config(config)
 
     def test_huggingface_with_valid_pathological_strategy(self):
         """Test that pathological partitioning strategy is valid for HuggingFace datasets."""
@@ -1189,7 +1201,7 @@ class TestValidateHuggingFaceDataset:
         }
 
         # Should not raise any exception
-        validate_huggingface_dataset(config)
+        validate_dataset_config(config)
 
     def test_huggingface_with_invalid_strategy_fails(self):
         """Test that invalid partitioning strategy fails validation."""
@@ -1200,7 +1212,7 @@ class TestValidateHuggingFaceDataset:
         }
 
         with pytest.raises(ValidationError) as exc_info:
-            validate_huggingface_dataset(config)
+            validate_dataset_config(config)
 
         error_message = str(exc_info.value)
         assert "Invalid partitioning_strategy: invalid_strategy" in error_message
@@ -1216,7 +1228,7 @@ class TestValidateHuggingFaceDataset:
         }
 
         # Should not raise any exception
-        validate_huggingface_dataset(config)
+        validate_dataset_config(config)
 
     def test_dirichlet_alpha_maximum_boundary(self):
         """Test that Dirichlet alpha at maximum boundary (10) is valid."""
@@ -1228,7 +1240,7 @@ class TestValidateHuggingFaceDataset:
         }
 
         # Should not raise any exception
-        validate_huggingface_dataset(config)
+        validate_dataset_config(config)
 
     def test_dirichlet_alpha_zero_fails(self):
         """Test that Dirichlet alpha of 0 fails validation."""
@@ -1240,7 +1252,7 @@ class TestValidateHuggingFaceDataset:
         }
 
         with pytest.raises(ValidationError) as exc_info:
-            validate_huggingface_dataset(config)
+            validate_dataset_config(config)
 
         error_message = str(exc_info.value)
         assert "Dirichlet alpha must be in range (0, 10]" in error_message
@@ -1256,7 +1268,7 @@ class TestValidateHuggingFaceDataset:
         }
 
         with pytest.raises(ValidationError) as exc_info:
-            validate_huggingface_dataset(config)
+            validate_dataset_config(config)
 
         error_message = str(exc_info.value)
         assert "Dirichlet alpha must be in range (0, 10]" in error_message
@@ -1272,7 +1284,7 @@ class TestValidateHuggingFaceDataset:
         }
 
         with pytest.raises(ValidationError) as exc_info:
-            validate_huggingface_dataset(config)
+            validate_dataset_config(config)
 
         error_message = str(exc_info.value)
         assert "Dirichlet alpha must be in range (0, 10]" in error_message
@@ -1287,7 +1299,7 @@ class TestValidateHuggingFaceDataset:
         }
 
         # Should not raise any exception (defaults to alpha=0.5)
-        validate_huggingface_dataset(config)
+        validate_dataset_config(config)
 
     def test_dirichlet_with_empty_params(self):
         """Test that Dirichlet strategy works with empty partitioning_params."""
@@ -1299,7 +1311,7 @@ class TestValidateHuggingFaceDataset:
         }
 
         # Should not raise any exception (defaults to alpha=0.5)
-        validate_huggingface_dataset(config)
+        validate_dataset_config(config)
 
     def test_pathological_num_classes_minimum_boundary(self):
         """Test that pathological with 1 class per partition is valid."""
@@ -1311,7 +1323,7 @@ class TestValidateHuggingFaceDataset:
         }
 
         # Should not raise any exception
-        validate_huggingface_dataset(config)
+        validate_dataset_config(config)
 
     def test_pathological_num_classes_zero_fails(self):
         """Test that pathological with 0 classes per partition fails validation."""
@@ -1323,7 +1335,7 @@ class TestValidateHuggingFaceDataset:
         }
 
         with pytest.raises(ValidationError) as exc_info:
-            validate_huggingface_dataset(config)
+            validate_dataset_config(config)
 
         error_message = str(exc_info.value)
         assert "num_classes_per_partition must be >= 1" in error_message
@@ -1339,7 +1351,7 @@ class TestValidateHuggingFaceDataset:
         }
 
         with pytest.raises(ValidationError) as exc_info:
-            validate_huggingface_dataset(config)
+            validate_dataset_config(config)
 
         error_message = str(exc_info.value)
         assert "num_classes_per_partition must be >= 1" in error_message
@@ -1354,7 +1366,7 @@ class TestValidateHuggingFaceDataset:
         }
 
         # Should not raise any exception (defaults to 2 classes)
-        validate_huggingface_dataset(config)
+        validate_dataset_config(config)
 
     def test_pathological_with_empty_params(self):
         """Test that pathological strategy works with empty partitioning_params."""
@@ -1366,7 +1378,7 @@ class TestValidateHuggingFaceDataset:
         }
 
         # Should not raise any exception (defaults to 2 classes)
-        validate_huggingface_dataset(config)
+        validate_dataset_config(config)
 
     def test_huggingface_complete_config_with_dirichlet(self):
         """Test complete HuggingFace configuration with Dirichlet partitioning."""
@@ -1378,7 +1390,7 @@ class TestValidateHuggingFaceDataset:
         }
 
         # Should not raise any exception
-        validate_huggingface_dataset(config)
+        validate_dataset_config(config)
 
     def test_huggingface_complete_config_with_pathological(self):
         """Test complete HuggingFace configuration with pathological partitioning."""
@@ -1390,4 +1402,4 @@ class TestValidateHuggingFaceDataset:
         }
 
         # Should not raise any exception
-        validate_huggingface_dataset(config)
+        validate_dataset_config(config)

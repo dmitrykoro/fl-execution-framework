@@ -22,6 +22,7 @@ class TestConfigLoader:
             "shared_settings": {
                 "num_of_rounds": 5,
                 "dataset_keyword": "its",
+                "dataset_source": "local",
                 "model_type": "cnn",
                 "use_llm": "false",
                 "remove_clients": "true",
@@ -79,6 +80,7 @@ class TestConfigLoader:
             "shared_settings": {
                 "num_of_rounds": 5,
                 "dataset_keyword": "its",
+                "dataset_source": "local",
                 "model_type": "cnn",
                 "use_llm": "false",
                 "remove_clients": "true",
@@ -168,7 +170,11 @@ class TestConfigLoader:
         mock_validate.side_effect = Exception("Validation failed")
 
         usecase_config = {
-            "shared_settings": {"num_of_rounds": 5, "dataset_keyword": "its"},
+            "shared_settings": {
+                "num_of_rounds": 5,
+                "dataset_keyword": "its",
+                "dataset_source": "local",
+            },
             "simulation_strategies": [
                 {
                     "aggregation_strategy_keyword": "trust",
@@ -227,6 +233,7 @@ class TestConfigLoader:
             "shared_settings": {
                 "num_of_rounds": 3,
                 "dataset_keyword": "its",
+                "dataset_source": "local",
                 "model_type": "cnn",
                 "use_llm": "false",
                 "remove_clients": "true",
@@ -277,6 +284,7 @@ class TestConfigLoader:
             "shared_settings": {
                 "num_of_rounds": 3,
                 "dataset_keyword": "its",
+                "dataset_source": "local",
                 "model_type": "cnn",
                 "use_llm": "false",
                 "remove_clients": "false",
@@ -329,6 +337,7 @@ class TestConfigLoader:
             "shared_settings": {
                 "num_of_rounds": 1,
                 "dataset_keyword": "its",
+                "dataset_source": "local",
                 "model_type": "cnn",
                 "use_llm": "false",
                 "remove_clients": "false",
@@ -377,6 +386,7 @@ class TestConfigLoader:
             "shared_settings": {
                 "num_of_rounds": 1,
                 "dataset_keyword": "its",
+                "dataset_source": "local",
                 "model_type": "cnn",
                 "use_llm": "false",
                 "remove_clients": "false",
@@ -429,6 +439,7 @@ class TestConfigLoader:
             "shared_settings": {
                 "num_of_rounds": 5,
                 "dataset_keyword": "its",
+                "dataset_source": "local",
                 "model_type": "cnn",
                 "use_llm": "false",
                 "remove_clients": "true",
@@ -505,6 +516,7 @@ class TestConfigLoader:
             "shared_settings": {
                 "num_of_rounds": 10,
                 "dataset_keyword": "femnist_iid",
+                "dataset_source": "local",
                 "model_type": "cnn",
                 "use_llm": "false",
                 "remove_clients": "true",
@@ -577,6 +589,7 @@ class TestConfigLoader:
             "shared_settings": {
                 "num_of_rounds": 1,
                 "dataset_keyword": "its",
+                "dataset_source": "local",
                 "model_type": "cnn",
                 "use_llm": "false",
                 "remove_clients": "false",
