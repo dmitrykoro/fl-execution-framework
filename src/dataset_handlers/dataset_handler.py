@@ -162,10 +162,14 @@ class DatasetHandler:
                 # Calculate signal power
                 signal_power = np.mean(image ** 2)
 
-                # Compute desired noise power for target SNR
-                # SNR(dB) = 10 * log10(signal_power / noise_power)
-                # → noise_power = signal_power / (10^(SNR/10))
+                """    
+                Compute desired noise power for target SNR: 
+                
+                SNR(dB) = 10 * log10(signal_power / noise_power)
+                → noise_power = signal_power / (10^(SNR/10))
+                """
                 noise_power = signal_power / (10 ** (target_snr_db / 10))
+
 
                 # Generate Gaussian noise with mean 0 and variance 1
                 noise = np.random.normal(0, 1, image.shape).astype(np.float32)
