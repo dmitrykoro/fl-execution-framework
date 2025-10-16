@@ -237,15 +237,18 @@ class KrumBasedRemovalStrategy(Krum):
         )
 
         metrics_aggregated: Dict[str, Scalar] = {}  # keep existing dict if you already have one
-
+        if self.remove_clients and self.current_round >= self.begin_removing_from_round:
+            effective_resullts = [(cp,ev) for (cp,ev) in results if cp.cid not in self.removed_client_ids]
+        else:
+            effective_resullts = results
         if has_strict:
-            sum_tp_m = sum(int(ev.metrics.get("tp_m", 0)) for _, ev in results)
-            sum_fp_m = sum(int(ev.metrics.get("fp_m", 0)) for _, ev in results)
-            sum_fn_m = sum(int(ev.metrics.get("fn_m", 0)) for _, ev in results)
+            sum_tp_m = sum(int(ev.metrics.get("tp_m", 0)) for _, ev in effective_resullts)
+            sum_fp_m = sum(int(ev.metrics.get("fp_m", 0)) for _, ev in effective_resullts)
+            sum_fn_m = sum(int(ev.metrics.get("fn_m", 0)) for _, ev in effective_resullts)
 
-            sum_tp_d = sum(int(ev.metrics.get("tp_d", 0)) for _, ev in results)
-            sum_fp_d = sum(int(ev.metrics.get("fp_d", 0)) for _, ev in results)
-            sum_fn_d = sum(int(ev.metrics.get("fn_d", 0)) for _, ev in results)
+            sum_tp_d = sum(int(ev.metrics.get("tp_d", 0)) for _, ev in effective_resullts)
+            sum_fp_d = sum(int(ev.metrics.get("fp_d", 0)) for _, ev in effective_resullts)
+            sum_fn_d = sum(int(ev.metrics.get("fn_d", 0)) for _, ev in effective_resullts)
 
             def _prf(tp: int, fp: int, fn: int):
                 p = tp / (tp + fp) if (tp + fp) else 0.0
