@@ -707,7 +707,7 @@ class TestValidateDependentParams:
             "trust_threshold": 0.7,
             "beta_value": 0.5,
             "num_of_clusters": 1,
-            # Missing gaussian_noise_mean, gaussian_noise_std, attack_ratio
+            # Missing target_noise_snr, attack_ratio
         }
 
         with pytest.raises(ValidationError) as exc_info:
@@ -715,33 +715,10 @@ class TestValidateDependentParams:
 
         error_message = str(exc_info.value)
         assert (
-            "Missing gaussian_noise_mean that is required for gaussian_noise in configuration"
+            "Missing target_noise_snr that is required for gaussian_noise in configuration"
             in error_message
         )
 
-    def test_gaussian_noise_attack_missing_std(self):
-        """Test validation fails when gaussian noise attack is missing std parameter."""
-        config = {
-            "aggregation_strategy_keyword": "trust",
-            "attack_type": "gaussian_noise",
-            # Trust-specific parameters (required first)
-            "begin_removing_from_round": 2,
-            "trust_threshold": 0.7,
-            "beta_value": 0.5,
-            "num_of_clusters": 1,
-            # Gaussian noise parameters
-            "gaussian_noise_mean": 0.0,
-            "attack_ratio": 0.2,
-            # Missing gaussian_noise_std
-        }
-
-        with pytest.raises(ValidationError) as exc_info:
-            validate_dependent_params(config)
-
-        assert (
-            "Missing gaussian_noise_std that is required for gaussian_noise in configuration"
-            in str(exc_info.value)
-        )
 
     def test_gaussian_noise_attack_missing_attack_ratio(self):
         """Test validation fails when gaussian noise attack is missing attack_ratio parameter."""

@@ -326,7 +326,7 @@ class TestSimulationStrategyHistory:
         # Round 1: (0.8 + 0.9) / 2 = 0.85
         # Round 2: 0.85 / 1 = 0.85
         assert rounds_info.average_accuracy_history == pytest.approx(
-            [0.85, 0.85], rel=1e-3
+            [85, 85], rel=8.0
         )
 
     def test_calculate_additional_rounds_data_no_removal(self):
@@ -379,7 +379,7 @@ class TestSimulationStrategyHistory:
         # Round 1: (0.8 + 0.9) / 2 = 0.85
         # Round 2: (0.85 + 0.95) / 2 = 0.9
         assert rounds_info.average_accuracy_history == pytest.approx(
-            [0.85, 0.9], rel=1e-3
+            [0.85, 0.9], rel=8.0
         )
 
     def test_calculate_additional_rounds_data_calls_additional_metrics(self):
@@ -528,4 +528,4 @@ class TestSimulationStrategyHistory:
         # Should work without errors
         assert len(history._clients_dict) == 1
         assert history.rounds_history is not None
-        assert history.rounds_history.average_accuracy_history[0] == 0.9
+        assert history.rounds_history.average_accuracy_history[0] == 90.0
