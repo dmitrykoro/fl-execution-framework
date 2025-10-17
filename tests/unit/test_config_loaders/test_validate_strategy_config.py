@@ -135,7 +135,11 @@ INVALID_VALUE_TEST_CASES = [
         "invalid_attack",
         "'invalid_attack' is not one of ['label_flipping', 'gaussian_noise']",
     ),
-    ("training_device", "quantum", "'quantum' is not one of ['cpu', 'gpu', 'cuda']"),
+    (
+        "training_device",
+        "quantum",
+        "'quantum' is not one of ['auto', 'cpu', 'gpu', 'cuda']",
+    ),
     ("num_of_rounds", "five", "'five' is not of type 'integer'"),
 ]
 
