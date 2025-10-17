@@ -19,19 +19,13 @@ jobs:
       uses: actions/checkout@v4
 
     - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v4
-      id: setup-python
+      uses: actions/setup-python@v5
       with:
         python-version: ${{ matrix.python-version }}
-
-    - name: Cache pip dependencies
-      uses: actions/cache@v4
-      with:
-        path: ~/.cache/pip
-        key: ${{ runner.os }}-pip-${{ matrix.python-version }}-${{ hashFiles('tests/pyproject.toml') }}
-        restore-keys: |
-          ${{ runner.os }}-pip-${{ matrix.python-version }}-
-          ${{ runner.os }}-pip-
+        cache: 'pip'
+        cache-dependency-path: |
+          requirements.txt
+          src/api/requirements.txt
 
     - name: Install dependencies
       run: |
@@ -45,20 +39,15 @@ jobs:
 
     - name: Run integration tests (serial)
       run: |
-        pytest -n 0 tests/integration/ --cov=src --cov-append --tb=short
+        pytest tests/integration/ --cov=src --cov-append --tb=short
 
     - name: Run performance tests (serial)
       run: |
-        pytest -n 0 tests/performance/ --cov=src --cov-append --tb=short
-
-    - name: Generate coverage report
-      run: |
-        coverage xml
+        pytest tests/performance/ --cov=src --cov-append --tb=short
 
     - name: Upload coverage to Codecov
       uses: codecov/codecov-action@v4
-      env:
-        CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+      if: matrix.python-version == '3.11'
       with:
-        file: ./coverage.xml
+        token: ${{ secrets.CODECOV_TOKEN }}
         fail_ci_if_error: false
