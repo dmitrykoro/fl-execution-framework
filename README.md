@@ -27,8 +27,9 @@ effects of these parameters on the collected metrics, as well as plug-and-play i
 Defines the aggregation strategy. Options:
   - `trust`: Trust & Reputation-based aggregation.
   - `pid`: PID-based aggregation. Initial version of the formula.
-  - `pid_scaled`: PID-based aggregation with Integral part divided by the number of current round.
-  - `pid_standardized`: PID-based aggregation with the Integral part standardized based on the distribution parameters of all Integral parts.
+  - `pid_scaled`: PID-based aggregation with Integral part divided by the number of current round, threshold is calculated based on client distances.
+  - `pid_standardized`: PID-based aggregation with the Integral part standardized based on the distribution parameters of all Integral parts, threshold is calculated based on client distances.
+  - `pid_standardized_score_based`: Same as pid_standardized, but threshold is calculated based on pid scores. 
   - `multi-krum`: Multi-Krum aggregation. Clients are removed from aggregation only in current round.
   - `krum`: Krum aggregation works like Multi-Krum, but uses only a single client. 
   - `multi-krum-based`: Multi-Krum-based aggregation where removed clients are excluded from aggregation permanently.
@@ -100,7 +101,7 @@ Defines the aggregation strategy. Options:
 - `beta_value`: constant for Trust & Reputation calculus.
 - `num_of_clusters`: number of clusters (must be `1`).
 
-**For `pid` strategy**:
+**For `pid`, `pid_standardized`, `pid_scaled`, `pid_standardized_score_based` strategies**:
 - `num_std_dev`: number of standard deviations used int he calculation of PiD threshold at each round. 
 - `Kp`, `Ki`, `Kd`: PID controller parameters.
 

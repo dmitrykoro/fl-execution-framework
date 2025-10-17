@@ -7,7 +7,7 @@ config_schema = {
         # Common parameters
         "aggregation_strategy_keyword": {
             "type": "string",
-            "enum": ["trust", "pid", "pid_scaled", "pid_standardized",
+            "enum": ["trust", "pid", "pid_scaled", "pid_standardized", "pid_standardized_score_based",
                     "multi-krum", "krum", "multi-krum-based", "trimmed_mean",
                     "rfa", "bulyan"]
         },
@@ -197,7 +197,7 @@ def validate_dependent_params(strategy_config: dict) -> None:
                 raise ValidationError(
                     f"Missing parameter {param} for trust aggregation {aggregation_strategy_keyword}"
                 )
-    elif aggregation_strategy_keyword in ("pid", "pid_scaled", "pid_standardized"):
+    elif aggregation_strategy_keyword in ("pid", "pid_scaled", "pid_standardized", "pid_standardized_score_based"):
         pid_specific_parameters = [
             "num_std_dev", "Kp", "Ki", "Kd"
         ]
