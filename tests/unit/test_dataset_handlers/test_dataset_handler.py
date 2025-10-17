@@ -29,8 +29,7 @@ class TestDatasetHandler:
         config.num_of_malicious_clients = 2
         config.preserve_dataset = False
         config.attack_ratio = 0.3
-        config.gaussian_noise_mean = 0
-        config.gaussian_noise_std = 25
+        config.target_noise_snr = 10.0
         return config
 
     @pytest.fixture
