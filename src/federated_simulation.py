@@ -38,12 +38,6 @@ from src.network_models.tissuemnist_network_definition import TissueMNISTNetwork
 from src.network_models.organamnist_network_definition import OrganAMNISTNetwork
 from src.network_models.organcmnist_network_definition import OrganCMNISTNetwork
 from src.network_models.organsmnist_network_definition import OrganSMNISTNetwork
-from src.network_models.organmnist3d_network_definition import OrganMNIST3DNetwork
-from src.network_models.nodulemnist3d_network_definition import NoduleMNIST3DNetwork
-from src.network_models.fracturemnist3d_network_definition import FractureMNIST3DNetwork
-from src.network_models.adrenalmnist3d_network_definition import AdrenalMNIST3DNetwork
-from src.network_models.vesselmnist3d_network_definition import VesselMNIST3DNetwork
-from src.network_models.synapsemnist3d_network_definition import SynapseMNIST3DNetwork
 from src.network_models.bert_model_definition import load_model, load_model_with_lora
 
 from src.client_models.flower_client import FlowerClient
@@ -318,7 +312,6 @@ class FederatedSimulation:
             self._aggregation_strategy = TrustBasedRemovalStrategy(
                 beta_value=self.strategy_config.beta_value,
                 trust_threshold=self.strategy_config.trust_threshold,
-                strategy_history=self.strategy_history,
                 **common_kwargs
             )
         elif aggregation_strategy_keyword in ("pid", "pid_scaled", "pid_standardized"):
