@@ -156,7 +156,7 @@ class TestFederatedSimulationInitialization:
             ("femnist_niid", "FemnistFullNIIDNetwork"),
             ("flair", "FlairNetwork"),
             ("pneumoniamnist", "PneumoniamnistNetwork"),
-            ("bloodmnist", "BloodmnistNetwork"),
+            ("bloodmnist", "BloodMNISTNetwork"),
             ("lung_photos", "LungCancerCNN"),
         ],
     )
