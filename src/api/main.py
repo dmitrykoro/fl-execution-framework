@@ -305,9 +305,15 @@ def get_result_file(
 
 
 @app.post("/api/simulations", status_code=201)
-async def create_simulation(config: SimulationConfig) -> Dict[str, str]:
+async def create_simulation(config: Dict[str, Any] = Body(...)) -> Dict[str, str]:
     """Creates and runs a new simulation from a configuration payload."""
-    config_dict = config.model_dump(exclude_unset=True)
+    logger.info(f"Received config keys: {list(config.keys())}")
+    logger.info(f"Config has shared_settings: {'shared_settings' in config}")
+    logger.info(
+        f"Config has simulation_strategies: {'simulation_strategies' in config}"
+    )
+
+    config_dict = config
     timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
     simulation_id = f"api_run_{timestamp}"
 
@@ -316,10 +322,18 @@ async def create_simulation(config: SimulationConfig) -> Dict[str, str]:
 
     config_filepath = output_sim_path / "config.json"
 
-    wrapped_config = {
-        "shared_settings": config_dict,
-        "simulation_strategies": [{}],
-    }
+    # Check if this is already a multi-simulation config
+    if "shared_settings" in config_dict and "simulation_strategies" in config_dict:
+        # Already in multi-sim format, use as-is
+        logger.info("Multi-sim config detected, using as-is")
+        wrapped_config = config_dict
+    else:
+        # Single simulation, wrap it
+        logger.info("Single sim config detected, wrapping")
+        wrapped_config = {
+            "shared_settings": config_dict,
+            "simulation_strategies": [{}],
+        }
 
     try:
         with config_filepath.open("w") as f:
