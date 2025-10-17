@@ -11,12 +11,12 @@ log_info "Removing existing '$VENV_NAME' directory..."
 rm -rf "$VENV_NAME"
 
 log_info "Creating new 'venv' virtual environment..."
-"$PYTHON_CMD" -m venv venv
+run_python -m venv venv
 
 setup_virtual_environment
 
 log_info "Upgrading pip..."
-"$PYTHON_CMD" -m pip install --upgrade pip
+run_python -m pip install --upgrade pip
 
 install_requirements
 install_requirements "src/api/requirements.txt"

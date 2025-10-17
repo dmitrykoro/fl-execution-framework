@@ -25,7 +25,7 @@ if [ ! -d "datasets/bloodmnist" ]; then
     wget "$DATASET_URL"
   else
     log_info "Downloading with Python..."
-    "$PYTHON_CMD" -c "import urllib.request; print('Downloading datasets.tar...'); urllib.request.urlretrieve('$DATASET_URL', 'datasets.tar')"
+    run_python -c "import urllib.request; print('Downloading datasets.tar...'); urllib.request.urlretrieve('$DATASET_URL', 'datasets.tar')"
   fi
 
   log_info "Extracting datasets..."
@@ -35,7 +35,7 @@ if [ ! -d "datasets/bloodmnist" ]; then
 fi
 
 log_info "🚀 Initializing simulation..."
-if "$PYTHON_CMD" -m src.simulation_runner; then
+if run_python -m src.simulation_runner; then
     echo ""
     show_simulation_output_info "out/"
 else
