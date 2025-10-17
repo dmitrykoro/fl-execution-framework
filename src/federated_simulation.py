@@ -252,7 +252,7 @@ class FederatedSimulation:
                 strategy_history=self.strategy_history,
                 begin_removing_from_round=self.strategy_config.begin_removing_from_round
             )
-        elif aggregation_strategy_keyword in ("pid", "pid_scaled", "pid_standardized"):
+        elif aggregation_strategy_keyword in ("pid", "pid_scaled", "pid_standardized", "pid_standardized_score_based"):
             self._aggregation_strategy = PIDBasedRemovalStrategy(
                 initial_parameters=ndarrays_to_parameters(self._get_model_params(self._network_model)),
                 min_fit_clients=self.strategy_config.min_fit_clients,
