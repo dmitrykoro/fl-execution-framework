@@ -26,20 +26,19 @@ export function SimulationCard({
       className={`simulation-card ${isFailed ? 'border-danger' : isSelected ? 'selected' : ''}`}
       style={{ cursor: 'pointer', position: 'relative' }}
     >
-      {isRunning && (
-        <button
-          className="stop-btn"
-          onClick={e => {
-            e.stopPropagation();
-            onStop(simulation_id);
-          }}
-          disabled={stopping}
-          title="Stop simulation"
-          aria-label="Stop simulation"
-        >
-          <MaterialIcon name="stop_circle" size={16} />
-        </button>
-      )}
+      <button
+        className="stop-btn"
+        onClick={e => {
+          e.stopPropagation();
+          onStop(simulation_id);
+        }}
+        disabled={stopping || !isRunning}
+        title="Stop simulation"
+        aria-label="Stop simulation"
+        style={{ visibility: isRunning ? 'visible' : 'hidden' }}
+      >
+        <MaterialIcon name="stop_circle" size={16} />
+      </button>
       <button
         className="delete-btn"
         onClick={e => {
@@ -55,11 +54,19 @@ export function SimulationCard({
       <Card.Body>
         <div
           className="d-flex justify-content-between align-items-start mb-2"
-          style={{ minWidth: 0 }}
+          style={{ minWidth: 0, paddingRight: '70px' }}
         >
-          <div style={{ minWidth: 0, flex: '1 1 auto' }}>
-            <Card.Title className="mb-0">
-              <div className="editable-sim-name">
+          <div
+            style={{
+              minWidth: 0,
+              flex: '0 1 auto',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+            }}
+          >
+            <Card.Title className="mb-0" style={{ display: 'inline' }}>
+              <div className="editable-sim-name" style={{ display: 'inline' }}>
                 <EditableSimName
                   simulationId={simulation_id}
                   displayName={display_name}
@@ -67,9 +74,9 @@ export function SimulationCard({
                 />
               </div>
             </Card.Title>
-          </div>
-          <div className="flex-shrink-0 ms-2">
-            <StatusBadge status={statusData?.status} error={statusData?.error} />
+            <div style={{ display: 'inline-block' }}>
+              <StatusBadge status={statusData?.status} error={statusData?.error} />
+            </div>
           </div>
         </div>
         <Card.Subtitle className="mb-2 text-muted">
