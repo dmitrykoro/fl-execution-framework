@@ -159,9 +159,9 @@ config_schema = {
             "required": ["enabled"],
         },
         # Flower settings
-        "training_device": {"type": "string", "enum": ["cpu", "gpu", "cuda"]},
+        "training_device": {"type": "string", "enum": ["auto", "cpu", "gpu", "cuda"]},
         "cpus_per_client": {"type": "integer"},
-        "gpus_per_client": {"type": "number"},
+        "gpus_per_client": {},  # String "auto" or number
         "min_fit_clients": {"type": "integer"},
         "min_evaluate_clients": {"type": "integer"},
         "min_available_clients": {"type": "integer"},

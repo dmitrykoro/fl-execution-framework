@@ -4,7 +4,7 @@ import os
 import sys
 
 from src.config_loaders.validate_strategy_config import validate_strategy_config
-from src.utils.device_utils import get_device
+from src.utils.device_utils import calculate_optimal_gpus_per_client, get_device
 
 
 class ConfigLoader:
@@ -57,6 +57,26 @@ class ConfigLoader:
                 if "training_device" in strategy:
                     device_str = strategy["training_device"]
                     strategy["training_device"] = get_device(device_str)
+
+                # Auto-calculate optimal GPU allocation if set to "auto" or -1
+                if "gpus_per_client" in strategy:
+                    gpu_value = strategy["gpus_per_client"]
+                    # Support "auto" string and -1 as auto-detection triggers
+                    if gpu_value == "auto" or gpu_value == -1 or gpu_value == "-1":
+                        num_clients = strategy.get("num_of_clients", 5)
+                        optimal_gpu = calculate_optimal_gpus_per_client(num_clients)
+                        strategy["gpus_per_client"] = optimal_gpu
+
+                        if optimal_gpu > 0:
+                            max_parallel = int(1.0 / optimal_gpu)
+                            logging.info(
+                                f"[AUTO-ALLOCATE] Setting gpus_per_client={optimal_gpu:.2f} "
+                                f"(allows {max_parallel} clients in parallel)"
+                            )
+                        else:
+                            logging.info(
+                                "[AUTO-ALLOCATE] No GPU available, setting gpus_per_client=0"
+                            )
 
             return raw_config["simulation_strategies"]
 
