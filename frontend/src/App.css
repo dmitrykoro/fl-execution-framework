@@ -131,28 +131,56 @@
 }
 
 :root[data-theme='dark'] .nav-tabs .nav-link {
-  color: #cac4d0;
+  color: #e6e1e5;
   background-color: transparent;
   border-color: transparent;
 }
 
 :root[data-theme='dark'] .nav-tabs .nav-link:hover,
 :root[data-theme='dark'] .nav-tabs .nav-link:focus {
-  color: #e6e1e5;
+  color: #ffffff;
   background-color: #2b2930;
   border-color: transparent transparent #49454f;
 }
 
 :root[data-theme='dark'] .nav-tabs .nav-link.active {
-  color: #e6e1e5;
+  color: #ffffff;
   background-color: #2b2930;
   border-color: #49454f #49454f transparent;
+  font-weight: 600;
+}
+
+/* Underline Tabs Variant */
+:root[data-theme='dark'] .nav-underline .nav-link {
+  color: #e6e1e5 !important;
+}
+
+:root[data-theme='dark'] .nav-underline .nav-link:hover,
+:root[data-theme='dark'] .nav-underline .nav-link:focus {
+  color: #ffffff !important;
+  border-bottom-color: #938f99;
+}
+
+:root[data-theme='dark'] .nav-underline .nav-link.active {
+  color: #ffffff !important;
+  border-bottom-color: #d0bcff;
+  font-weight: 600;
+}
+
+/* Tab Content - Rounded corners for both themes */
+.tab-content {
+  border-bottom-left-radius: 0.375rem;
+  border-bottom-right-radius: 0.375rem;
+  overflow: visible;
+}
+
+.tab-pane {
+  border-radius: 0.375rem;
 }
 
 :root[data-theme='dark'] .tab-content {
-  background-color: #2b2930;
-  border: 1px solid #49454f;
-  border-top: none;
+  background-color: #1c1b1f;
+  border: none;
 }
 
 /* Buttons */
@@ -310,6 +338,9 @@
 /* Touch target sizes (min 44x44px for accessibility) */
 .btn {
   min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .nav-link {
@@ -1009,6 +1040,27 @@ html {
 
 /* ===== PRESET TEMPLATE CARDS ===== */
 
+/* Preset grid stagger animation */
+.preset-grid {
+  animation: fadeIn 300ms ease-out;
+}
+
+.preset-col {
+  animation: slideUp 400ms cubic-bezier(0.4, 0, 0.2, 1) backwards;
+  animation-delay: calc(var(--index) * 80ms + 100ms);
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
 /* Preset card */
 .preset-card {
   cursor: pointer;
@@ -1034,6 +1086,11 @@ html {
     0 12px 32px rgba(0, 0, 0, 0.18),
     0 0 0 1px rgba(103, 80, 164, 0.1);
   border-color: #6750a4;
+}
+
+.preset-card:active {
+  transform: translateY(-2px) scale(0.98);
+  transition-duration: 100ms;
 }
 
 :root[data-theme='dark'] .preset-card:hover {
@@ -1564,4 +1621,162 @@ html {
 :root[data-theme='dark'] .validation-success-alert {
   background-color: rgba(157, 214, 184, 0.06) !important;
   border-color: rgba(157, 214, 184, 0.15) !important;
+}
+
+/* ===== EXPERIMENT QUEUE STYLES ===== */
+
+/* Queue builder */
+.queue-builder {
+  animation: fadeIn 300ms ease-in-out;
+}
+
+/* Strategy variation table */
+.variation-table {
+  margin-bottom: 1rem;
+  border-radius: 0.375rem;
+  overflow: hidden;
+}
+
+.variation-table th {
+  font-weight: 600;
+  font-size: 0.875rem;
+  text-transform: uppercase;
+  letter-spacing: 0.025em;
+}
+
+.variation-table td {
+  vertical-align: middle;
+}
+
+/* Table wrapper - ensure rounded corners */
+.table-responsive {
+  border-radius: 0.375rem;
+  overflow: hidden;
+  border: 1px solid rgba(0, 0, 0, 0.125);
+}
+
+:root[data-theme='dark'] .table-responsive {
+  border-color: #49454f;
+}
+
+/* First header row cells - round top corners */
+.variation-table thead tr:first-child th:first-child {
+  border-top-left-radius: 0.375rem;
+}
+
+.variation-table thead tr:first-child th:last-child {
+  border-top-right-radius: 0.375rem;
+}
+
+/* Queue job card */
+.queue-job-card {
+  transition: all 200ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.queue-job-card:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+:root[data-theme='dark'] .queue-job-card:hover {
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+}
+
+/* Config preview box */
+.config-preview-box pre {
+  margin-bottom: 0;
+  border-radius: 8px;
+  max-height: 500px;
+  overflow: auto;
+}
+
+.config-preview-box pre code {
+  font-size: 0.8125rem;
+  line-height: 1.5;
+}
+
+/* Empty state box for strategy variations */
+.strategy-variation-list .border.rounded {
+  border-color: rgba(0, 0, 0, 0.125) !important;
+  border-radius: 0.375rem !important;
+}
+
+:root[data-theme='dark'] .strategy-variation-list .border.rounded {
+  border-color: #49454f !important;
+  border-radius: 0.375rem !important;
+}
+
+/* Empty state icon */
+.strategy-variation-list .empty-state-icon {
+  font-size: 3rem;
+  opacity: 0.3;
+}
+
+/* Queue job progress bar */
+.queue-job-progress {
+  height: 6px;
+}
+
+/* Strategy delete button */
+.strategy-delete-btn {
+  background: none;
+  border: none;
+  padding: 4px;
+  cursor: pointer;
+  color: #dc3545;
+  opacity: 0.6;
+  transition:
+    opacity 200ms,
+    transform 200ms;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.strategy-delete-btn:hover {
+  opacity: 1;
+  transform: scale(1.15);
+}
+
+:root[data-theme='dark'] .strategy-delete-btn {
+  color: #f2b8b5;
+}
+
+/* Queue job spin animation */
+@keyframes queue-spin {
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+.queue-job-spin {
+  animation: queue-spin 1s linear infinite;
+}
+
+/* Alert boxes inside tab panels - rounded top corners */
+.tab-pane .alert:first-child {
+  border-top-left-radius: 0.375rem !important;
+  border-top-right-radius: 0.375rem !important;
+}
+
+/* Ensure all alerts have proper border radius */
+.alert {
+  border-radius: 0.375rem !important;
+}
+
+/* Mobile responsive for variation table */
+@media (max-width: 767px) {
+  .variation-table {
+    font-size: 0.8125rem;
+  }
+
+  .variation-table th,
+  .variation-table td {
+    padding: 0.5rem 0.25rem;
+  }
+
+  .variation-table .form-control,
+  .variation-table .form-select {
+    font-size: 0.8125rem;
+    padding: 0.25rem 0.5rem;
+  }
 }

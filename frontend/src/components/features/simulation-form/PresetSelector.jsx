@@ -1,5 +1,4 @@
 import { Card, Row, Col, Badge, OverlayTrigger, Tooltip } from 'react-bootstrap';
-import { motion } from 'framer-motion';
 import { PRESETS } from '@constants/presets';
 
 export function PresetSelector({ selectedPreset, onPresetChange }) {
@@ -49,36 +48,6 @@ export function PresetSelector({ selectedPreset, onPresetChange }) {
     return 'bg-secondary';
   };
 
-  // Animation variants for staggered list
-  const containerVariants = {
-    hidden: { opacity: 0 },
-    show: {
-      opacity: 1,
-      transition: {
-        staggerChildren: 0.08,
-        delayChildren: 0.1,
-      },
-    },
-  };
-
-  const cardVariants = {
-    hidden: {
-      opacity: 0,
-      y: 20,
-      scale: 0.95,
-    },
-    show: {
-      opacity: 1,
-      y: 0,
-      scale: 1,
-      transition: {
-        type: 'spring',
-        stiffness: 300,
-        damping: 24,
-      },
-    },
-  };
-
   return (
     <div className="mb-4">
       <h3 className="mb-3 preset-selector-heading">Quick Start Presets</h3>
@@ -86,85 +55,69 @@ export function PresetSelector({ selectedPreset, onPresetChange }) {
         Select a preset configuration to get started quickly, or scroll down to customize your own
         simulation.
       </p>
-      <Row
-        as={motion.div}
-        xs={1}
-        md={2}
-        lg={3}
-        className="g-3 align-items-stretch"
-        variants={containerVariants}
-        initial="hidden"
-        animate="show"
-      >
-        {Object.entries(PRESETS).map(([key, preset]) => (
-          <Col key={key} className="d-flex" as={motion.div} variants={cardVariants}>
-            <motion.div
-              className="w-100"
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
-              transition={{ type: 'spring', stiffness: 400, damping: 17 }}
+      <Row xs={1} md={2} lg={3} className="g-3 align-items-stretch preset-grid">
+        {Object.entries(PRESETS).map(([key, preset], index) => (
+          <Col key={key} className="d-flex preset-col" style={{ '--index': index }}>
+            <Card
+              onClick={() => onPresetChange(key)}
+              onKeyDown={e => handleKeyDown(e, key)}
+              className={`preset-card h-100 ${selectedPreset === key ? 'border-primary' : ''}`}
+              tabIndex={0}
+              role="button"
+              aria-pressed={selectedPreset === key}
+              aria-label={`Select ${preset.name} preset`}
             >
-              <Card
-                onClick={() => onPresetChange(key)}
-                onKeyDown={e => handleKeyDown(e, key)}
-                className={`preset-card h-100 ${selectedPreset === key ? 'border-primary' : ''}`}
-                tabIndex={0}
-                role="button"
-                aria-pressed={selectedPreset === key}
-                aria-label={`Select ${preset.name} preset`}
-              >
-                <Card.Body>
-                  <div className="preset-header">
-                    <span className="preset-icon" aria-hidden="true">
-                      {preset.icon}
-                    </span>
-                    <div className="preset-title-section">
-                      <Card.Title className="h6">{preset.name}</Card.Title>
-                      <Card.Subtitle className="text-muted small">{preset.subtitle}</Card.Subtitle>
-                    </div>
+              <Card.Body>
+                <div className="preset-header">
+                  <span className="preset-icon" aria-hidden="true">
+                    {preset.icon}
+                  </span>
+                  <div className="preset-title-section">
+                    <Card.Title className="h6">{preset.name}</Card.Title>
+                    <Card.Subtitle className="text-muted small">{preset.subtitle}</Card.Subtitle>
                   </div>
-                  <Card.Text className="small preset-description">{preset.description}</Card.Text>
-                  {preset.tags && (
-                    <div className="mb-2">
-                      {preset.tags.map(tag => (
-                        <Badge key={tag} className={`me-1 ${getBadgeClassName(tag)}`}>
-                          {tag}
-                        </Badge>
-                      ))}
-                    </div>
-                  )}
-                  <div className="small text-muted preset-footer">
-                    <div>
-                      <strong>Est. time:</strong> {preset.estimatedTime}
-                      {requiresModelDownload(preset) && (
-                        <OverlayTrigger
-                          placement="top"
-                          overlay={
-                            <Tooltip>
-                              First-time run includes model download overhead. Subsequent runs are
-                              faster.
-                            </Tooltip>
-                          }
+                </div>
+                <Card.Text className="small preset-description">{preset.description}</Card.Text>
+                {preset.tags && (
+                  <div className="mb-2">
+                    {preset.tags.map(tag => (
+                      <Badge key={tag} className={`me-1 ${getBadgeClassName(tag)}`}>
+                        {tag}
+                      </Badge>
+                    ))}
+                  </div>
+                )}
+                <div className="small text-muted preset-footer">
+                  <div>
+                    <strong>Est. time:</strong> {preset.estimatedTime}
+                    {requiresModelDownload(preset) && (
+                      <OverlayTrigger
+                        placement="top"
+                        overlay={
+                          <Tooltip>
+                            First-time run includes model download overhead. Subsequent runs are
+                            faster.
+                          </Tooltip>
+                        }
+                      >
+                        <span
+                          className="ms-2"
+                          style={{ cursor: 'help', color: '#ffc107' }}
+                          aria-label="Model download warning"
                         >
-                          <span
-                            className="ms-2"
-                            style={{ cursor: 'help', color: '#ffc107' }}
-                            aria-label="Model download warning"
-                          >
-                            ⚠️
-                          </span>
-                        </OverlayTrigger>
-                      )}
-                    </div>
-                    <div>
-                      <strong>Dataset:</strong> {getDatasetInfo(preset).sourceEmoji}{' '}
-                      {getDatasetInfo(preset).datasetName} {getDatasetInfo(preset).typeEmoji}{' '}
-                      {getDatasetInfo(preset).dataType}
-                    </div>
+                          ⚠️
+                        </span>
+                      </OverlayTrigger>
+                    )}
                   </div>
-                </Card.Body>
-              </Card>
-            </motion.div>
+                  <div>
+                    <strong>Dataset:</strong> {getDatasetInfo(preset).sourceEmoji}{' '}
+                    {getDatasetInfo(preset).datasetName} {getDatasetInfo(preset).typeEmoji}{' '}
+                    {getDatasetInfo(preset).dataType}
+                  </div>
+                </div>
+              </Card.Body>
+            </Card>
           </Col>
         ))}
       </Row>
