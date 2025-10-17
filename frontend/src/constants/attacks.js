@@ -4,4 +4,4 @@
 
 export const ATTACKS = ['gaussian_noise', 'label_flipping'];
 
-export const DEVICES = ['cpu', 'gpu', 'cuda'];
+export const DEVICES = ['auto', 'cpu', 'gpu', 'cuda'];

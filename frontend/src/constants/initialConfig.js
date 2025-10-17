@@ -49,9 +49,9 @@ export const initialConfig = {
   num_of_clusters: 1,
 
   // Training Configuration
-  training_device: 'cpu',
+  training_device: 'auto',
   cpus_per_client: 1,
-  gpus_per_client: 0.0,
+  gpus_per_client: 'auto',
   num_of_client_epochs: 1,
   batch_size: 20,
   training_subset_fraction: 0.9,
