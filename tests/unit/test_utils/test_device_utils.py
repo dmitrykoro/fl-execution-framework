@@ -182,9 +182,11 @@ class TestGPUAllocation(unittest.TestCase):
         result = calculate_optimal_gpus_per_client(num_clients=10, gpu_memory_gb=8.0)
         self.assertEqual(result, 0.25)
 
+    @patch("torch.cuda.get_device_properties")
     @patch("torch.cuda.is_available", return_value=True)
-    def test_zero_clients_edge_case(self, mock_is_available):
+    def test_zero_clients_edge_case(self, mock_is_available, mock_props):
         """Zero clients should return 0 allocation"""
+        mock_props.return_value = Mock(total_memory=8 * 1024**3)
         result = calculate_optimal_gpus_per_client(num_clients=0)
         self.assertEqual(result, 0.0)
 
