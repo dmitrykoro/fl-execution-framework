@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { Alert } from 'react-bootstrap';
 import { PageContainer } from '@components/layout/PageContainer';
 import { PageHeader } from '@components/layout/PageHeader';
 import { SimulationForm } from '@components/features/simulation-form/SimulationForm';
@@ -7,6 +8,7 @@ import { OutlineButton } from '@components/common/Button/OutlineButton';
 import { ConfirmModal } from '@components/common/Modal/ConfirmModal';
 import { createSimulation } from '@api';
 import { useConfigValidation } from '@hooks/useConfigValidation';
+import { useRunningSimulation } from '@hooks/useRunningSimulation';
 import { initialConfig } from '@constants/initialConfig';
 import { PRESETS } from '@constants/presets';
 import { toast } from 'sonner';
@@ -32,6 +34,7 @@ export function NewSimulation() {
   const navigate = useNavigate();
 
   const validation = useConfigValidation(config);
+  const { hasRunning } = useRunningSimulation();
 
   // Auto-save to localStorage when config changes
   useEffect(() => {
@@ -194,6 +197,15 @@ export function NewSimulation() {
           </OutlineButton>
         </div>
       </PageHeader>
+
+      {hasRunning && (
+        <Alert variant="warning" className="mb-4">
+          <i className="bi bi-exclamation-triangle me-2"></i>
+          <strong>Simulation currently running</strong> - You can still create a simulation, but it
+          will queue and start automatically after the current one completes. For better control
+          over multiple experiments, use the Experiment Queue feature.
+        </Alert>
+      )}
 
       <SimulationForm
         config={config}

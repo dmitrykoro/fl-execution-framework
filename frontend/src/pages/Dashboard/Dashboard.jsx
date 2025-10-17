@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
+import { Alert, Button } from 'react-bootstrap';
 import { PageContainer } from '@components/layout/PageContainer';
 import { PageHeader } from '@components/layout/PageHeader';
 import { LoadingPage } from '@components/common/Loading/LoadingPage';
@@ -8,12 +9,14 @@ import { BulkActions } from '@components/features/simulation-list/BulkActions';
 import { ConfirmModal } from '@components/common/Modal/ConfirmModal';
 import { useSimulations } from '@hooks/useSimulations';
 import { useSimulationStatus } from '@hooks/useSimulationStatus';
+import { useRunningSimulation } from '@hooks/useRunningSimulation';
 import { deleteSimulation, deleteMultipleSimulations, stopSimulation } from '@api';
 import { toast } from 'sonner';
 
 export function Dashboard() {
   const { simulations, loading, error, refetch } = useSimulations();
   const { statuses } = useSimulationStatus(simulations);
+  const { hasRunning, runningSimIds } = useRunningSimulation();
   const [selectedSims, setSelectedSims] = useState([]);
   const [deleting, setDeleting] = useState(false);
   const [stopping, setStopping] = useState(false);
@@ -216,6 +219,20 @@ export function Dashboard() {
           deleting={deleting}
         />
       </PageHeader>
+
+      {hasRunning && (
+        <Alert variant="info" className="mb-4">
+          <div className="d-flex justify-content-between align-items-center">
+            <div>
+              <i className="bi bi-info-circle me-2"></i>
+              <strong>Simulation in progress</strong> - New simulations will queue automatically
+            </div>
+            <Button as={Link} to={`/queue/${runningSimIds[0]}`} variant="outline-primary" size="sm">
+              View Queue Status
+            </Button>
+          </div>
+        </Alert>
+      )}
 
       <SimulationList
         simulations={simulations}

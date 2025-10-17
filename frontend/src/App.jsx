@@ -3,6 +3,8 @@ import { Navbar, Nav, Container } from 'react-bootstrap';
 import { Dashboard } from './pages/Dashboard/Dashboard';
 import { SimulationDetails } from './pages/SimulationDetails/SimulationDetails';
 import { NewSimulation } from './pages/NewSimulation/NewSimulation';
+import { ExperimentQueue } from './pages/ExperimentQueue/ExperimentQueue';
+import { QueueStatus } from './pages/QueueStatus/QueueStatus';
 import ComparisonView from './components/ComparisonView';
 import ErrorBoundary from './components/ErrorBoundary';
 import ThemeToggle from './components/ThemeToggle';
@@ -73,6 +75,9 @@ function App() {
                 <Nav.Link as={Link} to="/simulations/new">
                   New Simulation
                 </Nav.Link>
+                <Nav.Link as={Link} to="/experiments/queue">
+                  Experiment Queue
+                </Nav.Link>
               </Nav>
               <Nav>
                 <ThemeToggle />
@@ -84,6 +89,8 @@ function App() {
           <Routes>
             <Route path="/" element={<Dashboard />} />
             <Route path="/simulations/new" element={<NewSimulation />} />
+            <Route path="/experiments/queue" element={<ExperimentQueue />} />
+            <Route path="/queue/:simulationId" element={<QueueStatus />} />
             <Route path="/simulations/:simulationId" element={<SimulationDetails />} />
             <Route path="/compare" element={<ComparisonView />} />
           </Routes>
