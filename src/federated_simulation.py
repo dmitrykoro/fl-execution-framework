@@ -259,7 +259,6 @@ class FederatedSimulation:
                         self.strategy_config, "partitioning_params", None
                     ),
                     label_column=label_column,
-                    dataset_dir=self._dataset_dir,
                 )
 
                 self._dataset_loader = dataset_loader
