@@ -88,7 +88,7 @@ find_python_interpreter() {
     log_info "🔍 Searching for a compatible Python interpreter..."
     for version in python3.11 python3.10 python3.9 python3 python; do
         if command_exists "$version"; then
-            if "$version" -c "import sys; sys.exit(not (sys.version_info >= (3, 9)))" 2>/dev/null; then
+            if "$version" -c "import sys; sys.exit(not (sys.version_info >= (3, 9) and sys.version_info < (3, 12)))" 2>/dev/null; then
                 PYTHON_CMD="$version"
                 export PYTHON_CMD
                 log_info "Found compatible Python: $PYTHON_CMD"
@@ -99,7 +99,7 @@ find_python_interpreter() {
 
     if command_exists py; then
         for py_version in "-3.11" "-3.10" "-3.9" "-3"; do
-             if py "$py_version" -c "import sys; sys.exit(not (sys.version_info >= (3, 9)))" 2>/dev/null; then
+             if py "$py_version" -c "import sys; sys.exit(not (sys.version_info >= (3, 9) and sys.version_info < (3, 12)))" 2>/dev/null; then
                 PYTHON_CMD="py $py_version"
                 export PYTHON_CMD
                 log_info "Found compatible Python via 'py' launcher: $PYTHON_CMD"
@@ -108,7 +108,7 @@ find_python_interpreter() {
         done
     fi
 
-    log_error "Python 3.9+ was not found. Please install a compatible version."
+    log_error "Python 3.9, 3.10, or 3.11 was not found. Please install a compatible version."
     exit 1
 }
 
