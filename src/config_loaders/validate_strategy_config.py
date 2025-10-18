@@ -164,6 +164,19 @@ config_schema = {
         # Trimmed mean
         "trim_ratio": {
             "type": "number"
+        },
+
+        # Dynamic poisoning attacks
+        "dynamic_attacks": {
+            "type": "object",
+            "properties": {
+                "enabled": {
+                    "type": "boolean"
+                },
+                "schedule": {
+                    "type": "array"
+                }
+            }
         }
     },
     "required": [
