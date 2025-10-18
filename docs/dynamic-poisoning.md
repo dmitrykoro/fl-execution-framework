@@ -505,4 +505,4 @@ Applies the specified attack to the batch data.
 
 - **Flower Framework:** [https://flower.ai/](https://flower.ai/)
 - **Byzantine Attacks:** Research on adversarial federated learning
-- **Example Config:** `config/simulation_strategies/test_dynamic_poisoning.json`
+- **Test Config:** `config/simulation_strategies/test_dynamic_poisoning.json` - Validated working example with label flipping (rounds 3-8, 70% flip fraction, clients 0-1-2)
