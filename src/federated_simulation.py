@@ -328,6 +328,12 @@ class FederatedSimulation:
         trainloader = self._trainloaders[int(cid)]
         valloader = self._valloaders[int(cid)]
 
+        # Extract dynamic attacks schedule if configured
+        dynamic_attacks_schedule = None
+        if self.strategy_config.dynamic_attacks:
+            if self.strategy_config.dynamic_attacks.get("enabled", False):
+                dynamic_attacks_schedule = self.strategy_config.dynamic_attacks.get("schedule", [])
+
         return FlowerClient(
             client_id=int(cid),
             net=net,
@@ -338,6 +344,7 @@ class FederatedSimulation:
             model_type=self.strategy_config.model_type,
             use_lora=use_lora,
             num_malicious_clients=self.strategy_config.num_of_malicious_clients,
+            dynamic_attacks_schedule=dynamic_attacks_schedule,
         ).to_client()
 
     @staticmethod
