@@ -51,6 +51,15 @@ Defines the aggregation strategy. Options:
   - `flair`: non-IID distribution (FLAIR dataset, unsupported in current version), 20 clients. 
   - `bloodmnist`: IID distribution, but non-equal number of samples per class, 40 clients. 
   - `lung_photos`: contains images of lung cancer from NLST archive from different CT machines. Data distributed according to the source, with varying number of images representing each stage of cancer. 30 clients.
+  - `breastmnist`: breast ultrasound images for tumor detection, binary classification (malignant vs benign), 10 clients.
+  - `pathmnist`: histopathologic images of colon tissue, 9 classes, IID distribution, 40 clients.
+  - `dermamnist`: dermatological lesion images, 7 classes (various skin diseases), 10 clients.
+  - `octmnist`: optical coherence tomography images of retinal tissue, 4 classes, 40 clients.
+  - `retinamnist`: retina fundus images for diabetic retinopathy classification, 5 classes, 40 clients.
+  - `tissuemnist`: gray-scale microscopic images of human tissue, 8 classes, IID distribution, 40 clients.
+  - `organamnist`: axial view CT scans of abdominal organs, 11 classes, 40 clients.
+  - `organcmnist`: coronal view CT scans of abdominal organs, 11 classes, 40 clients.
+  - `organsmnist`: sagittal view CT scans of abdominal organs, 11 classes, 40 clients.
 
 - `num_of_rounds`: total aggregation rounds.
 - `num_of_clients`: number of clients (limited to available dataset clients).
