@@ -1,7 +1,7 @@
 import json
 
 from dataclasses import dataclass, asdict
-from typing import Any
+from typing import Optional, Any
 
 
 @dataclass
@@ -50,6 +50,9 @@ class StrategyConfig:
     strict_mode: bool = None
 
     strategy_number: int = None
+
+    # Dynamic poisoning attacks
+    dynamic_attacks: Optional[dict] = None
 
     def __init__(self, **kwargs):
         for key, value in kwargs.items():
