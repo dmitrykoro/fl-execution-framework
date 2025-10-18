@@ -87,8 +87,7 @@ class TestValidateStrategyConfig:
             "Ki": 0.1,
             "Kd": 0.01,
             # Gaussian noise attack parameters
-            "gaussian_noise_mean": 0.0,
-            "gaussian_noise_std": 0.1,
+            "target_noise_snr": 10.0,
             "attack_ratio": 0.2,
         }
 
@@ -731,8 +730,7 @@ class TestValidateDependentParams:
             "beta_value": 0.5,
             "num_of_clusters": 1,
             # Gaussian noise parameters
-            "gaussian_noise_mean": 0.0,
-            "gaussian_noise_std": 0.1,
+            "target_noise_snr": 10.0,
             # Missing attack_ratio
         }
 
