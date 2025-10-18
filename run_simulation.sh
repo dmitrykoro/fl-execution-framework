@@ -1,47 +1,44 @@
-#!/bin/bash
+#!/bin/sh
+# Runs the simulation, setting up the environment if needed
 
-VENV_DIR="venv"
+. "$(dirname "$0")/tests/scripts/common.sh"
 
-command_exists () {
-    command -v "$1" >/dev/null 2>&1 ;
-}
-
-if command_exists python3.10; then
-    PYTHON=python3.10
-else
-    echo "Python3.10 is not installed. Exiting."
-    exit 1
+if ! ensure_virtual_environment; then
+    log_warning "Running reinstall_requirements.sh to create 'venv'..."
+    ./reinstall_requirements.sh
+    setup_virtual_environment
 fi
 
-if command_exists wget; then
-  echo "wget is installed"
-else
-  echo "wget command not found, exiting"
-  exit 1
-fi
-
-
-# If venv does not exist, create one and install requirements
-if [ ! -d "$VENV_DIR" ]; then
-    echo "Virtual environment not found. Creating a new one."
-    sh reinstall_requirements.sh
-    source $VENV_DIR/bin/activate
-    echo "Activated the newly created venv"
-else
-    echo "Found existing venv, switching to it..."
-    source $VENV_DIR/bin/activate
-    echo "Activated the existing venv"
-fi
-
+find_python_interpreter
+setup_joblib_env
 
 if [ ! -d "datasets/bloodmnist" ]; then
-  echo "Datasets not found. Starting download..."
-  pushd datasets
-  wget https://fl-dataset-storage.s3.us-east-1.amazonaws.com/datasets.tar
+  log_info "Datasets not found. Starting download..."
+  DATASET_URL="https://fl-dataset-storage.s3.us-east-1.amazonaws.com/datasets.tar"
+
+  mkdir -p datasets
+  _orig_dir="$(pwd)"
+  cd datasets || exit 1
+
+  if command_exists wget; then
+    log_info "Downloading with wget..."
+    wget "$DATASET_URL"
+  else
+    log_info "Downloading with Python..."
+    run_python -c "import urllib.request; print('Downloading datasets.tar...'); urllib.request.urlretrieve('$DATASET_URL', 'datasets.tar')"
+  fi
+
+  log_info "Extracting datasets..."
   tar -xf datasets.tar
   rm datasets.tar
-  popd
+  cd "$_orig_dir" || exit 1
 fi
 
-echo "Initializing simulation..."
-$PYTHON src/simulation_runner.py
+log_info "🚀 Initializing simulation..."
+if run_python -m src.simulation_runner; then
+    echo ""
+    show_simulation_output_info "out/"
+else
+    log_error "❌ Simulation failed. Check the logs above for details."
+    exit 1
+fi

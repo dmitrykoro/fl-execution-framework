@@ -1,34 +1,36 @@
-#!/bin/bash
+#!/bin/sh
+# Deletes and recreates the virtual environment from requirements.txt
 
-VENV_DIR="venv"
+. "$(dirname "$0")/tests/scripts/common.sh"
 
-command_exists () {
-    command -v "$1" >/dev/null 2>&1 ;
-}
+find_python_interpreter
 
-if command_exists python3.10; then
-    PYTHON=python3.10
-else
-    echo "Python3.10 is not installed. Exiting."
-    exit 1
+VENV_NAME=$(get_venv_name)
+
+log_info "Removing existing '$VENV_NAME' directory..."
+rm -rf "$VENV_NAME"
+
+log_info "Creating new 'venv' virtual environment..."
+run_python -m venv venv
+
+setup_virtual_environment
+
+# Set PYTHON_CMD to venv Python after activation
+if [ -f "venv/Scripts/python.exe" ]; then
+    PYTHON_CMD="venv/Scripts/python.exe"
+    export PYTHON_CMD
+    PYTHON_ARGS=""
+    export PYTHON_ARGS
+    log_info "Using venv Python: $PYTHON_CMD"
+elif [ -f "venv/bin/python" ]; then
+    PYTHON_CMD="venv/bin/python"
+    export PYTHON_CMD
+    PYTHON_ARGS=""
+    export PYTHON_ARGS
+    log_info "Using venv Python: $PYTHON_CMD"
 fi
 
-if command_exists pip3; then
-    PIP=pip3
-elif command_exists pip; then
-    PIP=pip
-else
-    echo "pip is not installed. Exiting."
-    exit 1
-fi
+log_info "Upgrading pip..."
+run_python -m pip install --upgrade pip
 
-echo "Removing existing venv..."
-rm -rf $VENV_DIR
-
-echo "Creating new venv..."
-$PYTHON -m venv $VENV_DIR
-source $VENV_DIR/bin/activate
-
-echo "Installing requirements..."
-$PIP install -r requirements.txt
-echo "Requirements installed."
+install_requirements
