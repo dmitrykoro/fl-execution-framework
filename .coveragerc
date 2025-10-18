@@ -1,0 +1,25 @@
+[run]
+source = src
+omit =
+    */tests/*
+    */__pycache__/*
+    */venv/*
+    */.venv/*
+    config.py
+    config-3.py
+
+[report]
+exclude_lines =
+    pragma: no cover
+    def __repr__
+    raise NotImplementedError
+    if __name__ == .__main__.:
+    @abstractmethod
+
+show_missing = True
+
+[html]
+directory = tests/logs/htmlcov
+
+[xml]
+output = tests/logs/coverage.xml

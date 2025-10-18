@@ -11,3 +11,16 @@ venv
 out
 datasets/
 /datasets/*
+
+# Coverage files
+.coverage
+.coverage.*
+htmlcov/
+coverage.xml
+coverage.json
+.pytest_cache/
+pytest.log
+*.egg-info/
+tests/logs/
+.sonarwork/
+*sonar-project.properties

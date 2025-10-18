@@ -3,6 +3,7 @@ import numpy as np
 import flwr as fl
 import torch
 import logging
+import os
 from typing import Dict, List, Optional, Tuple, Union
 
 from sklearn.cluster import KMeans
@@ -19,8 +20,8 @@ from flwr.common import (
 from flwr.server.client_proxy import ClientProxy
 from flwr.server.strategy.aggregate import weighted_loss_avg
 
-from output_handlers.directory_handler import DirectoryHandler
-from data_models.simulation_strategy_history import SimulationStrategyHistory
+from src.output_handlers.directory_handler import DirectoryHandler
+from src.data_models.simulation_strategy_history import SimulationStrategyHistory
 
 
 class BulyanStrategy(fl.server.strategy.FedAvg):
@@ -58,13 +59,15 @@ class BulyanStrategy(fl.server.strategy.FedAvg):
         self.strategy_history = strategy_history
 
         # --- Logger (matches MultiKrum style) -------------------------
-        self.logger = logging.getLogger("my_logger")
+        self.logger = logging.getLogger(f"bulyan_{id(self)}")
         self.logger.setLevel(logging.INFO)
         out_dir = DirectoryHandler.dirname
+        os.makedirs(out_dir, exist_ok=True)
         file_handler = logging.FileHandler(f"{out_dir}/output.log")
         console_handler = logging.StreamHandler()
         self.logger.addHandler(file_handler)
         self.logger.addHandler(console_handler)
+        self.logger.propagate = False
 
     # ------------------------------------------------------------------
     # Helper: pairwise distances (cached) ------------------------------
@@ -108,7 +111,7 @@ class BulyanStrategy(fl.server.strategy.FedAvg):
         C = self.num_krum_selections
         f = (n - C) // 2  # number of malicious clients
         if C > n or (n - C) % 2:
-            self.logger.error("C must satisfy n - C = 2f (even, ≤ n)")
+            self.logger.error("C must satisfy n - C = 2f (even, <= n)")
             return super().aggregate_fit(server_round, results, failures)
 
         # Ensure Bulyan preconditions

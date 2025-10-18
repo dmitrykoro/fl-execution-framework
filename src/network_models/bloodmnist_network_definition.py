@@ -3,9 +3,9 @@ import torch.nn as nn
 import torch.nn.functional as functional
 
 
-class BloodmnistNetwork(nn.Module):
+class BloodMNISTNetwork(nn.Module):
     def __init__(self):
-        super(BloodmnistNetwork, self).__init__()
+        super(BloodMNISTNetwork, self).__init__()
         self.conv1 = nn.Conv2d(3, 16, 5)
         self.pool = nn.MaxPool2d(2, 2)
         self.conv2 = nn.Conv2d(16, 32, 5)

@@ -1,7 +1,7 @@
 from dataclasses import dataclass, field
 from typing import List
 
-from data_models.simulation_strategy_config import StrategyConfig
+from src.data_models.simulation_strategy_config import StrategyConfig
 
 
 @dataclass
@@ -13,6 +13,7 @@ class RoundsInfo:
     removal_threshold_history: List[float] = field(default_factory=list)
     aggregated_loss_history: List[float] = field(default_factory=list)
     average_accuracy_history: List[float] = field(default_factory=list)
+    average_accuracy_std_history: List[float] = field(default_factory=list)
 
     tp_history: List[float] = field(default_factory=list)
     tn_history: List[float] = field(default_factory=list)
@@ -49,6 +50,7 @@ class RoundsInfo:
             "removal_threshold_history",
             "aggregated_loss_history",
             "average_accuracy_history",
+            "average_accuracy_std_history",
         ]
 
         self.statsable_metrics = [

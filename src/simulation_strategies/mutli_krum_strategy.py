@@ -3,6 +3,7 @@ import numpy as np
 import flwr as fl
 import torch
 import logging
+import os
 
 from typing import Dict, List, Optional, Tuple, Union
 
@@ -14,9 +15,9 @@ from flwr.server.strategy.aggregate import weighted_loss_avg
 from flwr.common import EvaluateRes, Scalar
 from flwr.server.client_proxy import ClientProxy
 
-from output_handlers.directory_handler import DirectoryHandler
+from src.output_handlers.directory_handler import DirectoryHandler
 
-from data_models.simulation_strategy_history import SimulationStrategyHistory
+from src.data_models.simulation_strategy_history import SimulationStrategyHistory
 
 
 class MultiKrumStrategy(fl.server.strategy.FedAvg):
@@ -42,17 +43,19 @@ class MultiKrumStrategy(fl.server.strategy.FedAvg):
         self.current_round = 0
 
         # Create a logger
-        self.logger = logging.getLogger("my_logger")
+        self.logger = logging.getLogger(f"multi_krum_{id(self)}")
         self.logger.setLevel(logging.INFO)  # Set the logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL)
 
         # Create handlers
         out_dir = DirectoryHandler.dirname
+        os.makedirs(out_dir, exist_ok=True)
         file_handler = logging.FileHandler(f"{out_dir}/output.log")
         console_handler = logging.StreamHandler()
 
         # Add the handlers to the logger
         self.logger.addHandler(file_handler)
         self.logger.addHandler(console_handler)
+        self.logger.propagate = False
 
         self.strategy_history = strategy_history
 

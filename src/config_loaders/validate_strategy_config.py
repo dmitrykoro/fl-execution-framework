@@ -1,3 +1,4 @@
+import logging
 from jsonschema import validate, ValidationError
 
 config_schema = {
@@ -6,9 +7,13 @@ config_schema = {
         # Common parameters
         "aggregation_strategy_keyword": {
             "type": "string",
-            "enum": ["trust", "pid", "pid_scaled", "pid_standardized",
+            "enum": ["trust", "pid", "pid_scaled", "pid_standardized", "pid_standardized_score_based",
                     "multi-krum", "krum", "multi-krum-based", "trimmed_mean",
                     "rfa", "bulyan"]
+        },
+        "strict_mode": {
+            "type": "string",
+            "enum": ["true", "false"]
         },
         "remove_clients": {
             "type": "string",
@@ -16,7 +21,25 @@ config_schema = {
         },
         "dataset_keyword": {
             "type": "string",
-            "enum": ["femnist_iid", "femnist_niid", "its", "pneumoniamnist", "flair", "bloodmnist", "medquad", "lung_photos"]
+            "enum": [
+                "femnist_iid",
+                "femnist_niid",
+                "its",
+                "pneumoniamnist",
+                "flair",
+                "bloodmnist",
+                "medquad",
+                "lung_photos",
+                "breastmnist",
+                "pathmnist",
+                "dermamnist",
+                "octmnist",
+                "retinamnist",
+                "tissuemnist",
+                "organamnist",
+                "organcmnist",
+                "organsmnist"
+            ]
         },
         "model_type": {
             "type": "string",
@@ -205,7 +228,7 @@ def validate_dependent_params(strategy_config: dict) -> None:
                 raise ValidationError(
                     f"Missing parameter {param} for trust aggregation {aggregation_strategy_keyword}"
                 )
-    elif aggregation_strategy_keyword in ("pid", "pid_scaled", "pid_standardized"):
+    elif aggregation_strategy_keyword in ("pid", "pid_scaled", "pid_standardized", "pid_standardized_score_based"):
         pid_specific_parameters = [
             "num_std_dev", "Kp", "Ki", "Kd"
         ]
@@ -229,7 +252,7 @@ def validate_dependent_params(strategy_config: dict) -> None:
 
     if attack_type == "gaussian_noise":
         gaussian_noise_specific_params = [
-            "gaussian_noise_mean", "gaussian_noise_std", "attack_ratio"
+            "target_noise_snr", "attack_ratio"
         ]
         for param in gaussian_noise_specific_params:
             if param not in strategy_config:
@@ -272,6 +295,51 @@ def check_llm_specific_parameters(strategy_config: dict) -> None:
                 )
 
 
+def _handle_strict_mode_validation(config: dict) -> None:
+    """Handle strict_mode validation and client configuration logic."""
+
+    # Set strict_mode to "true" by default if not specified
+    if "strict_mode" not in config:
+        config["strict_mode"] = "true"
+
+    strict_mode = config["strict_mode"] == "true"
+    num_of_clients = config["num_of_clients"]
+    num_fit_clients = config["min_fit_clients"]
+    num_evaluate_clients = config["min_evaluate_clients"]
+    num_available_clients = config["min_available_clients"]
+
+    # Always check: min_* cannot be greater than num_of_clients
+    if (num_fit_clients > num_of_clients or
+        num_evaluate_clients > num_of_clients or
+        num_available_clients > num_of_clients):
+        raise ValidationError(
+            f"EXPERIMENT STOPPED: Client configuration error.\n"
+            f"Cannot require more clients than available:\n"
+            f"  - Total clients: {num_of_clients}\n"
+            f"  - min_fit_clients: {num_fit_clients}\n"
+            f"  - min_evaluate_clients: {num_evaluate_clients}\n"
+            f"  - min_available_clients: {num_available_clients}\n"
+            f"Please ensure all min_* values are <= {num_of_clients}"
+        )
+
+    # If strict_mode is enabled, force all min_* = num_of_clients
+    if strict_mode:
+        if (num_fit_clients != num_of_clients or
+            num_evaluate_clients != num_of_clients or
+            num_available_clients != num_of_clients):
+
+            # Force all to equal total clients
+            config["min_fit_clients"] = num_of_clients
+            config["min_evaluate_clients"] = num_of_clients
+            config["min_available_clients"] = num_of_clients
+
+            logging.info(f"STRICT MODE ENABLED: Auto-configured client participation")
+            logging.info(f"  - Set min_fit_clients = {num_of_clients}")
+            logging.info(f"  - Set min_evaluate_clients = {num_of_clients}")
+            logging.info(f"  - Set min_available_clients = {num_of_clients}")
+            logging.info(f"  - This ensures all clients participate in every round")
+
+
 def validate_strategy_config(config: dict) -> None:
     """Validate config based on the schema, will raise an exception if invalid"""
 
@@ -284,13 +352,5 @@ def validate_strategy_config(config: dict) -> None:
     if use_llm_keyword == "true":
         check_llm_specific_parameters(config)
 
-    num_of_clients = config["num_of_clients"]
-    num_fit_clients = config["min_fit_clients"]
-    num_evaluate_clients = config["min_evaluate_clients"]
-    num_available_clients = config["min_available_clients"]
-
-    # Check if the number of clients is enough for the simulation parameters
-    if num_fit_clients > num_of_clients or num_evaluate_clients > num_of_clients or num_available_clients > num_of_clients:
-        raise ValidationError(
-            "Number of clients for fit, evaluate or available cannot be greater than total number of clients"
-        )
+    # Handle strict_mode logic
+    _handle_strict_mode_validation(config)

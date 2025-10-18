@@ -1,7 +1,7 @@
 import json
 
 from dataclasses import dataclass, asdict
-from typing import Optional
+from typing import Optional, Any
 
 
 @dataclass
@@ -16,8 +16,7 @@ class StrategyConfig:
     num_of_malicious_clients: int = None
     attack_type: str = None
     attack_ratio: float = None
-    gaussian_noise_mean: int = None
-    gaussian_noise_std: int = None
+    target_noise_snr: float = None
     show_plots: bool = None
     save_plots: bool = None
     save_csv: bool = None
@@ -48,6 +47,8 @@ class StrategyConfig:
 
     trim_ratio: float = None
 
+    strict_mode: bool = None
+
     strategy_number: int = None
 
     # Dynamic poisoning attacks
@@ -59,6 +60,10 @@ class StrategyConfig:
                 setattr(self, key, value == "true")
             else:
                 setattr(self, key, value)
+
+    def __getattr__(self, name: str) -> Any:
+        """Allow access to dynamically set attributes"""
+        raise AttributeError(f"'{self.__class__.__name__}' object has no attribute '{name}'")
 
     @classmethod
     def from_dict(cls, strategy_config: dict):

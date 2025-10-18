@@ -1,10 +1,13 @@
+import numpy as np
+
 from dataclasses import dataclass, field
+from typing import Optional
 
-from data_models.client_info import ClientInfo
-from data_models.round_info import RoundsInfo
-from data_models.simulation_strategy_config import StrategyConfig
+from src.data_models.client_info import ClientInfo
+from src.data_models.round_info import RoundsInfo
+from src.data_models.simulation_strategy_config import StrategyConfig
 
-from dataset_handlers.dataset_handler import DatasetHandler
+from src.dataset_handlers.dataset_handler import DatasetHandler
 
 
 @dataclass
@@ -12,7 +15,7 @@ class SimulationStrategyHistory:
 
     strategy_config: StrategyConfig
     dataset_handler: DatasetHandler
-    rounds_history: RoundsInfo
+    rounds_history: Optional[RoundsInfo] = None
     _clients_dict: dict = field(default_factory=dict)
 
     def __post_init__(self):
@@ -115,6 +118,8 @@ class SimulationStrategyHistory:
             num_aggregated_clients = 0
             sum_aggregated_accuracies = 0
 
+            round_client_accuracies = []
+
             for client_info in self.get_all_clients():
 
                 client_is_malicious = client_info.is_malicious
@@ -134,13 +139,17 @@ class SimulationStrategyHistory:
                     if client_is_malicious and client_was_aggregated:
                         round_fn_count += 1
 
-                # sum of accuracies of aggregated benign clients
-                if not client_is_malicious and client_was_aggregated:
+                # sum of accuracies of aggregated clients
+                if client_was_aggregated:
                     num_aggregated_clients += 1
                     sum_aggregated_accuracies += client_info.accuracy_history[round_num]
+                    round_client_accuracies.append(client_info.accuracy_history[round_num])
 
             self.rounds_history.append_tp_tn_fp_fn(round_tp_count, round_tn_count, round_fp_count, round_fn_count)
-            self.rounds_history.average_accuracy_history.append(sum_aggregated_accuracies / num_aggregated_clients)
+            self.rounds_history.average_accuracy_history.append(
+                float(f"{(sum_aggregated_accuracies / num_aggregated_clients * 100):.2f}") if num_aggregated_clients > 0 else 0.000
+            )
+            self.rounds_history.average_accuracy_std_history.append(float( f"{np.std(round_client_accuracies) * 100:.2f}"))
 
         if self.strategy_config.remove_clients:
             self.rounds_history.calculate_additional_metrics()
