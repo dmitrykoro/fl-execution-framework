@@ -3,9 +3,10 @@ import torch.nn as nn
 import torch.nn.functional as functional
 
 
-class BloodMNISTNetwork(nn.Module):
+class DermaMNISTNetwork(nn.Module):
     def __init__(self):
-        super(BloodMNISTNetwork, self).__init__()
+        super(DermaMNISTNetwork, self).__init__()
+        # DermaMNIST: RGB input (3 channels), 7 output classes
         self.conv1 = nn.Conv2d(3, 16, 5)
         self.pool = nn.MaxPool2d(2, 2)
         self.conv2 = nn.Conv2d(16, 32, 5)
@@ -13,7 +14,7 @@ class BloodMNISTNetwork(nn.Module):
         self.dropout1 = nn.Dropout(0.3)
         self.fc2 = nn.Linear(128, 64)
         self.dropout2 = nn.Dropout(0.2)
-        self.fc3 = nn.Linear(64, 8)  # 8 classes
+        self.fc3 = nn.Linear(64, 7)  # 7 classes
 
         self._initialize_weights()
 
@@ -26,12 +27,10 @@ class BloodMNISTNetwork(nn.Module):
         x = functional.relu(self.fc2(x))
         x = self.dropout2(x)
         x = self.fc3(x)
-
         return x
 
     def _initialize_weights(self):
         """Random weight initialization"""
-
         nn.init.kaiming_uniform_(self.conv1.weight, nonlinearity='relu')
         nn.init.kaiming_uniform_(self.conv2.weight, nonlinearity='relu')
 

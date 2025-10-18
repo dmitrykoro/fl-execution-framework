@@ -180,8 +180,8 @@ class TestDirectoryHandler:
                 reader = csv.reader(f)
                 headers = next(reader)
 
-                # Should have round # column plus client metrics
-                assert headers[0] == "round #"
+                # Should have round column plus client metrics
+                assert headers[0] == "round"
                 assert "client_0_loss_history" in headers
                 assert "client_0_accuracy_history" in headers
 
@@ -256,8 +256,8 @@ class TestDirectoryHandler:
                 reader = csv.reader(f)
                 headers = next(reader)
 
-                # Should have round # and metric columns
-                assert headers[0] == "round #"
+                # Should have round and metric columns
+                assert headers[0] == "round"
                 assert "aggregated_loss_history" in headers
                 assert "average_accuracy_history" in headers
 

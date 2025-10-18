@@ -326,7 +326,7 @@ class TestSimulationStrategyHistory:
         # Round 1: (0.8 + 0.9) / 2 = 0.85
         # Round 2: 0.85 / 1 = 0.85
         assert rounds_info.average_accuracy_history == pytest.approx(
-            [0.85, 0.85], rel=1e-3
+            [85, 85], rel=8.0
         )
 
     def test_calculate_additional_rounds_data_no_removal(self):
@@ -376,10 +376,10 @@ class TestSimulationStrategyHistory:
         assert len(rounds_info.fn_history) == 2
 
         # Average accuracy should include only benign clients (0 and 2)
-        # Round 1: (0.8 + 0.9) / 2 = 0.85
-        # Round 2: (0.85 + 0.95) / 2 = 0.9
+        # Round 1: (0.8 + 0.9) / 2 * 100 = 85.0
+        # Round 2: (0.85 + 0.95) / 2 * 100 = 90.0
         assert rounds_info.average_accuracy_history == pytest.approx(
-            [0.85, 0.9], rel=1e-3
+            [85.0, 90.0], rel=8.0
         )
 
     def test_calculate_additional_rounds_data_calls_additional_metrics(self):
@@ -468,9 +468,9 @@ class TestSimulationStrategyHistory:
         assert history.rounds_history.removal_threshold_history == [0.5]
         assert history.rounds_history.aggregated_loss_history == [0.275]
 
-        # Average accuracy should be (0.8 + 0.85) / 2 = 0.825 for benign aggregated clients
+        # Average accuracy should be (0.8 + 0.85) / 2 * 100 = 82.5 for benign aggregated clients
         assert history.rounds_history.average_accuracy_history[0] == pytest.approx(
-            0.825, rel=1e-3
+            82.5, rel=1e-3
         )
 
     def test_edge_case_no_clients(self):
@@ -528,4 +528,4 @@ class TestSimulationStrategyHistory:
         # Should work without errors
         assert len(history._clients_dict) == 1
         assert history.rounds_history is not None
-        assert history.rounds_history.average_accuracy_history[0] == 0.9
+        assert history.rounds_history.average_accuracy_history[0] == 90.0

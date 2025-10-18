@@ -3,24 +3,24 @@ import torch.nn as nn
 import torch.nn.functional as functional
 
 
-class BloodMNISTNetwork(nn.Module):
+class BreastMNISTNetwork(nn.Module):
     def __init__(self):
-        super(BloodMNISTNetwork, self).__init__()
-        self.conv1 = nn.Conv2d(3, 16, 5)
+        super(BreastMNISTNetwork, self).__init__()
+        self.conv1 = nn.Conv2d(1, 6, 5)
         self.pool = nn.MaxPool2d(2, 2)
-        self.conv2 = nn.Conv2d(16, 32, 5)
-        self.fc1 = nn.Linear(32 * 4 * 4, 128)
+        self.conv2 = nn.Conv2d(6, 16, 5)
+        self.fc1 = nn.Linear(16 * 4 * 4, 64)
         self.dropout1 = nn.Dropout(0.3)
-        self.fc2 = nn.Linear(128, 64)
+        self.fc2 = nn.Linear(64, 32)
         self.dropout2 = nn.Dropout(0.2)
-        self.fc3 = nn.Linear(64, 8)  # 8 classes
+        self.fc3 = nn.Linear(32, 2)
 
         self._initialize_weights()
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         x = self.pool(functional.relu(self.conv1(x)))
         x = self.pool(functional.relu(self.conv2(x)))
-        x = x.view(-1, 32 * 4 * 4)
+        x = x.view(-1, 16 * 4 * 4)
         x = functional.relu(self.fc1(x))
         x = self.dropout1(x)
         x = functional.relu(self.fc2(x))

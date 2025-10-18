@@ -21,7 +21,25 @@ config_schema = {
         },
         "dataset_keyword": {
             "type": "string",
-            "enum": ["femnist_iid", "femnist_niid", "its", "pneumoniamnist", "flair", "bloodmnist", "medquad", "lung_photos"]
+            "enum": [
+                "femnist_iid",
+                "femnist_niid",
+                "its",
+                "pneumoniamnist",
+                "flair",
+                "bloodmnist",
+                "medquad",
+                "lung_photos",
+                "breastmnist",
+                "pathmnist",
+                "dermamnist",
+                "octmnist",
+                "retinamnist",
+                "tissuemnist",
+                "organamnist",
+                "organcmnist",
+                "organsmnist"
+            ]
         },
         "model_type": {
             "type": "string",
@@ -221,7 +239,7 @@ def validate_dependent_params(strategy_config: dict) -> None:
 
     if attack_type == "gaussian_noise":
         gaussian_noise_specific_params = [
-            "gaussian_noise_mean", "gaussian_noise_std", "attack_ratio"
+            "target_noise_snr", "attack_ratio"
         ]
         for param in gaussian_noise_specific_params:
             if param not in strategy_config:

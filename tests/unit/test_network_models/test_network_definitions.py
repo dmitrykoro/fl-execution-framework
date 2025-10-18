@@ -20,7 +20,7 @@ from src.network_models.bert_model_definition import (
     load_model_with_lora,
     set_lora_state_dict,
 )
-from src.network_models.bloodmnist_network_definition import BloodmnistNetwork
+from src.network_models.bloodmnist_network_definition import BloodMNISTNetwork
 from src.network_models.femnist_full_niid_network_definition import (
     FemnistFullNIIDNetwork,
 )
@@ -55,7 +55,7 @@ class TestNetworkModels:
             (FemnistReducedIIDNetwork, (1, 28, 28), 10),
             (FemnistFullNIIDNetwork, (1, 28, 28), 62),
             (PneumoniamnistNetwork, (1, 28, 28), 2),
-            (BloodmnistNetwork, (3, 28, 28), 8),
+            (BloodMNISTNetwork, (3, 28, 28), 8),
             (FlairNetwork, (3, 224, 224), 2),
             (LungPhotosNetwork, (1, 224, 224), 2),
         ]
@@ -600,7 +600,7 @@ class TestNetworkModelIntegration:
             (ITSNetwork, (3, 224, 224)),
             (FemnistReducedIIDNetwork, (1, 28, 28)),
             (PneumoniamnistNetwork, (1, 28, 28)),
-            (BloodmnistNetwork, (3, 28, 28)),
+            (BloodMNISTNetwork, (3, 28, 28)),
         ],
     )
     def test_network_state_dict_serialization(self, network_class, input_shape):

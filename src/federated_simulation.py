@@ -16,19 +16,28 @@ from src.dataset_loaders.image_dataset_loader import ImageDatasetLoader
 from src.dataset_loaders.image_transformers.its_image_transformer import its_image_transformer
 from src.dataset_loaders.image_transformers.femnist_image_transformer import femnist_image_transformer
 from src.dataset_loaders.image_transformers.flair_image_transformer import flair_image_transformer
-from src.dataset_loaders.image_transformers.pneumoniamnist_image_transformer import pneumoniamnist_image_transformer
-from src.dataset_loaders.image_transformers.bloodmnist_image_transformer import bloodmnist_image_transformer
 from src.dataset_loaders.image_transformers.lung_photos_image_transformer import lung_cancer_image_transformer
 from src.dataset_loaders.medquad_dataset_loader import MedQuADDatasetLoader
+from src.dataset_loaders.image_transformers.medmnist_2d_grayscale_image_transformer import medmnist_2d_grayscale_image_transformer
+from src.dataset_loaders.image_transformers.medmnist_2d_rgb_image_transformer import medmnist_2d_rgb_image_transformer
+
 
 from src.network_models.its_network_definition import ITSNetwork
 from src.network_models.femnist_reduced_iid_network_definition import FemnistReducedIIDNetwork
 from src.network_models.femnist_full_niid_network_definition import FemnistFullNIIDNetwork
 from src.network_models.flair_network_definition import FlairNetwork
-from src.network_models.pneumoniamnist_network_definition import PneumoniamnistNetwork
-from src.network_models.bloodmnist_network_definition import BloodmnistNetwork
 from src.network_models.lung_photos_network_definition import LungCancerCNN
-
+from src.network_models.pneumoniamnist_network_definition import PneumoniamnistNetwork
+from src.network_models.bloodmnist_network_definition import BloodMNISTNetwork
+from src.network_models.breastmnist_network_definition import BreastMNISTNetwork
+from src.network_models.pathmnist_network_definition import PathMNISTNetwork
+from src.network_models.dermamnist_network_definition import DermaMNISTNetwork
+from src.network_models.octmnist_network_definition import OctMNISTNetwork
+from src.network_models.retinamnist_network_definition import RetinaMNISTNetwork
+from src.network_models.tissuemnist_network_definition import TissueMNISTNetwork
+from src.network_models.organamnist_network_definition import OrganAMNISTNetwork
+from src.network_models.organcmnist_network_definition import OrganCMNISTNetwork
+from src.network_models.organsmnist_network_definition import OrganSMNISTNetwork
 from src.network_models.bert_model_definition import load_model, load_model_with_lora
 
 from src.client_models.flower_client import FlowerClient
@@ -133,83 +142,132 @@ class FederatedSimulation:
         batch_size = self.strategy_config.batch_size
         training_subset_fraction = self.strategy_config.training_subset_fraction
 
+        common_kwargs = dict(
+            dataset_dir=self._dataset_dir,
+            num_of_clients=num_of_clients,
+            batch_size=batch_size,
+            training_subset_fraction=training_subset_fraction
+        )
+
         if dataset_keyword == "its":
             dataset_loader = ImageDatasetLoader(
                 transformer=its_image_transformer,
-                dataset_dir=self._dataset_dir,
-                num_of_clients=num_of_clients,
-                batch_size=batch_size,
-                training_subset_fraction=training_subset_fraction
+                **common_kwargs
             )
             self._network_model = ITSNetwork()
 
         elif dataset_keyword == "femnist_iid":
             dataset_loader = ImageDatasetLoader(
                 transformer=femnist_image_transformer,
-                dataset_dir=self._dataset_dir,
-                num_of_clients=num_of_clients,
-                batch_size=batch_size,
-                training_subset_fraction=training_subset_fraction
+                **common_kwargs
             )
             self._network_model = FemnistReducedIIDNetwork()
 
         elif dataset_keyword == "femnist_niid":
             dataset_loader = ImageDatasetLoader(
                 transformer=femnist_image_transformer,
-                dataset_dir=self._dataset_dir,
-                num_of_clients=num_of_clients,
-                batch_size=batch_size,
-                training_subset_fraction=training_subset_fraction
+                **common_kwargs
             )
             self._network_model = FemnistFullNIIDNetwork()
 
         elif dataset_keyword == "flair":
             dataset_loader = ImageDatasetLoader(
                 transformer=flair_image_transformer,
-                dataset_dir=self._dataset_dir,
-                num_of_clients=num_of_clients,
-                batch_size=batch_size,
-                training_subset_fraction=training_subset_fraction
+                **common_kwargs
             )
             self._network_model = FlairNetwork()
 
         elif dataset_keyword == "pneumoniamnist":
             dataset_loader = ImageDatasetLoader(
-                transformer=pneumoniamnist_image_transformer,
-                dataset_dir=self._dataset_dir,
-                num_of_clients=num_of_clients,
-                batch_size=batch_size,
-                training_subset_fraction=training_subset_fraction
+                transformer=medmnist_2d_grayscale_image_transformer,
+                **common_kwargs
             )
             self._network_model = PneumoniamnistNetwork()
+
         elif dataset_keyword == "bloodmnist":
             dataset_loader = ImageDatasetLoader(
-                transformer=bloodmnist_image_transformer,
-                dataset_dir=self._dataset_dir,
-                num_of_clients=num_of_clients,
-                batch_size=batch_size,
-                training_subset_fraction=training_subset_fraction
+                transformer=medmnist_2d_rgb_image_transformer,
+                **common_kwargs
             )
-            self._network_model = BloodmnistNetwork()
+            self._network_model = BloodMNISTNetwork()
+
+        elif dataset_keyword == "breastmnist":
+            dataset_loader = ImageDatasetLoader(
+                transformer=medmnist_2d_grayscale_image_transformer,
+                **common_kwargs
+            )
+            self._network_model = BreastMNISTNetwork()
+
+        elif dataset_keyword == "pathmnist":
+            dataset_loader = ImageDatasetLoader(
+                transformer=medmnist_2d_rgb_image_transformer,
+                **common_kwargs
+            )
+            self._network_model = PathMNISTNetwork()
+
+        elif dataset_keyword == "dermamnist":
+            dataset_loader = ImageDatasetLoader(
+                transformer=medmnist_2d_rgb_image_transformer,
+                **common_kwargs
+            )
+            self._network_model = DermaMNISTNetwork()
+
+        elif dataset_keyword == "octmnist":
+            dataset_loader = ImageDatasetLoader(
+                transformer=medmnist_2d_grayscale_image_transformer,
+                **common_kwargs
+            )
+            self._network_model = OctMNISTNetwork()
+
+        elif dataset_keyword == "retinamnist":
+            dataset_loader = ImageDatasetLoader(
+                transformer=medmnist_2d_rgb_image_transformer,
+                **common_kwargs
+            )
+            self._network_model = RetinaMNISTNetwork()
+
+        elif dataset_keyword == "tissuemnist":
+            dataset_loader = ImageDatasetLoader(
+                transformer=medmnist_2d_grayscale_image_transformer,
+                **common_kwargs
+            )
+            self._network_model = TissueMNISTNetwork()
+
+        elif dataset_keyword == "organamnist":
+            dataset_loader = ImageDatasetLoader(
+                transformer=medmnist_2d_grayscale_image_transformer,
+                **common_kwargs
+            )
+            self._network_model = OrganAMNISTNetwork()
+
+        elif dataset_keyword == "organcmnist":
+            dataset_loader = ImageDatasetLoader(
+                transformer=medmnist_2d_grayscale_image_transformer,
+                **common_kwargs
+            )
+            self._network_model = OrganCMNISTNetwork()
+
+        elif dataset_keyword == "organsmnist":
+            dataset_loader = ImageDatasetLoader(
+                transformer=medmnist_2d_grayscale_image_transformer,
+                **common_kwargs
+            )
+            self._network_model = OrganSMNISTNetwork()
+
         elif dataset_keyword == "lung_photos":
             dataset_loader = ImageDatasetLoader(
                 transformer=lung_cancer_image_transformer,
-                dataset_dir=self._dataset_dir,
-                num_of_clients=num_of_clients,
-                batch_size=batch_size,
-                training_subset_fraction=training_subset_fraction
+                **common_kwargs
             )
             self._network_model = LungCancerCNN()
+
         elif dataset_keyword == "medquad":
             dataset_loader = MedQuADDatasetLoader(
-                dataset_dir=self._dataset_dir,
-                num_of_clients=num_of_clients,
-                batch_size=batch_size,
-                training_subset_fraction=training_subset_fraction,
                 model_name=self.strategy_config.llm_model,
                 chunk_size=self.strategy_config.llm_chunk_size,
                 mlm_probability=self.strategy_config.mlm_probability,
                 num_poisoned_clients=self.strategy_config.num_of_malicious_clients,
+                **common_kwargs
             )
             if self.strategy_config.llm_finetuning == "lora":
                 self._network_model = load_model_with_lora(
@@ -238,121 +296,69 @@ class FederatedSimulation:
 
         aggregation_strategy_keyword = self.strategy_config.aggregation_strategy_keyword
 
+        common_kwargs = dict(
+            initial_parameters=ndarrays_to_parameters(self._get_model_params(self._network_model)),
+            min_fit_clients=self.strategy_config.min_fit_clients,
+            min_evaluate_clients=self.strategy_config.min_evaluate_clients,
+            min_available_clients=self.strategy_config.min_available_clients,
+            evaluate_metrics_aggregation_fn=self.strategy_config.evaluate_metrics_aggregation_fn,
+            fit_metrics_aggregation_fn=weighted_average,
+            remove_clients=self.strategy_config.remove_clients,
+            begin_removing_from_round=self.strategy_config.begin_removing_from_round,
+            strategy_history=self.strategy_history,
+        )
+
         if aggregation_strategy_keyword == "trust":
             self._aggregation_strategy = TrustBasedRemovalStrategy(
-                initial_parameters=ndarrays_to_parameters(self._get_model_params(self._network_model)),
-                min_fit_clients=self.strategy_config.min_fit_clients,
-                min_evaluate_clients=self.strategy_config.min_evaluate_clients,
-                min_available_clients=self.strategy_config.min_available_clients,
-                evaluate_metrics_aggregation_fn=self.strategy_config.evaluate_metrics_aggregation_fn,
-                fit_metrics_aggregation_fn=weighted_average,
-                remove_clients=self.strategy_config.remove_clients,
                 beta_value=self.strategy_config.beta_value,
                 trust_threshold=self.strategy_config.trust_threshold,
-                strategy_history=self.strategy_history,
-                begin_removing_from_round=self.strategy_config.begin_removing_from_round
+                **common_kwargs
             )
         elif aggregation_strategy_keyword in ("pid", "pid_scaled", "pid_standardized", "pid_standardized_score_based"):
             self._aggregation_strategy = PIDBasedRemovalStrategy(
-                initial_parameters=ndarrays_to_parameters(self._get_model_params(self._network_model)),
-                min_fit_clients=self.strategy_config.min_fit_clients,
-                min_evaluate_clients=self.strategy_config.min_evaluate_clients,
-                min_available_clients=self.strategy_config.min_available_clients,
-                evaluate_metrics_aggregation_fn=self.strategy_config.evaluate_metrics_aggregation_fn,
-                fit_metrics_aggregation_fn=weighted_average,
-                remove_clients=self.strategy_config.remove_clients,
-                begin_removing_from_round=self.strategy_config.begin_removing_from_round,
                 ki=self.strategy_config.Ki,
                 kp=self.strategy_config.Kp,
                 kd=self.strategy_config.Kd,
                 num_std_dev=self.strategy_config.num_std_dev,
-                strategy_history=self.strategy_history,
                 network_model=self._network_model,
                 aggregation_strategy_keyword=aggregation_strategy_keyword,
-                use_lora=True if self.strategy_config.use_llm and self.strategy_config.llm_finetuning == "lora" else False
+                use_lora=True if self.strategy_config.use_llm and self.strategy_config.llm_finetuning == "lora" else False,
+                **common_kwargs
             )
         elif aggregation_strategy_keyword == "krum":
             self._aggregation_strategy = KrumBasedRemovalStrategy(
-                initial_parameters=ndarrays_to_parameters(self._get_model_params(self._network_model)),
-                min_fit_clients=self.strategy_config.min_fit_clients,
-                min_evaluate_clients=self.strategy_config.min_evaluate_clients,
-                min_available_clients=self.strategy_config.min_available_clients,
-                evaluate_metrics_aggregation_fn=self.strategy_config.evaluate_metrics_aggregation_fn,
-                fit_metrics_aggregation_fn=weighted_average,
-                remove_clients=self.strategy_config.remove_clients,
-                begin_removing_from_round=self.strategy_config.begin_removing_from_round,
                 num_malicious_clients=self.strategy_config.num_of_malicious_clients,
-                strategy_history=self.strategy_history,
-                num_krum_selections=self.strategy_config.num_krum_selections
+                num_krum_selections=self.strategy_config.num_krum_selections,
+                **common_kwargs
             )
         elif aggregation_strategy_keyword == "multi-krum-based":
             self._aggregation_strategy = MultiKrumBasedRemovalStrategy(
-                initial_parameters=ndarrays_to_parameters(self._get_model_params(self._network_model)),
-                min_fit_clients=self.strategy_config.min_fit_clients,
-                min_evaluate_clients=self.strategy_config.min_evaluate_clients,
-                min_available_clients=self.strategy_config.min_available_clients,
-                evaluate_metrics_aggregation_fn=self.strategy_config.evaluate_metrics_aggregation_fn,
-                fit_metrics_aggregation_fn=weighted_average,
-                remove_clients=self.strategy_config.remove_clients,
-                begin_removing_from_round=self.strategy_config.begin_removing_from_round,
                 num_of_malicious_clients=self.strategy_config.num_of_malicious_clients,
-                strategy_history=self.strategy_history,
-                num_krum_selections=self.strategy_config.num_krum_selections
+                num_krum_selections=self.strategy_config.num_krum_selections,
+                **common_kwargs
             )
         elif aggregation_strategy_keyword == "multi-krum":
             self._aggregation_strategy = MultiKrumStrategy(
-                initial_parameters=ndarrays_to_parameters(self._get_model_params(self._network_model)),
-                min_fit_clients=self.strategy_config.min_fit_clients,
-                min_evaluate_clients=self.strategy_config.min_evaluate_clients,
-                min_available_clients=self.strategy_config.min_available_clients,
-                evaluate_metrics_aggregation_fn=self.strategy_config.evaluate_metrics_aggregation_fn,
-                fit_metrics_aggregation_fn=weighted_average,
-                remove_clients=self.strategy_config.remove_clients,
-                begin_removing_from_round=self.strategy_config.begin_removing_from_round,
                 num_of_malicious_clients=self.strategy_config.num_of_malicious_clients,
-                strategy_history=self.strategy_history,
-                num_krum_selections=self.strategy_config.num_krum_selections
+                num_krum_selections=self.strategy_config.num_krum_selections,
+                **common_kwargs
             )
         elif aggregation_strategy_keyword == "trimmed_mean":
             self._aggregation_strategy = TrimmedMeanBasedRemovalStrategy(
-                initial_parameters=ndarrays_to_parameters(self._get_model_params(self._network_model)),
-                min_fit_clients=self.strategy_config.min_fit_clients,
-                min_evaluate_clients=self.strategy_config.min_evaluate_clients,
-                min_available_clients=self.strategy_config.min_available_clients,
-                evaluate_metrics_aggregation_fn=self.strategy_config.evaluate_metrics_aggregation_fn,
-                fit_metrics_aggregation_fn=weighted_average,
-                remove_clients=self.strategy_config.remove_clients,
-                begin_removing_from_round=self.strategy_config.begin_removing_from_round,
-                strategy_history=self.strategy_history,
-                trim_ratio=self.strategy_config.trim_ratio
+                trim_ratio=self.strategy_config.trim_ratio,
+                **common_kwargs
             )
 
         elif aggregation_strategy_keyword == "rfa":
             self._aggregation_strategy = RFABasedRemovalStrategy(
-                initial_parameters=ndarrays_to_parameters(self._get_model_params(self._network_model)),
-                min_fit_clients=self.strategy_config.min_fit_clients,
-                min_evaluate_clients=self.strategy_config.min_evaluate_clients,
-                min_available_clients=self.strategy_config.min_available_clients,
-                evaluate_metrics_aggregation_fn=self.strategy_config.evaluate_metrics_aggregation_fn,
-                fit_metrics_aggregation_fn=weighted_average,
-                remove_clients=self.strategy_config.remove_clients,
-                begin_removing_from_round=self.strategy_config.begin_removing_from_round,
-                strategy_history=self.strategy_history,
-                num_of_malicious_clients=self.strategy_config.num_of_malicious_clients
+                num_of_malicious_clients=self.strategy_config.num_of_malicious_clients,
+                **common_kwargs
             )
 
         elif aggregation_strategy_keyword == "bulyan":
             self._aggregation_strategy = BulyanStrategy(
-                initial_parameters=ndarrays_to_parameters(self._get_model_params(self._network_model)),
-                min_fit_clients=self.strategy_config.min_fit_clients,
-                min_evaluate_clients=self.strategy_config.min_evaluate_clients,
-                min_available_clients=self.strategy_config.min_available_clients,
-                evaluate_metrics_aggregation_fn=self.strategy_config.evaluate_metrics_aggregation_fn,
-                fit_metrics_aggregation_fn=weighted_average,
-                remove_clients=self.strategy_config.remove_clients,
-                begin_removing_from_round=self.strategy_config.begin_removing_from_round,
-                strategy_history=self.strategy_history,
                 num_krum_selections=self.strategy_config.num_krum_selections,
+                **common_kwargs
             )
 
         else:

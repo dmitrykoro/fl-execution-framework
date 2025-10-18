@@ -156,27 +156,36 @@ class DatasetHandler:
                     logging.error(f"Failed to load image: {filepath}")
                     continue
 
-                mean = self._strategy_config.gaussian_noise_mean
-                std = self._strategy_config.gaussian_noise_std
-                noise = np.random.normal(mean, std, image.shape).astype(np.float32)
+                target_snr_db = self._strategy_config.target_noise_snr
+                image = image.astype(np.float32)
 
-                signal_power = np.mean(image.astype(np.float32) ** 2)
-                noise_power = np.mean(noise ** 2)
+                # Calculate signal power
+                signal_power = np.mean(image ** 2)
 
-                """
-                Signal-to-Noise Ratio (SNR) in decibels (dB) is calculated as:
+                """    
+                Compute desired noise power for target SNR: 
                 
-                    SNR (dB) = 10 * log10(signal_power / noise_power)
-                
-                where:
-                    signal_power = mean squared value of the original image
-                    noise_power  = mean squared value of the added noise
+                SNR(dB) = 10 * log10(signal_power / noise_power)
+                → noise_power = signal_power / (10^(SNR/10))
                 """
+                noise_power = signal_power / (10 ** (target_snr_db / 10))
 
-                snr = 10 * np.log10(signal_power / noise_power)
-                self.all_poisoned_img_snrs.append(snr)
 
-                noisy_image = np.clip(image.astype(np.float32) + noise, 0, 255).astype(np.uint8)
+                # Generate Gaussian noise with mean 0 and variance 1
+                noise = np.random.normal(0, 1, image.shape).astype(np.float32)
+
+                # Normalize noise to unit power and then scale to desired noise power
+                current_noise_power = np.mean(noise ** 2)
+                scaling_factor = np.sqrt(noise_power / current_noise_power)
+                noise = noise * scaling_factor
+
+                # Apply noise
+                noisy_image = np.clip(image + noise, 0, 255).astype(np.uint8)
+
+                # Calculate actual SNR achieved (for verification)
+                actual_snr = 10 * np.log10(signal_power / np.mean(noise ** 2))
+                self.all_poisoned_img_snrs.append(actual_snr)
+
                 success = cv2.imwrite(filepath, noisy_image)
 
                 if success:
