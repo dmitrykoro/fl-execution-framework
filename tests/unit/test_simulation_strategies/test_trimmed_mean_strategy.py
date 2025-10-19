@@ -7,7 +7,6 @@ Tests trimmed mean aggregation and client removal logic.
 import warnings
 from unittest.mock import patch
 
-from src.data_models.simulation_strategy_history import SimulationStrategyHistory
 from src.simulation_strategies.trimmed_mean_based_removal_strategy import (
     TrimmedMeanBasedRemovalStrategy,
 )
@@ -15,7 +14,6 @@ from tests.common import (
     ClientProxy,
     FitRes,
     Mock,
-    generate_mock_client_data,
     ndarrays_to_parameters,
     np,
     parameters_to_ndarrays,
@@ -25,11 +23,6 @@ from tests.common import (
 
 class TestTrimmedMeanBasedRemovalStrategy:
     """Test cases for TrimmedMeanBasedRemovalStrategy."""
-
-    @pytest.fixture
-    def mock_strategy_history(self):
-        """Create mock strategy history."""
-        return Mock(spec=SimulationStrategyHistory)
 
     @pytest.fixture
     def trimmed_mean_strategy(self, mock_strategy_history, mock_output_directory):
@@ -44,9 +37,9 @@ class TestTrimmedMeanBasedRemovalStrategy:
         )
 
     @pytest.fixture
-    def mock_client_results(self):
-        """Generate mock client results for testing."""
-        return generate_mock_client_data(num_clients=10)
+    def mock_client_results(self, mock_client_results_factory):
+        """Generate mock client results for testing (10 clients for Trimmed Mean)."""
+        return mock_client_results_factory(10)
 
     def test_initialization(self, trimmed_mean_strategy, mock_strategy_history):
         """Test TrimmedMeanBasedRemovalStrategy initialization."""
@@ -129,44 +122,40 @@ class TestTrimmedMeanBasedRemovalStrategy:
         # Verify strategy history was updated
         trimmed_mean_strategy.strategy_history.update_client_participation.assert_called_once()
 
-    def test_trim_ratio_parameter_effect(self, mock_strategy_history):
+    @pytest.mark.parametrize("trim_ratio", [0.1, 0.2, 0.3])
+    def test_trim_ratio_parameter_effect(self, trim_ratio, mock_strategy_history):
         """Test trim_ratio parameter affects trimming behavior."""
-        trim_ratios = [0.1, 0.2, 0.3]
+        strategy = TrimmedMeanBasedRemovalStrategy(
+            remove_clients=True,
+            begin_removing_from_round=2,
+            strategy_history=mock_strategy_history,
+            trim_ratio=trim_ratio,
+        )
 
-        for trim_ratio in trim_ratios:
-            strategy = TrimmedMeanBasedRemovalStrategy(
-                remove_clients=True,
-                begin_removing_from_round=2,
-                strategy_history=mock_strategy_history,
-                trim_ratio=trim_ratio,
-            )
+        assert strategy.trim_ratio == trim_ratio
 
-            assert strategy.trim_ratio == trim_ratio
+        # Test with 10 clients
+        num_clients = 10
+        expected_trim_count = int(trim_ratio * num_clients)
 
-            # Test with 10 clients
-            num_clients = 10
-            expected_trim_count = int(trim_ratio * num_clients)
+        # Create test results
+        results = []
+        for i in range(num_clients):
+            client_proxy = Mock(spec=ClientProxy)
+            client_proxy.cid = str(i)
+            mock_params = [np.array([[float(i)]]), np.array([float(i)])]
+            fit_res = Mock(spec=FitRes)
+            fit_res.parameters = ndarrays_to_parameters(mock_params)
+            fit_res.num_examples = 100
+            results.append((client_proxy, fit_res))
 
-            # Create test results
-            results = []
-            for i in range(num_clients):
-                client_proxy = Mock(spec=ClientProxy)
-                client_proxy.cid = str(i)
-                mock_params = [np.array([[float(i)]]), np.array([float(i)])]
-                fit_res = Mock(spec=FitRes)
-                fit_res.parameters = ndarrays_to_parameters(mock_params)
-                fit_res.num_examples = 100
-                results.append((client_proxy, fit_res))
+        result_params, result_metrics = strategy.aggregate_fit(1, results, [])
 
-            result_params, result_metrics = strategy.aggregate_fit(1, results, [])
+        # Should handle different trim ratios
+        assert result_params is not None
 
-            # Should handle different trim ratios
-            assert result_params is not None
-
-            # Verify the expected trim count is reasonable for the number of clients
-            assert (
-                expected_trim_count <= num_clients // 2
-            )  # Should not trim more than half
+        # Verify the expected trim count is reasonable for the number of clients
+        assert expected_trim_count <= num_clients // 2  # Should not trim more than half
 
     def test_configure_fit_warmup_rounds(self, trimmed_mean_strategy):
         """Test configure_fit during warmup rounds."""
@@ -468,11 +457,6 @@ class TestTrimmedMeanBasedRemovalStrategy:
 
 class TestAggregateEvaluate:
     """Test cases for aggregate_evaluate method."""
-
-    @pytest.fixture
-    def mock_strategy_history(self):
-        """Create mock strategy history."""
-        return Mock(spec=SimulationStrategyHistory)
 
     @pytest.fixture
     def trimmed_mean_strategy(self, mock_strategy_history):
