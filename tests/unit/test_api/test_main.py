@@ -1119,3 +1119,159 @@ def test_delete_multiple_simulations_running_process(
 
     # Cleanup
     del main.running_processes["running_sim"]
+
+
+# --- RENAME Endpoint Tests ---
+
+
+def test_rename_simulation_success(api_client: TestClient, tmp_path: Path, monkeypatch):
+    """PATCH /api/simulations/{id}/rename updates display_name successfully."""
+    monkeypatch.setattr("src.api.main.OUTPUT_DIR", tmp_path / "out")
+    sim_dir = tmp_path / "out" / "test_rename"
+    sim_dir.mkdir(parents=True)
+    config = {
+        "shared_settings": {"display_name": "Old Name"},
+        "simulation_strategies": [{}],
+    }
+    (sim_dir / "config.json").write_text(json.dumps(config))
+
+    response = api_client.patch(
+        "/api/simulations/test_rename/rename", json={"display_name": "New Test Name"}
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["message"] == "renamed"
+    assert data["simulation_id"] == "test_rename"
+    assert data["display_name"] == "New Test Name"
+
+    # Verify config was updated
+    with open(sim_dir / "config.json") as f:
+        updated_config = json.load(f)
+    assert updated_config["shared_settings"]["display_name"] == "New Test Name"
+
+
+def test_rename_simulation_empty_name(
+    api_client: TestClient, tmp_path: Path, monkeypatch
+):
+    """PATCH /api/simulations/{id}/rename returns 400 for empty display_name."""
+    monkeypatch.setattr("src.api.main.OUTPUT_DIR", tmp_path / "out")
+    sim_dir = tmp_path / "out" / "test_rename"
+    sim_dir.mkdir(parents=True)
+    config = {"shared_settings": {}, "simulation_strategies": [{}]}
+    (sim_dir / "config.json").write_text(json.dumps(config))
+
+    response = api_client.patch(
+        "/api/simulations/test_rename/rename", json={"display_name": ""}
+    )
+    assert response.status_code == 400
+    assert "empty" in response.json()["detail"].lower()
+
+
+def test_rename_simulation_name_too_long(
+    api_client: TestClient, tmp_path: Path, monkeypatch
+):
+    """PATCH /api/simulations/{id}/rename returns 400 for name >100 chars."""
+    monkeypatch.setattr("src.api.main.OUTPUT_DIR", tmp_path / "out")
+    sim_dir = tmp_path / "out" / "test_rename"
+    sim_dir.mkdir(parents=True)
+    config = {"shared_settings": {}, "simulation_strategies": [{}]}
+    (sim_dir / "config.json").write_text(json.dumps(config))
+
+    long_name = "A" * 101
+    response = api_client.patch(
+        "/api/simulations/test_rename/rename", json={"display_name": long_name}
+    )
+    assert response.status_code == 400
+    assert "100 characters" in response.json()["detail"]
+
+
+def test_rename_simulation_invalid_characters(
+    api_client: TestClient, tmp_path: Path, monkeypatch
+):
+    """PATCH /api/simulations/{id}/rename returns 400 for invalid characters."""
+    monkeypatch.setattr("src.api.main.OUTPUT_DIR", tmp_path / "out")
+    sim_dir = tmp_path / "out" / "test_rename"
+    sim_dir.mkdir(parents=True)
+    config = {"shared_settings": {}, "simulation_strategies": [{}]}
+    (sim_dir / "config.json").write_text(json.dumps(config))
+
+    response = api_client.patch(
+        "/api/simulations/test_rename/rename", json={"display_name": "Invalid@Name!"}
+    )
+    assert response.status_code == 400
+    assert "letters, numbers, spaces, hyphens" in response.json()["detail"]
+
+
+# --- STOP Endpoint Tests ---
+
+
+def test_stop_simulation_success(api_client: TestClient, tmp_path: Path, monkeypatch):
+    """POST /api/simulations/{id}/stop stops a running simulation."""
+    monkeypatch.setattr("src.api.main.OUTPUT_DIR", tmp_path / "out")
+    sim_dir = tmp_path / "out" / "running_stop"
+    sim_dir.mkdir(parents=True)
+
+    mock_process = MagicMock()
+    mock_process.poll.return_value = None
+    mock_process.pid = 12345
+
+    mock_psutil_process = MagicMock()
+    mock_psutil_process.children.return_value = []
+    mock_psutil_process.terminate = MagicMock()
+    mock_psutil_process.wait = MagicMock()
+
+    def mock_psutil_process_init(pid):
+        return mock_psutil_process
+
+    monkeypatch.setattr("src.api.main.psutil.Process", mock_psutil_process_init)
+    main.running_processes["running_stop"] = mock_process
+
+    response = api_client.post("/api/simulations/running_stop/stop")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["message"] == "stopped"
+    assert data["simulation_id"] == "running_stop"
+    assert "running_stop" not in main.running_processes
+
+
+def test_stop_simulation_not_running(api_client: TestClient):
+    """POST /api/simulations/{id}/stop returns 404 when simulation not running."""
+    response = api_client.post("/api/simulations/not_running/stop")
+    assert response.status_code == 404
+    assert "not running" in response.json()["detail"].lower()
+
+
+def test_simulation_status_stopped_marker(
+    api_client: TestClient, tmp_path: Path, monkeypatch
+):
+    """GET /api/simulations/{id}/status returns 'stopped' when .stopped marker exists."""
+    monkeypatch.setattr("src.api.main.OUTPUT_DIR", tmp_path / "out")
+    sim_dir = tmp_path / "out" / "stopped_sim"
+    sim_dir.mkdir(parents=True)
+
+    config = {"shared_settings": {}, "simulation_strategies": [{}]}
+    (sim_dir / "config.json").write_text(json.dumps(config))
+
+    stopped_marker = sim_dir / ".stopped"
+    stopped_marker.write_text("Simulation stopped")
+
+    response = api_client.get("/api/simulations/stopped_sim/status")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["status"] == "stopped"
+    assert data["progress"] == 0.0
+
+
+def test_get_result_file_csv_download(
+    api_client: TestClient, mock_simulation_dir: Path, monkeypatch
+):
+    """GET /api/simulations/{id}/results/{file}.csv?download=true returns CSV file."""
+    monkeypatch.setattr("src.api.main.OUTPUT_DIR", mock_simulation_dir.parent)
+
+    response = api_client.get(
+        "/api/simulations/api_run_20250107_120000/results/metrics.csv?download=true"
+    )
+    assert response.status_code == 200
+    assert response.headers["content-type"] == "text/csv; charset=utf-8"
+    assert "content-disposition" in response.headers
+    assert "attachment" in response.headers["content-disposition"]
