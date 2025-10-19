@@ -6,9 +6,6 @@ Tests Multi-Krum client selection algorithms and removal logic.
 
 from unittest.mock import patch
 
-from flwr.common import EvaluateRes
-
-from src.data_models.simulation_strategy_history import SimulationStrategyHistory
 from src.simulation_strategies.multi_krum_based_removal_strategy import (
     MultiKrumBasedRemovalStrategy,
 )
@@ -16,7 +13,6 @@ from tests.common import (
     ClientProxy,
     FitRes,
     Mock,
-    generate_mock_client_data,
     ndarrays_to_parameters,
     np,
     pytest,
@@ -25,16 +21,6 @@ from tests.common import (
 
 class TestMultiKrumBasedRemovalStrategy:
     """Test cases for MultiKrumBasedRemovalStrategy."""
-
-    @pytest.fixture
-    def mock_strategy_history(self):
-        """Create mock strategy history."""
-        return Mock(spec=SimulationStrategyHistory)
-
-    @pytest.fixture
-    def krum_fit_metrics_fn(self):
-        """Provide consistent fit_metrics_aggregation_fn for Krum-based strategies."""
-        return lambda x: x
 
     @pytest.fixture
     def multi_krum_strategy(
@@ -53,23 +39,20 @@ class TestMultiKrumBasedRemovalStrategy:
         )
 
     @pytest.fixture
-    def mock_client_results(self):
-        """Create mock client results for testing."""
-        return generate_mock_client_data(num_clients=6)
+    def mock_client_results(self, mock_client_results_factory):
+        """Create mock client results for testing with 6 clients."""
+        return mock_client_results_factory(6)
 
     @pytest.fixture
-    def mock_evaluate_results(self):
-        """Generate mock evaluate results for testing."""
-        results = []
-        for i in range(6):
-            client_proxy = Mock(spec=ClientProxy)
-            client_proxy.cid = str(i)
-            eval_res = Mock(spec=EvaluateRes)
-            eval_res.num_examples = 100 + (i * 10)
-            eval_res.loss = 0.5 - (i * 0.08)
-            eval_res.metrics = {"accuracy": 0.75 + (i * 0.03)}
-            results.append((client_proxy, eval_res))
-        return results
+    def mock_evaluate_results(self, mock_evaluate_results_factory):
+        """Generate mock evaluate results with 6 clients and custom parameters."""
+        return mock_evaluate_results_factory(
+            num_clients=6,
+            base_accuracy=0.75,
+            base_loss=0.5,
+            loss_decrement=0.08,
+            accuracy_increment=0.03,
+        )
 
     def test_initialization(self, multi_krum_strategy, mock_strategy_history):
         """Test MultiKrumBasedRemovalStrategy initialization."""
