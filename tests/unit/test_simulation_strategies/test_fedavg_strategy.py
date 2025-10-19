@@ -8,12 +8,11 @@ from unittest.mock import Mock
 
 import numpy as np
 import pytest
-from flwr.common import EvaluateRes, FitRes
+from flwr.common import EvaluateRes
 from flwr.server.client_proxy import ClientProxy
 
 from src.data_models.simulation_strategy_history import SimulationStrategyHistory
 from src.simulation_strategies.fedavg_strategy import FedAvgStrategy
-from tests.common import ndarrays_to_parameters
 
 
 class TestFedAvgStrategy:
@@ -42,32 +41,16 @@ class TestFedAvgStrategy:
         )
 
     @pytest.fixture
-    def mock_fit_results(self):
+    def mock_fit_results(self, mock_client_results_factory):
         """Generate mock fit results for testing."""
-        results = []
-        for i in range(3):
-            client_proxy = Mock(spec=ClientProxy)
-            client_proxy.cid = str(i)
-            mock_params = [np.random.randn(10, 5), np.random.randn(5)]
-            fit_res = Mock(spec=FitRes)
-            fit_res.parameters = ndarrays_to_parameters(mock_params)
-            fit_res.num_examples = 100 + (i * 10)
-            results.append((client_proxy, fit_res))
-        return results
+        return mock_client_results_factory(3)
 
     @pytest.fixture
-    def mock_evaluate_results(self):
+    def mock_evaluate_results(self, mock_evaluate_results_factory):
         """Generate mock evaluate results for testing."""
-        results = []
-        for i in range(3):
-            client_proxy = Mock(spec=ClientProxy)
-            client_proxy.cid = str(i)
-            eval_res = Mock(spec=EvaluateRes)
-            eval_res.num_examples = 100 + (i * 10)
-            eval_res.loss = 0.5 - (i * 0.1)
-            eval_res.metrics = {"accuracy": 0.8 + (i * 0.05)}
-            results.append((client_proxy, eval_res))
-        return results
+        return mock_evaluate_results_factory(
+            num_clients=3, base_accuracy=0.8, base_loss=0.5, accuracy_increment=0.05
+        )
 
     def test_initialization(self, fedavg_strategy, mock_strategy_history):
         """Test FedAvgStrategy initialization."""
