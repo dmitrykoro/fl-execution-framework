@@ -6,13 +6,11 @@ Tests Bulyan aggregation algorithm combining Multi-Krum and trimmed mean.
 
 from unittest.mock import patch
 
-from src.data_models.simulation_strategy_history import SimulationStrategyHistory
 from src.simulation_strategies.bulyan_strategy import BulyanStrategy
 from tests.common import (
     ClientProxy,
     FitRes,
     Mock,
-    generate_mock_client_data,
     ndarrays_to_parameters,
     np,
     parameters_to_ndarrays,
@@ -22,11 +20,6 @@ from tests.common import (
 
 class TestBulyanStrategy:
     """Test cases for BulyanStrategy."""
-
-    @pytest.fixture
-    def mock_strategy_history(self):
-        """Create mock strategy history."""
-        return Mock(spec=SimulationStrategyHistory)
 
     @pytest.fixture
     def bulyan_strategy(self, mock_strategy_history, mock_output_directory):
@@ -41,9 +34,9 @@ class TestBulyanStrategy:
         )
 
     @pytest.fixture
-    def mock_client_results(self):
-        """Generate mock client results for testing."""
-        return generate_mock_client_data(num_clients=15)
+    def mock_client_results(self, mock_client_results_factory):
+        """Generate mock client results for testing (15 clients for Bulyan)."""
+        return mock_client_results_factory(15)
 
     def test_initialization(self, bulyan_strategy, mock_strategy_history):
         """Test BulyanStrategy initialization."""
@@ -393,64 +386,60 @@ class TestBulyanStrategy:
         # Should not remove any clients
         assert bulyan_strategy.removed_client_ids == set()
 
+    @pytest.mark.parametrize("num_selections", [4, 6, 8])
     def test_num_krum_selections_parameter_effect(
-        self, mock_strategy_history, mock_output_directory
+        self, num_selections, mock_strategy_history, mock_output_directory
     ):
         """Test num_krum_selections parameter affects removal calculations."""
-        # Test different num_krum_selections values
-        selection_counts = [4, 6, 8]
+        strategy = BulyanStrategy(
+            remove_clients=True,
+            num_krum_selections=num_selections,
+            begin_removing_from_round=2,
+            strategy_history=mock_strategy_history,
+        )
 
-        for num_selections in selection_counts:
-            strategy = BulyanStrategy(
-                remove_clients=True,
-                num_krum_selections=num_selections,
-                begin_removing_from_round=2,
-                strategy_history=mock_strategy_history,
-            )
+        assert strategy.num_krum_selections == num_selections
 
-            assert strategy.num_krum_selections == num_selections
+        # Test removal calculation: f = (n - C) // 2
+        n = 15  # Total clients
+        expected_f = (n - num_selections) // 2
 
-            # Test removal calculation: f = (n - C) // 2
-            n = 15  # Total clients
-            expected_f = (n - num_selections) // 2
+        strategy.current_round = 3
+        strategy.client_scores = {f"client_{i}": float(i) for i in range(n)}
 
-            strategy.current_round = 3
-            strategy.client_scores = {f"client_{i}": float(i) for i in range(n)}
+        mock_client_manager = Mock()
+        mock_clients = {f"client_{i}": Mock() for i in range(n)}
+        mock_client_manager.all.return_value = mock_clients
 
-            mock_client_manager = Mock()
-            mock_clients = {f"client_{i}": Mock() for i in range(n)}
-            mock_client_manager.all.return_value = mock_clients
+        strategy.configure_fit(3, Mock(), mock_client_manager)
 
-            strategy.configure_fit(3, Mock(), mock_client_manager)
+        # Should remove f clients
+        assert len(strategy.removed_client_ids) == expected_f
 
-            # Should remove f clients
-            assert len(strategy.removed_client_ids) == expected_f
-
+    @pytest.mark.parametrize("begin_round", [1, 3, 5])
     def test_begin_removing_from_round_parameter(
-        self, mock_strategy_history, mock_output_directory
+        self, begin_round, mock_strategy_history, mock_output_directory
     ):
         """Test begin_removing_from_round parameter handling."""
-        # Test different begin_removing_from_round values
-        for begin_round in [1, 3, 5]:
-            strategy = BulyanStrategy(
-                remove_clients=True,
-                num_krum_selections=6,
-                begin_removing_from_round=begin_round,
-                strategy_history=mock_strategy_history,
-            )
+        strategy = BulyanStrategy(
+            remove_clients=True,
+            num_krum_selections=6,
+            begin_removing_from_round=begin_round,
+            strategy_history=mock_strategy_history,
+        )
 
-            assert strategy.begin_removing_from_round == begin_round
+        assert strategy.begin_removing_from_round == begin_round
 
-            # Test warmup behavior
-            strategy.current_round = begin_round
-            mock_client_manager = Mock()
-            mock_clients = {"client_0": Mock(), "client_1": Mock()}
-            mock_client_manager.all.return_value = mock_clients
+        # Test warmup behavior
+        strategy.current_round = begin_round
+        mock_client_manager = Mock()
+        mock_clients = {"client_0": Mock(), "client_1": Mock()}
+        mock_client_manager.all.return_value = mock_clients
 
-            result = strategy.configure_fit(1, Mock(), mock_client_manager)
+        result = strategy.configure_fit(1, Mock(), mock_client_manager)
 
-            # Should return all clients during warmup (current_round <= begin_removing_from_round)
-            assert len(result) == 2
+        # Should return all clients during warmup (current_round <= begin_removing_from_round)
+        assert len(result) == 2
 
     def test_strategy_history_integration(self, bulyan_strategy, mock_client_results):
         """Test integration with strategy history."""
@@ -669,11 +658,6 @@ class TestBulyanStrategy:
 
 class TestBulyanAggregateEvaluate:
     """Test cases for aggregate_evaluate method."""
-
-    @pytest.fixture
-    def mock_strategy_history(self):
-        """Create mock strategy history."""
-        return Mock(spec=SimulationStrategyHistory)
 
     @pytest.fixture
     def bulyan_strategy(self, mock_strategy_history):
