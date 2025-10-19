@@ -6,9 +6,6 @@ Tests trust score calculation algorithms, client removal logic, and threshold be
 
 from unittest.mock import patch
 
-from flwr.common import EvaluateRes
-
-from src.data_models.simulation_strategy_history import SimulationStrategyHistory
 from src.simulation_strategies.trust_based_removal_strategy import (
     TrustBasedRemovalStrategy,
 )
@@ -16,7 +13,6 @@ from tests.common import (
     ClientProxy,
     FitRes,
     Mock,
-    generate_mock_client_data,
     ndarrays_to_parameters,
     np,
     pytest,
@@ -27,28 +23,11 @@ class TestTrustBasedRemovalStrategy:
     """Test cases for TrustBasedRemovalStrategy."""
 
     @pytest.fixture
-    def mock_client_results(self):
-        """Generate mock client results for testing."""
-        return generate_mock_client_data(num_clients=5)
-
-    @pytest.fixture
-    def mock_evaluate_results(self):
-        """Generate mock evaluate results for testing."""
-        results = []
-        for i in range(5):
-            client_proxy = Mock(spec=ClientProxy)
-            client_proxy.cid = str(i)
-            eval_res = Mock(spec=EvaluateRes)
-            eval_res.num_examples = 100 + (i * 10)
-            eval_res.loss = 0.4 - (i * 0.05)
-            eval_res.metrics = {"accuracy": 0.82 + (i * 0.02)}
-            results.append((client_proxy, eval_res))
-        return results
-
-    @pytest.fixture
-    def mock_strategy_history(self):
-        """Create mock strategy history."""
-        return Mock(spec=SimulationStrategyHistory)
+    def mock_evaluate_results(self, mock_evaluate_results_factory):
+        """Generate mock evaluate results with custom parameters for trust strategy."""
+        return mock_evaluate_results_factory(
+            num_clients=5, base_accuracy=0.82, base_loss=0.4, loss_decrement=0.05
+        )
 
     @pytest.fixture
     def trust_strategy(self, mock_strategy_history, mock_output_directory):
