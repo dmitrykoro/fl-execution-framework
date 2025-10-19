@@ -6,7 +6,6 @@ Tests Trust + PID strategy combinations, Krum variant interactions, and Byzantin
 
 from unittest.mock import patch
 
-from src.data_models.simulation_strategy_history import SimulationStrategyHistory
 from src.simulation_strategies.bulyan_strategy import BulyanStrategy
 from src.simulation_strategies.krum_based_removal_strategy import (
     KrumBasedRemovalStrategy,
@@ -26,7 +25,6 @@ from tests.common import (
     ClientProxy,
     FitRes,
     Mock,
-    generate_mock_client_data,
     ndarrays_to_parameters,
     np,
     parameters_to_ndarrays,
@@ -38,29 +36,14 @@ class TestStrategyInteractions:
     """Test cases for strategy interactions and combinations."""
 
     @pytest.fixture
-    def mock_strategy_history(self):
-        """Create mock strategy history."""
-        return Mock(spec=SimulationStrategyHistory)
-
-    @pytest.fixture
-    def mock_network_model(self):
-        """Create mock network model."""
-        return Mock()
-
-    @pytest.fixture
-    def krum_fit_metrics_fn(self):
-        """Provide consistent fit_metrics_aggregation_fn for Krum-based strategies."""
-        return lambda x: x
-
-    @pytest.fixture
-    def mock_client_results_normal(self):
+    def mock_client_results_normal(self, mock_client_results_factory):
         """Generate mock client results with normal behavior."""
-        return generate_mock_client_data(num_clients=10)
+        return mock_client_results_factory(10)
 
     @pytest.fixture
-    def mock_client_results_byzantine(self):
+    def mock_client_results_byzantine(self, mock_client_results_factory):
         """Generate mock client results with Byzantine behavior."""
-        return generate_mock_client_data(num_clients=10)
+        return mock_client_results_factory(10)
 
     def test_trust_pid_combination_consistency(
         self, mock_strategy_history, mock_network_model
