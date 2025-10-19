@@ -1,0 +1,231 @@
+{
+  "shared_settings": {
+    "dataset_keyword": "femnist_iid",
+    "num_of_rounds": 15,
+    "num_of_clients": 20,
+    "num_std_dev": 3,
+    "attack_type": "label_flipping",
+    "show_plots": "false",
+    "save_plots": "true",
+    "save_csv": "true",
+    "training_device": "cpu",
+    "cpus_per_client": 1,
+    "gpus_per_client": 0.0,
+    "trust_threshold": 0.15,
+    "reputation_threshold": 0.15,
+    "beta_value": 0.75,
+    "num_of_clusters": 1,
+    "Kp": 0.9,
+    "Ki": 0.06,
+    "Kd": 0.05,
+    "training_subset_fraction": 0.9,
+    "min_fit_clients": 20,
+    "min_evaluate_clients": 20,
+    "min_available_clients": 20,
+    "evaluate_metrics_aggregation_fn": "weighted_average",
+    "num_of_client_epochs": 1,
+    "batch_size": 20,
+    "preserve_dataset": "false",
+    "begin_removing_from_round": 2
+  },
+  "simulation_strategies": [
+    {
+      "aggregation_strategy_keyword": "multi-krum",
+      "remove_clients": "true",
+      "num_of_malicious_clients": 0,
+      "num_krum_selections": 18
+    },
+    {
+      "aggregation_strategy_keyword": "multi-krum",
+      "remove_clients": "true",
+      "num_of_malicious_clients": 1,
+      "num_krum_selections": 18
+    },
+    {
+      "aggregation_strategy_keyword": "multi-krum",
+      "remove_clients": "true",
+      "num_of_malicious_clients": 2,
+      "num_krum_selections": 18
+    },
+    {
+      "aggregation_strategy_keyword": "multi-krum",
+      "remove_clients": "true",
+      "num_of_malicious_clients": 3,
+      "num_krum_selections": 18
+    },
+    {
+      "aggregation_strategy_keyword": "multi-krum",
+      "remove_clients": "true",
+      "num_of_malicious_clients": 4,
+      "num_krum_selections": 18
+    },
+    {
+      "aggregation_strategy_keyword": "multi-krum",
+      "remove_clients": "true",
+      "num_of_malicious_clients": 5,
+      "num_krum_selections": 18
+    },
+    {
+      "aggregation_strategy_keyword": "multi-krum",
+      "remove_clients": "true",
+      "num_of_malicious_clients": 0,
+      "num_krum_selections": 15
+    },
+    {
+      "aggregation_strategy_keyword": "multi-krum",
+      "remove_clients": "true",
+      "num_of_malicious_clients": 1,
+      "num_krum_selections": 15
+    },
+    {
+      "aggregation_strategy_keyword": "multi-krum",
+      "remove_clients": "true",
+      "num_of_malicious_clients": 2,
+      "num_krum_selections": 15
+    },
+    {
+      "aggregation_strategy_keyword": "multi-krum",
+      "remove_clients": "true",
+      "num_of_malicious_clients": 3,
+      "num_krum_selections": 15
+    },
+    {
+      "aggregation_strategy_keyword": "multi-krum",
+      "remove_clients": "true",
+      "num_of_malicious_clients": 4,
+      "num_krum_selections": 15
+    },
+    {
+      "aggregation_strategy_keyword": "multi-krum",
+      "remove_clients": "true",
+      "num_of_malicious_clients": 5,
+      "num_krum_selections": 15
+    },
+    {
+      "aggregation_strategy_keyword": "multi-krum",
+      "remove_clients": "true",
+      "num_of_malicious_clients": 2,
+      "num_krum_selections": 19
+    },
+    {
+      "aggregation_strategy_keyword": "multi-krum",
+      "remove_clients": "true",
+      "num_of_malicious_clients": 3,
+      "num_krum_selections": 19
+    },
+    {
+      "aggregation_strategy_keyword": "multi-krum",
+      "remove_clients": "true",
+      "num_of_malicious_clients": 4,
+      "num_krum_selections": 19
+    },
+    {
+      "aggregation_strategy_keyword": "multi-krum",
+      "remove_clients": "true",
+      "num_of_malicious_clients": 5,
+      "num_krum_selections": 19
+    },
+    {
+      "aggregation_strategy_keyword": "multi-krum",
+      "remove_clients": "true",
+      "num_of_malicious_clients": 3,
+      "num_krum_selections": 19
+    },
+    {
+      "aggregation_strategy_keyword": "multi-krum",
+      "remove_clients": "true",
+      "num_of_malicious_clients": 4,
+      "num_krum_selections": 19
+    },
+    {
+      "aggregation_strategy_keyword": "trust",
+      "remove_clients": "false",
+      "num_of_malicious_clients": 0
+    },
+    {
+      "aggregation_strategy_keyword": "trust",
+      "remove_clients": "false",
+      "num_of_malicious_clients": 1
+    },
+    {
+      "aggregation_strategy_keyword": "trust",
+      "remove_clients": "false",
+      "num_of_malicious_clients": 2
+    },
+    {
+      "aggregation_strategy_keyword": "trust",
+      "remove_clients": "false",
+      "num_of_malicious_clients": 3
+    },
+    {
+      "aggregation_strategy_keyword": "trust",
+      "remove_clients": "false",
+      "num_of_malicious_clients": 4
+    },
+    {
+      "aggregation_strategy_keyword": "trust",
+      "remove_clients": "false",
+      "num_of_malicious_clients": 5
+    },
+    {
+      "aggregation_strategy_keyword": "trust",
+      "remove_clients": "true",
+      "num_of_malicious_clients": 0
+    },
+    {
+      "aggregation_strategy_keyword": "trust",
+      "remove_clients": "true",
+      "num_of_malicious_clients": 1
+    },
+    {
+      "aggregation_strategy_keyword": "trust",
+      "remove_clients": "true",
+      "num_of_malicious_clients": 2
+    },
+    {
+      "aggregation_strategy_keyword": "trust",
+      "remove_clients": "true",
+      "num_of_malicious_clients": 3
+    },
+    {
+      "aggregation_strategy_keyword": "trust",
+      "remove_clients": "true",
+      "num_of_malicious_clients": 4
+    },
+    {
+      "aggregation_strategy_keyword": "trust",
+      "remove_clients": "true",
+      "num_of_malicious_clients": 5
+    },
+    {
+      "aggregation_strategy_keyword": "trust",
+      "remove_clients": "true",
+      "num_of_malicious_clients": 2
+    },
+    {
+      "aggregation_strategy_keyword": "trust",
+      "remove_clients": "true",
+      "num_of_malicious_clients": 3
+    },
+    {
+      "aggregation_strategy_keyword": "trust",
+      "remove_clients": "true",
+      "num_of_malicious_clients": 4
+    },
+    {
+      "aggregation_strategy_keyword": "trust",
+      "remove_clients": "true",
+      "num_of_malicious_clients": 5
+    },
+    {
+      "aggregation_strategy_keyword": "trust",
+      "remove_clients": "true",
+      "num_of_malicious_clients": 2
+    },
+    {
+      "aggregation_strategy_keyword": "trust",
+      "remove_clients": "true",
+      "num_of_malicious_clients": 3
+    }
+  ]
+}
