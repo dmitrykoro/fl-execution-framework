@@ -7,15 +7,12 @@ Tests PID controller logic implementation, PID variants behavior, and parameter 
 from unittest.mock import patch
 
 import torch
-from flwr.common import EvaluateRes
 
-from src.data_models.simulation_strategy_history import SimulationStrategyHistory
 from src.simulation_strategies.pid_based_removal_strategy import PIDBasedRemovalStrategy
 from tests.common import (
     ClientProxy,
     FitRes,
     Mock,
-    generate_mock_client_data,
     ndarrays_to_parameters,
     np,
     pytest,
@@ -24,16 +21,6 @@ from tests.common import (
 
 class TestPIDBasedRemovalStrategy:
     """Test cases for PIDBasedRemovalStrategy."""
-
-    @pytest.fixture
-    def mock_strategy_history(self):
-        """Create mock strategy history."""
-        return Mock(spec=SimulationStrategyHistory)
-
-    @pytest.fixture
-    def mock_network_model(self):
-        """Create mock network model."""
-        return Mock()
 
     @pytest.fixture
     def pid_strategy(
@@ -94,25 +81,6 @@ class TestPIDBasedRemovalStrategy:
             fraction_fit=1.0,
             fraction_evaluate=1.0,
         )
-
-    @pytest.fixture
-    def mock_client_results(self):
-        """Generate mock client results for testing."""
-        return generate_mock_client_data(num_clients=5)
-
-    @pytest.fixture
-    def mock_evaluate_results(self):
-        """Generate mock evaluate results for testing."""
-        results = []
-        for i in range(5):
-            client_proxy = Mock(spec=ClientProxy)
-            client_proxy.cid = str(i)
-            eval_res = Mock(spec=EvaluateRes)
-            eval_res.num_examples = 100 + (i * 10)
-            eval_res.loss = 0.6 - (i * 0.1)
-            eval_res.metrics = {"accuracy": 0.75 + (i * 0.04)}
-            results.append((client_proxy, eval_res))
-        return results
 
     def test_initialization(
         self, pid_strategy, mock_strategy_history, mock_network_model
@@ -346,112 +314,106 @@ class TestPIDBasedRemovalStrategy:
         # Verify PID scores were stored
         assert len(pid_standardized_strategy.client_pids) == 5
 
+    @pytest.mark.parametrize("kp", [0.5, 1.0, 2.0])
     def test_kp_parameter_effect(
-        self, mock_strategy_history, mock_network_model, mock_output_directory
+        self, kp, mock_strategy_history, mock_network_model, mock_output_directory
     ):
         """Test Kp parameter affects P component calculation."""
-        kp_values = [0.5, 1.0, 2.0]
+        strategy = PIDBasedRemovalStrategy(
+            remove_clients=True,
+            begin_removing_from_round=2,
+            ki=0.1,
+            kd=0.01,
+            kp=kp,
+            num_std_dev=2.0,
+            strategy_history=mock_strategy_history,
+            network_model=mock_network_model,
+            use_lora=False,
+            aggregation_strategy_keyword="pid",
+        )
 
-        for kp in kp_values:
-            strategy = PIDBasedRemovalStrategy(
-                remove_clients=True,
-                begin_removing_from_round=2,
-                ki=0.1,
-                kd=0.01,
-                kp=kp,
-                num_std_dev=2.0,
-                strategy_history=mock_strategy_history,
-                network_model=mock_network_model,
-                use_lora=False,
-                aggregation_strategy_keyword="pid",
-            )
+        strategy.current_round = 1
+        distance = 0.5
 
-            strategy.current_round = 1
-            distance = 0.5
+        pid_score = strategy.calculate_single_client_pid("client_1", distance)
 
-            pid_score = strategy.calculate_single_client_pid("client_1", distance)
+        # P component should be distance * kp
+        expected_p = distance * kp
+        assert abs(pid_score - expected_p) < 1e-6
 
-            # P component should be distance * kp
-            expected_p = distance * kp
-            assert abs(pid_score - expected_p) < 1e-6
-
+    @pytest.mark.parametrize("ki", [0.05, 0.1, 0.2])
     def test_ki_parameter_effect(
-        self, mock_strategy_history, mock_network_model, mock_output_directory
+        self, ki, mock_strategy_history, mock_network_model, mock_output_directory
     ):
         """Test Ki parameter affects I component calculation."""
-        ki_values = [0.05, 0.1, 0.2]
+        strategy = PIDBasedRemovalStrategy(
+            remove_clients=True,
+            begin_removing_from_round=2,
+            ki=ki,
+            kd=0.01,
+            kp=1.0,
+            num_std_dev=2.0,
+            strategy_history=mock_strategy_history,
+            network_model=mock_network_model,
+            use_lora=False,
+            aggregation_strategy_keyword="pid",
+        )
 
-        for ki in ki_values:
-            strategy = PIDBasedRemovalStrategy(
-                remove_clients=True,
-                begin_removing_from_round=2,
-                ki=ki,
-                kd=0.01,
-                kp=1.0,
-                num_std_dev=2.0,
-                strategy_history=mock_strategy_history,
-                network_model=mock_network_model,
-                use_lora=False,
-                aggregation_strategy_keyword="pid",
-            )
+        strategy.current_round = 3
+        client_id = "client_1"
+        distance = 0.5
+        distance_sum = 1.2
 
-            strategy.current_round = 3
-            client_id = "client_1"
-            distance = 0.5
-            distance_sum = 1.2
+        strategy.client_distance_sums[client_id] = distance_sum
+        strategy.client_distances[client_id] = 0.3
 
-            strategy.client_distance_sums[client_id] = distance_sum
-            strategy.client_distances[client_id] = 0.3
+        pid_score = strategy.calculate_single_client_pid(client_id, distance)
 
-            pid_score = strategy.calculate_single_client_pid(client_id, distance)
+        # I component should be affected by ki
+        expected_i = distance_sum * ki
+        # P and D components
+        expected_p = distance * strategy.kp
+        expected_d = strategy.kd * (distance - strategy.client_distances[client_id])
+        expected_total = expected_p + expected_i + expected_d
 
-            # I component should be affected by ki
-            expected_i = distance_sum * ki
-            # P and D components
-            expected_p = distance * strategy.kp
-            expected_d = strategy.kd * (distance - strategy.client_distances[client_id])
-            expected_total = expected_p + expected_i + expected_d
+        assert abs(pid_score - expected_total) < 1e-6
 
-            assert abs(pid_score - expected_total) < 1e-6
-
+    @pytest.mark.parametrize("kd", [0.005, 0.01, 0.02])
     def test_kd_parameter_effect(
-        self, mock_strategy_history, mock_network_model, mock_output_directory
+        self, kd, mock_strategy_history, mock_network_model, mock_output_directory
     ):
         """Test Kd parameter affects D component calculation."""
-        kd_values = [0.005, 0.01, 0.02]
+        strategy = PIDBasedRemovalStrategy(
+            remove_clients=True,
+            begin_removing_from_round=2,
+            ki=0.1,
+            kd=kd,
+            kp=1.0,
+            num_std_dev=2.0,
+            strategy_history=mock_strategy_history,
+            network_model=mock_network_model,
+            use_lora=False,
+            aggregation_strategy_keyword="pid",
+        )
 
-        for kd in kd_values:
-            strategy = PIDBasedRemovalStrategy(
-                remove_clients=True,
-                begin_removing_from_round=2,
-                ki=0.1,
-                kd=kd,
-                kp=1.0,
-                num_std_dev=2.0,
-                strategy_history=mock_strategy_history,
-                network_model=mock_network_model,
-                use_lora=False,
-                aggregation_strategy_keyword="pid",
-            )
+        strategy.current_round = 3
+        client_id = "client_1"
+        distance = 0.5
+        prev_distance = 0.3
 
-            strategy.current_round = 3
-            client_id = "client_1"
-            distance = 0.5
-            prev_distance = 0.3
+        strategy.client_distance_sums[client_id] = 1.2
+        strategy.client_distances[client_id] = prev_distance
 
-            strategy.client_distance_sums[client_id] = 1.2
-            strategy.client_distances[client_id] = prev_distance
+        pid_score = strategy.calculate_single_client_pid(client_id, distance)
 
-            pid_score = strategy.calculate_single_client_pid(client_id, distance)
+        # D component should be affected by kd
+        expected_d = kd * (distance - prev_distance)
+        # P and I components
+        expected_p = distance * strategy.kp
+        expected_i = strategy.client_distance_sums[client_id] * strategy.ki
+        expected_total = expected_p + expected_i + expected_d
 
-            # D component should be affected by kd
-            expected_d = kd * (distance - prev_distance)
-            # P and I components
-            expected_p = distance * strategy.kp
-            expected_i = strategy.client_distance_sums[client_id] * strategy.ki
-            expected_total = expected_p + expected_i + expected_d
-
-            assert abs(pid_score - expected_total) < 1e-6
+        assert abs(pid_score - expected_total) < 1e-6
 
     def test_num_std_dev_parameter_effect(self, pid_strategy):
         """Test num_std_dev parameter affects threshold calculation."""
@@ -892,13 +854,13 @@ class TestPIDBasedRemovalStrategy:
         first_call = calls[0]
         assert first_call[1]["client_id"] == 0
         assert first_call[1]["current_round"] == 1
-        assert first_call[1]["accuracy"] == 0.75
+        assert first_call[1]["accuracy"] == 0.8
 
         # Next 5 calls should be loss
         sixth_call = calls[5]
         assert sixth_call[1]["client_id"] == 0
         assert sixth_call[1]["current_round"] == 1
-        assert sixth_call[1]["loss"] == 0.6
+        assert sixth_call[1]["loss"] == 0.5
 
     def test_aggregate_evaluate_with_failures(
         self, pid_strategy, mock_evaluate_results
