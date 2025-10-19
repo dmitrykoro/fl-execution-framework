@@ -11,7 +11,6 @@ from tests.common import (
     ClientProxy,
     FitRes,
     Mock,
-    generate_mock_client_data,
     ndarrays_to_parameters,
     np,
     parameters_to_ndarrays,
@@ -32,11 +31,6 @@ class TestRFABasedRemovalStrategy:
             fraction_fit=1.0,
             fraction_evaluate=1.0,
         )
-
-    @pytest.fixture
-    def mock_client_results(self):
-        """Generate mock client results for testing."""
-        return generate_mock_client_data(num_clients=5)
 
     def test_initialization(self, rfa_strategy):
         """Test RFABasedRemovalStrategy initialization."""
@@ -250,27 +244,23 @@ class TestRFABasedRemovalStrategy:
             assert result_params is None
             assert isinstance(result_metrics, dict)
 
-    def test_weighted_median_factor_parameter_effect(self):
+    @pytest.mark.parametrize("factor", [0.5, 1.0, 2.0])
+    def test_weighted_median_factor_parameter_effect(self, factor):
         """Test weighted_median_factor parameter affects geometric median."""
-        factors = [0.5, 1.0, 2.0]
+        strategy = RFABasedRemovalStrategy(
+            remove_clients=True,
+            begin_removing_from_round=2,
+            weighted_median_factor=factor,
+        )
 
-        for factor in factors:
-            strategy = RFABasedRemovalStrategy(
-                remove_clients=True,
-                begin_removing_from_round=2,
-                weighted_median_factor=factor,
-            )
+        assert strategy.weighted_median_factor == factor
 
-            assert strategy.weighted_median_factor == factor
-
-            # Test that factor affects the weighted geometric median
-            points = np.array([[1.0, 1.0], [2.0, 2.0]])
-            geometric_median = strategy._geometric_median(points)
-            weighted_median = geometric_median * factor
-
-            # Weighted median should be scaled by the factor
-            expected_weighted = geometric_median * factor
-            assert np.allclose(weighted_median, expected_weighted)
+        # Verify factor scales the geometric median
+        points = np.array([[1.0, 1.0], [2.0, 2.0]])
+        geometric_median = strategy._geometric_median(points)
+        weighted_median = geometric_median * factor
+        expected_weighted = geometric_median * factor
+        assert np.allclose(weighted_median, expected_weighted)
 
     def test_configure_fit_warmup_rounds(self, rfa_strategy):
         """Test configure_fit during warmup rounds."""
