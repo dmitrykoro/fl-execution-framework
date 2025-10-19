@@ -8,7 +8,6 @@ Verifies each strategy's specific behavior across different configurations.
 import importlib
 from unittest.mock import patch
 
-from src.data_models.simulation_strategy_history import SimulationStrategyHistory
 from src.simulation_strategies.krum_based_removal_strategy import (
     KrumBasedRemovalStrategy,
 )
@@ -16,31 +15,16 @@ from src.simulation_strategies.pid_based_removal_strategy import PIDBasedRemoval
 from src.simulation_strategies.trust_based_removal_strategy import (
     TrustBasedRemovalStrategy,
 )
-from tests.common import Mock, generate_mock_client_data, pytest
+from tests.common import Mock, pytest
 
 
 class TestStrategyVariations:
     """Parameterized tests for all aggregation strategy variations."""
 
     @pytest.fixture
-    def mock_client_results(self):
-        """Generate mock client results for testing."""
-        return generate_mock_client_data(num_clients=20)
-
-    @pytest.fixture
-    def mock_strategy_history(self):
-        """Create mock strategy history."""
-        return Mock(spec=SimulationStrategyHistory)
-
-    @pytest.fixture
-    def mock_network_model(self):
-        """Create mock network model."""
-        return Mock()
-
-    @pytest.fixture
-    def krum_fit_metrics_fn(self):
-        """Provide consistent fit_metrics_aggregation_fn for Krum-based strategies."""
-        return lambda x: x
+    def mock_client_results(self, mock_client_results_factory):
+        """Generate mock client results for testing (20 clients for variation tests)."""
+        return mock_client_results_factory(20)
 
     # Test all 10 strategies with basic initialization
     @pytest.mark.parametrize(
@@ -86,7 +70,7 @@ class TestStrategyVariations:
                     "num_malicious_clients": 2,
                     "num_krum_selections": 5,
                     "begin_removing_from_round": 1,
-                    "fit_metrics_aggregation_fn": krum_fit_metrics_fn,
+                    "fit_metrics_aggregation_fn": lambda x: x,
                 },
             ),
             (
