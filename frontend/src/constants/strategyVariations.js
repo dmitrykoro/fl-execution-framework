@@ -31,6 +31,7 @@ export const QUICK_PATTERNS = {
           name: 'krum_baseline',
           aggregation_strategy_keyword: 'krum',
           num_of_malicious_clients: 0,
+          num_krum_selections: 1,
           remove_clients: 'false',
         },
         {
@@ -81,6 +82,7 @@ export const QUICK_PATTERNS = {
           name: 'krum_1mal',
           aggregation_strategy_keyword: 'krum',
           num_of_malicious_clients: 1,
+          num_krum_selections: 1,
           remove_clients: 'true',
         },
         {
