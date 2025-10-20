@@ -221,13 +221,18 @@ export function Dashboard() {
       </PageHeader>
 
       {hasRunning && (
-        <Alert variant="info" className="mb-4">
+        <Alert variant="warning" className="mb-4">
           <div className="d-flex justify-content-between align-items-center">
             <div>
-              <i className="bi bi-info-circle me-2"></i>
+              <i className="bi bi-exclamation-triangle me-2"></i>
               <strong>Simulation in progress</strong> - New simulations will queue automatically
             </div>
-            <Button as={Link} to={`/queue/${runningSimIds[0]}`} variant="outline-primary" size="sm">
+            <Button
+              as={Link}
+              to={`/queue/${runningSimIds[0]}`}
+              className="btn-warning-action"
+              size="sm"
+            >
               View Queue Status
             </Button>
           </div>
