@@ -107,7 +107,7 @@ def should_poison_this_round(
     Check if client should be poisoned in current round.
 
     Returns all matching attack configs, deduplicated by attack type.
-    If multiple schedules specify the same attack type, the last match wins.
+    If multiple schedules specify the same attack type, the first match wins.
 
     Args:
         current_round: Current training round (1-indexed)
@@ -155,7 +155,9 @@ def should_poison_this_round(
             attack_config = attack_phase.get("attack_config")
             if attack_config:
                 attack_type = attack_config.get("type")
-                attack_configs_by_type[attack_type] = attack_config
+                # Only add if this attack type hasn't been seen yet
+                if attack_type not in attack_configs_by_type:
+                    attack_configs_by_type[attack_type] = attack_config
 
     return len(attack_configs_by_type) > 0, list(attack_configs_by_type.values())
 
