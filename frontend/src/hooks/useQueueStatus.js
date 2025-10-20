@@ -7,19 +7,17 @@ export function useQueueStatus(simulationId) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // Calculate queue progress
   const calculateProgress = (sim, stat) => {
     if (!sim?.config?.simulation_strategies || !stat) {
       return { current: 0, total: 1, strategies: [] };
     }
 
     const totalStrategies = sim.config.simulation_strategies.length;
-    const resultFiles = stat.result_files || [];
+    const resultFiles = sim.result_files || [];
 
-    // Detect completed strategies by looking for strategy_N/csv files
     const completedStrategies = [];
     for (let i = 0; i < totalStrategies; i++) {
-      const hasResults = resultFiles.some(f => f.includes(`strategy_${i}/csv`));
+      const hasResults = resultFiles.some(f => f.includes(`csv/exec_stats_${i}.csv`));
       if (hasResults) {
         completedStrategies.push(i);
       }
@@ -28,7 +26,6 @@ export function useQueueStatus(simulationId) {
     const currentStrategy = completedStrategies.length;
     const isComplete = currentStrategy >= totalStrategies;
 
-    // Build strategy status list
     const strategies = sim.config.simulation_strategies.map((strat, index) => {
       let stratStatus = 'queued';
       if (completedStrategies.includes(index)) {

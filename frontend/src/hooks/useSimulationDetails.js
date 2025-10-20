@@ -41,5 +41,27 @@ export function useSimulationDetails(simulationId) {
     return () => clearInterval(interval);
   }, [details, pollStatus]);
 
-  return { details, status, loading, error, refetch: fetchDetails };
+  const isMultiStrategy =
+    details?.config?.simulation_strategies && details.config.simulation_strategies.length > 1;
+
+  const strategyGroups = isMultiStrategy
+    ? details.config.simulation_strategies.reduce((groups, strategy, index) => {
+        const key = strategy.aggregation_strategy_keyword || 'fedavg';
+        if (!groups[key]) {
+          groups[key] = [];
+        }
+        groups[key].push({ ...strategy, index });
+        return groups;
+      }, {})
+    : null;
+
+  return {
+    details,
+    status,
+    loading,
+    error,
+    refetch: fetchDetails,
+    isMultiStrategy,
+    strategyGroups,
+  };
 }
