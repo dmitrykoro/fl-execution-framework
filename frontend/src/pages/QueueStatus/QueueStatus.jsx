@@ -3,6 +3,8 @@ import { PageContainer } from '@components/layout/PageContainer';
 import { PageHeader } from '@components/layout/PageHeader';
 import { Alert, Spinner, ProgressBar, Button } from 'react-bootstrap';
 import { QueueJobCard } from '@components/features/experiment-queue/QueueJobCard';
+import { ConfirmModal } from '@components/common/Modal/ConfirmModal';
+import { MaterialIcon } from '@components/common/Icon/MaterialIcon';
 import { useQueueStatus } from '@hooks/useQueueStatus';
 import { stopSimulation } from '@api';
 import { toast } from 'sonner';
@@ -12,13 +14,15 @@ export function QueueStatus() {
   const { simulationId } = useParams();
   const { simulation, status, progress, loading, error } = useQueueStatus(simulationId);
   const [stopping, setStopping] = useState(false);
+  const [showStopModal, setShowStopModal] = useState(false);
 
-  const handleStopQueue = async () => {
-    if (!confirm('Are you sure you want to stop this experiment queue?')) {
-      return;
-    }
+  const handleStopQueue = () => {
+    setShowStopModal(true);
+  };
 
+  const confirmStopQueue = async () => {
     setStopping(true);
+    setShowStopModal(false);
     try {
       await stopSimulation(simulationId);
       toast.success('Queue stopped successfully');
@@ -51,14 +55,13 @@ export function QueueStatus() {
     );
   }
 
-  // Check if this is a multi-simulation
   const isMultiSim = simulation?.config?.simulation_strategies?.length > 0;
 
   if (!isMultiSim) {
     return (
       <PageContainer>
         <Alert variant="warning">
-          <i className="bi bi-exclamation-triangle me-2"></i>
+          <MaterialIcon name="warning" size={20} className="me-2" />
           This simulation is not an experiment queue. It's a single simulation.
         </Alert>
       </PageContainer>
@@ -66,6 +69,26 @@ export function QueueStatus() {
   }
 
   const progressPercent = progress ? Math.round((progress.current / progress.total) * 100) : 0;
+
+  const strategyGroups = progress?.strategies
+    ? progress.strategies.reduce((groups, strategy) => {
+        const key = strategy.config.aggregation_strategy_keyword || 'fedavg';
+        if (!groups[key]) {
+          groups[key] = {
+            name: key,
+            strategies: [],
+            completed: 0,
+            total: 0,
+          };
+        }
+        groups[key].strategies.push(strategy);
+        groups[key].total++;
+        if (strategy.status === 'completed') {
+          groups[key].completed++;
+        }
+        return groups;
+      }, {})
+    : null;
 
   return (
     <PageContainer>
@@ -85,7 +108,7 @@ export function QueueStatus() {
                 </>
               ) : (
                 <>
-                  <i className="bi bi-stop-circle me-2"></i>
+                  <MaterialIcon name="stop_circle" size={20} className="me-2" />
                   Stop Queue
                 </>
               )}
@@ -123,21 +146,52 @@ export function QueueStatus() {
         </div>
       </Alert>
 
+      {/* Strategy Groups Overview */}
+      {strategyGroups && Object.keys(strategyGroups).length > 1 && (
+        <div className="mb-4">
+          <h6 className="mb-3">📊 Strategy Groups</h6>
+          <div className="d-flex flex-wrap gap-2">
+            {Object.values(strategyGroups).map(group => (
+              <Alert key={group.name} variant="light" className="mb-0 py-2 px-3">
+                <strong>{group.name}</strong>:{' '}
+                <span className={group.completed === group.total ? 'text-success' : 'text-primary'}>
+                  {group.completed}/{group.total} complete
+                </span>
+              </Alert>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Strategy Cards */}
       <h5 className="mb-3">Strategy Execution Progress</h5>
       {progress?.strategies.map(strategy => (
-        <QueueJobCard key={strategy.index} strategy={strategy} simulationId={simulationId} />
+        <QueueJobCard
+          key={strategy.index}
+          strategy={strategy}
+          simulationId={simulationId}
+          sharedConfig={simulation?.config?.shared_settings}
+        />
       ))}
 
       {progress?.isComplete && (
         <div className="mt-4">
           <Alert variant="success">
-            <i className="bi bi-check-circle me-2"></i>
+            <MaterialIcon name="check_circle" size={20} className="me-2" />
             <strong>All done!</strong> All strategies in this experiment queue have completed. You
             can now compare results across all strategies.
           </Alert>
         </div>
       )}
+
+      <ConfirmModal
+        show={showStopModal}
+        title="Stop Queue"
+        message="Are you sure you want to stop this experiment queue?"
+        variant="danger"
+        onConfirm={confirmStopQueue}
+        onCancel={() => setShowStopModal(false)}
+      />
     </PageContainer>
   );
 }
