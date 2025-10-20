@@ -25,6 +25,29 @@ class DatasetHandler:
         self.poisoned_client_ids = set()
         self.all_poisoned_img_snrs = []
 
+        # Identify malicious clients for HuggingFace datasets
+        self._identify_malicious_clients_for_hf_datasets()
+
+    def _identify_malicious_clients_for_hf_datasets(self) -> None:
+        """Identify malicious clients for HuggingFace datasets based on config."""
+        if self._strategy_config.dataset_source != "huggingface":
+            return
+
+        # Static attacks: first N clients are malicious (client IDs 0 to N-1)
+        if (
+            not self._strategy_config.dynamic_attacks
+            or not self._strategy_config.dynamic_attacks.get("enabled")
+        ):
+            for i in range(self._strategy_config.num_of_malicious_clients):
+                self.poisoned_client_ids.add(i)
+        else:
+            # Dynamic attacks: extract client IDs from attack schedule
+            schedule = self._strategy_config.dynamic_attacks.get("schedule", [])
+            for phase in schedule:
+                if phase.get("selection_strategy") == "specific":
+                    client_ids = phase.get("client_ids", [])
+                    self.poisoned_client_ids.update(client_ids)
+
     def setup_dataset(self) -> None:
         """Copy the specified number of clients' subsets to runtime folder and perform poisoning"""
 
