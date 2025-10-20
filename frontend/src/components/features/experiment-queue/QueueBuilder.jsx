@@ -49,8 +49,8 @@ export function QueueBuilder() {
   };
 
   const handleSubmit = async () => {
-    if (strategyVariations.length < 2) {
-      toast.error('At least 2 strategies are required');
+    if (strategyVariations.length < 1) {
+      toast.error('At least 1 strategy is required');
       return;
     }
 
@@ -65,7 +65,8 @@ export function QueueBuilder() {
       const response = await createMultiSimulation(multiSimConfig);
       const { simulation_id } = response.data;
 
-      toast.success(`Experiment queue created! (${strategyVariations.length} strategies)`);
+      const strategyWord = strategyVariations.length === 1 ? 'strategy' : 'strategies';
+      toast.success(`Experiment queue created! (${strategyVariations.length} ${strategyWord})`);
       navigate(`/queue/${simulation_id}`);
     } catch (err) {
       console.error('Failed to create experiment queue:', err);
@@ -91,15 +92,17 @@ export function QueueBuilder() {
 
   const previewConfig = buildMultiSimConfig();
   const canSubmit =
-    strategyVariations.length >= 2 && (!validation || validation.errors.length === 0);
+    strategyVariations.length >= 1 && (!validation || validation.errors.length === 0);
 
   return (
     <div className="queue-builder">
-      <Alert variant="info" className="mb-4">
-        <i className="bi bi-info-circle me-2"></i>
-        <strong>Experiment Queue</strong> allows you to define a shared baseline configuration and
-        create multiple strategy variations that will execute sequentially.
-      </Alert>
+      <div className="mb-4">
+        <h3 className="mb-3 preset-selector-heading">Multi-Strategy Experiments</h3>
+        <p className="text-muted mb-3">
+          Define a shared baseline configuration and create multiple strategy variations that will
+          execute sequentially.
+        </p>
+      </div>
 
       <Tabs
         activeKey={activeTab}
@@ -144,7 +147,7 @@ export function QueueBuilder() {
             {strategyVariations.length === 0 ? (
               <Alert variant="warning">
                 <i className="bi bi-exclamation-triangle me-2"></i>
-                No strategies defined. Please add at least 2 strategies in the previous tab.
+                No strategies defined. Please add at least 1 strategy in the previous tab.
               </Alert>
             ) : (
               <>
@@ -157,7 +160,9 @@ export function QueueBuilder() {
                 <div className="d-flex justify-content-between align-items-center">
                   <div className="text-muted small">
                     <i className="bi bi-info-circle me-2"></i>
-                    {strategyVariations.length} strategies will execute sequentially
+                    {strategyVariations.length}{' '}
+                    {strategyVariations.length === 1 ? 'strategy' : 'strategies'} will execute
+                    sequentially
                   </div>
                   <Button
                     variant="primary"
