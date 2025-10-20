@@ -12,6 +12,8 @@ export function InsightsTab({ details, csvData, status }) {
   }
 
   const cfg = details.config?.shared_settings || details.config;
+  const isMultiStrategy =
+    details.config?.simulation_strategies && details.config.simulation_strategies.length > 1;
 
   const generateInsights = () => {
     const insights = [];
@@ -22,7 +24,6 @@ export function InsightsTab({ details, csvData, status }) {
       return insights;
     }
 
-    // Analyze accuracy improvement
     if (roundMetrics.length >= 2) {
       const firstAccuracy = parseFloat(roundMetrics[0].average_accuracy_history);
       const lastAccuracy = parseFloat(
@@ -45,7 +46,6 @@ export function InsightsTab({ details, csvData, status }) {
       }
     }
 
-    // Analyze malicious clients
     if (cfg.num_of_malicious_clients > 0) {
       insights.push({
         type: 'info',
@@ -87,7 +87,6 @@ export function InsightsTab({ details, csvData, status }) {
       });
     }
 
-    // Analyze client participation
     if (perClientMetrics && perClientMetrics.length > 0) {
       const lastRound = perClientMetrics[perClientMetrics.length - 1];
       const participationKeys = Object.keys(lastRound).filter(k =>
@@ -107,7 +106,6 @@ export function InsightsTab({ details, csvData, status }) {
       }
     }
 
-    // Analyze defense strategy behavior
     if (cfg.aggregation_strategy_keyword === 'pid' && cfg.remove_clients === 'true') {
       const beginRemoving = cfg.begin_removing_from_round || 2;
       insights.push({
@@ -129,12 +127,32 @@ export function InsightsTab({ details, csvData, status }) {
       });
     }
 
-    // Dataset and model info
     insights.push({
       type: 'info',
       icon: '📊',
       text: `Trained ${cfg.model_type || 'cnn'} model on ${cfg.dataset_keyword} dataset with ${cfg.num_of_clients} clients`,
     });
+
+    if (isMultiStrategy) {
+      const numStrategies = details.config.simulation_strategies.length;
+      const strategyTypes = new Set(
+        details.config.simulation_strategies.map(s => s.aggregation_strategy_keyword || 'fedavg')
+      );
+
+      insights.push({
+        type: 'info',
+        icon: '🔬',
+        text: `Multi-strategy experiment with ${numStrategies} variations comparing ${Array.from(strategyTypes).join(', ')} strategies`,
+      });
+
+      if (status === 'completed') {
+        insights.push({
+          type: 'success',
+          icon: '📈',
+          text: `All ${numStrategies} strategies completed! View the Comparison tab to analyze performance differences`,
+        });
+      }
+    }
 
     return insights;
   };
