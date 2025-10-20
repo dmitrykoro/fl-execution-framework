@@ -22,6 +22,7 @@ export const PRESETS = {
       begin_removing_from_round: 1,
       training_subset_fraction: 0.5,
       num_of_client_epochs: 2,
+      training_device: 'auto',
     },
   },
   quick_sentiment: {
@@ -54,7 +55,7 @@ export const PRESETS = {
       batch_size: 8,
       num_of_client_epochs: 3,
       training_subset_fraction: 0.005,
-      training_device: 'cuda',
+      training_device: 'auto',
       remove_clients: 'false',
       begin_removing_from_round: 1,
       attack_type: 'gaussian_noise',
@@ -84,6 +85,7 @@ export const PRESETS = {
       remove_clients: 'true',
       begin_removing_from_round: 2,
       training_subset_fraction: 0.5,
+      training_device: 'auto',
       num_of_client_epochs: 5,
       batch_size: 20,
       attack_type: 'gaussian_noise',
@@ -118,6 +120,7 @@ export const PRESETS = {
       dataset_keyword: 'femnist_iid',
       remove_clients: 'true',
       begin_removing_from_round: 2,
+      training_device: 'auto',
       dynamic_attacks: {
         enabled: true,
         schedule: [
@@ -167,6 +170,7 @@ export const PRESETS = {
       gaussian_noise_std: 50,
       num_of_client_epochs: 1,
       training_subset_fraction: 0.9,
+      training_device: 'auto',
     },
   },
   adaptive_defense: {
@@ -193,6 +197,7 @@ export const PRESETS = {
       Ki: 0.05,
       Kd: 0.05,
       num_std_dev: 2.0,
+      training_device: 'auto',
       dynamic_attacks: {
         enabled: true,
         schedule: [
