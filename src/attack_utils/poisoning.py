@@ -102,9 +102,12 @@ def apply_token_replacement(
 
 def should_poison_this_round(
     current_round: int, client_id: int, attack_schedule: Optional[list]
-) -> Tuple[bool, Optional[dict]]:
+) -> Tuple[bool, list[dict]]:
     """
     Check if client should be poisoned in current round.
+
+    Returns all matching attack configs, deduplicated by attack type.
+    If multiple schedules specify the same attack type, the last match wins.
 
     Args:
         current_round: Current training round (1-indexed)
@@ -112,41 +115,49 @@ def should_poison_this_round(
         attack_schedule: List of attack phase configurations
 
     Returns:
-        Tuple[bool, dict | None]: (should_poison, attack_config)
+        Tuple[bool, list[dict]]: (should_poison, list_of_attack_configs)
+            - should_poison: True if any attacks match
+            - list_of_attack_configs: List of unique attack configs (by type)
     """
     if not attack_schedule:
-        return False, None
+        return False, []
+
+    attack_configs_by_type = {}
+    matching_phase_count = 0
 
     for attack_phase in attack_schedule:
-        # Check round range
         start_round = attack_phase.get("start_round", 1)
         end_round = attack_phase.get("end_round", float("inf"))
 
         if not (start_round <= current_round <= end_round):
             continue
 
-        # Check client selection
         selection_strategy = attack_phase.get("selection_strategy", "specific")
+        is_match = False
 
         if selection_strategy == "specific":
             client_ids = attack_phase.get("client_ids", [])
             if client_id in client_ids:
-                return True, attack_phase.get("attack_config")
+                is_match = True
 
         elif selection_strategy == "random":
-            # Random selection handled at strategy level
-            # Client receives attack_config if selected
             targeted_clients = attack_phase.get("_selected_clients", [])
             if client_id in targeted_clients:
-                return True, attack_phase.get("attack_config")
+                is_match = True
 
         elif selection_strategy == "percentage":
-            # Percentage selection handled at strategy level
             targeted_clients = attack_phase.get("_selected_clients", [])
             if client_id in targeted_clients:
-                return True, attack_phase.get("attack_config")
+                is_match = True
 
-    return False, None
+        if is_match:
+            matching_phase_count += 1
+            attack_config = attack_phase.get("attack_config")
+            if attack_config:
+                attack_type = attack_config.get("type")
+                attack_configs_by_type[attack_type] = attack_config
+
+    return len(attack_configs_by_type) > 0, list(attack_configs_by_type.values())
 
 
 def apply_poisoning_attack(

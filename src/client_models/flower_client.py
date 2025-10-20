@@ -74,7 +74,6 @@ class FlowerClient(fl.client.NumPyClient):
 
                 for batch in trainloader:
                     if isinstance(batch, dict):
-                        # Expect standardized column names from loaders
                         if "pixel_values" not in batch:
                             raise ValueError(
                                 f"Expected 'pixel_values' in batch. "
@@ -89,19 +88,19 @@ class FlowerClient(fl.client.NumPyClient):
                         images = batch["pixel_values"]
                         labels = batch["labels"]
 
-                        # Convert HuggingFace uint8 images to float32 and normalize
                         if images.dtype == torch.uint8:
                             images = images.float() / 255.0
                     else:
                         images, labels = batch
-                    should_poison, attack_config = should_poison_this_round(
+                    should_poison, attack_configs = should_poison_this_round(
                         current_round, self.client_id, self.dynamic_attacks_schedule
                     )
 
-                    if should_poison and attack_config:
-                        images, labels = apply_poisoning_attack(
-                            images, labels, attack_config
-                        )
+                    if should_poison and attack_configs:
+                        for attack_config in attack_configs:
+                            images, labels = apply_poisoning_attack(
+                                images, labels, attack_config
+                            )
 
                     images, labels = (
                         images.to(self.training_device),
@@ -137,15 +136,16 @@ class FlowerClient(fl.client.NumPyClient):
                 correct, total = 0, 0
 
                 for batch_idx, batch in enumerate(trainloader):
-                    should_poison, attack_config = should_poison_this_round(
+                    should_poison, attack_configs = should_poison_this_round(
                         current_round, self.client_id, self.dynamic_attacks_schedule
                     )
 
-                    if should_poison and attack_config:
-                        if attack_config.get("type") == "token_replacement":
-                            batch["input_ids"], _ = apply_poisoning_attack(
-                                batch["input_ids"], batch["labels"], attack_config
-                            )
+                    if should_poison and attack_configs:
+                        for attack_config in attack_configs:
+                            if attack_config.get("type") == "token_replacement":
+                                batch["input_ids"], _ = apply_poisoning_attack(
+                                    batch["input_ids"], batch["labels"], attack_config
+                                )
 
                     batch = {k: v.to(self.training_device) for k, v in batch.items()}
                     labels = batch["labels"]
@@ -206,7 +206,6 @@ class FlowerClient(fl.client.NumPyClient):
             with torch.no_grad():
                 for batch in testloader:
                     if isinstance(batch, dict):
-                        # Expect standardized column names from loaders
                         if "pixel_values" not in batch:
                             raise ValueError(
                                 f"Expected 'pixel_values' in batch. "
@@ -221,7 +220,6 @@ class FlowerClient(fl.client.NumPyClient):
                         images = batch["pixel_values"]
                         labels = batch["labels"]
 
-                        # Convert HuggingFace uint8 images to float32 and normalize
                         if images.dtype == torch.uint8:
                             images = images.float() / 255.0
                     else:
