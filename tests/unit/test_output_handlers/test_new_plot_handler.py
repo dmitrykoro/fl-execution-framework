@@ -550,7 +550,9 @@ class TestPlotHandler:
 
         call_args = [call[1] for call in mock_plot.call_args_list if "label" in call[1]]
         malicious_labels = [
-            args["label"] for args in call_args if "client_5_bad" in args["label"]
+            args["label"]
+            for args in call_args
+            if "client_5 (malicious)" in args["label"]
         ]
         assert len(malicious_labels) > 0
 

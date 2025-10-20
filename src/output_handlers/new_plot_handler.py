@@ -79,12 +79,20 @@ def show_plots_within_strategy(
             metric_values = client_info.get_metric_by_name(metric_name)
 
             min_length = min(len(client_info.rounds), len(metric_values))
+
+            # Colorblind-safe visualization: dashed line + red for malicious clients
+            linestyle = "--" if client_info.is_malicious else "-"
+            color = (
+                "#d62728" if client_info.is_malicious else None
+            )  # Red from tab10 palette
+            label_suffix = " (malicious)" if client_info.is_malicious else ""
+
             plt.plot(
                 client_info.rounds[:min_length],
                 metric_values[:min_length],
-                label=f"client_{client_info.client_id}"
-                if not client_info.is_malicious
-                else f"client_{client_info.client_id}_bad",
+                label=f"client_{client_info.client_id}{label_suffix}",
+                linestyle=linestyle,
+                color=color,
             )
 
             excluded_values = [
