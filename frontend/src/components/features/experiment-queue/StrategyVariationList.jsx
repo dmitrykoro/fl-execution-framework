@@ -5,6 +5,22 @@ import { InfoTooltip } from '@components/common/Tooltip/InfoTooltip';
 import { MaterialIcon } from '@components/common/Icon/MaterialIcon';
 
 export function StrategyVariationList({ variations, onChange, numOfClients }) {
+  const applyStrategyDefaults = strategy => {
+    const strategyType = strategy.aggregation_strategy_keyword;
+
+    if (
+      (strategyType === 'krum' || strategyType === 'multi-krum') &&
+      strategy.num_krum_selections === undefined
+    ) {
+      return {
+        ...strategy,
+        num_krum_selections: strategyType === 'krum' ? 1 : 3,
+      };
+    }
+
+    return strategy;
+  };
+
   const handleAddRow = () => {
     const nextNumber = variations.length + 1;
 
@@ -36,6 +52,10 @@ export function StrategyVariationList({ variations, onChange, numOfClients }) {
             updated.name = `${strategy}_mal${malCount}`;
           }
 
+          if (field === 'aggregation_strategy_keyword') {
+            return applyStrategyDefaults(updated);
+          }
+
           return updated;
         }
         return v;
@@ -49,7 +69,8 @@ export function StrategyVariationList({ variations, onChange, numOfClients }) {
       const baseStrategy =
         variations.length > 0 ? variations[0].aggregation_strategy_keyword : 'fedavg';
       const generated = pattern.generate(baseStrategy);
-      const withIds = generated.map((v, i) => ({
+      const withDefaults = generated.map(applyStrategyDefaults);
+      const withIds = withDefaults.map((v, i) => ({
         ...v,
         id: Date.now() + i,
       }));
@@ -63,7 +84,7 @@ export function StrategyVariationList({ variations, onChange, numOfClients }) {
         <div>
           <h5 className="mb-1">Strategy Variations</h5>
           <p className="text-muted small mb-0">
-            Define parameter variations to compare. At least 2 strategies required.
+            Define parameter variations to compare multiple strategies.
           </p>
         </div>
         <div className="d-flex gap-2">
@@ -430,10 +451,11 @@ export function StrategyVariationList({ variations, onChange, numOfClients }) {
             </Table>
           </div>
 
-          {variations.length < 2 && (
-            <div className="alert alert-warning mt-3">
-              <i className="bi bi-exclamation-triangle me-2"></i>
-              At least 2 strategies are required to create an experiment queue.
+          {variations.length === 0 && (
+            <div className="alert alert-info mt-3">
+              <i className="bi bi-info-circle me-2"></i>
+              Add at least 1 strategy to create an experiment queue. Multiple strategies will run
+              sequentially for comparison.
             </div>
           )}
         </>
