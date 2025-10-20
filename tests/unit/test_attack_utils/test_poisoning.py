@@ -328,7 +328,7 @@ class TestShouldPoisonThisRound:
         assert attack_types == {"label_flipping", "gaussian_noise"}
 
     def test_overlapping_schedules_same_attack_type_deduplication(self):
-        """Overlapping schedules with same attack type should deduplicate (last wins)."""
+        """Overlapping schedules with same attack type should deduplicate (first wins)."""
         schedule = [
             {
                 "start_round": 5,
@@ -355,7 +355,7 @@ class TestShouldPoisonThisRound:
         assert should_poison
         assert len(configs) == 1
         assert configs[0]["type"] == "label_flipping"
-        assert configs[0]["params"]["flip_fraction"] == 0.8
+        assert configs[0]["params"]["flip_fraction"] == 0.3
 
     def test_three_way_overlap_mixed_types(self):
         """Three overlapping schedules with mixed attack types."""
@@ -425,9 +425,9 @@ class TestShouldPoisonThisRound:
         assert len(configs) == 2  # Deduplicated
         attack_types = {config["type"] for config in configs}
         assert attack_types == {"label_flipping", "gaussian_noise"}
-        # Last label_flipping should win
+        # First label_flipping should win
         label_flip_config = next(c for c in configs if c["type"] == "label_flipping")
-        assert label_flip_config["params"]["flip_fraction"] == 0.9
+        assert label_flip_config["params"]["flip_fraction"] == 0.3
 
     def test_partial_overlap_transitions(self):
         """Test behavior as rounds transition through overlapping phases."""
