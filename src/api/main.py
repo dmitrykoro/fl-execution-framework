@@ -305,15 +305,81 @@ def get_result_file(
 
 
 @app.post("/api/simulations", status_code=201)
-async def create_simulation(config: Dict[str, Any] = Body(...)) -> Dict[str, str]:
-    """Creates and runs a new simulation from a configuration payload."""
+async def create_simulation(request: Dict[str, Any] = Body(...)) -> Dict[str, Any]:
+    """Creates and runs a new simulation from a configuration payload.
+
+    Args:
+        request: Request body containing config and optionally add_to_queue
+    """
+    # Extract add_to_queue parameter if present
+    add_to_queue = request.get("add_to_queue", None)
+
+    # Copy config without add_to_queue
+    config = {k: v for k, v in request.items() if k != "add_to_queue"}
+
     logger.info(f"Received config keys: {list(config.keys())}")
     logger.info(f"Config has shared_settings: {'shared_settings' in config}")
     logger.info(
         f"Config has simulation_strategies: {'simulation_strategies' in config}"
     )
+    logger.info(f"add_to_queue parameter: {add_to_queue}")
 
     config_dict = config
+
+    # Check if there's a running simulation to queue into
+    running_sim_id = None
+    for sim_id, process in running_processes.items():
+        if process.poll() is None:
+            running_sim_id = sim_id
+            break
+
+    # If there's a running simulation and this is a single-sim config
+    # Only auto-queue if add_to_queue is explicitly True
+    if (
+        running_sim_id
+        and add_to_queue is True
+        and not (
+            "shared_settings" in config_dict and "simulation_strategies" in config_dict
+        )
+    ):
+        logger.info(f"User chose to add to running simulation {running_sim_id}")
+
+        running_sim_path = OUTPUT_DIR / running_sim_id
+        config_filepath = running_sim_path / "config.json"
+
+        try:
+            with config_filepath.open("r") as f:
+                running_config = json.load(f)
+
+            # Build new strategy from incoming config
+            new_strategy = {}
+            strategy_fields = [
+                "aggregation_strategy_keyword",
+                "num_of_malicious_clients",
+                "num_krum_selections",
+                "remove_clients",
+                "begin_removing_from_round",
+            ]
+            for field in strategy_fields:
+                if config_dict.get(field) is not None:
+                    new_strategy[field] = config_dict[field]
+
+            # Add to queue
+            running_config["simulation_strategies"].append(new_strategy)
+
+            # Write updated config
+            with config_filepath.open("w") as f:
+                json.dump(running_config, f, indent=4)
+
+            logger.info(f"Added strategy to running simulation {running_sim_id}")
+            return {"simulation_id": running_sim_id, "queued": True}
+
+        except Exception as e:
+            logger.warning(
+                f"Failed to add to running queue: {e}, creating new simulation"
+            )
+            # Fall through to create new simulation
+
     timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
     simulation_id = f"api_run_{timestamp}"
 
@@ -588,6 +654,56 @@ async def get_plot_data(simulation_id: str) -> Dict:
 
         with open(json_path, "r") as f:
             return json.load(f)
+
+    except HTTPException:
+        raise
+    except FileNotFoundError:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Plot data not found for simulation {simulation_id}",
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/simulations/{simulation_id}/all-plot-data")
+async def get_all_plot_data(simulation_id: str) -> Dict:
+    """Return all plot data JSON files for multi-strategy comparison"""
+    try:
+        sim_dir = OUTPUT_DIR / simulation_id
+
+        if not sim_dir.exists():
+            raise HTTPException(
+                status_code=404,
+                detail=f"Simulation directory not found for {simulation_id}",
+            )
+
+        json_files = sorted(
+            [
+                f
+                for f in os.listdir(sim_dir)
+                if f.startswith("plot_data_") and f.endswith(".json")
+            ]
+        )
+
+        if not json_files:
+            raise HTTPException(
+                status_code=404,
+                detail="Plot data not yet available - simulation may still be running",
+            )
+
+        all_plot_data = []
+        for json_file in json_files:
+            json_path = sim_dir / json_file
+            with open(json_path, "r") as f:
+                data = json.load(f)
+                # Extract strategy number from filename (plot_data_0.json -> 0)
+                strategy_num = int(
+                    json_file.replace("plot_data_", "").replace(".json", "")
+                )
+                all_plot_data.append({"strategy_number": strategy_num, "data": data})
+
+        return {"strategies": all_plot_data}
 
     except HTTPException:
         raise
