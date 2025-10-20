@@ -307,6 +307,7 @@ export default function InteractivePlots({ simulation }) {
                     dataKey={clientKey}
                     stroke={color}
                     strokeWidth={2}
+                    strokeDasharray={client.is_malicious ? '5 5' : undefined}
                     dot={{ r: 3 }}
                     name={`Client ${client.client_id}${client.is_malicious ? ' (Malicious)' : ''}`}
                   />
