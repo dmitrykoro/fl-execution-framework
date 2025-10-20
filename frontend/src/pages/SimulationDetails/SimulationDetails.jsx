@@ -7,6 +7,7 @@ import { InsightsTab } from '@components/features/simulation-details/InsightsTab
 import { MetricsTab } from '@components/features/simulation-details/MetricsTab/MetricsTab';
 import { ConfigTab } from '@components/features/simulation-details/ConfigTab/ConfigTab';
 import { PlotsTab } from '@components/features/simulation-details/PlotsTab/PlotsTab';
+import { ComparisonTab } from '@components/features/simulation-details/ComparisonTab/ComparisonTab';
 import { useSimulationDetails } from '@hooks/useSimulationDetails';
 import { useCSVData } from '@hooks/useCSVData';
 import { createSimulation, stopSimulation } from '@api/endpoints/simulations';
@@ -15,7 +16,7 @@ import { toast } from 'sonner';
 export function SimulationDetails() {
   const { simulationId } = useParams();
   const navigate = useNavigate();
-  const { details, status, loading, error } = useSimulationDetails(simulationId);
+  const { details, status, loading, error, isMultiStrategy } = useSimulationDetails(simulationId);
   const { csvData } = useCSVData(simulationId, details?.result_files);
   const [isCloning, setIsCloning] = useState(false);
   const [isStopping, setIsStopping] = useState(false);
@@ -121,6 +122,15 @@ export function SimulationDetails() {
         <Tab eventKey="insights" title="Insights">
           <InsightsTab details={details} csvData={csvData} status={displayStatus} />
         </Tab>
+
+        {isMultiStrategy && (
+          <Tab eventKey="comparison" title="📊 Comparison">
+            <ComparisonTab
+              simulation={{ ...details, id: simulationId, status: displayStatus }}
+              isMultiStrategy={isMultiStrategy}
+            />
+          </Tab>
+        )}
 
         <Tab eventKey="plots" title="Plots">
           <PlotsTab simulation={{ ...details, id: simulationId }} />
