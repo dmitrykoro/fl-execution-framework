@@ -256,6 +256,34 @@
   color: #9dc6f0;
 }
 
+/* Warning Alert Button - Light Mode */
+.alert-warning .btn-warning-action {
+  color: #2b2930;
+  border-color: #49454f;
+  background-color: transparent;
+}
+
+.alert-warning .btn-warning-action:hover,
+.alert-warning .btn-warning-action:focus {
+  background-color: #2b2930;
+  border-color: #2b2930;
+  color: #ffffff;
+}
+
+/* Warning Alert Button - Dark Mode */
+:root[data-theme='dark'] .alert-warning .btn-warning-action {
+  color: #d0bcff;
+  border-color: #d0bcff;
+  background-color: rgba(208, 188, 255, 0.15);
+}
+
+:root[data-theme='dark'] .alert-warning .btn-warning-action:hover,
+:root[data-theme='dark'] .alert-warning .btn-warning-action:focus {
+  background-color: #d0bcff;
+  border-color: #d0bcff;
+  color: #1c1b1f;
+}
+
 /* Validation Success Alert */
 .validation-success-alert {
   background-color: rgba(25, 135, 84, 0.06) !important;
@@ -1673,12 +1701,31 @@ html {
   transition: all 200ms cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-.queue-job-card:hover {
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+.queue-job-card-clickable {
+  cursor: pointer;
+  user-select: none;
 }
 
-:root[data-theme='dark'] .queue-job-card:hover {
+.queue-job-card-clickable:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  transform: translateY(-2px);
+}
+
+.queue-job-card-clickable:focus {
+  outline: 2px solid #0d6efd;
+  outline-offset: 2px;
+}
+
+.queue-job-card-clickable:active {
+  transform: translateY(0);
+}
+
+:root[data-theme='dark'] .queue-job-card-clickable:hover {
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+}
+
+:root[data-theme='dark'] .queue-job-card-clickable:focus {
+  outline-color: #6ea8fe;
 }
 
 /* Config preview box */
