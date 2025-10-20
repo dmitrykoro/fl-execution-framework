@@ -172,6 +172,112 @@ See implementation in:
 
 ---
 
+## 🔄 Overlapping Attack Schedules
+
+### **What Happens When Schedules Overlap?**
+
+When multiple attack phases match the same client in the same round, the framework applies **attack stacking with type-based deduplication**:
+
+#### **Rule 1: Different attack types STACK** ✅
+
+```json
+{
+  "schedule": [
+    {
+      "start_round": 5,
+      "end_round": 10,
+      "client_ids": [0],
+      "attack_config": { "type": "label_flipping", "params": { "flip_fraction": 0.5 } }
+    },
+    {
+      "start_round": 7,
+      "end_round": 12,
+      "client_ids": [0],
+      "attack_config": { "type": "gaussian_noise", "params": { "std": 0.1 } }
+    }
+  ]
+}
+```
+
+**Round 8, Client 0:**
+
+1. Apply label flipping (flip 50% of labels)
+2. Apply Gaussian noise (std=0.1)
+3. **Both attacks execute in sequence!**
+
+#### **Rule 2: Same attack type DEDUPLICATES (last wins)** ⚠️
+
+```json
+{
+  "schedule": [
+    {
+      "start_round": 5,
+      "end_round": 10,
+      "client_ids": [0],
+      "attack_config": { "type": "label_flipping", "params": { "flip_fraction": 0.3 } }
+    },
+    {
+      "start_round": 7,
+      "end_round": 12,
+      "client_ids": [0],
+      "attack_config": { "type": "label_flipping", "params": { "flip_fraction": 0.8 } }
+    }
+  ]
+}
+```
+
+**Round 8, Client 0:**
+
+- Only applies **one** label flipping attack
+- Uses `flip_fraction: 0.8` (from the second phase, not 0.3)
+- **Last matching schedule wins for same attack type**
+
+### **Why This Design?**
+
+✅ **Mathematically sound**: Label flipping twice doesn't compose meaningfully
+✅ **Predictable**: Same attack type appears once per round
+✅ **Powerful**: Enables hybrid attacks (label flip + noise + brightness)
+✅ **Research-aligned**: Matches federated learning literature on multi-pronged Byzantine attacks
+
+### **Example: Hybrid Attack**
+
+```json
+{
+  "schedule": [
+    {
+      "start_round": 5,
+      "end_round": 15,
+      "client_ids": [0, 1],
+      "attack_config": {
+        "type": "label_flipping",
+        "params": { "flip_fraction": 0.6, "num_classes": 10 }
+      }
+    },
+    {
+      "start_round": 8,
+      "end_round": 12,
+      "client_ids": [0, 1],
+      "attack_config": { "type": "gaussian_noise", "params": { "std": 0.15 } }
+    },
+    {
+      "start_round": 10,
+      "end_round": 20,
+      "client_ids": [0, 1],
+      "attack_config": { "type": "brightness", "params": { "factor": 0.4 } }
+    }
+  ]
+}
+```
+
+**Round 11, Client 0:**
+
+1. Label flipping (60% of labels)
+2. Gaussian noise (std=0.15)
+3. Brightness reduction (40% darkness)
+4. **Three attacks execute in sequence!**
+
+---
+
 ## 🎯 Client Selection
 
 **Specific clients:**
