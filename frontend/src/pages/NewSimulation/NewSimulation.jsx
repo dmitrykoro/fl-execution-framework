@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { Alert } from 'react-bootstrap';
 import { PageContainer } from '@components/layout/PageContainer';
 import { PageHeader } from '@components/layout/PageHeader';
 import { SimulationForm } from '@components/features/simulation-form/SimulationForm';
 import { OutlineButton } from '@components/common/Button/OutlineButton';
 import { ConfirmModal } from '@components/common/Modal/ConfirmModal';
+import { QueueChoiceModal } from '@components/common/Modal/QueueChoiceModal';
 import { createSimulation } from '@api';
 import { useConfigValidation } from '@hooks/useConfigValidation';
 import { useRunningSimulation } from '@hooks/useRunningSimulation';
@@ -31,12 +32,13 @@ export function NewSimulation() {
   const [error, setError] = useState(null);
   const [selectedPreset, setSelectedPreset] = useState(null);
   const [showClearModal, setShowClearModal] = useState(false);
+  const [showQueueChoiceModal, setShowQueueChoiceModal] = useState(false);
+  const [pendingConfig, setPendingConfig] = useState(null);
   const navigate = useNavigate();
 
   const validation = useConfigValidation(config);
-  const { hasRunning } = useRunningSimulation();
+  const { hasRunning, runningSimIds } = useRunningSimulation();
 
-  // Auto-save to localStorage when config changes
   useEffect(() => {
     const timeoutId = setTimeout(() => {
       localStorage.setItem('simulation-draft', JSON.stringify(config));
@@ -89,7 +91,6 @@ export function NewSimulation() {
       delete sanitized.partitioning_strategy;
       delete sanitized.partitioning_params;
 
-      // Transformers only supported with HuggingFace datasets
       if (sanitized.model_type === 'transformer') {
         sanitized.model_type = 'cnn';
       }
@@ -100,26 +101,56 @@ export function NewSimulation() {
 
   const handleSubmit = async e => {
     e.preventDefault();
+
+    if (hasRunning) {
+      const sanitizedConfig = sanitizeConfig(config);
+      setPendingConfig(sanitizedConfig);
+      setShowQueueChoiceModal(true);
+      return;
+    }
+
+    await submitSimulation(null);
+  };
+
+  const submitSimulation = async (addToQueue = null) => {
     setSubmitting(true);
     setError(null);
+    setShowQueueChoiceModal(false);
 
     try {
-      const sanitizedConfig = sanitizeConfig(config);
-      const response = await createSimulation(sanitizedConfig);
-      const { simulation_id } = response.data;
+      const configToSubmit = pendingConfig || sanitizeConfig(config);
+      const response = await createSimulation(configToSubmit, addToQueue);
+      const { simulation_id, queued } = response.data;
       localStorage.removeItem('simulation-draft');
-      toast.success('Simulation created successfully!');
-      navigate(`/simulations/${simulation_id}`);
+      setPendingConfig(null);
+
+      if (queued) {
+        toast.success('Added to experiment queue!');
+        navigate(`/queue/${simulation_id}`);
+      } else {
+        toast.success('Simulation created successfully!');
+        navigate(`/simulations/${simulation_id}`);
+      }
     } catch (err) {
       console.error('Failed to create simulation:', err);
-      const errorMsg = err.response?.data?.detail || 'An unexpected error occurred.';
+
+      let errorMsg = 'An unexpected error occurred.';
+
+      if (err.response?.data?.detail) {
+        const detail = err.response.data.detail;
+
+        if (Array.isArray(detail)) {
+          errorMsg = detail.map(e => e.msg || JSON.stringify(e)).join(', ');
+        } else if (typeof detail === 'string') {
+          errorMsg = detail;
+        } else {
+          errorMsg = detail.msg || JSON.stringify(detail);
+        }
+      }
+
       setError(errorMsg);
       toast.error(errorMsg, {
         duration: 5000,
-        action: {
-          label: 'Retry',
-          onClick: () => handleSubmit(e),
-        },
       });
       setSubmitting(false);
     }
@@ -200,10 +231,20 @@ export function NewSimulation() {
 
       {hasRunning && (
         <Alert variant="warning" className="mb-4">
-          <i className="bi bi-exclamation-triangle me-2"></i>
-          <strong>Simulation currently running</strong> - You can still create a simulation, but it
-          will queue and start automatically after the current one completes. For better control
-          over multiple experiments, use the Experiment Queue feature.
+          <div className="d-flex justify-content-between align-items-center">
+            <div>
+              <i className="bi bi-exclamation-triangle me-2"></i>
+              <strong>Simulation in progress</strong> - New simulations will queue automatically
+            </div>
+            <OutlineButton
+              as={Link}
+              to={`/queue/${runningSimIds[0]}`}
+              className="btn-warning-action"
+              size="sm"
+            >
+              View Queue Status
+            </OutlineButton>
+          </div>
         </Alert>
       )}
 
@@ -225,6 +266,16 @@ export function NewSimulation() {
         variant="warning"
         onConfirm={confirmResetConfig}
         onCancel={() => setShowClearModal(false)}
+      />
+
+      <QueueChoiceModal
+        show={showQueueChoiceModal}
+        onHide={() => {
+          setShowQueueChoiceModal(false);
+          setPendingConfig(null);
+        }}
+        onAddToQueue={() => submitSimulation(true)}
+        onCreateSeparate={() => submitSimulation(false)}
       />
     </PageContainer>
   );
