@@ -205,7 +205,7 @@ When multiple attack phases match the same client in the same round, the framewo
 2. Apply Gaussian noise (std=0.1)
 3. **Both attacks execute in sequence!**
 
-#### **Rule 2: Same attack type DEDUPLICATES (last wins)** ⚠️
+#### **Rule 2: Same attack type DEDUPLICATES (first wins)** ⚠️
 
 ```json
 {
@@ -229,8 +229,8 @@ When multiple attack phases match the same client in the same round, the framewo
 **Round 8, Client 0:**
 
 - Only applies **one** label flipping attack
-- Uses `flip_fraction: 0.8` (from the second phase, not 0.3)
-- **Last matching schedule wins for same attack type**
+- Uses `flip_fraction: 0.3` (from the first phase, not 0.8)
+- **First matching schedule wins for same attack type**
 
 ### **Why This Design?**
 
