@@ -172,7 +172,6 @@ class TestTokenReplacement:
         result = apply_token_replacement(tokens, replacement_prob=0.2)
         num_replaced = (result != tokens).sum().item()
         total_tokens = tokens.numel()
-        # Should replace approximately 20% of tokens
         expected = total_tokens * 0.2
         assert abs(num_replaced - expected) < expected * 0.1
 
@@ -182,15 +181,15 @@ class TestShouldPoisonThisRound:
 
     def test_no_schedule_no_poisoning(self):
         """No attack schedule should result in no poisoning."""
-        should_poison, config = should_poison_this_round(5, 0, None)
+        should_poison, configs = should_poison_this_round(5, 0, None)
         assert not should_poison
-        assert config is None
+        assert configs == []
 
     def test_empty_schedule_no_poisoning(self):
         """Empty attack schedule should result in no poisoning."""
-        should_poison, config = should_poison_this_round(5, 0, [])
+        should_poison, configs = should_poison_this_round(5, 0, [])
         assert not should_poison
-        assert config is None
+        assert configs == []
 
     def test_specific_client_selection(self):
         """Specific clients should be poisoned when selected."""
@@ -203,14 +202,14 @@ class TestShouldPoisonThisRound:
                 "attack_config": {"type": "label_flipping", "params": {}},
             }
         ]
-        # Client 2 should be poisoned
-        should_poison, config = should_poison_this_round(5, 2, schedule)
+        should_poison, configs = should_poison_this_round(5, 2, schedule)
         assert should_poison
-        assert config == {"type": "label_flipping", "params": {}}
+        assert len(configs) == 1
+        assert configs[0] == {"type": "label_flipping", "params": {}}
 
-        # Client 1 should not be poisoned
-        should_poison, config = should_poison_this_round(5, 1, schedule)
+        should_poison, configs = should_poison_this_round(5, 1, schedule)
         assert not should_poison
+        assert configs == []
 
     def test_round_range_filtering(self):
         """Poisoning should only occur within round range."""
@@ -223,17 +222,17 @@ class TestShouldPoisonThisRound:
                 "attack_config": {"type": "label_flipping", "params": {}},
             }
         ]
-        # Round 3 - too early
-        should_poison, _ = should_poison_this_round(3, 0, schedule)
+        should_poison, configs = should_poison_this_round(3, 0, schedule)
         assert not should_poison
+        assert configs == []
 
-        # Round 7 - within range
-        should_poison, _ = should_poison_this_round(7, 0, schedule)
+        should_poison, configs = should_poison_this_round(7, 0, schedule)
         assert should_poison
+        assert len(configs) == 1
 
-        # Round 12 - too late
-        should_poison, _ = should_poison_this_round(12, 0, schedule)
+        should_poison, configs = should_poison_this_round(12, 0, schedule)
         assert not should_poison
+        assert configs == []
 
     def test_random_selection_strategy(self):
         """Random selection should use _selected_clients."""
@@ -246,13 +245,13 @@ class TestShouldPoisonThisRound:
                 "attack_config": {"type": "gaussian_noise", "params": {}},
             }
         ]
-        # Client 3 is selected
-        should_poison, config = should_poison_this_round(5, 3, schedule)
+        should_poison, configs = should_poison_this_round(5, 3, schedule)
         assert should_poison
+        assert len(configs) == 1
 
-        # Client 5 is not selected
-        should_poison, _ = should_poison_this_round(5, 5, schedule)
+        should_poison, configs = should_poison_this_round(5, 5, schedule)
         assert not should_poison
+        assert configs == []
 
     def test_percentage_selection_strategy(self):
         """Percentage selection should use _selected_clients."""
@@ -265,16 +264,16 @@ class TestShouldPoisonThisRound:
                 "attack_config": {"type": "brightness", "params": {}},
             }
         ]
-        # Client 2 is selected
-        should_poison, config = should_poison_this_round(5, 2, schedule)
+        should_poison, configs = should_poison_this_round(5, 2, schedule)
         assert should_poison
+        assert len(configs) == 1
 
-        # Client 1 is not selected
-        should_poison, _ = should_poison_this_round(5, 1, schedule)
+        should_poison, configs = should_poison_this_round(5, 1, schedule)
         assert not should_poison
+        assert configs == []
 
     def test_multiple_attack_phases(self):
-        """Should handle multiple attack phases correctly."""
+        """Should handle multiple non-overlapping attack phases correctly."""
         schedule = [
             {
                 "start_round": 1,
@@ -291,15 +290,179 @@ class TestShouldPoisonThisRound:
                 "attack_config": {"type": "gaussian_noise", "params": {}},
             },
         ]
-        # Round 3, client 0 - first phase
-        should_poison, config = should_poison_this_round(3, 0, schedule)
-        assert should_poison and config is not None
-        assert config["type"] == "label_flipping"
+        should_poison, configs = should_poison_this_round(3, 0, schedule)
+        assert should_poison
+        assert len(configs) == 1
+        assert configs[0]["type"] == "label_flipping"
 
-        # Round 8, client 1 - second phase
-        should_poison, config = should_poison_this_round(8, 1, schedule)
-        assert should_poison and config is not None
-        assert config["type"] == "gaussian_noise"
+        should_poison, configs = should_poison_this_round(8, 1, schedule)
+        assert should_poison
+        assert len(configs) == 1
+        assert configs[0]["type"] == "gaussian_noise"
+
+    def test_overlapping_schedules_different_attack_types(self):
+        """Overlapping schedules with different attack types should stack."""
+        schedule = [
+            {
+                "start_round": 5,
+                "end_round": 10,
+                "selection_strategy": "specific",
+                "client_ids": [0],
+                "attack_config": {
+                    "type": "label_flipping",
+                    "params": {"flip_fraction": 0.5},
+                },
+            },
+            {
+                "start_round": 7,
+                "end_round": 12,
+                "selection_strategy": "specific",
+                "client_ids": [0],
+                "attack_config": {"type": "gaussian_noise", "params": {"std": 0.1}},
+            },
+        ]
+        should_poison, configs = should_poison_this_round(8, 0, schedule)
+        assert should_poison
+        assert len(configs) == 2
+        attack_types = {config["type"] for config in configs}
+        assert attack_types == {"label_flipping", "gaussian_noise"}
+
+    def test_overlapping_schedules_same_attack_type_deduplication(self):
+        """Overlapping schedules with same attack type should deduplicate (last wins)."""
+        schedule = [
+            {
+                "start_round": 5,
+                "end_round": 10,
+                "selection_strategy": "specific",
+                "client_ids": [0],
+                "attack_config": {
+                    "type": "label_flipping",
+                    "params": {"flip_fraction": 0.3, "num_classes": 10},
+                },
+            },
+            {
+                "start_round": 7,
+                "end_round": 12,
+                "selection_strategy": "specific",
+                "client_ids": [0],
+                "attack_config": {
+                    "type": "label_flipping",
+                    "params": {"flip_fraction": 0.8, "num_classes": 10},
+                },
+            },
+        ]
+        should_poison, configs = should_poison_this_round(8, 0, schedule)
+        assert should_poison
+        assert len(configs) == 1
+        assert configs[0]["type"] == "label_flipping"
+        assert configs[0]["params"]["flip_fraction"] == 0.8
+
+    def test_three_way_overlap_mixed_types(self):
+        """Three overlapping schedules with mixed attack types."""
+        schedule = [
+            {
+                "start_round": 5,
+                "end_round": 15,
+                "selection_strategy": "specific",
+                "client_ids": [0],
+                "attack_config": {"type": "label_flipping", "params": {}},
+            },
+            {
+                "start_round": 8,
+                "end_round": 12,
+                "selection_strategy": "specific",
+                "client_ids": [0],
+                "attack_config": {"type": "gaussian_noise", "params": {}},
+            },
+            {
+                "start_round": 10,
+                "end_round": 20,
+                "selection_strategy": "specific",
+                "client_ids": [0],
+                "attack_config": {"type": "brightness", "params": {}},
+            },
+        ]
+        should_poison, configs = should_poison_this_round(11, 0, schedule)
+        assert should_poison
+        assert len(configs) == 3
+        attack_types = {config["type"] for config in configs}
+        assert attack_types == {"label_flipping", "gaussian_noise", "brightness"}
+
+    def test_three_way_overlap_with_duplicates(self):
+        """Three overlapping schedules with duplicate attack type."""
+        schedule = [
+            {
+                "start_round": 5,
+                "end_round": 15,
+                "selection_strategy": "specific",
+                "client_ids": [0],
+                "attack_config": {
+                    "type": "label_flipping",
+                    "params": {"flip_fraction": 0.3},
+                },
+            },
+            {
+                "start_round": 8,
+                "end_round": 12,
+                "selection_strategy": "specific",
+                "client_ids": [0],
+                "attack_config": {"type": "gaussian_noise", "params": {}},
+            },
+            {
+                "start_round": 10,
+                "end_round": 20,
+                "selection_strategy": "specific",
+                "client_ids": [0],
+                "attack_config": {
+                    "type": "label_flipping",
+                    "params": {"flip_fraction": 0.9},
+                },
+            },
+        ]
+        # Round 11 - all three overlap, but two are same type
+        should_poison, configs = should_poison_this_round(11, 0, schedule)
+        assert should_poison
+        assert len(configs) == 2  # Deduplicated
+        attack_types = {config["type"] for config in configs}
+        assert attack_types == {"label_flipping", "gaussian_noise"}
+        # Last label_flipping should win
+        label_flip_config = next(c for c in configs if c["type"] == "label_flipping")
+        assert label_flip_config["params"]["flip_fraction"] == 0.9
+
+    def test_partial_overlap_transitions(self):
+        """Test behavior as rounds transition through overlapping phases."""
+        schedule = [
+            {
+                "start_round": 5,
+                "end_round": 10,
+                "selection_strategy": "specific",
+                "client_ids": [0],
+                "attack_config": {"type": "label_flipping", "params": {}},
+            },
+            {
+                "start_round": 8,
+                "end_round": 12,
+                "selection_strategy": "specific",
+                "client_ids": [0],
+                "attack_config": {"type": "gaussian_noise", "params": {}},
+            },
+        ]
+        # Round 6 - only first phase
+        should_poison, configs = should_poison_this_round(6, 0, schedule)
+        assert should_poison
+        assert len(configs) == 1
+        assert configs[0]["type"] == "label_flipping"
+
+        # Round 9 - both phases overlap
+        should_poison, configs = should_poison_this_round(9, 0, schedule)
+        assert should_poison
+        assert len(configs) == 2
+
+        # Round 11 - only second phase
+        should_poison, configs = should_poison_this_round(11, 0, schedule)
+        assert should_poison
+        assert len(configs) == 1
+        assert configs[0]["type"] == "gaussian_noise"
 
 
 class TestApplyPoisoningAttack:
