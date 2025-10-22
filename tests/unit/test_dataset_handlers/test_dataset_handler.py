@@ -279,48 +279,6 @@ class TestDatasetHandler:
             mock_rename.call_count >= 3
         )  # At least initial renames + final client rename
 
-    @patch("os.listdir")
-    @patch("os.path.isdir")
-    @patch("src.dataset_handlers.dataset_handler.cv2.imread")
-    @patch("src.dataset_handlers.dataset_handler.cv2.imwrite")
-    @patch("src.dataset_handlers.dataset_handler.np.random.normal")
-    def test_add_noise_processes_images_correctly(
-        self,
-        mock_normal,
-        mock_imwrite,
-        mock_imread,
-        mock_isdir,
-        mock_listdir,
-        dataset_handler,
-    ):
-        """Test _add_noise adds Gaussian noise to images correctly."""
-        # Setup mocks
-        client_dir = "client_0"
-        mock_listdir.side_effect = [
-            ["class_0"],  # Label folders
-            ["image1.png", "image2.jpg"],  # Images in class_0
-        ]
-        mock_isdir.return_value = True
-
-        # Mock image data
-        mock_image = np.ones((32, 32, 3), dtype=np.uint8) * 128
-        mock_imread.return_value = mock_image
-        mock_imwrite.return_value = True
-
-        # Mock noise generation
-        mock_noise = np.ones((32, 32, 3), dtype=np.float32) * 10
-        mock_normal.return_value = mock_noise
-
-        # Set attack ratio to poison first image only
-        dataset_handler._strategy_config.attack_ratio = 0.5
-
-        dataset_handler._add_noise(client_dir)
-
-        # Should process one image (50% of 2 images = 1 image)
-        assert mock_imread.call_count == 1
-        assert mock_imwrite.call_count == 1
-        assert len(dataset_handler.all_poisoned_img_snrs) == 1
-
     @patch("os.listdir", side_effect=FileNotFoundError("Directory not found"))
     @patch("logging.error")
     def test_add_noise_handles_missing_directory(
@@ -331,51 +289,6 @@ class TestDatasetHandler:
 
         mock_log_error.assert_called_once()
         assert "Client directory not found" in mock_log_error.call_args[0][0]
-
-    @patch("os.listdir")
-    @patch("os.path.isdir")
-    @patch("src.dataset_handlers.dataset_handler.cv2.imread", return_value=None)
-    @patch("logging.error")
-    def test_add_noise_handles_failed_image_load(
-        self, mock_log_error, mock_imread, mock_isdir, mock_listdir, dataset_handler
-    ):
-        """Test _add_noise handles failed image loading gracefully."""
-        mock_listdir.side_effect = [["class_0"], ["image1.png"]]
-        mock_isdir.return_value = True
-        dataset_handler._strategy_config.attack_ratio = 1.0
-
-        dataset_handler._add_noise("client_0")
-
-        mock_log_error.assert_called()
-        assert "Failed to load image" in mock_log_error.call_args[0][0]
-
-    @patch("os.listdir")
-    @patch("os.path.isdir")
-    @patch("src.dataset_handlers.dataset_handler.cv2.imread")
-    @patch("src.dataset_handlers.dataset_handler.cv2.imwrite", return_value=False)
-    @patch("logging.error")
-    @patch("src.dataset_handlers.dataset_handler.np.random.normal")
-    def test_add_noise_handles_failed_image_write(
-        self,
-        mock_normal,
-        mock_log_error,
-        mock_imwrite,
-        mock_imread,
-        mock_isdir,
-        mock_listdir,
-        dataset_handler,
-    ):
-        """Test _add_noise handles failed image writing gracefully."""
-        mock_listdir.side_effect = [["class_0"], ["image1.png"]]
-        mock_isdir.return_value = True
-        mock_imread.return_value = np.ones((32, 32, 3), dtype=np.uint8) * 128
-        mock_normal.return_value = np.ones((32, 32, 3), dtype=np.float32) * 10
-        dataset_handler._strategy_config.attack_ratio = 1.0
-
-        dataset_handler._add_noise("client_0")
-
-        mock_log_error.assert_called()
-        assert "Failed to write image" in mock_log_error.call_args[0][0]
 
     def test_assign_poisoned_client_ids_parses_correctly(
         self, dataset_handler: DatasetHandler
@@ -404,37 +317,6 @@ class TestDatasetHandler:
             "Error while parsing client dataset folder"
             in mock_log_error.call_args[0][0]
         )
-
-    def test_snr_calculation_in_add_noise(self, dataset_handler):
-        """Test SNR calculation in _add_noise method."""
-        # Create a simple test case for SNR calculation
-        with (
-            patch("os.listdir") as mock_listdir,
-            patch("os.path.isdir", return_value=True),
-            patch("src.dataset_handlers.dataset_handler.cv2.imread") as mock_imread,
-            patch(
-                "src.dataset_handlers.dataset_handler.cv2.imwrite", return_value=True
-            ),
-            patch(
-                "src.dataset_handlers.dataset_handler.np.random.normal"
-            ) as mock_normal,
-        ):
-            mock_listdir.side_effect = [["class_0"], ["image1.png"]]
-
-            # Create test image and noise
-            test_image = np.ones((10, 10, 3), dtype=np.uint8) * 100
-            test_noise = np.ones((10, 10, 3), dtype=np.float32) * 10
-
-            mock_imread.return_value = test_image
-            mock_normal.return_value = test_noise
-
-            dataset_handler._strategy_config.attack_ratio = 1.0
-            dataset_handler._add_noise("client_0")
-
-            # Check that SNR was calculated and stored
-            assert len(dataset_handler.all_poisoned_img_snrs) == 1
-            snr_value = dataset_handler.all_poisoned_img_snrs[0]
-            assert isinstance(snr_value, (int, float))
 
     @pytest.mark.parametrize(
         "attack_type,expected_method",

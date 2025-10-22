@@ -193,6 +193,8 @@ class DatasetHandler:
                 else:
                     logging.error(f"Failed to write image: {filepath}")
 
+        os.rename(os.path.join(self.dst_dataset, client_dir), os.path.join(self.dst_dataset, client_dir + "_bad"))
+
     def _assign_poisoned_client_ids(
             self, bad_client_dirs: list
     ) -> None:
