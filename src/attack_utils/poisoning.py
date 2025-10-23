@@ -52,6 +52,7 @@ def apply_gaussian_noise(
     mean: float = 0.0,
     std: float = 0.1,
     target_noise_snr: Optional[float] = None,
+    attack_ratio: float = 1.0,
 ) -> torch.Tensor:
     """
     Add Gaussian noise to image pixels.
@@ -61,22 +62,37 @@ def apply_gaussian_noise(
         mean: Mean of Gaussian distribution (if target_noise_snr not provided)
         std: Standard deviation (if target_noise_snr not provided)
         target_noise_snr: Target signal-to-noise ratio in dB (if provided, overrides mean/std)
+        attack_ratio: Fraction of samples in batch to poison (0.0-1.0)
 
     Returns:
         torch.Tensor: Images with added noise, clamped to [0, 1]
     """
+    num_samples = images.shape[0]
+    num_to_poison = int(num_samples * attack_ratio)
+
+    # If no samples to poison, return unchanged
+    if num_to_poison == 0:
+        return images
+
+    # Randomly select indices to poison
+    indices = torch.randperm(num_samples)[:num_to_poison]
+
+    # Clone images to avoid modifying original
+    poisoned_images = images.clone()
+
     if target_noise_snr is not None:
         # SNR-based approach
         # SNR(dB) = 10 * log10(signal_power / noise_power)
         # → noise_power = signal_power / (10^(SNR/10))
-        signal_power = torch.mean(images**2, dim=(1, 2, 3), keepdim=True)
+        signal_power = torch.mean(poisoned_images[indices]**2, dim=(1, 2, 3), keepdim=True)
         noise_power = signal_power / (10 ** (target_noise_snr / 10))
-        noise = torch.randn_like(images) * torch.sqrt(noise_power)
+        noise = torch.randn_like(poisoned_images[indices]) * torch.sqrt(noise_power)
     else:
         # Direct mean/std noise
-        noise = torch.randn_like(images) * std + mean
+        noise = torch.randn_like(poisoned_images[indices]) * std + mean
 
-    return torch.clamp(images + noise, 0, 1)
+    poisoned_images[indices] = torch.clamp(poisoned_images[indices] + noise, 0, 1)
+    return poisoned_images
 
 
 def apply_brightness_attack(images: torch.Tensor, factor: float = 0.5) -> torch.Tensor:
@@ -219,14 +235,21 @@ def apply_poisoning_attack(
     elif attack_type == "gaussian_noise":
         # Use SNR-based approach if available
         target_noise_snr = attack_config.get("target_noise_snr")
+        attack_ratio = attack_config.get("attack_ratio", 1.0)
+
         if target_noise_snr is not None:
-            data = apply_gaussian_noise(data, target_noise_snr=target_noise_snr)
+            data = apply_gaussian_noise(
+                data,
+                target_noise_snr=target_noise_snr,
+                attack_ratio=attack_ratio
+            )
         else:
             # Fallback to std/mean
             data = apply_gaussian_noise(
                 data,
                 mean=attack_config.get("mean", 0.0),
                 std=attack_config.get("std", 0.1),
+                attack_ratio=attack_ratio
             )
 
     elif attack_type == "brightness":
