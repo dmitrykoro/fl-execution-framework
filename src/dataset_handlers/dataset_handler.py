@@ -22,7 +22,10 @@ class DatasetHandler:
         """Copy the specified number of clients' subsets to runtime folder and perform poisoning"""
 
         self._copy_dataset(self._strategy_config.num_of_clients)
-        self._poison_clients(self._strategy_config.attack_type, self._strategy_config.num_of_malicious_clients)
+
+        # Only do filesystem poisoning if using static attack_type
+        if self._strategy_config.attack_type is not None:
+            self._poison_clients(self._strategy_config.attack_type, self._strategy_config.num_of_malicious_clients)
 
     def teardown_dataset(self) -> None:
         """Remove dataset after execution if requested in the strategy config"""

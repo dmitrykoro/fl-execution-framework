@@ -75,11 +75,20 @@ def show_plots_within_strategy(
 
             # Ensure rounds and metric_values have matching dimensions
             min_length = min(len(client_info.rounds), len(metric_values))
+
+            # Don't mark static malicious clients if using attack_schedule
+            if simulation_strategy.strategy_config.attack_schedule:
+                client_label = f"client_{client_info.client_id}"
+            else:
+                client_label = (
+                    f"client_{client_info.client_id}"
+                    if not client_info.is_malicious else f"client_{client_info.client_id}_bad"
+                )
+
             plt.plot(
                 client_info.rounds[:min_length],
                 metric_values[:min_length],
-                label=f"client_{client_info.client_id}"
-                if not client_info.is_malicious else f"client_{client_info.client_id}_bad"
+                label=client_label
             )
 
             # to put X on values of clients that were excluded
@@ -98,8 +107,15 @@ def show_plots_within_strategy(
             f"{metric_name} of each client across rounds for strategy: "
             f"{simulation_strategy.strategy_config.aggregation_strategy_keyword}\n{plot_strategy_title}"
         )
+
+        # Update legend title based on attack_schedule presence
+        if simulation_strategy.strategy_config.attack_schedule:
+            legend_title = 'clients\n(malicious vary by round - see config)'
+        else:
+            legend_title = 'clients'
+
         plt.legend(
-            title='clients', bbox_to_anchor=(1.05, 1),
+            title=legend_title, bbox_to_anchor=(1.05, 1),
             loc='upper left',
             ncol=math.ceil(simulation_strategy.strategy_config.num_of_clients / 20)
         )
