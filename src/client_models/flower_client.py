@@ -9,6 +9,7 @@ from typing import List
 
 from src.network_models.bert_model_definition import get_peft_model_state_dict, set_peft_model_state_dict
 from src.attack_utils.poisoning import should_poison_this_round, apply_poisoning_attack
+from src.attack_utils.attack_snapshots import save_attack_snapshot
 
 
 class FlowerClient(fl.client.NumPyClient):
@@ -24,6 +25,8 @@ class FlowerClient(fl.client.NumPyClient):
             use_lora=False,
             num_malicious_clients=0,
             dynamic_attacks_schedule=None,
+            save_attack_snapshots=False,
+            output_dir=None,
     ):
         self.client_id = client_id
         self.net = net
@@ -35,6 +38,8 @@ class FlowerClient(fl.client.NumPyClient):
         self.use_lora = use_lora
         self.num_malicious_clients = num_malicious_clients
         self.dynamic_attacks_schedule = dynamic_attacks_schedule
+        self.save_attack_snapshots = save_attack_snapshots
+        self.output_dir = output_dir
 
     def set_parameters(self, net, parameters: List[np.ndarray]):
         if self.use_lora:
@@ -65,13 +70,28 @@ class FlowerClient(fl.client.NumPyClient):
             for epoch in range(epochs):
                 correct, total, epoch_loss = 0, 0, 0.0
 
-                for images, labels in trainloader:
-                    # Check if dynamic poisoning should be applied
-                    should_poison, attack_config = should_poison_this_round(
+                for batch_idx, (images, labels) in enumerate(trainloader):
+                    should_poison, attack_configs = should_poison_this_round(
                         current_round, self.client_id, self.dynamic_attacks_schedule
                     )
-                    if should_poison and attack_config:
-                        images, labels = apply_poisoning_attack(images, labels, attack_config)
+
+                    if should_poison and attack_configs:
+                        # Stack multiple attacks sequentially
+                        for attack_config in attack_configs:
+                            images, labels = apply_poisoning_attack(images, labels, attack_config)
+
+                            # Save attack snapshot on first batch of first epoch (per attack)
+                            if (self.save_attack_snapshots and self.output_dir and
+                                epoch == 0 and batch_idx == 0):
+                                save_attack_snapshot(
+                                    client_id=self.client_id,
+                                    round_num=current_round,
+                                    attack_config=attack_config,
+                                    data_sample=images,
+                                    labels_sample=labels,
+                                    output_dir=self.output_dir,
+                                    max_samples=5,
+                                )
 
                     images, labels = images.to(self.training_device), labels.to(self.training_device)
                     optimizer.zero_grad()
@@ -101,15 +121,16 @@ class FlowerClient(fl.client.NumPyClient):
                 correct, total = 0, 0
 
                 for batch in trainloader:
-                    # Check if dynamic poisoning should be applied for transformers
-                    should_poison, attack_config = should_poison_this_round(
+                    should_poison, attack_configs = should_poison_this_round(
                         current_round, self.client_id, self.dynamic_attacks_schedule
                     )
-                    if should_poison and attack_config:
-                        if attack_config.get("type") == "token_replacement":
-                            batch["input_ids"], _ = apply_poisoning_attack(
-                                batch["input_ids"], batch["labels"], attack_config
-                            )
+                    if should_poison and attack_configs:
+                        # Stack multiple attacks sequentially
+                        for attack_config in attack_configs:
+                            if attack_config.get("attack_type") == "token_replacement":
+                                batch["input_ids"], _ = apply_poisoning_attack(
+                                    batch["input_ids"], batch["labels"], attack_config
+                                )
 
                     batch = {k: v.to(self.training_device) for k, v in batch.items()}
                     labels = batch["labels"]
