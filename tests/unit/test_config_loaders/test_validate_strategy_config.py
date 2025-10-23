@@ -718,7 +718,6 @@ class TestValidateDependentParams:
             in error_message
         )
 
-
     def test_gaussian_noise_attack_missing_attack_ratio(self):
         """Test validation fails when gaussian noise attack is missing attack_ratio parameter."""
         config = {

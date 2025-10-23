@@ -325,9 +325,7 @@ class TestSimulationStrategyHistory:
         # Average accuracy should be calculated for benign aggregated clients
         # Round 1: (0.8 + 0.9) / 2 = 0.85
         # Round 2: 0.85 / 1 = 0.85
-        assert rounds_info.average_accuracy_history == pytest.approx(
-            [85, 85], rel=8.0
-        )
+        assert rounds_info.average_accuracy_history == pytest.approx([85, 85], rel=8.0)
 
     def test_calculate_additional_rounds_data_no_removal(self):
         """Test calculate_additional_rounds_data when remove_clients=False"""
