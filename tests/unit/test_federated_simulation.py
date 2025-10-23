@@ -4,13 +4,29 @@ from pathlib import Path
 from typing import Any, Dict, List
 from unittest.mock import patch
 
+import pytest
+
 from src.data_models.simulation_strategy_config import StrategyConfig
 from src.federated_simulation import FederatedSimulation
-from tests.common import Mock, np, pytest
+from tests.common import Mock, np
 from tests.fixtures.mock_datasets import MockDatasetHandler
 from tests.fixtures.sample_models import MockNetwork
 
 NDArray = np.ndarray
+
+
+@pytest.fixture
+def mock_hf_dataset_handler() -> MockDatasetHandler:
+    """Create mock dataset handler for HuggingFace testing."""
+    return MockDatasetHandler(dataset_type="huggingface")
+
+
+@pytest.fixture
+def temp_dataset_dir_str(tmp_path: Path) -> str:
+    """Create temporary dataset directory as string."""
+    dataset_dir = tmp_path / "datasets"
+    dataset_dir.mkdir(parents=True)
+    return str(dataset_dir)
 
 
 def _get_base_strategy_config_dict() -> Dict[str, Any]:
@@ -757,3 +773,370 @@ class TestWeightedAverage:
 
         # Should return empty dict
         assert result == {}
+
+
+class TestHuggingFaceDatasetLoading:
+    """Test suite for HuggingFace dataset loading branches."""
+
+    def test_huggingface_with_dataset_keyword_raises_error(
+        self, temp_dataset_dir_str: str, mock_hf_dataset_handler: MockDatasetHandler
+    ) -> None:
+        """Test ValueError when both dataset_source='huggingface' and dataset_keyword are used."""
+        config_dict = _get_base_strategy_config_dict()
+        config_dict.update(
+            {
+                "dataset_source": "huggingface",
+                "dataset_keyword": "its",
+                "hf_dataset_name": "imdb",
+                "model_type": "transformer",
+            }
+        )
+        strategy_config = StrategyConfig.from_dict(config_dict)
+
+        with pytest.raises(
+            ValueError,
+            match="Cannot use both HuggingFace dataset source.*and local dataset keyword",
+        ):
+            FederatedSimulation(
+                strategy_config=strategy_config,
+                dataset_dir=temp_dataset_dir_str,
+                dataset_handler=mock_hf_dataset_handler,
+            )
+
+    def test_huggingface_transformer_with_lora(
+        self, temp_dataset_dir_str: str, mock_hf_dataset_handler: MockDatasetHandler
+    ) -> None:
+        """Test HuggingFace transformer model with LoRA."""
+        config_dict = _get_base_strategy_config_dict()
+        config_dict.update(
+            {
+                "dataset_source": "huggingface",
+                "dataset_keyword": "",
+                "hf_dataset_name": "imdb",
+                "model_type": "transformer",
+                "transformer_model": "distilbert-base-uncased",
+                "use_lora": True,
+                "lora_rank": 8,
+                "max_seq_length": 128,
+                "text_column": "text",
+                "label_column": "label",
+            }
+        )
+        strategy_config = StrategyConfig.from_dict(config_dict)
+
+        with (
+            patch(
+                "src.federated_simulation.TextClassificationLoader"
+            ) as mock_text_loader,
+            patch(
+                "src.federated_simulation.load_text_classifier_with_lora"
+            ) as mock_load_lora,
+        ):
+            mock_loader_instance = Mock()
+            mock_loader_instance.load_datasets.return_value = (
+                [Mock() for _ in range(5)],
+                [Mock() for _ in range(5)],
+                2,  # num_labels
+            )
+            mock_text_loader.return_value = mock_loader_instance
+
+            mock_load_lora.return_value = MockNetwork()
+
+            simulation = FederatedSimulation(
+                strategy_config=strategy_config,
+                dataset_dir=temp_dataset_dir_str,
+                dataset_handler=mock_hf_dataset_handler,
+            )
+
+            mock_text_loader.assert_called_once()
+            call_kwargs = mock_text_loader.call_args.kwargs
+            assert call_kwargs["dataset_name"] == "imdb"
+            assert call_kwargs["tokenizer_model"] == "distilbert-base-uncased"
+            assert call_kwargs["max_seq_length"] == 128
+            assert call_kwargs["text_column"] == "text"
+            assert call_kwargs["label_column"] == "label"
+
+            mock_load_lora.assert_called_once_with(
+                model_name="distilbert-base-uncased",
+                num_labels=2,
+                lora_rank=8,
+            )
+
+            assert simulation._network_model is not None
+            assert simulation._trainloaders is not None
+            assert simulation._valloaders is not None
+
+    def test_huggingface_transformer_without_lora(
+        self, temp_dataset_dir_str: str, mock_hf_dataset_handler: MockDatasetHandler
+    ) -> None:
+        """Test HuggingFace transformer model without LoRA."""
+        config_dict = _get_base_strategy_config_dict()
+        config_dict.update(
+            {
+                "dataset_source": "huggingface",
+                "dataset_keyword": "",
+                "hf_dataset_name": "imdb",
+                "model_type": "transformer",
+                "transformer_model": "bert-base-uncased",
+                "use_lora": False,
+                "max_seq_length": 256,
+                "text_column": "text",
+                "label_column": "label",
+            }
+        )
+        strategy_config = StrategyConfig.from_dict(config_dict)
+
+        with (
+            patch(
+                "src.federated_simulation.TextClassificationLoader"
+            ) as mock_text_loader,
+            patch(
+                "src.federated_simulation.load_text_classifier_without_lora"
+            ) as mock_load_no_lora,
+        ):
+            mock_loader_instance = Mock()
+            mock_loader_instance.load_datasets.return_value = (
+                [Mock() for _ in range(5)],
+                [Mock() for _ in range(5)],
+                3,  # num_labels
+            )
+            mock_text_loader.return_value = mock_loader_instance
+
+            mock_load_no_lora.return_value = MockNetwork()
+
+            simulation = FederatedSimulation(
+                strategy_config=strategy_config,
+                dataset_dir=temp_dataset_dir_str,
+                dataset_handler=mock_hf_dataset_handler,
+            )
+
+            mock_load_no_lora.assert_called_once_with(
+                model_name="bert-base-uncased",
+                num_labels=3,
+            )
+
+            assert simulation._network_model is not None
+
+    def test_huggingface_cnn_with_image_dataset(
+        self, temp_dataset_dir_str: str, mock_hf_dataset_handler: MockDatasetHandler
+    ) -> None:
+        """Test HuggingFace CNN model with image dataset."""
+        config_dict = _get_base_strategy_config_dict()
+        config_dict.update(
+            {
+                "dataset_source": "huggingface",
+                "dataset_keyword": "",
+                "hf_dataset_name": "mnist",
+                "model_type": "cnn",
+                "label_column": "label",
+            }
+        )
+        strategy_config = StrategyConfig.from_dict(config_dict)
+
+        with (
+            patch("src.federated_simulation.DatasetInspector") as mock_inspector,
+            patch("src.federated_simulation.FederatedDatasetLoader") as mock_fed_loader,
+            patch("src.federated_simulation.DynamicCNN") as mock_cnn,
+        ):
+            mock_inspector.inspect_dataset.return_value = {
+                "num_classes": 10,
+                "modality": "image",
+                "image_shape": (1, 28, 28),
+            }
+
+            mock_loader_instance = Mock()
+            mock_loader_instance.load_datasets.return_value = (
+                [Mock() for _ in range(5)],
+                [Mock() for _ in range(5)],
+                10,  # num_classes
+            )
+            mock_fed_loader.return_value = mock_loader_instance
+
+            mock_cnn.return_value = MockNetwork()
+
+            simulation = FederatedSimulation(
+                strategy_config=strategy_config,
+                dataset_dir=temp_dataset_dir_str,
+                dataset_handler=mock_hf_dataset_handler,
+            )
+
+            mock_inspector.inspect_dataset.assert_called_once_with("mnist", "label")
+
+            mock_fed_loader.assert_called_once()
+            call_kwargs = mock_fed_loader.call_args.kwargs
+            assert call_kwargs["dataset_name"] == "mnist"
+            assert call_kwargs["label_column"] == "label"
+
+            mock_cnn.assert_called_once_with(
+                num_classes=10,
+                input_channels=1,
+                input_height=28,
+                input_width=28,
+            )
+
+            assert simulation._network_model is not None
+
+    def test_huggingface_cnn_with_none_image_shape(
+        self, temp_dataset_dir_str: str, mock_hf_dataset_handler: MockDatasetHandler
+    ) -> None:
+        """Test HuggingFace CNN fallback to default shape."""
+        config_dict = _get_base_strategy_config_dict()
+        config_dict.update(
+            {
+                "dataset_source": "huggingface",
+                "dataset_keyword": "",
+                "hf_dataset_name": "custom_dataset",
+                "model_type": "cnn",
+                "label_column": "label",
+            }
+        )
+        strategy_config = StrategyConfig.from_dict(config_dict)
+
+        with (
+            patch("src.federated_simulation.DatasetInspector") as mock_inspector,
+            patch("src.federated_simulation.FederatedDatasetLoader") as mock_fed_loader,
+            patch("src.federated_simulation.DynamicCNN") as mock_cnn,
+        ):
+            mock_inspector.inspect_dataset.return_value = {
+                "num_classes": 5,
+                "modality": "image",
+                "image_shape": None,
+            }
+
+            mock_loader_instance = Mock()
+            mock_loader_instance.load_datasets.return_value = (
+                [Mock() for _ in range(5)],
+                [Mock() for _ in range(5)],
+                5,
+            )
+            mock_fed_loader.return_value = mock_loader_instance
+
+            mock_cnn.return_value = MockNetwork()
+
+            simulation = FederatedSimulation(
+                strategy_config=strategy_config,
+                dataset_dir=temp_dataset_dir_str,
+                dataset_handler=mock_hf_dataset_handler,
+            )
+
+            mock_cnn.assert_called_once_with(
+                num_classes=5,
+                input_channels=1,  # Default
+                input_height=28,  # Default
+                input_width=28,  # Default
+            )
+
+            assert simulation._network_model is not None
+
+    def test_huggingface_cnn_with_none_num_classes_raises_error(
+        self, temp_dataset_dir_str: str, mock_hf_dataset_handler: MockDatasetHandler
+    ) -> None:
+        """Test HuggingFace CNN error when num_classes is None."""
+        config_dict = _get_base_strategy_config_dict()
+        config_dict.update(
+            {
+                "dataset_source": "huggingface",
+                "dataset_keyword": "",
+                "hf_dataset_name": "custom_dataset",
+                "model_type": "cnn",
+                "label_column": "label",
+            }
+        )
+        strategy_config = StrategyConfig.from_dict(config_dict)
+
+        with (
+            patch("src.federated_simulation.DatasetInspector") as mock_inspector,
+            patch("src.federated_simulation.FederatedDatasetLoader") as mock_fed_loader,
+        ):
+            mock_inspector.inspect_dataset.return_value = {
+                "num_classes": None,
+                "modality": "image",
+                "image_shape": (3, 32, 32),
+            }
+
+            mock_loader_instance = Mock()
+            mock_loader_instance.load_datasets.return_value = (
+                [Mock() for _ in range(5)],
+                [Mock() for _ in range(5)],
+                None,
+            )
+            mock_fed_loader.return_value = mock_loader_instance
+
+            with pytest.raises(
+                ValueError,
+                match="Could not detect number of classes for dataset",
+            ):
+                FederatedSimulation(
+                    strategy_config=strategy_config,
+                    dataset_dir=temp_dataset_dir_str,
+                    dataset_handler=mock_hf_dataset_handler,
+                )
+
+    def test_huggingface_cnn_with_non_image_modality_raises_error(
+        self, temp_dataset_dir_str: str, mock_hf_dataset_handler: MockDatasetHandler
+    ) -> None:
+        """Test HuggingFace CNN error for non-image modality."""
+        config_dict = _get_base_strategy_config_dict()
+        config_dict.update(
+            {
+                "dataset_source": "huggingface",
+                "dataset_keyword": "",
+                "hf_dataset_name": "text_dataset",
+                "model_type": "cnn",
+                "label_column": "label",
+            }
+        )
+        strategy_config = StrategyConfig.from_dict(config_dict)
+
+        with (
+            patch("src.federated_simulation.DatasetInspector") as mock_inspector,
+            patch("src.federated_simulation.FederatedDatasetLoader") as mock_fed_loader,
+        ):
+            mock_inspector.inspect_dataset.return_value = {
+                "num_classes": 5,
+                "modality": "text",
+                "image_shape": None,
+            }
+
+            mock_loader_instance = Mock()
+            mock_loader_instance.load_datasets.return_value = (
+                [Mock() for _ in range(5)],
+                [Mock() for _ in range(5)],
+                5,
+            )
+            mock_fed_loader.return_value = mock_loader_instance
+
+            with pytest.raises(
+                ValueError,
+                match="CNN model type only supports image datasets.*got modality: text",
+            ):
+                FederatedSimulation(
+                    strategy_config=strategy_config,
+                    dataset_dir=temp_dataset_dir_str,
+                    dataset_handler=mock_hf_dataset_handler,
+                )
+
+    def test_huggingface_unsupported_model_type_raises_error(
+        self, temp_dataset_dir_str: str, mock_hf_dataset_handler: MockDatasetHandler
+    ) -> None:
+        """Test HuggingFace error for unsupported model_type."""
+        config_dict = _get_base_strategy_config_dict()
+        config_dict.update(
+            {
+                "dataset_source": "huggingface",
+                "dataset_keyword": "",
+                "hf_dataset_name": "some_dataset",
+                "model_type": "unsupported_model_type",
+            }
+        )
+        strategy_config = StrategyConfig.from_dict(config_dict)
+
+        with pytest.raises(
+            ValueError,
+            match="Unsupported model_type 'unsupported_model_type' for HuggingFace dataset source",
+        ):
+            FederatedSimulation(
+                strategy_config=strategy_config,
+                dataset_dir=temp_dataset_dir_str,
+                dataset_handler=mock_hf_dataset_handler,
+            )
