@@ -23,29 +23,30 @@
     "min_available_clients": 10,
     "evaluate_metrics_aggregation_fn": "weighted_average",
     "num_of_client_epochs": 2,
-    "batch_size": 32
+    "batch_size": 32,
+    "save_attack_snapshots": "true"
   },
   "simulation_strategies": [
     {
-      "attack_type": "label_flipping",
-      "dynamic_attacks": {
-        "enabled": true,
-        "schedule": [
-          {
-            "start_round": 3,
-            "end_round": 8,
-            "selection_strategy": "specific",
-            "client_ids": [0, 1, 2],
-            "attack_config": {
-              "type": "label_flipping",
-              "params": {
-                "flip_fraction": 0.7,
-                "num_classes": 62
-              }
-            }
-          }
-        ]
-      }
+      "attack_schedule": [
+        {
+          "start_round": 3,
+          "end_round": 8,
+          "attack_type": "label_flipping",
+          "flip_fraction": 0.7,
+          "selection_strategy": "specific",
+          "malicious_client_ids": [0, 1, 2]
+        },
+        {
+          "start_round": 5,
+          "end_round": 10,
+          "attack_type": "gaussian_noise",
+          "target_noise_snr": 10.0,
+          "attack_ratio": 0.5,
+          "selection_strategy": "specific",
+          "malicious_client_ids": [0, 1]
+        }
+      ]
     }
   ]
 }

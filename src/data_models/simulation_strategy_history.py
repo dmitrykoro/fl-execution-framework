@@ -8,6 +8,7 @@ from src.data_models.round_info import RoundsInfo
 from src.data_models.simulation_strategy_config import StrategyConfig
 
 from src.dataset_handlers.dataset_handler import DatasetHandler
+from src.attack_utils.poisoning import should_poison_this_round
 
 
 @dataclass
@@ -84,6 +85,28 @@ class SimulationStrategyHistory:
                 current_round=current_round,
                 aggregation_participation=0
             )
+
+    def update_client_malicious_status(self, current_round: int) -> None:
+        """
+        Update client.is_malicious flag based on attack_schedule for the current round.
+
+        Args:
+            current_round: Current training round (1-indexed)
+        """
+        # Only update if using dynamic attacks
+        if not self.strategy_config.attack_schedule:
+            return
+
+        # Update each client's malicious status based on current round
+        for client_id in range(self.strategy_config.num_of_clients):
+            should_poison, _ = should_poison_this_round(
+                current_round=current_round,
+                client_id=client_id,
+                attack_schedule=self.strategy_config.attack_schedule
+            )
+
+            # Update the is_malicious flag
+            self._clients_dict[client_id].is_malicious = should_poison
 
     def calculate_additional_rounds_data(self) -> None:
         """

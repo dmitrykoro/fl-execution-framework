@@ -51,8 +51,7 @@ class StrategyConfig:
 
     strategy_number: int = None
 
-    # Dynamic poisoning attacks
-    dynamic_attacks: Optional[dict] = None
+    attack_schedule: Optional[list] = None
 
     def __init__(self, **kwargs):
         for key, value in kwargs.items():
