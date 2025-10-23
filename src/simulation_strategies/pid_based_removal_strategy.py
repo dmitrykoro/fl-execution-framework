@@ -166,6 +166,10 @@ class PIDBasedRemovalStrategy(fl.server.strategy.FedAvg):
 
         self.current_round += 1
 
+        # Update client.is_malicious based on attack_schedule for dynamic attacks
+        if self.strategy_history:
+            self.strategy_history.update_client_malicious_status(server_round)
+
         # Handle empty results
         if not results:
             return super().aggregate_fit(server_round, results, failures)
@@ -258,7 +262,7 @@ class PIDBasedRemovalStrategy(fl.server.strategy.FedAvg):
 
         # in the warmup rounds, select all clients
         if self.current_round <= self.begin_removing_from_round - 1:
-            fit_ins = fl.common.FitIns(parameters, {})
+            fit_ins = fl.common.FitIns(parameters, {"server_round": server_round})
             return [(client, fit_ins) for client in available_clients.values()]
 
         client_pids = {client_id: self.client_pids.get(client_id, 0) for client_id in available_clients.keys()}
@@ -290,7 +294,7 @@ class PIDBasedRemovalStrategy(fl.server.strategy.FedAvg):
         selected_client_ids = sorted_client_ids
 
         # create training configurations for selected clients
-        fit_ins = fl.common.FitIns(parameters, {})
+        fit_ins = fl.common.FitIns(parameters, {"server_round": server_round})
         return [(available_clients[cid], fit_ins) for cid in selected_client_ids if cid in available_clients]
 
     def aggregate_evaluate(

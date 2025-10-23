@@ -103,6 +103,10 @@ class MultiKrumStrategy(fl.server.strategy.FedAvg):
 
         self.current_round += 1
 
+        # Update client.is_malicious based on attack_schedule for dynamic attacks
+        if self.strategy_history:
+            self.strategy_history.update_client_malicious_status(server_round)
+
         # clustering
         clustering_param_data = []
         for client_proxy, fit_res in results:
@@ -169,7 +173,7 @@ class MultiKrumStrategy(fl.server.strategy.FedAvg):
 
          # in the warmup rounds, select all clients
         if self.current_round <= self.begin_removing_from_round:
-            fit_ins = fl.common.FitIns(parameters, {})
+            fit_ins = fl.common.FitIns(parameters, {"server_round": server_round})
             return [(client, fit_ins) for client in available_clients.values()]
 
         # fetch the multi-krum based scores for all available clients
@@ -188,7 +192,7 @@ class MultiKrumStrategy(fl.server.strategy.FedAvg):
 
         self.logger.info(f"Removed clients at round {self.current_round} are : {self.removed_client_ids}")
         selected_client_ids = sorted(client_scores, key=client_scores.get, reverse=True)
-        fit_ins = fl.common.FitIns(parameters, {})
+        fit_ins = fl.common.FitIns(parameters, {"server_round": server_round})
 
         self.strategy_history.update_client_participation(
             current_round=self.current_round, removed_client_ids=self.removed_client_ids

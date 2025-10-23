@@ -30,6 +30,11 @@ class RFABasedRemovalStrategy(FedAvg):
 
         # Increment the current round counter.
         self.current_round += 1
+
+        # Update client.is_malicious based on attack_schedule for dynamic attacks
+        if self.strategy_history:
+            self.strategy_history.update_client_malicious_status(server_round)
+
         self.rounds_history[f'{self.current_round}'] = {}
         aggregate_clients = []
 
@@ -132,7 +137,7 @@ class RFABasedRemovalStrategy(FedAvg):
 
         # Select all clients in the warmup rounds.
         if self.current_round <= self.begin_removing_from_round:
-            fit_ins = fl.common.FitIns(parameters, {})
+            fit_ins = fl.common.FitIns(parameters, {"server_round": server_round})
             return [(client, fit_ins) for client in available_clients.values()]
 
         # Select clients that have not been removed in previous rounds.
@@ -152,7 +157,7 @@ class RFABasedRemovalStrategy(FedAvg):
         logging.info(f"removed clients are : {self.removed_client_ids}")
 
         selected_client_ids = sorted(client_scores, key=client_scores.get, reverse=True)
-        fit_ins = fl.common.FitIns(parameters, {})
+        fit_ins = fl.common.FitIns(parameters, {"server_round": server_round})
         return [(available_clients[cid], fit_ins) for cid in selected_client_ids if cid in available_clients]
 
     def aggregate_evaluate(
