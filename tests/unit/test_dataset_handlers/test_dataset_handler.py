@@ -35,7 +35,7 @@ class TestDatasetHandler:
 
     @pytest.fixture
     def mock_directory_handler(self, tmp_path: Path) -> Mock:
-        """Create a mock directory handler with temporary paths."""
+        """Create mock directory handler."""
         handler = Mock(spec=DirectoryHandler)
         handler.dataset_dir = str(tmp_path / "dataset")
         return handler
@@ -218,7 +218,7 @@ class TestDatasetHandler:
         with patch.object(dataset_handler, "_flip_labels"):
             dataset_handler._poison_clients("label_flipping", 2)
 
-        expected_ids: Set[int] = {0, 1}  # First 2 clients should be poisoned
+        expected_ids: Set[int] = {0, 1}
         assert dataset_handler.poisoned_client_ids == expected_ids
 
     def test_poison_clients_raises_error_for_unsupported_attack(
@@ -501,3 +501,263 @@ class TestDatasetHandler:
         # Verify file contents
         assert (dest_dir / "client_0" / "data.txt").read_text() == "client 0 data"
         assert (dest_dir / "client_1" / "data.txt").read_text() == "client 1 data"
+
+
+class TestDatasetHandlerHuggingFace:
+    """Test DatasetHandler with HuggingFace datasets."""
+
+    @pytest.fixture
+    def mock_hf_strategy_config(self) -> StrategyConfig:
+        """Create mock strategy config for HuggingFace."""
+        config = StrategyConfig()
+        config.dataset_source = "huggingface"
+        config.hf_dataset_name = "imdb"
+        config.num_of_clients = 5
+        config.num_of_malicious_clients = 2
+        config.preserve_dataset = False
+        return config
+
+    @pytest.fixture
+    def mock_directory_handler(self, tmp_path: Path) -> Mock:
+        """Create mock directory handler."""
+        handler = Mock(spec=DirectoryHandler)
+        handler.dataset_dir = str(tmp_path / "dataset")
+        return handler
+
+    @pytest.fixture
+    def hf_dataset_handler(
+        self,
+        mock_hf_strategy_config: StrategyConfig,
+        mock_directory_handler: Mock,
+    ) -> DatasetHandler:
+        """Create DatasetHandler for HuggingFace testing."""
+        dataset_config_list: Dict[str, str] = {}
+        return DatasetHandler(
+            strategy_config=mock_hf_strategy_config,
+            directory_handler=mock_directory_handler,
+            dataset_config_list=dataset_config_list,
+        )
+
+    def test_init_with_huggingface_dataset_sets_src_dataset_to_none(
+        self,
+        mock_hf_strategy_config: StrategyConfig,
+        mock_directory_handler: Mock,
+    ) -> None:
+        """Test HuggingFace initialization sets src_dataset to None."""
+        handler = DatasetHandler(
+            strategy_config=mock_hf_strategy_config,
+            directory_handler=mock_directory_handler,
+            dataset_config_list={},
+        )
+
+        assert handler.src_dataset is None
+        assert handler._strategy_config.dataset_source == "huggingface"
+
+    def test_identify_malicious_clients_static_attacks(
+        self, hf_dataset_handler: DatasetHandler
+    ) -> None:
+        """Test static attack client identification."""
+        expected_ids: Set[int] = {0, 1}
+        assert hf_dataset_handler.poisoned_client_ids == expected_ids
+
+    def test_identify_malicious_clients_dynamic_attacks_with_specific_ids(
+        self,
+        mock_hf_strategy_config: StrategyConfig,
+        mock_directory_handler: Mock,
+    ) -> None:
+        """Test dynamic attack with specific client IDs."""
+        mock_hf_strategy_config.dynamic_attacks = {
+            "enabled": True,
+            "schedule": [
+                {
+                    "rounds": [1, 2],
+                    "selection_strategy": "specific",
+                    "client_ids": [2, 4, 7],
+                    "attack_type": "label_flipping",
+                },
+                {
+                    "rounds": [3],
+                    "selection_strategy": "specific",
+                    "client_ids": [1, 5],
+                    "attack_type": "gaussian_noise",
+                },
+            ],
+        }
+
+        handler = DatasetHandler(
+            strategy_config=mock_hf_strategy_config,
+            directory_handler=mock_directory_handler,
+            dataset_config_list={},
+        )
+
+        expected_ids: Set[int] = {1, 2, 4, 5, 7}
+        assert handler.poisoned_client_ids == expected_ids
+
+    def test_identify_malicious_clients_dynamic_attacks_non_specific_strategy(
+        self,
+        mock_hf_strategy_config: StrategyConfig,
+        mock_directory_handler: Mock,
+    ) -> None:
+        """Test non-specific selection strategy."""
+        mock_hf_strategy_config.dynamic_attacks = {
+            "enabled": True,
+            "schedule": [
+                {
+                    "rounds": [1, 2],
+                    "client_ids": [2, 4],
+                    "attack_type": "label_flipping",
+                },
+            ],
+        }
+
+        handler = DatasetHandler(
+            strategy_config=mock_hf_strategy_config,
+            directory_handler=mock_directory_handler,
+            dataset_config_list={},
+        )
+
+        assert handler.poisoned_client_ids == set()
+
+    def test_setup_dataset_skips_for_huggingface(
+        self, hf_dataset_handler: DatasetHandler
+    ) -> None:
+        """Test setup_dataset skips for HuggingFace."""
+        with (
+            patch.object(hf_dataset_handler, "_copy_dataset") as mock_copy,
+            patch.object(hf_dataset_handler, "_poison_clients") as mock_poison,
+            patch("logging.info") as mock_log_info,
+        ):
+            hf_dataset_handler.setup_dataset()
+
+            mock_log_info.assert_called_once_with(
+                "Skipping dataset setup for HuggingFace dataset"
+            )
+            mock_copy.assert_not_called()
+            mock_poison.assert_not_called()
+
+
+class TestDatasetHandlerEdgeCases:
+    """Test edge cases and branch coverage for DatasetHandler."""
+
+    @pytest.fixture
+    def mock_strategy_config(self) -> StrategyConfig:
+        """Create mock strategy configuration."""
+        config = StrategyConfig()
+        config.num_of_clients = 5
+        config.dataset_keyword = "its"
+        config.attack_type = "gaussian_noise"
+        config.num_of_malicious_clients = 2
+        config.preserve_dataset = False
+        config.attack_ratio = 0.5
+        config.gaussian_noise_mean = 0
+        config.gaussian_noise_std = 25
+        return config
+
+    @pytest.fixture
+    def dataset_handler(
+        self,
+        mock_strategy_config: StrategyConfig,
+        tmp_path: Path,
+    ) -> DatasetHandler:
+        """Create DatasetHandler instance for testing."""
+        dir_handler = Mock(spec=DirectoryHandler)
+        dir_handler.dataset_dir = str(tmp_path / "dataset")
+
+        dataset_config_list: Dict[str, str] = {
+            "its": str(tmp_path / "source_datasets" / "its")
+        }
+
+        handler = DatasetHandler(
+            strategy_config=mock_strategy_config,
+            directory_handler=dir_handler,
+            dataset_config_list=dataset_config_list,
+        )
+        handler.all_poisoned_img_snrs.clear()
+        handler.poisoned_client_ids.clear()
+        return handler
+
+    @patch("os.listdir")
+    @patch("logging.warning")
+    def test_poison_clients_logs_average_snr_when_images_poisoned(
+        self, mock_log_warning, mock_listdir, dataset_handler
+    ):
+        """Test SNR logging for gaussian_noise attack."""
+        mock_listdir.return_value = ["client_0"]
+
+        dataset_handler.all_poisoned_img_snrs = [20.5, 22.3, 19.8]
+
+        with patch.object(dataset_handler, "_add_noise"):
+            dataset_handler._poison_clients("gaussian_noise", 1)
+
+        mock_log_warning.assert_called_once()
+        call_args = mock_log_warning.call_args[0][0]
+        assert "Avg. SNR for poisoned images" in call_args
+
+    @patch("os.listdir")
+    @patch("logging.warning")
+    def test_poison_clients_no_snr_logging_when_no_images_poisoned(
+        self, mock_log_warning, mock_listdir, dataset_handler
+    ):
+        """Test no SNR logging when images list is empty."""
+        mock_listdir.return_value = ["client_0"]
+
+        dataset_handler.all_poisoned_img_snrs = []
+
+        with patch.object(dataset_handler, "_add_noise"):
+            dataset_handler._poison_clients("gaussian_noise", 1)
+
+        mock_log_warning.assert_not_called()
+
+    @patch("os.listdir")
+    @patch("logging.warning")
+    def test_poison_clients_no_snr_logging_when_num_to_poison_is_zero(
+        self, mock_log_warning, mock_listdir, dataset_handler
+    ):
+        """Test no SNR logging when num_to_poison is 0."""
+        mock_listdir.return_value = []
+
+        dataset_handler.all_poisoned_img_snrs = [20.5]
+
+        dataset_handler._poison_clients("gaussian_noise", 0)
+
+        mock_log_warning.assert_not_called()
+
+    @patch("os.listdir")
+    @patch("os.rename")
+    def test_flip_labels_skips_ds_store_files(
+        self, mock_rename, mock_listdir, dataset_handler
+    ):
+        """Test _flip_labels skips hidden files."""
+        client_dir = "client_0"
+
+        mock_listdir.side_effect = [
+            ["class_0", "class_1", ".DS_Store"],  # Initial labels
+            ["class_0_old", "class_1_old", ".DS_Store"],  # After first rename
+        ]
+
+        with patch("random.choice", side_effect=["class_1", "class_0"]):
+            dataset_handler._flip_labels(client_dir)
+
+        rename_calls = mock_rename.call_args_list
+        ds_store_renames = [call for call in rename_calls if ".DS_Store" in str(call)]
+        assert len(ds_store_renames) == 0
+
+    @patch("os.listdir")
+    @patch("os.path.isdir")
+    @patch("logging.warning")
+    def test_add_noise_warns_when_no_valid_images(
+        self, mock_log_warning, mock_isdir, mock_listdir, dataset_handler
+    ):
+        """Test warning when no valid images found."""
+        client_dir = "client_0"
+        mock_listdir.side_effect = [
+            ["class_0"],
+            ["data.txt", "readme.md"],
+        ]
+        mock_isdir.return_value = True
+
+        dataset_handler._add_noise(client_dir)
+
+        mock_log_warning.assert_called_once()
+        call_args = mock_log_warning.call_args[0][0]
+        assert "No valid images in" in call_args
