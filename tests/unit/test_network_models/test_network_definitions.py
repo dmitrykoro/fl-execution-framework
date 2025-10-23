@@ -30,11 +30,20 @@ from src.network_models.femnist_reduced_iid_network_definition import (
 from src.network_models.flair_network_definition import FlairNetwork
 
 # Import network models
+from src.network_models.breastmnist_network_definition import BreastMNISTNetwork
+from src.network_models.dermamnist_network_definition import DermaMNISTNetwork
 from src.network_models.its_network_definition import ITSNetwork
 from src.network_models.lung_photos_network_definition import (
     LungCancerCNN as LungPhotosNetwork,
 )
+from src.network_models.octmnist_network_definition import OctMNISTNetwork
+from src.network_models.organamnist_network_definition import OrganAMNISTNetwork
+from src.network_models.organcmnist_network_definition import OrganCMNISTNetwork
+from src.network_models.organsmnist_network_definition import OrganSMNISTNetwork
+from src.network_models.pathmnist_network_definition import PathMNISTNetwork
 from src.network_models.pneumoniamnist_network_definition import PneumoniamnistNetwork
+from src.network_models.retinamnist_network_definition import RetinaMNISTNetwork
+from src.network_models.tissuemnist_network_definition import TissueMNISTNetwork
 
 
 class TestNetworkModels:
@@ -58,6 +67,15 @@ class TestNetworkModels:
             (BloodMNISTNetwork, (3, 28, 28), 8),
             (FlairNetwork, (3, 224, 224), 2),
             (LungPhotosNetwork, (1, 224, 224), 2),
+            (BreastMNISTNetwork, (1, 28, 28), 2),
+            (DermaMNISTNetwork, (3, 28, 28), 7),
+            (OctMNISTNetwork, (1, 28, 28), 4),
+            (OrganAMNISTNetwork, (1, 28, 28), 11),
+            (OrganCMNISTNetwork, (1, 28, 28), 11),
+            (OrganSMNISTNetwork, (1, 28, 28), 11),
+            (PathMNISTNetwork, (3, 28, 28), 9),
+            (RetinaMNISTNetwork, (3, 28, 28), 5),
+            (TissueMNISTNetwork, (1, 28, 28), 8),
         ]
     )
     def network_config(
@@ -601,6 +619,15 @@ class TestNetworkModelIntegration:
             (FemnistReducedIIDNetwork, (1, 28, 28)),
             (PneumoniamnistNetwork, (1, 28, 28)),
             (BloodMNISTNetwork, (3, 28, 28)),
+            (BreastMNISTNetwork, (1, 28, 28)),
+            (DermaMNISTNetwork, (3, 28, 28)),
+            (OctMNISTNetwork, (1, 28, 28)),
+            (OrganAMNISTNetwork, (1, 28, 28)),
+            (OrganCMNISTNetwork, (1, 28, 28)),
+            (OrganSMNISTNetwork, (1, 28, 28)),
+            (PathMNISTNetwork, (3, 28, 28)),
+            (RetinaMNISTNetwork, (3, 28, 28)),
+            (TissueMNISTNetwork, (1, 28, 28)),
         ],
     )
     def test_network_state_dict_serialization(self, network_class, input_shape):
