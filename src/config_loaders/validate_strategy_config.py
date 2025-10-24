@@ -420,7 +420,7 @@ def _apply_strict_mode(config: dict) -> None:
 def validate_strategy_config(config: dict) -> None:
     """Validate config based on the schema, will raise an exception if invalid"""
 
-    # Validates any shared settings
+    # Validates config structure, types, and basic constraints against JSON schema
     validate(instance=config, schema=config_schema)
 
     _validate_dependent_params(config)
@@ -429,8 +429,6 @@ def validate_strategy_config(config: dict) -> None:
     if use_llm_keyword == "true":
         _validate_llm_parameters(config)
 
-    # Validate attack_schedule
     _validate_attack_schedule(config["attack_schedule"])
 
-    # Handle strict_mode logic
     _apply_strict_mode(config)
