@@ -2238,3 +2238,129 @@ class TestValidateStrategyConfigLlmIntegration:
         # Should fail due to insufficient clients
         error_message = str(exc_info.value)
         assert "EXPERIMENT STOPPED: Client configuration error" in error_message
+
+    def test_preserve_dataset_forced_false_with_attack_schedule(self):
+        """Test that preserve_dataset is auto-corrected to false when using attack_schedule."""
+        config = {
+            "aggregation_strategy_keyword": "krum",
+            "remove_clients": "true",
+            "dataset_keyword": "femnist_iid",
+            "model_type": "cnn",
+            "use_llm": "false",
+            "num_of_rounds": 10,
+            "num_of_clients": 10,
+            "num_of_malicious_clients": 3,
+            "attack_schedule": [
+                {
+                    "start_round": 3,
+                    "end_round": 8,
+                    "attack_type": "label_flipping",
+                    "flip_fraction": 0.7,
+                    "selection_strategy": "specific",
+                    "malicious_client_ids": [0, 1, 2],
+                }
+            ],
+            "show_plots": "false",
+            "save_plots": "true",
+            "save_csv": "true",
+            "preserve_dataset": "true",  # Set to true - should be forced to false
+            "training_subset_fraction": 0.5,
+            "training_device": "cpu",
+            "cpus_per_client": 2,
+            "gpus_per_client": 0.0,
+            "min_fit_clients": 10,
+            "min_evaluate_clients": 10,
+            "min_available_clients": 10,
+            "evaluate_metrics_aggregation_fn": "weighted_average",
+            "num_of_client_epochs": 2,
+            "batch_size": 32,
+            # Krum-specific parameters
+            "num_krum_selections": 6,
+        }
+
+        # Should not raise exception
+        validate_strategy_config(config)
+
+        # preserve_dataset should be auto-corrected to false
+        assert config["preserve_dataset"] == "false"
+
+    def test_preserve_dataset_remains_false_with_attack_schedule(self):
+        """Test that preserve_dataset remains false when already set correctly."""
+        config = {
+            "aggregation_strategy_keyword": "krum",
+            "remove_clients": "true",
+            "dataset_keyword": "femnist_iid",
+            "model_type": "cnn",
+            "use_llm": "false",
+            "num_of_rounds": 10,
+            "num_of_clients": 10,
+            "num_of_malicious_clients": 3,
+            "attack_schedule": [
+                {
+                    "start_round": 3,
+                    "end_round": 8,
+                    "attack_type": "label_flipping",
+                    "flip_fraction": 0.7,
+                    "selection_strategy": "specific",
+                    "malicious_client_ids": [0, 1, 2],
+                }
+            ],
+            "show_plots": "false",
+            "save_plots": "true",
+            "save_csv": "true",
+            "preserve_dataset": "false",  # Already false
+            "training_subset_fraction": 0.5,
+            "training_device": "cpu",
+            "cpus_per_client": 2,
+            "gpus_per_client": 0.0,
+            "min_fit_clients": 10,
+            "min_evaluate_clients": 10,
+            "min_available_clients": 10,
+            "evaluate_metrics_aggregation_fn": "weighted_average",
+            "num_of_client_epochs": 2,
+            "batch_size": 32,
+            # Krum-specific parameters
+            "num_krum_selections": 6,
+        }
+
+        # Should not raise exception
+        validate_strategy_config(config)
+
+        # preserve_dataset should remain false
+        assert config["preserve_dataset"] == "false"
+
+    def test_preserve_dataset_unchanged_without_attack_schedule(self):
+        """Test that preserve_dataset is not modified when no attack_schedule is present."""
+        config = {
+            "aggregation_strategy_keyword": "krum",
+            "remove_clients": "true",
+            "dataset_keyword": "femnist_iid",
+            "model_type": "cnn",
+            "use_llm": "false",
+            "num_of_rounds": 10,
+            "num_of_clients": 10,
+            "num_of_malicious_clients": 3,
+            "attack_schedule": [],  # Empty attack schedule
+            "show_plots": "false",
+            "save_plots": "true",
+            "save_csv": "true",
+            "preserve_dataset": "true",  # Can remain true with empty schedule
+            "training_subset_fraction": 0.5,
+            "training_device": "cpu",
+            "cpus_per_client": 2,
+            "gpus_per_client": 0.0,
+            "min_fit_clients": 10,
+            "min_evaluate_clients": 10,
+            "min_available_clients": 10,
+            "evaluate_metrics_aggregation_fn": "weighted_average",
+            "num_of_client_epochs": 2,
+            "batch_size": 32,
+            # Krum-specific parameters
+            "num_krum_selections": 6,
+        }
+
+        # Should not raise exception
+        validate_strategy_config(config)
+
+        # preserve_dataset should remain true (no attack schedule)
+        assert config["preserve_dataset"] == "true"
