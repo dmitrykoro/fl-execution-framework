@@ -465,3 +465,28 @@ class TestTrimmedMeanBasedRemovalStrategy:
         aggregated_arrays = parameters_to_ndarrays(result_params)
         for arr in aggregated_arrays:
             assert np.all(np.isfinite(arr))
+
+    def test_aggregate_evaluate_with_removed_clients(self, trimmed_mean_strategy):
+        """Test aggregate_evaluate skips removed clients correctly."""
+        from flwr.common import EvaluateRes
+
+        trimmed_mean_strategy.removed_client_ids = {"1", "3"}
+        trimmed_mean_strategy.current_round = 2
+
+        results = []
+        for i in range(5):
+            client_proxy = Mock(spec=ClientProxy)
+            client_proxy.cid = str(i)
+
+            eval_res = Mock(spec=EvaluateRes)
+            eval_res.loss = 0.5 + i * 0.1
+            eval_res.num_examples = 100
+            eval_res.metrics = {"accuracy": 0.9 - i * 0.05}
+
+            results.append((client_proxy, eval_res))
+
+        loss, metrics = trimmed_mean_strategy.aggregate_evaluate(2, results, [])
+
+        # Should aggregate only non-removed clients (0, 2, 4)
+        assert loss is not None
+        trimmed_mean_strategy.strategy_history.insert_single_client_history_entry.assert_called()

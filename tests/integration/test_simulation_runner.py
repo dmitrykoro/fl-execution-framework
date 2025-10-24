@@ -46,8 +46,31 @@ def _create_mock_strategy_config() -> Dict[str, Any]:
             "save_csv": True,
         },
         "simulation_strategies": [
-            {"attack_type": "gaussian_noise"},
-            {"attack_type": "label_flipping"},
+            {
+                "attack_schedule": [
+                    {
+                        "start_round": 1,
+                        "end_round": 3,
+                        "attack_type": "gaussian_noise",
+                        "target_noise_snr": 10.0,
+                        "attack_ratio": 1.0,
+                        "selection_strategy": "percentage",
+                        "malicious_percentage": 0.2,
+                    }
+                ]
+            },
+            {
+                "attack_schedule": [
+                    {
+                        "start_round": 1,
+                        "end_round": 3,
+                        "attack_type": "label_flipping",
+                        "flip_fraction": 1.0,
+                        "selection_strategy": "percentage",
+                        "malicious_percentage": 0.2,
+                    }
+                ]
+            },
         ],
     }
 

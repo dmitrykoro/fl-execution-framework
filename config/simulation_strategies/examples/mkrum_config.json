@@ -2,10 +2,11 @@
     "shared_settings": {
       "remove_clients": "true",
       "dataset_keyword": "femnist_iid",
+      "use_llm": "false",
+      "model_type": "cnn",
       "num_of_rounds": 100,
       "begin_removing_from_round": 5,
       "num_of_malicious_clients": 2,
-      "attack_type": "label_flipping",
       "show_plots": "false",
       "save_plots": "true",
       "save_csv": "true",
@@ -35,113 +36,272 @@
         "min_fit_clients": 5,
         "min_evaluate_clients": 5,
         "min_available_clients": 5,
-        "num_krum_selections": 3
+        "num_krum_selections": 3,
+        "attack_schedule": [
+          {
+            "start_round": 1,
+            "end_round": 100,
+            "attack_type": "label_flipping",
+            "flip_fraction": 1.0,
+            "selection_strategy": "percentage",
+            "malicious_percentage": 0.4
+          }
+        ]
       },
       {
         "num_of_clients": 6,
         "min_fit_clients": 6,
         "min_evaluate_clients": 6,
         "min_available_clients": 6,
-        "num_krum_selections": 4
+        "num_krum_selections": 4,
+        "attack_schedule": [
+          {
+            "start_round": 1,
+            "end_round": 100,
+            "attack_type": "label_flipping",
+            "flip_fraction": 1.0,
+            "selection_strategy": "percentage",
+            "malicious_percentage": 0.33
+          }
+        ]
       },
       {
         "num_of_clients": 7,
         "min_fit_clients": 7,
         "min_evaluate_clients": 7,
         "min_available_clients": 7,
-        "num_krum_selections": 5
-        
+        "num_krum_selections": 5,
+        "attack_schedule": [
+          {
+            "start_round": 1,
+            "end_round": 100,
+            "attack_type": "label_flipping",
+            "flip_fraction": 1.0,
+            "selection_strategy": "percentage",
+            "malicious_percentage": 0.29
+          }
+        ]
       },
       {
         "num_of_clients": 8,
         "min_fit_clients": 8,
         "min_evaluate_clients": 8,
         "min_available_clients": 8,
-        "num_krum_selections": 6
+        "num_krum_selections": 6,
+        "attack_schedule": [
+          {
+            "start_round": 1,
+            "end_round": 100,
+            "attack_type": "label_flipping",
+            "flip_fraction": 1.0,
+            "selection_strategy": "percentage",
+            "malicious_percentage": 0.25
+          }
+        ]
       },
       {
         "num_of_clients": 9,
         "min_fit_clients": 9,
         "min_evaluate_clients": 9,
         "min_available_clients": 9,
-        "num_krum_selections": 7
+        "num_krum_selections": 7,
+        "attack_schedule": [
+          {
+            "start_round": 1,
+            "end_round": 100,
+            "attack_type": "label_flipping",
+            "flip_fraction": 1.0,
+            "selection_strategy": "percentage",
+            "malicious_percentage": 0.22
+          }
+        ]
       },
       {
         "num_of_clients": 10,
         "min_fit_clients": 10,
         "min_evaluate_clients": 10,
         "min_available_clients": 10,
-        "num_krum_selections": 8
+        "num_krum_selections": 8,
+        "attack_schedule": [
+          {
+            "start_round": 1,
+            "end_round": 100,
+            "attack_type": "label_flipping",
+            "flip_fraction": 1.0,
+            "selection_strategy": "percentage",
+            "malicious_percentage": 0.2
+          }
+        ]
       },
       {
         "num_of_clients": 11,
         "min_fit_clients": 11,
         "min_evaluate_clients": 11,
         "min_available_clients": 11,
-        "num_krum_selections": 9
+        "num_krum_selections": 9,
+        "attack_schedule": [
+          {
+            "start_round": 1,
+            "end_round": 100,
+            "attack_type": "label_flipping",
+            "flip_fraction": 1.0,
+            "selection_strategy": "percentage",
+            "malicious_percentage": 0.18
+          }
+        ]
       },
       {
         "num_of_clients": 12,
         "min_fit_clients": 12,
         "min_evaluate_clients": 12,
         "min_available_clients": 12,
-        "num_krum_selections": 10
+        "num_krum_selections": 10,
+        "attack_schedule": [
+          {
+            "start_round": 1,
+            "end_round": 100,
+            "attack_type": "label_flipping",
+            "flip_fraction": 1.0,
+            "selection_strategy": "percentage",
+            "malicious_percentage": 0.17
+          }
+        ]
       },
       {
         "num_of_clients": 13,
         "min_fit_clients": 13,
         "min_evaluate_clients": 13,
         "min_available_clients": 13,
-        "num_krum_selections": 11
+        "num_krum_selections": 11,
+        "attack_schedule": [
+          {
+            "start_round": 1,
+            "end_round": 100,
+            "attack_type": "label_flipping",
+            "flip_fraction": 1.0,
+            "selection_strategy": "percentage",
+            "malicious_percentage": 0.15
+          }
+        ]
       },
       {
         "num_of_clients": 14,
         "min_fit_clients": 14,
         "min_evaluate_clients": 14,
         "min_available_clients": 14,
-        "num_krum_selections": 12
+        "num_krum_selections": 12,
+        "attack_schedule": [
+          {
+            "start_round": 1,
+            "end_round": 100,
+            "attack_type": "label_flipping",
+            "flip_fraction": 1.0,
+            "selection_strategy": "percentage",
+            "malicious_percentage": 0.14
+          }
+        ]
       },
       {
         "num_of_clients": 15,
         "min_fit_clients": 15,
         "min_evaluate_clients": 15,
         "min_available_clients": 15,
-        "num_krum_selections": 13
+        "num_krum_selections": 13,
+        "attack_schedule": [
+          {
+            "start_round": 1,
+            "end_round": 100,
+            "attack_type": "label_flipping",
+            "flip_fraction": 1.0,
+            "selection_strategy": "percentage",
+            "malicious_percentage": 0.13
+          }
+        ]
       },
       {
         "num_of_clients": 16,
         "min_fit_clients": 16,
         "min_evaluate_clients": 16,
         "min_available_clients": 16,
-        "num_krum_selections": 14
+        "num_krum_selections": 14,
+        "attack_schedule": [
+          {
+            "start_round": 1,
+            "end_round": 100,
+            "attack_type": "label_flipping",
+            "flip_fraction": 1.0,
+            "selection_strategy": "percentage",
+            "malicious_percentage": 0.13
+          }
+        ]
       },
       {
         "num_of_clients": 17,
         "min_fit_clients": 17,
         "min_evaluate_clients": 17,
         "min_available_clients": 17,
-        "num_krum_selections": 15
+        "num_krum_selections": 15,
+        "attack_schedule": [
+          {
+            "start_round": 1,
+            "end_round": 100,
+            "attack_type": "label_flipping",
+            "flip_fraction": 1.0,
+            "selection_strategy": "percentage",
+            "malicious_percentage": 0.12
+          }
+        ]
       },
       {
         "num_of_clients": 18,
         "min_fit_clients": 18,
         "min_evaluate_clients": 18,
         "min_available_clients": 18,
-        "num_krum_selections": 16
+        "num_krum_selections": 16,
+        "attack_schedule": [
+          {
+            "start_round": 1,
+            "end_round": 100,
+            "attack_type": "label_flipping",
+            "flip_fraction": 1.0,
+            "selection_strategy": "percentage",
+            "malicious_percentage": 0.11
+          }
+        ]
       },
       {
         "num_of_clients": 19,
         "min_fit_clients": 19,
         "min_evaluate_clients": 19,
         "min_available_clients": 19,
-        "num_krum_selections": 17
+        "num_krum_selections": 17,
+        "attack_schedule": [
+          {
+            "start_round": 1,
+            "end_round": 100,
+            "attack_type": "label_flipping",
+            "flip_fraction": 1.0,
+            "selection_strategy": "percentage",
+            "malicious_percentage": 0.11
+          }
+        ]
       },
       {
         "num_of_clients": 20,
         "min_fit_clients": 20,
         "min_evaluate_clients": 20,
         "min_available_clients": 20,
-        "num_krum_selections": 18
+        "num_krum_selections": 18,
+        "attack_schedule": [
+          {
+            "start_round": 1,
+            "end_round": 100,
+            "attack_type": "label_flipping",
+            "flip_fraction": 1.0,
+            "selection_strategy": "percentage",
+            "malicious_percentage": 0.1
+          }
+        ]
       }
     ]
   }

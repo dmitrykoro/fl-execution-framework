@@ -54,10 +54,6 @@ config_schema = {
         "num_of_malicious_clients": {
             "type": "integer"
         },
-        "attack_type": {
-            "type": "string",
-            "enum": ["label_flipping", "gaussian_noise"]
-        },
         "show_plots": {
             "type": "string",
             "enum": ["true", "false"]
@@ -187,21 +183,48 @@ config_schema = {
         # Trimmed mean
         "trim_ratio": {
             "type": "number"
+        },
+
+        # Attack scheduling
+        "attack_schedule": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "start_round": {"type": "integer", "minimum": 1},
+                    "end_round": {"type": "integer", "minimum": 1},
+                    "attack_type": {"type": "string", "enum": ["label_flipping", "gaussian_noise", "brightness", "token_replacement"]},
+                    "selection_strategy": {"type": "string", "enum": ["specific", "random", "percentage"]},
+                    "malicious_client_ids": {"type": "array", "items": {"type": "integer"}},
+                    "malicious_client_count": {"type": "integer", "minimum": 1},
+                    "malicious_percentage": {"type": "number", "minimum": 0.0, "maximum": 1.0},
+                    "flip_fraction": {"type": "number", "minimum": 0.0, "maximum": 1.0},
+                    "target_noise_snr": {"type": "number"},
+                    "attack_ratio": {"type": "number", "minimum": 0.0, "maximum": 1.0}
+                },
+                "required": ["start_round", "end_round", "attack_type", "selection_strategy"]
+            }
+        },
+
+        # Attack snapshot saving
+        "save_attack_snapshots": {
+            "type": "string",
+            "enum": ["true", "false"]
         }
     },
     "required": [
         "aggregation_strategy_keyword", "remove_clients", "dataset_keyword", "model_type",
         "use_llm", "num_of_rounds", "num_of_clients", "num_of_malicious_clients",
-        "attack_type", "show_plots", "save_plots", "save_csv", "preserve_dataset",
+        "show_plots", "save_plots", "save_csv", "preserve_dataset",
         "training_subset_fraction", "training_device", "cpus_per_client",
         "gpus_per_client", "min_fit_clients", "min_evaluate_clients",
         "min_available_clients", "evaluate_metrics_aggregation_fn",
-        "num_of_client_epochs", "batch_size"
+        "num_of_client_epochs", "batch_size", "attack_schedule"
     ]
 }
 
 
-def validate_dependent_params(strategy_config: dict) -> None:
+def _validate_dependent_params(strategy_config: dict) -> None:
     """Validate that all params that require additional params are correct."""
 
     aggregation_strategy_keyword = strategy_config["aggregation_strategy_keyword"]
@@ -235,19 +258,99 @@ def validate_dependent_params(strategy_config: dict) -> None:
                 f"Missing parameter trim_ratio for trimmed mean aggregation {aggregation_strategy_keyword}"
             )
 
-    attack_type = strategy_config["attack_type"]
+def _validate_attack_schedule(config: dict) -> None:
+    """
+    Validate attack_schedule entries and enforce related constraints.
 
-    if attack_type == "gaussian_noise":
-        gaussian_noise_specific_params = [
-            "target_noise_snr", "attack_ratio"
-        ]
-        for param in gaussian_noise_specific_params:
-            if param not in strategy_config:
+    Ensures each schedule entry has:
+    - Valid round ranges
+    - Required attack-type-specific parameters
+    - Proper selection strategy configuration
+    - Preserve_dataset set to false
+    """
+    schedule = config.get("attack_schedule", [])
+
+    for idx, entry in enumerate(schedule):
+        entry_desc = f"attack_schedule entry {idx}"
+
+        # Validate round range
+        start_round = entry.get("start_round")
+        end_round = entry.get("end_round")
+        if start_round > end_round:
+            raise ValidationError(
+                f"{entry_desc}: start_round ({start_round}) cannot be greater than end_round ({end_round})"
+            )
+
+        # Validate attack type and its required parameters
+        attack_type = entry.get("attack_type")
+
+        if attack_type == "label_flipping":
+            if "flip_fraction" not in entry:
                 raise ValidationError(
-                    f"Missing {param} that is required for {attack_type} in configuration."
+                    f"{entry_desc}: label_flipping attack requires 'flip_fraction' parameter"
                 )
 
-def check_llm_specific_parameters(strategy_config: dict) -> None:
+        elif attack_type == "gaussian_noise":
+            if "target_noise_snr" not in entry:
+                raise ValidationError(
+                    f"{entry_desc}: gaussian_noise attack requires 'target_noise_snr' parameter"
+                )
+            if "attack_ratio" not in entry:
+                raise ValidationError(
+                    f"{entry_desc}: gaussian_noise attack requires 'attack_ratio' parameter"
+                )
+
+        # Validate selection strategy requirements
+        selection_strategy = entry.get("selection_strategy")
+
+        if selection_strategy == "specific":
+            if "malicious_client_ids" not in entry:
+                raise ValidationError(
+                    f"{entry_desc}: 'specific' selection strategy requires 'malicious_client_ids' list"
+                )
+
+        elif selection_strategy == "random":
+            if "malicious_client_count" not in entry:
+                raise ValidationError(
+                    f"{entry_desc}: 'random' selection strategy requires 'malicious_client_count' integer"
+                )
+
+        elif selection_strategy == "percentage":
+            if "malicious_percentage" not in entry:
+                raise ValidationError(
+                    f"{entry_desc}: 'percentage' selection strategy requires 'malicious_percentage' (0.0-1.0)"
+                )
+
+    # Check for overlapping rounds (attack stacking)
+    for i, entry1 in enumerate(schedule):
+        for j, entry2 in enumerate(schedule[i+1:], start=i+1):
+            if not (entry1["end_round"] < entry2["start_round"] or
+                    entry2["end_round"] < entry1["start_round"]):
+                # Check if same attack type
+                if entry1.get("attack_type") == entry2.get("attack_type"):
+                    logging.warning(
+                        f"attack_schedule entries {i} and {j} have overlapping rounds with same attack_type "
+                        f"({entry1.get('attack_type')}). Entry {i} will take precedence for this attack type."
+                    )
+                else:
+                    logging.info(
+                        f"attack_schedule entries {i} and {j} have overlapping rounds with different attack types "
+                        f"({entry1.get('attack_type')} and {entry2.get('attack_type')}). "
+                        f"Both attacks will be stacked and applied sequentially."
+                    )
+
+    # Force preserve_dataset to false when using attack_schedule
+    if schedule and config.get("preserve_dataset") == "true":
+        config["preserve_dataset"] = "false"
+        logging.info(
+            "ATTACK SCHEDULE DETECTED: Auto-configured preserve_dataset = false\n"
+            "  - Dynamic attacks poison data in-memory during training rounds\n"
+            "  - Filesystem dataset remains clean (not poisoned)\n"
+            "  - Use 'save_attack_snapshots' to inspect poisoned data"
+        )
+
+
+def _validate_llm_parameters(strategy_config: dict) -> None:
     """Check if LLM specific parameters are valid"""
 
     if strategy_config["model_type"] != "transformer":
@@ -282,7 +385,7 @@ def check_llm_specific_parameters(strategy_config: dict) -> None:
                 )
 
 
-def _handle_strict_mode_validation(config: dict) -> None:
+def _apply_strict_mode(config: dict) -> None:
     """Handle strict_mode validation and client configuration logic."""
 
     # Set strict_mode to "true" by default if not specified
@@ -330,14 +433,14 @@ def _handle_strict_mode_validation(config: dict) -> None:
 def validate_strategy_config(config: dict) -> None:
     """Validate config based on the schema, will raise an exception if invalid"""
 
-    # Validates any shared settings
+    # Validates config structure, types, and basic constraints against JSON schema
     validate(instance=config, schema=config_schema)
 
-    validate_dependent_params(config)
+    _validate_dependent_params(config)
 
-    use_llm_keyword = config["use_llm"]
-    if use_llm_keyword == "true":
-        check_llm_specific_parameters(config)
+    if config["use_llm"] == "true":
+        _validate_llm_parameters(config)
 
-    # Handle strict_mode logic
-    _handle_strict_mode_validation(config)
+    _validate_attack_schedule(config)
+
+    _apply_strict_mode(config)

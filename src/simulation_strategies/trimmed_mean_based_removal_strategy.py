@@ -44,6 +44,10 @@ class TrimmedMeanBasedRemovalStrategy(FedAvg):
 
         self.current_round += 1
 
+        # Update client.is_malicious based on attack_schedule for dynamic attacks
+        if self.strategy_history:
+            self.strategy_history.update_client_malicious_status(server_round)
+
         if not results:
             return None, {}
 
@@ -118,7 +122,7 @@ class TrimmedMeanBasedRemovalStrategy(FedAvg):
 
         # Select all clients in the warmup rounds.
         if self.current_round <= self.begin_removing_from_round:
-            fit_ins = fl.common.FitIns(parameters, {})
+            fit_ins = fl.common.FitIns(parameters, {"server_round": server_round})
             return [(client, fit_ins) for client in available_clients.values()]
 
         # Select clients that have not been removed in previous rounds.
@@ -130,7 +134,7 @@ class TrimmedMeanBasedRemovalStrategy(FedAvg):
             currently_removed_client_ids.add(client_id)
 
         selected_client_ids = sorted(client_scores, key=client_scores.get, reverse=True)
-        fit_ins = fl.common.FitIns(parameters, {})
+        fit_ins = fl.common.FitIns(parameters, {"server_round": server_round})
 
         return [(available_clients[cid], fit_ins) for cid in selected_client_ids if cid in available_clients]
 

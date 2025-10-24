@@ -1,5 +1,6 @@
 import json
 import logging
+import sys
 
 from src.config_loaders.config_loader import ConfigLoader
 
@@ -61,7 +62,8 @@ class SimulationRunner:
             simulation_strategy = FederatedSimulation(
                 strategy_config=strategy_config,
                 dataset_dir=self._directory_handler.dataset_dir,
-                dataset_handler=dataset_handler
+                dataset_handler=dataset_handler,
+                directory_handler=self._directory_handler,
             )
             simulation_strategy.run_simulation()
 
@@ -80,6 +82,11 @@ class SimulationRunner:
 
 
 if __name__ == "__main__":
-    """Put the filename of the json strategy from config/simulation_strategies here"""
-    simulation_runner = SimulationRunner("example_strategy_config.json")
+    """Run simulation with config file in command line args or default example."""
+    if len(sys.argv) > 1:
+        config_filename = sys.argv[1]
+    else:
+        config_filename = "example_strategy_config.json"
+
+    simulation_runner = SimulationRunner(config_filename)
     simulation_runner.run()

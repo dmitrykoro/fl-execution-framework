@@ -90,12 +90,14 @@ class FederatedSimulation:
             self,
             strategy_config: StrategyConfig,
             dataset_dir: str,
-            dataset_handler: DatasetHandler
+            dataset_handler: DatasetHandler,
+            directory_handler=None,
     ):
         self.strategy_config = strategy_config
         self.rounds_history = None
 
         self.dataset_handler = dataset_handler
+        self.directory_handler = directory_handler
 
         self.strategy_history = SimulationStrategyHistory(
             strategy_config=self.strategy_config,
@@ -374,6 +376,18 @@ class FederatedSimulation:
         trainloader = self._trainloaders[int(cid)]
         valloader = self._valloaders[int(cid)]
 
+        attacks_schedule = None
+        if self.strategy_config.attack_schedule:
+            attacks_schedule = self.strategy_config.attack_schedule
+
+        output_dir = None
+        if self.directory_handler:
+            output_dir = getattr(self.directory_handler, 'dirname', None)
+
+        save_attack_snapshots = getattr(self.strategy_config, 'save_attack_snapshots', False)
+        if isinstance(save_attack_snapshots, str):
+            save_attack_snapshots = save_attack_snapshots == "true"
+
         return FlowerClient(
             client_id=int(cid),
             net=net,
@@ -384,6 +398,9 @@ class FederatedSimulation:
             model_type=self.strategy_config.model_type,
             use_lora=use_lora,
             num_malicious_clients=self.strategy_config.num_of_malicious_clients,
+            attacks_schedule=attacks_schedule,
+            save_attack_snapshots=save_attack_snapshots,
+            output_dir=output_dir,
         ).to_client()
 
     @staticmethod

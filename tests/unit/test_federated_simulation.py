@@ -157,6 +157,15 @@ class TestFederatedSimulationInitialization:
             ("flair", "FlairNetwork"),
             ("pneumoniamnist", "PneumoniamnistNetwork"),
             ("bloodmnist", "BloodMNISTNetwork"),
+            ("breastmnist", "BreastMNISTNetwork"),
+            ("pathmnist", "PathMNISTNetwork"),
+            ("dermamnist", "DermaMNISTNetwork"),
+            ("octmnist", "OctMNISTNetwork"),
+            ("retinamnist", "RetinaMNISTNetwork"),
+            ("tissuemnist", "TissueMNISTNetwork"),
+            ("organamnist", "OrganAMNISTNetwork"),
+            ("organcmnist", "OrganCMNISTNetwork"),
+            ("organsmnist", "OrganSMNISTNetwork"),
             ("lung_photos", "LungCancerCNN"),
         ],
     )
@@ -513,3 +522,105 @@ class TestFederatedSimulationErrorHandling:
         # Verify strategy history is properly linked
         assert simulation.strategy_history.strategy_config == strategy_config
         assert simulation.strategy_history.dataset_handler == mock_dataset_handler
+
+
+class TestWeightedAverage:
+    """Test suite for weighted_average function."""
+
+    def test_weighted_average_with_single_client(self) -> None:
+        """Test weighted average with a single client."""
+        from src.federated_simulation import weighted_average
+
+        metrics = [(100, {"accuracy": 0.95, "loss": 0.05})]
+        result = weighted_average(metrics)
+
+        assert result == {"accuracy": 0.95, "loss": 0.05}
+
+    def test_weighted_average_with_multiple_clients(self) -> None:
+        """Test weighted average with multiple clients."""
+        from src.federated_simulation import weighted_average
+
+        metrics = [
+            (100, {"accuracy": 0.90, "loss": 0.10}),
+            (200, {"accuracy": 0.85, "loss": 0.15}),
+            (50, {"accuracy": 0.95, "loss": 0.05}),
+        ]
+        result = weighted_average(metrics)
+
+        # Calculate expected weighted average
+        # accuracy: (100*0.90 + 200*0.85 + 50*0.95) / 350 = 0.8785714286
+        # loss: (100*0.10 + 200*0.15 + 50*0.05) / 350 = 0.1214285714
+        assert abs(result["accuracy"] - 0.8785714286) < 0.0001
+        assert abs(result["loss"] - 0.1214285714) < 0.0001
+
+    def test_weighted_average_with_empty_metrics(self) -> None:
+        """Test weighted average with empty metrics list."""
+        from src.federated_simulation import weighted_average
+
+        metrics: List[tuple[int, dict]] = []
+        result = weighted_average(metrics)
+
+        assert result == {}
+
+    def test_weighted_average_with_missing_metrics(self) -> None:
+        """Test weighted average when some clients have missing metrics."""
+        from src.federated_simulation import weighted_average
+
+        metrics = [
+            (100, {"accuracy": 0.90, "loss": 0.10}),
+            (200, {"accuracy": 0.85}),  # Missing 'loss'
+            (50, {"loss": 0.05}),  # Missing 'accuracy'
+        ]
+        result = weighted_average(metrics)
+
+        # accuracy: (100*0.90 + 200*0.85) / 300 = 0.8666666667
+        # loss: (100*0.10 + 50*0.05) / 150 = 0.0833333333
+        assert abs(result["accuracy"] - 0.8666666667) < 0.0001
+        assert abs(result["loss"] - 0.0833333333) < 0.0001
+
+    def test_weighted_average_with_zero_samples(self) -> None:
+        """Test weighted average when all clients have zero samples."""
+        from src.federated_simulation import weighted_average
+
+        metrics = [
+            (0, {"accuracy": 0.90, "loss": 0.10}),
+            (0, {"accuracy": 0.85, "loss": 0.15}),
+        ]
+        result = weighted_average(metrics)
+
+        # When total samples is 0, metric should not be included
+        assert result == {}
+
+    def test_weighted_average_with_mixed_metric_names(self) -> None:
+        """Test weighted average with different metric names across clients."""
+        from src.federated_simulation import weighted_average
+
+        metrics = [
+            (100, {"accuracy": 0.90, "f1": 0.88}),
+            (200, {"accuracy": 0.85, "precision": 0.87}),
+            (50, {"recall": 0.92, "f1": 0.91}),
+        ]
+        result = weighted_average(metrics)
+
+        # Each metric is calculated based on clients that have it
+        # accuracy: (100*0.90 + 200*0.85) / 300 = 0.8666666667
+        # f1: (100*0.88 + 50*0.91) / 150 = 0.8900000000
+        # precision: (200*0.87) / 200 = 0.87
+        # recall: (50*0.92) / 50 = 0.92
+        assert abs(result["accuracy"] - 0.8666666667) < 0.0001
+        assert abs(result["f1"] - 0.89) < 0.0001
+        assert abs(result["precision"] - 0.87) < 0.0001
+        assert abs(result["recall"] - 0.92) < 0.0001
+
+    def test_weighted_average_with_negative_values(self) -> None:
+        """Test weighted average handles negative metric values correctly."""
+        from src.federated_simulation import weighted_average
+
+        metrics = [
+            (100, {"delta": -0.05}),
+            (200, {"delta": 0.10}),
+        ]
+        result = weighted_average(metrics)
+
+        # delta: (100*-0.05 + 200*0.10) / 300 = 0.05
+        assert abs(result["delta"] - 0.05) < 0.0001
