@@ -64,10 +64,10 @@ Rounds 11-12: Normal training ✅
 
 | Feature | Config Key | Values | Notes |
 |---------|-----------|--------|-------|
-| **Attack scheduling** | `attack_schedule` | List of attack configs | Required (or use `attack_type`) |
+| **Attack scheduling** | `attack_schedule` | List of attack configs | Required |
 | **Save snapshots** | `save_attack_snapshots` | `"true"` / `"false"` | Optional: saves first 5 samples per attack |
 | **Round range** | `start_round`, `end_round` | 1 to `num_of_rounds` | Inclusive range |
-| **Attack types** | `attack_type` | `"label_flipping"`, `"gaussian_noise"` | Per schedule entry |
+| **Attack types** | `attack_type` | `"label_flipping"`, `"gaussian_noise"`, `"brightness"`, `"token_replacement"` | Per schedule entry |
 | **Client selection** | `selection_strategy` | `"specific"`, `"random"`, `"percentage"` | How to choose malicious clients |
 | **Specific clients** | `malicious_client_ids` | `[0, 1, 3]` | Use with `selection_strategy: "specific"` |
 | **Random count** | `malicious_client_count` | Integer (e.g., `3`) | Use with `selection_strategy: "random"` |
