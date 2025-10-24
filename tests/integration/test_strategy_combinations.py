@@ -67,14 +67,18 @@ def _create_attack_defense_config(
 
         # Add attack-specific parameters
         if attack_type == "gaussian_noise":
-            strategy_config["attack_schedule"][0].update({
-                "target_noise_snr": 10.0,
-                "attack_ratio": 1.0,
-            })
+            strategy_config["attack_schedule"][0].update(
+                {
+                    "target_noise_snr": 10.0,
+                    "attack_ratio": 1.0,
+                }
+            )
         elif attack_type == "label_flipping":
-            strategy_config["attack_schedule"][0].update({
-                "flip_fraction": 1.0,
-            })
+            strategy_config["attack_schedule"][0].update(
+                {
+                    "flip_fraction": 1.0,
+                }
+            )
 
         # Add strategy-specific parameters
         if defense == "trust":
@@ -860,14 +864,18 @@ class TestAttackDefenseScenarios:
 
                 # Add attack-specific parameters
                 if attack_type == "gaussian_noise":
-                    config_dict["attack_schedule"][0].update({
-                        "target_noise_snr": 10.0,
-                        "attack_ratio": 1.0,
-                    })
+                    config_dict["attack_schedule"][0].update(
+                        {
+                            "target_noise_snr": 10.0,
+                            "attack_ratio": 1.0,
+                        }
+                    )
                 elif attack_type == "label_flipping":
-                    config_dict["attack_schedule"][0].update({
-                        "flip_fraction": 1.0,
-                    })
+                    config_dict["attack_schedule"][0].update(
+                        {
+                            "flip_fraction": 1.0,
+                        }
+                    )
 
                 # Add strategy-specific parameters
                 if defense_strategy == "trust":
@@ -908,7 +916,10 @@ class TestAttackDefenseScenarios:
             strategy_config = call.kwargs["strategy_config"]
             # Extract attack_type from attack_schedule
             attack_type = "unknown"
-            if hasattr(strategy_config, "attack_schedule") and strategy_config.attack_schedule:
+            if (
+                hasattr(strategy_config, "attack_schedule")
+                and strategy_config.attack_schedule
+            ):
                 attack_type = strategy_config.attack_schedule[0]["attack_type"]
             combination = (
                 attack_type,
@@ -981,14 +992,18 @@ class TestAttackDefenseScenarios:
             # Add attack-specific parameters
             attack_type = attack_config["attack_type"]
             if attack_type == "gaussian_noise":
-                config_dict["attack_schedule"][0].update({
-                    "target_noise_snr": 10.0,
-                    "attack_ratio": 1.0,
-                })
+                config_dict["attack_schedule"][0].update(
+                    {
+                        "target_noise_snr": 10.0,
+                        "attack_ratio": 1.0,
+                    }
+                )
             elif attack_type == "label_flipping":
-                config_dict["attack_schedule"][0].update({
-                    "flip_fraction": 1.0,
-                })
+                config_dict["attack_schedule"][0].update(
+                    {
+                        "flip_fraction": 1.0,
+                    }
+                )
 
             config_dict.update(attack_config["expected_params"])
 
