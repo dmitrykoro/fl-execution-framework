@@ -26,7 +26,7 @@ class SimulationStrategyHistory:
             self._clients_dict[i] = ClientInfo(
                 client_id=i,
                 num_of_rounds=self.strategy_config.num_of_rounds,
-                is_malicious=(i in self.dataset_handler.poisoned_client_ids)
+                is_malicious=False
             )
 
     def get_all_clients(self) -> list:

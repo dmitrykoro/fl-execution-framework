@@ -236,12 +236,12 @@ config_schema = {
         "training_subset_fraction", "training_device", "cpus_per_client",
         "gpus_per_client", "min_fit_clients", "min_evaluate_clients",
         "min_available_clients", "evaluate_metrics_aggregation_fn",
-        "num_of_client_epochs", "batch_size"
+        "num_of_client_epochs", "batch_size", "attack_schedule"
     ]
 }
 
 
-def validate_dependent_params(strategy_config: dict) -> None:
+def _validate_dependent_params(strategy_config: dict) -> None:
     """Validate that all params that require additional params are correct."""
 
     aggregation_strategy_keyword = strategy_config["aggregation_strategy_keyword"]
@@ -275,21 +275,7 @@ def validate_dependent_params(strategy_config: dict) -> None:
                 f"Missing parameter trim_ratio for trimmed mean aggregation {aggregation_strategy_keyword}"
             )
 
-    # Only validate root-level attack_type params if not using attack_schedule
-    if "attack_type" in strategy_config:
-        attack_type = strategy_config["attack_type"]
-
-        if attack_type == "gaussian_noise":
-            gaussian_noise_specific_params = [
-                "target_noise_snr", "attack_ratio"
-            ]
-            for param in gaussian_noise_specific_params:
-                if param not in strategy_config:
-                    raise ValidationError(
-                        f"Missing {param} that is required for {attack_type} in configuration."
-                    )
-
-def validate_attack_schedule(schedule: list) -> None:
+def _validate_attack_schedule(schedule: list) -> None:
     """
     Validate attack_schedule entries.
 
@@ -372,7 +358,7 @@ def validate_attack_schedule(schedule: list) -> None:
                     )
 
 
-def check_llm_specific_parameters(strategy_config: dict) -> None:
+def _validate_llm_parameters(strategy_config: dict) -> None:
     """Check if LLM specific parameters are valid"""
 
     if strategy_config["model_type"] != "transformer":
@@ -407,7 +393,7 @@ def check_llm_specific_parameters(strategy_config: dict) -> None:
                 )
 
 
-def _handle_strict_mode_validation(config: dict) -> None:
+def _apply_strict_mode(config: dict) -> None:
     """Handle strict_mode validation and client configuration logic."""
 
     # Set strict_mode to "true" by default if not specified
@@ -458,26 +444,14 @@ def validate_strategy_config(config: dict) -> None:
     # Validates any shared settings
     validate(instance=config, schema=config_schema)
 
-    # Require attack_type when attack_schedule is not present
-    has_attack_schedule = "attack_schedule" in config and config["attack_schedule"] is not None
-    has_attack_type = "attack_type" in config and config["attack_type"] is not None
-
-    if not has_attack_schedule and not has_attack_type:
-        raise ValidationError(
-            "Either 'attack_type' or 'attack_schedule' must be present in configuration. "
-            "Use 'attack_schedule' for dynamic scheduling, or 'attack_type' for static attacks."
-        )
-
-    validate_dependent_params(config)
+    _validate_dependent_params(config)
 
     use_llm_keyword = config["use_llm"]
     if use_llm_keyword == "true":
-        check_llm_specific_parameters(config)
+        _validate_llm_parameters(config)
 
-    # Validate attack_schedule if present
-    if "attack_schedule" in config and config["attack_schedule"] is not None:
-        validate_attack_schedule(config["attack_schedule"])
-        logging.info("Using attack_schedule format")
+    # Validate attack_schedule
+    _validate_attack_schedule(config["attack_schedule"])
 
     # Handle strict_mode logic
-    _handle_strict_mode_validation(config)
+    _apply_strict_mode(config)
