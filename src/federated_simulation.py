@@ -376,18 +376,14 @@ class FederatedSimulation:
         trainloader = self._trainloaders[int(cid)]
         valloader = self._valloaders[int(cid)]
 
-        # Extract attack schedule
-        dynamic_attacks_schedule = None
-
+        attacks_schedule = None
         if self.strategy_config.attack_schedule:
-            dynamic_attacks_schedule = self.strategy_config.attack_schedule
+            attacks_schedule = self.strategy_config.attack_schedule
 
-        # Get output directory for snapshot saving
         output_dir = None
         if self.directory_handler:
             output_dir = getattr(self.directory_handler, 'dirname', None)
 
-        # Check if snapshot saving is enabled
         save_attack_snapshots = getattr(self.strategy_config, 'save_attack_snapshots', False)
         if isinstance(save_attack_snapshots, str):
             save_attack_snapshots = save_attack_snapshots == "true"
@@ -402,7 +398,7 @@ class FederatedSimulation:
             model_type=self.strategy_config.model_type,
             use_lora=use_lora,
             num_malicious_clients=self.strategy_config.num_of_malicious_clients,
-            dynamic_attacks_schedule=dynamic_attacks_schedule,
+            attacks_schedule=attacks_schedule,
             save_attack_snapshots=save_attack_snapshots,
             output_dir=output_dir,
         ).to_client()

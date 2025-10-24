@@ -24,7 +24,7 @@ class FlowerClient(fl.client.NumPyClient):
             model_type="cnn",
             use_lora=False,
             num_malicious_clients=0,
-            dynamic_attacks_schedule=None,
+            attacks_schedule=None,
             save_attack_snapshots=False,
             output_dir=None,
     ):
@@ -37,7 +37,7 @@ class FlowerClient(fl.client.NumPyClient):
         self.num_of_client_epochs = num_of_client_epochs
         self.use_lora = use_lora
         self.num_malicious_clients = num_malicious_clients
-        self.dynamic_attacks_schedule = dynamic_attacks_schedule
+        self.attacks_schedule = attacks_schedule
         self.save_attack_snapshots = save_attack_snapshots
         self.output_dir = output_dir
 
@@ -72,7 +72,7 @@ class FlowerClient(fl.client.NumPyClient):
 
                 for batch_idx, (images, labels) in enumerate(trainloader):
                     should_poison, attack_configs = should_poison_this_round(
-                        current_round, self.client_id, self.dynamic_attacks_schedule
+                        current_round, self.client_id, self.attacks_schedule
                     )
 
                     if should_poison and attack_configs:
@@ -122,7 +122,7 @@ class FlowerClient(fl.client.NumPyClient):
 
                 for batch in trainloader:
                     should_poison, attack_configs = should_poison_this_round(
-                        current_round, self.client_id, self.dynamic_attacks_schedule
+                        current_round, self.client_id, self.attacks_schedule
                     )
                     if should_poison and attack_configs:
                         # Stack multiple attacks sequentially

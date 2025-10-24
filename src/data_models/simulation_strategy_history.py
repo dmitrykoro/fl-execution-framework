@@ -93,7 +93,7 @@ class SimulationStrategyHistory:
         Args:
             current_round: Current training round (1-indexed)
         """
-        # Only update if using dynamic attacks
+        # Only update if attack_schedule is configured
         if not self.strategy_config.attack_schedule:
             return
 
