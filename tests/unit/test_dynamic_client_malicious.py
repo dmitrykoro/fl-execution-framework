@@ -85,34 +85,34 @@ class TestDynamicClientMaliciousUpdate:
 
     def test_update_client_malicious_status_without_attack_schedule(self):
         """Test that update is skipped when no attack_schedule is present."""
-        # Create config without attack_schedule
+        # Create config with empty attack_schedule
         strategy_config = StrategyConfig.from_dict(
             {
                 "aggregation_strategy_keyword": "fedavg",
                 "num_of_rounds": 10,
                 "num_of_clients": 5,
                 "dataset_keyword": "femnist_iid",
+                "attack_schedule": [],  # No attacks
             }
         )
 
         dataset_handler = Mock()
-        dataset_handler.poisoned_client_ids = [0, 1]  # Static poisoning
 
         strategy_history = SimulationStrategyHistory(
             strategy_config=strategy_config, dataset_handler=dataset_handler
         )
 
-        # Clients 0,1 should be malicious (static)
-        assert strategy_history._clients_dict[0].is_malicious is True
-        assert strategy_history._clients_dict[1].is_malicious is True
+        # All clients should start benign
+        assert strategy_history._clients_dict[0].is_malicious is False
+        assert strategy_history._clients_dict[1].is_malicious is False
         assert strategy_history._clients_dict[2].is_malicious is False
 
         # Update should not change anything (no attack_schedule)
         strategy_history.update_client_malicious_status(current_round=5)
 
-        # Should remain the same
-        assert strategy_history._clients_dict[0].is_malicious is True
-        assert strategy_history._clients_dict[1].is_malicious is True
+        # Should remain benign
+        assert strategy_history._clients_dict[0].is_malicious is False
+        assert strategy_history._clients_dict[1].is_malicious is False
         assert strategy_history._clients_dict[2].is_malicious is False
 
     def test_update_client_malicious_status_with_stacked_attacks(self):

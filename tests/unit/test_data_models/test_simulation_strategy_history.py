@@ -19,7 +19,6 @@ class TestSimulationStrategyHistory:
         """Test SimulationStrategyHistory initialization with basic parameters"""
         # Create mock dataset handler
         mock_dataset_handler = Mock(spec=DatasetHandler)
-        mock_dataset_handler.poisoned_client_ids = {1, 3}
 
         config = StrategyConfig(
             aggregation_strategy_keyword="trust",
@@ -42,7 +41,6 @@ class TestSimulationStrategyHistory:
     def test_post_init_rounds_history_creation(self):
         """Test that __post_init__ creates RoundsInfo correctly"""
         mock_dataset_handler = Mock(spec=DatasetHandler)
-        mock_dataset_handler.poisoned_client_ids = set()
 
         config = StrategyConfig(
             aggregation_strategy_keyword="pid", num_of_rounds=4, num_of_clients=6
@@ -62,7 +60,6 @@ class TestSimulationStrategyHistory:
     def test_post_init_clients_dict_creation(self):
         """Test that __post_init__ creates client dictionary correctly"""
         mock_dataset_handler = Mock(spec=DatasetHandler)
-        mock_dataset_handler.poisoned_client_ids = {0, 2}
 
         config = StrategyConfig(num_of_rounds=3, num_of_clients=4)
 
@@ -84,11 +81,23 @@ class TestSimulationStrategyHistory:
             assert client.num_of_rounds == 3
 
     def test_post_init_malicious_client_marking(self):
-        """Test that malicious clients are correctly marked"""
+        """Test that clients start benign and become malicious via attack_schedule"""
         mock_dataset_handler = Mock(spec=DatasetHandler)
-        mock_dataset_handler.poisoned_client_ids = {1, 3}
 
-        config = StrategyConfig(num_of_rounds=2, num_of_clients=5)
+        config = StrategyConfig(
+            num_of_rounds=2,
+            num_of_clients=5,
+            attack_schedule=[
+                {
+                    "start_round": 1,
+                    "end_round": 2,
+                    "attack_type": "label_flipping",
+                    "flip_fraction": 1.0,
+                    "selection_strategy": "specific",
+                    "malicious_client_ids": [1, 3],
+                }
+            ],
+        )
 
         history = SimulationStrategyHistory(
             strategy_config=config,
@@ -96,7 +105,14 @@ class TestSimulationStrategyHistory:
             rounds_history=None,
         )
 
-        # Check malicious client marking
+        # All clients start as benign
+        for client in history.get_all_clients():
+            assert client.is_malicious is False
+
+        # Update malicious status for round 1
+        history.update_client_malicious_status(current_round=1)
+
+        # Check malicious client marking after update
         assert history._clients_dict[0].is_malicious is False
         assert history._clients_dict[1].is_malicious is True
         assert history._clients_dict[2].is_malicious is False
@@ -106,7 +122,6 @@ class TestSimulationStrategyHistory:
     def test_get_all_clients(self):
         """Test get_all_clients method returns correct list"""
         mock_dataset_handler = Mock(spec=DatasetHandler)
-        mock_dataset_handler.poisoned_client_ids = {1}
 
         config = StrategyConfig(num_of_rounds=2, num_of_clients=3)
 
@@ -128,7 +143,6 @@ class TestSimulationStrategyHistory:
     def test_insert_single_client_history_entry_basic(self):
         """Test insert_single_client_history_entry with basic parameters"""
         mock_dataset_handler = Mock(spec=DatasetHandler)
-        mock_dataset_handler.poisoned_client_ids = set()
 
         config = StrategyConfig(num_of_rounds=3, num_of_clients=2)
 
@@ -159,7 +173,6 @@ class TestSimulationStrategyHistory:
     def test_insert_single_client_history_entry_partial_data(self):
         """Test insert_single_client_history_entry with partial data"""
         mock_dataset_handler = Mock(spec=DatasetHandler)
-        mock_dataset_handler.poisoned_client_ids = set()
 
         config = StrategyConfig(num_of_rounds=2, num_of_clients=2)
 
@@ -187,7 +200,6 @@ class TestSimulationStrategyHistory:
     def test_insert_round_history_entry_basic(self):
         """Test insert_round_history_entry with all parameters"""
         mock_dataset_handler = Mock(spec=DatasetHandler)
-        mock_dataset_handler.poisoned_client_ids = set()
 
         config = StrategyConfig(num_of_rounds=2, num_of_clients=2)
 
@@ -212,7 +224,6 @@ class TestSimulationStrategyHistory:
     def test_insert_round_history_entry_partial_data(self):
         """Test insert_round_history_entry with partial data"""
         mock_dataset_handler = Mock(spec=DatasetHandler)
-        mock_dataset_handler.poisoned_client_ids = set()
 
         config = StrategyConfig(num_of_rounds=2, num_of_clients=2)
 
@@ -237,7 +248,6 @@ class TestSimulationStrategyHistory:
     def test_update_client_participation(self):
         """Test update_client_participation method"""
         mock_dataset_handler = Mock(spec=DatasetHandler)
-        mock_dataset_handler.poisoned_client_ids = set()
 
         config = StrategyConfig(num_of_rounds=3, num_of_clients=5)
 
@@ -265,18 +275,31 @@ class TestSimulationStrategyHistory:
     def test_calculate_additional_rounds_data_basic_scenario(self):
         """Test calculate_additional_rounds_data with basic scenario"""
         mock_dataset_handler = Mock(spec=DatasetHandler)
-        mock_dataset_handler.poisoned_client_ids = {
-            1,
-            3,
-        }  # Clients 1 and 3 are malicious
 
-        config = StrategyConfig(num_of_rounds=2, num_of_clients=4, remove_clients=True)
+        config = StrategyConfig(
+            num_of_rounds=2,
+            num_of_clients=4,
+            remove_clients=True,
+            attack_schedule=[
+                {
+                    "start_round": 1,
+                    "end_round": 2,
+                    "attack_type": "label_flipping",
+                    "flip_fraction": 1.0,
+                    "selection_strategy": "specific",
+                    "malicious_client_ids": [1, 3],
+                }
+            ],
+        )
 
         history = SimulationStrategyHistory(
             strategy_config=config,
             dataset_handler=mock_dataset_handler,
             rounds_history=None,
         )
+
+        # Update malicious status for round 1
+        history.update_client_malicious_status(current_round=1)
 
         # Set up client data for round 1
         # Client 0 (benign): aggregated, accuracy 0.8
@@ -330,7 +353,6 @@ class TestSimulationStrategyHistory:
     def test_calculate_additional_rounds_data_no_removal(self):
         """Test calculate_additional_rounds_data when remove_clients=False"""
         mock_dataset_handler = Mock(spec=DatasetHandler)
-        mock_dataset_handler.poisoned_client_ids = {1}
 
         config = StrategyConfig(num_of_rounds=2, num_of_clients=3, remove_clients=False)
 
@@ -383,7 +405,6 @@ class TestSimulationStrategyHistory:
     def test_calculate_additional_rounds_data_calls_additional_metrics(self):
         """Test that calculate_additional_rounds_data calls calculate_additional_metrics when remove_clients=True"""
         mock_dataset_handler = Mock(spec=DatasetHandler)
-        mock_dataset_handler.poisoned_client_ids = set()
 
         config = StrategyConfig(num_of_rounds=1, num_of_clients=2, remove_clients=True)
 
@@ -417,7 +438,6 @@ class TestSimulationStrategyHistory:
     def test_data_consistency_across_operations(self):
         """Test data consistency across multiple operations"""
         mock_dataset_handler = Mock(spec=DatasetHandler)
-        mock_dataset_handler.poisoned_client_ids = {2}
 
         config = StrategyConfig(
             num_of_rounds=1,  # Use only 1 round to avoid None values
@@ -474,7 +494,6 @@ class TestSimulationStrategyHistory:
     def test_edge_case_no_clients(self):
         """Test edge case with zero clients"""
         mock_dataset_handler = Mock(spec=DatasetHandler)
-        mock_dataset_handler.poisoned_client_ids = set()
 
         config = StrategyConfig(num_of_rounds=1, num_of_clients=0)
 
@@ -490,15 +509,30 @@ class TestSimulationStrategyHistory:
     def test_edge_case_all_clients_malicious(self):
         """Test edge case where all clients are malicious"""
         mock_dataset_handler = Mock(spec=DatasetHandler)
-        mock_dataset_handler.poisoned_client_ids = {0, 1, 2}
 
-        config = StrategyConfig(num_of_rounds=1, num_of_clients=3)
+        config = StrategyConfig(
+            num_of_rounds=1,
+            num_of_clients=3,
+            attack_schedule=[
+                {
+                    "start_round": 1,
+                    "end_round": 1,
+                    "attack_type": "label_flipping",
+                    "flip_fraction": 1.0,
+                    "selection_strategy": "specific",
+                    "malicious_client_ids": [0, 1, 2],
+                }
+            ],
+        )
 
         history = SimulationStrategyHistory(
             strategy_config=config,
             dataset_handler=mock_dataset_handler,
             rounds_history=None,
         )
+
+        # Update malicious status for round 1
+        history.update_client_malicious_status(current_round=1)
 
         # All clients should be marked as malicious
         for client in history.get_all_clients():
@@ -507,7 +541,6 @@ class TestSimulationStrategyHistory:
     def test_edge_case_single_round_single_client(self):
         """Test edge case with single round and single client"""
         mock_dataset_handler = Mock(spec=DatasetHandler)
-        mock_dataset_handler.poisoned_client_ids = set()
 
         config = StrategyConfig(num_of_rounds=1, num_of_clients=1, remove_clients=True)
 

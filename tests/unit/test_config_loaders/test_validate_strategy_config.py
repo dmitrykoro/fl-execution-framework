@@ -8,8 +8,8 @@ and clear error message generation.
 from tests.common import pytest
 from jsonschema import ValidationError
 from src.config_loaders.validate_strategy_config import (
-    check_llm_specific_parameters,
-    validate_dependent_params,
+    _validate_llm_parameters,
+    _validate_dependent_params,
     validate_strategy_config,
 )
 
@@ -28,7 +28,16 @@ class TestValidateStrategyConfig:
             "num_of_rounds": 5,
             "num_of_clients": 10,
             "num_of_malicious_clients": 2,
-            "attack_type": "label_flipping",
+            "attack_schedule": [
+                {
+                    "start_round": 1,
+                    "end_round": 5,
+                    "attack_type": "label_flipping",
+                    "flip_fraction": 1.0,
+                    "selection_strategy": "percentage",
+                    "malicious_percentage": 0.2,
+                }
+            ],
             "show_plots": "false",
             "save_plots": "true",
             "save_csv": "true",
@@ -65,7 +74,17 @@ class TestValidateStrategyConfig:
             "num_of_rounds": 3,
             "num_of_clients": 8,
             "num_of_malicious_clients": 1,
-            "attack_type": "gaussian_noise",
+            "attack_schedule": [
+                {
+                    "start_round": 1,
+                    "end_round": 3,
+                    "attack_type": "gaussian_noise",
+                    "target_noise_snr": 10.0,
+                    "attack_ratio": 0.2,
+                    "selection_strategy": "percentage",
+                    "malicious_percentage": 0.125,
+                }
+            ],
             "show_plots": "false",
             "save_plots": "false",
             "save_csv": "true",
@@ -86,9 +105,6 @@ class TestValidateStrategyConfig:
             "Kp": 1.0,
             "Ki": 0.1,
             "Kd": 0.01,
-            # Gaussian noise attack parameters
-            "target_noise_snr": 10.0,
-            "attack_ratio": 0.2,
         }
 
         # Should not raise any exception
@@ -105,7 +121,16 @@ class TestValidateStrategyConfig:
             "num_of_rounds": 4,
             "num_of_clients": 12,
             "num_of_malicious_clients": 0,
-            "attack_type": "label_flipping",
+            "attack_schedule": [
+                {
+                    "start_round": 1,
+                    "end_round": 4,
+                    "attack_type": "label_flipping",
+                    "flip_fraction": 1.0,
+                    "selection_strategy": "percentage",
+                    "malicious_percentage": 0.0,
+                }
+            ],
             "show_plots": "true",
             "save_plots": "true",
             "save_csv": "false",
@@ -138,7 +163,16 @@ class TestValidateStrategyConfig:
             "num_of_rounds": 6,
             "num_of_clients": 15,
             "num_of_malicious_clients": 3,
-            "attack_type": "label_flipping",
+            "attack_schedule": [
+                {
+                    "start_round": 1,
+                    "end_round": 6,
+                    "attack_type": "label_flipping",
+                    "flip_fraction": 1.0,
+                    "selection_strategy": "percentage",
+                    "malicious_percentage": 0.2,
+                }
+            ],
             "show_plots": "false",
             "save_plots": "false",
             "save_csv": "true",
@@ -174,7 +208,16 @@ class TestValidateStrategyConfigMissingRequiredParams:
             "num_of_rounds": 5,
             "num_of_clients": 10,
             "num_of_malicious_clients": 2,
-            "attack_type": "label_flipping",
+            "attack_schedule": [
+                {
+                    "start_round": 1,
+                    "end_round": 5,
+                    "attack_type": "label_flipping",
+                    "flip_fraction": 1.0,
+                    "selection_strategy": "percentage",
+                    "malicious_percentage": 0.2,
+                }
+            ],
             "show_plots": "false",
             "save_plots": "true",
             "save_csv": "true",
@@ -206,7 +249,16 @@ class TestValidateStrategyConfigMissingRequiredParams:
             "num_of_rounds": 5,
             "num_of_clients": 10,
             "num_of_malicious_clients": 2,
-            "attack_type": "label_flipping",
+            "attack_schedule": [
+                {
+                    "start_round": 1,
+                    "end_round": 5,
+                    "attack_type": "label_flipping",
+                    "flip_fraction": 1.0,
+                    "selection_strategy": "percentage",
+                    "malicious_percentage": 0.2,
+                }
+            ],
             "show_plots": "false",
             "save_plots": "true",
             "save_csv": "true",
@@ -238,7 +290,16 @@ class TestValidateStrategyConfigMissingRequiredParams:
             "use_llm": "false",
             "num_of_clients": 10,
             "num_of_malicious_clients": 2,
-            "attack_type": "label_flipping",
+            "attack_schedule": [
+                {
+                    "start_round": 1,
+                    "end_round": 5,
+                    "attack_type": "label_flipping",
+                    "flip_fraction": 1.0,
+                    "selection_strategy": "percentage",
+                    "malicious_percentage": 0.2,
+                }
+            ],
             "show_plots": "false",
             "save_plots": "true",
             "save_csv": "true",
@@ -271,7 +332,16 @@ class TestValidateStrategyConfigMissingRequiredParams:
             "num_of_rounds": 5,
             "num_of_clients": 10,
             "num_of_malicious_clients": 2,
-            "attack_type": "label_flipping",
+            "attack_schedule": [
+                {
+                    "start_round": 1,
+                    "end_round": 5,
+                    "attack_type": "label_flipping",
+                    "flip_fraction": 1.0,
+                    "selection_strategy": "percentage",
+                    "malicious_percentage": 0.2,
+                }
+            ],
             "show_plots": "false",
             "save_plots": "true",
             "save_csv": "true",
@@ -301,7 +371,16 @@ class TestValidateStrategyConfigInvalidValues:
             "num_of_rounds": 5,
             "num_of_clients": 10,
             "num_of_malicious_clients": 2,
-            "attack_type": "label_flipping",
+            "attack_schedule": [
+                {
+                    "start_round": 1,
+                    "end_round": 5,
+                    "attack_type": "label_flipping",
+                    "flip_fraction": 1.0,
+                    "selection_strategy": "percentage",
+                    "malicious_percentage": 0.2,
+                }
+            ],
             "show_plots": "false",
             "save_plots": "true",
             "save_csv": "true",
@@ -334,7 +413,16 @@ class TestValidateStrategyConfigInvalidValues:
             "num_of_rounds": 5,
             "num_of_clients": 10,
             "num_of_malicious_clients": 2,
-            "attack_type": "label_flipping",
+            "attack_schedule": [
+                {
+                    "start_round": 1,
+                    "end_round": 5,
+                    "attack_type": "label_flipping",
+                    "flip_fraction": 1.0,
+                    "selection_strategy": "percentage",
+                    "malicious_percentage": 0.2,
+                }
+            ],
             "show_plots": "false",
             "save_plots": "true",
             "save_csv": "true",
@@ -367,7 +455,16 @@ class TestValidateStrategyConfigInvalidValues:
             "num_of_rounds": 5,
             "num_of_clients": 10,
             "num_of_malicious_clients": 2,
-            "attack_type": "label_flipping",
+            "attack_schedule": [
+                {
+                    "start_round": 1,
+                    "end_round": 5,
+                    "attack_type": "label_flipping",
+                    "flip_fraction": 1.0,
+                    "selection_strategy": "percentage",
+                    "malicious_percentage": 0.2,
+                }
+            ],
             "show_plots": "false",
             "save_plots": "true",
             "save_csv": "true",
@@ -406,6 +503,16 @@ class TestValidateStrategyConfigInvalidValues:
             "num_of_rounds": 5,
             "num_of_clients": 10,
             "num_of_malicious_clients": 2,
+            "attack_schedule": [
+                {
+                    "start_round": 1,
+                    "end_round": 5,
+                    "attack_type": "label_flipping",
+                    "flip_fraction": 1.0,
+                    "selection_strategy": "percentage",
+                    "malicious_percentage": 0.2,
+                }
+            ],
             "attack_type": "invalid_attack",
             "show_plots": "false",
             "save_plots": "true",
@@ -442,7 +549,16 @@ class TestValidateStrategyConfigInvalidValues:
             "num_of_rounds": 5,
             "num_of_clients": 10,
             "num_of_malicious_clients": 2,
-            "attack_type": "label_flipping",
+            "attack_schedule": [
+                {
+                    "start_round": 1,
+                    "end_round": 5,
+                    "attack_type": "label_flipping",
+                    "flip_fraction": 1.0,
+                    "selection_strategy": "percentage",
+                    "malicious_percentage": 0.2,
+                }
+            ],
             "show_plots": "false",
             "save_plots": "true",
             "save_csv": "true",
@@ -475,7 +591,16 @@ class TestValidateStrategyConfigInvalidValues:
             "num_of_rounds": "five",  # Should be integer
             "num_of_clients": 10,
             "num_of_malicious_clients": 2,
-            "attack_type": "label_flipping",
+            "attack_schedule": [
+                {
+                    "start_round": 1,
+                    "end_round": 5,
+                    "attack_type": "label_flipping",
+                    "flip_fraction": 1.0,
+                    "selection_strategy": "percentage",
+                    "malicious_percentage": 0.2,
+                }
+            ],
             "show_plots": "false",
             "save_plots": "true",
             "save_csv": "true",
@@ -512,7 +637,7 @@ class TestValidateDependentParams:
         }
 
         with pytest.raises(ValidationError) as exc_info:
-            validate_dependent_params(config)
+            _validate_dependent_params(config)
 
         assert "Missing parameter trust_threshold for trust aggregation trust" in str(
             exc_info.value
@@ -529,7 +654,7 @@ class TestValidateDependentParams:
         }
 
         with pytest.raises(ValidationError) as exc_info:
-            validate_dependent_params(config)
+            _validate_dependent_params(config)
 
         assert "Missing parameter beta_value for trust aggregation trust" in str(
             exc_info.value
@@ -546,7 +671,7 @@ class TestValidateDependentParams:
         }
 
         with pytest.raises(ValidationError) as exc_info:
-            validate_dependent_params(config)
+            _validate_dependent_params(config)
 
         assert (
             "Missing parameter begin_removing_from_round for trust aggregation trust"
@@ -564,7 +689,7 @@ class TestValidateDependentParams:
         }
 
         with pytest.raises(ValidationError) as exc_info:
-            validate_dependent_params(config)
+            _validate_dependent_params(config)
 
         assert "Missing parameter num_of_clusters for trust aggregation trust" in str(
             exc_info.value
@@ -581,7 +706,7 @@ class TestValidateDependentParams:
         }
 
         with pytest.raises(ValidationError) as exc_info:
-            validate_dependent_params(config)
+            _validate_dependent_params(config)
 
         assert "Missing parameter Kp for PID aggregation pid" in str(exc_info.value)
 
@@ -596,7 +721,7 @@ class TestValidateDependentParams:
         }
 
         with pytest.raises(ValidationError) as exc_info:
-            validate_dependent_params(config)
+            _validate_dependent_params(config)
 
         assert "Missing parameter Ki for PID aggregation pid_scaled" in str(
             exc_info.value
@@ -613,7 +738,7 @@ class TestValidateDependentParams:
         }
 
         with pytest.raises(ValidationError) as exc_info:
-            validate_dependent_params(config)
+            _validate_dependent_params(config)
 
         assert "Missing parameter Kd for PID aggregation pid_standardized" in str(
             exc_info.value
@@ -630,7 +755,7 @@ class TestValidateDependentParams:
         }
 
         with pytest.raises(ValidationError) as exc_info:
-            validate_dependent_params(config)
+            _validate_dependent_params(config)
 
         assert "Missing parameter num_std_dev for PID aggregation pid" in str(
             exc_info.value
@@ -644,7 +769,7 @@ class TestValidateDependentParams:
         }
 
         with pytest.raises(ValidationError) as exc_info:
-            validate_dependent_params(config)
+            _validate_dependent_params(config)
 
         assert (
             "Missing parameter num_krum_selections for Krum-based aggregation krum"
@@ -659,7 +784,7 @@ class TestValidateDependentParams:
         }
 
         with pytest.raises(ValidationError) as exc_info:
-            validate_dependent_params(config)
+            _validate_dependent_params(config)
 
         assert (
             "Missing parameter num_krum_selections for Krum-based aggregation multi-krum"
@@ -674,7 +799,7 @@ class TestValidateDependentParams:
         }
 
         with pytest.raises(ValidationError) as exc_info:
-            validate_dependent_params(config)
+            _validate_dependent_params(config)
 
         assert (
             "Missing parameter num_krum_selections for Krum-based aggregation multi-krum-based"
@@ -689,55 +814,10 @@ class TestValidateDependentParams:
         }
 
         with pytest.raises(ValidationError) as exc_info:
-            validate_dependent_params(config)
+            _validate_dependent_params(config)
 
         assert (
             "Missing parameter trim_ratio for trimmed mean aggregation trimmed_mean"
-            in str(exc_info.value)
-        )
-
-    def test_gaussian_noise_attack_missing_parameters(self):
-        """Test validation fails when gaussian noise attack is missing required parameters."""
-        config = {
-            "aggregation_strategy_keyword": "trust",
-            "attack_type": "gaussian_noise",
-            # Trust-specific parameters (required first)
-            "begin_removing_from_round": 2,
-            "trust_threshold": 0.7,
-            "beta_value": 0.5,
-            "num_of_clusters": 1,
-            # Missing target_noise_snr, attack_ratio
-        }
-
-        with pytest.raises(ValidationError) as exc_info:
-            validate_dependent_params(config)
-
-        error_message = str(exc_info.value)
-        assert (
-            "Missing target_noise_snr that is required for gaussian_noise in configuration"
-            in error_message
-        )
-
-    def test_gaussian_noise_attack_missing_attack_ratio(self):
-        """Test validation fails when gaussian noise attack is missing attack_ratio parameter."""
-        config = {
-            "aggregation_strategy_keyword": "trust",
-            "attack_type": "gaussian_noise",
-            # Trust-specific parameters (required first)
-            "begin_removing_from_round": 2,
-            "trust_threshold": 0.7,
-            "beta_value": 0.5,
-            "num_of_clusters": 1,
-            # Gaussian noise parameters
-            "target_noise_snr": 10.0,
-            # Missing attack_ratio
-        }
-
-        with pytest.raises(ValidationError) as exc_info:
-            validate_dependent_params(config)
-
-        assert (
-            "Missing attack_ratio that is required for gaussian_noise in configuration"
             in str(exc_info.value)
         )
 
@@ -756,7 +836,16 @@ class TestValidateStrategyConfigErrorMessages:
             "num_of_rounds": 5,
             "num_of_clients": 10,
             "num_of_malicious_clients": 2,
-            "attack_type": "label_flipping",
+            "attack_schedule": [
+                {
+                    "start_round": 1,
+                    "end_round": 5,
+                    "attack_type": "label_flipping",
+                    "flip_fraction": 1.0,
+                    "selection_strategy": "percentage",
+                    "malicious_percentage": 0.2,
+                }
+            ],
             "show_plots": "false",
             "save_plots": "true",
             "save_csv": "true",
@@ -811,7 +900,16 @@ class TestValidateStrategyConfigErrorMessages:
             "num_of_rounds": "not_a_number",  # Should be integer
             "num_of_clients": 10,
             "num_of_malicious_clients": 2,
-            "attack_type": "label_flipping",
+            "attack_schedule": [
+                {
+                    "start_round": 1,
+                    "end_round": 5,
+                    "attack_type": "label_flipping",
+                    "flip_fraction": 1.0,
+                    "selection_strategy": "percentage",
+                    "malicious_percentage": 0.2,
+                }
+            ],
             "show_plots": "false",
             "save_plots": "true",
             "save_csv": "true",
@@ -843,32 +941,12 @@ class TestValidateStrategyConfigErrorMessages:
         }
 
         with pytest.raises(ValidationError) as exc_info:
-            validate_dependent_params(config)
+            _validate_dependent_params(config)
 
         error_message = str(exc_info.value)
         # Should clearly indicate the missing parameter and strategy
         assert "Missing parameter" in error_message
         assert "for trust aggregation trust" in error_message
-
-    def test_clear_error_message_for_attack_specific_missing_params(self):
-        """Test that error messages clearly indicate which attack-specific parameter is missing."""
-        config = {
-            "aggregation_strategy_keyword": "trust",
-            "attack_type": "gaussian_noise",
-            # Trust-specific parameters (required first)
-            "begin_removing_from_round": 2,
-            "trust_threshold": 0.7,
-            "beta_value": 0.5,
-            "num_of_clusters": 1,
-            # Missing gaussian noise specific parameters
-        }
-
-        with pytest.raises(ValidationError) as exc_info:
-            validate_dependent_params(config)
-
-        error_message = str(exc_info.value)
-        # Should clearly indicate the missing parameter and attack type
-        assert "that is required for gaussian_noise in configuration" in error_message
 
 
 class TestValidateStrategyConfigEdgeCases:
@@ -885,7 +963,16 @@ class TestValidateStrategyConfigEdgeCases:
             "num_of_rounds": 4,
             "num_of_clients": 10,
             "num_of_malicious_clients": 2,
-            "attack_type": "label_flipping",
+            "attack_schedule": [
+                {
+                    "start_round": 1,
+                    "end_round": 4,
+                    "attack_type": "label_flipping",
+                    "flip_fraction": 1.0,
+                    "selection_strategy": "percentage",
+                    "malicious_percentage": 0.2,
+                }
+            ],
             "show_plots": "false",
             "save_plots": "false",
             "save_csv": "true",
@@ -916,7 +1003,16 @@ class TestValidateStrategyConfigEdgeCases:
             "num_of_rounds": 3,
             "num_of_clients": 15,
             "num_of_malicious_clients": 0,
-            "attack_type": "label_flipping",
+            "attack_schedule": [
+                {
+                    "start_round": 1,
+                    "end_round": 3,
+                    "attack_type": "label_flipping",
+                    "flip_fraction": 1.0,
+                    "selection_strategy": "percentage",
+                    "malicious_percentage": 0.0,
+                }
+            ],
             "show_plots": "true",
             "save_plots": "true",
             "save_csv": "false",
@@ -948,7 +1044,7 @@ class TestValidateStrategyConfigEdgeCases:
         }
 
         # Should not raise any exception for dependent params
-        validate_dependent_params(config)
+        _validate_dependent_params(config)
 
     def test_empty_config_validation(self):
         """Test validation of completely empty configuration."""
@@ -972,7 +1068,16 @@ class TestValidateStrategyConfigEdgeCases:
             "num_of_rounds": 5,
             "num_of_clients": 10,
             "num_of_malicious_clients": 2,
-            "attack_type": "label_flipping",
+            "attack_schedule": [
+                {
+                    "start_round": 1,
+                    "end_round": 5,
+                    "attack_type": "label_flipping",
+                    "flip_fraction": 1.0,
+                    "selection_strategy": "percentage",
+                    "malicious_percentage": 0.2,
+                }
+            ],
             "show_plots": "false",
             "save_plots": "true",
             "save_csv": "true",
@@ -1008,7 +1113,7 @@ class TestCheckLlmSpecificParameters:
         config = {"model_type": "cnn", "use_llm": "true"}
 
         with pytest.raises(ValidationError) as exc_info:
-            check_llm_specific_parameters(config)
+            _validate_llm_parameters(config)
 
         assert "LLM finetuning is only supported for transformer models" in str(
             exc_info.value
@@ -1025,7 +1130,7 @@ class TestCheckLlmSpecificParameters:
         }
 
         with pytest.raises(ValidationError) as exc_info:
-            check_llm_specific_parameters(config)
+            _validate_llm_parameters(config)
 
         assert "Missing parameter llm_model for LLM finetuning" in str(exc_info.value)
 
@@ -1040,7 +1145,7 @@ class TestCheckLlmSpecificParameters:
         }
 
         with pytest.raises(ValidationError) as exc_info:
-            check_llm_specific_parameters(config)
+            _validate_llm_parameters(config)
 
         assert "Missing parameter llm_finetuning for LLM finetuning" in str(
             exc_info.value
@@ -1057,7 +1162,7 @@ class TestCheckLlmSpecificParameters:
         }
 
         with pytest.raises(ValidationError) as exc_info:
-            check_llm_specific_parameters(config)
+            _validate_llm_parameters(config)
 
         assert "Missing parameter llm_task for LLM finetuning" in str(exc_info.value)
 
@@ -1072,7 +1177,7 @@ class TestCheckLlmSpecificParameters:
         }
 
         with pytest.raises(ValidationError) as exc_info:
-            check_llm_specific_parameters(config)
+            _validate_llm_parameters(config)
 
         assert "Missing parameter llm_chunk_size for LLM finetuning" in str(
             exc_info.value
@@ -1090,7 +1195,7 @@ class TestCheckLlmSpecificParameters:
         }
 
         with pytest.raises(ValidationError) as exc_info:
-            check_llm_specific_parameters(config)
+            _validate_llm_parameters(config)
 
         assert "Missing parameter mlm_probability for LLM task mlm" in str(
             exc_info.value
@@ -1111,7 +1216,7 @@ class TestCheckLlmSpecificParameters:
         }
 
         with pytest.raises(ValidationError) as exc_info:
-            check_llm_specific_parameters(config)
+            _validate_llm_parameters(config)
 
         assert "Missing parameter lora_rank for LORA" in str(exc_info.value)
 
@@ -1130,7 +1235,7 @@ class TestCheckLlmSpecificParameters:
         }
 
         with pytest.raises(ValidationError) as exc_info:
-            check_llm_specific_parameters(config)
+            _validate_llm_parameters(config)
 
         assert "Missing parameter lora_alpha for LORA" in str(exc_info.value)
 
@@ -1149,7 +1254,7 @@ class TestCheckLlmSpecificParameters:
         }
 
         with pytest.raises(ValidationError) as exc_info:
-            check_llm_specific_parameters(config)
+            _validate_llm_parameters(config)
 
         assert "Missing parameter lora_dropout for LORA" in str(exc_info.value)
 
@@ -1168,7 +1273,7 @@ class TestCheckLlmSpecificParameters:
         }
 
         with pytest.raises(ValidationError) as exc_info:
-            check_llm_specific_parameters(config)
+            _validate_llm_parameters(config)
 
         assert "Missing parameter lora_target_modules for LORA" in str(exc_info.value)
 
@@ -1183,7 +1288,7 @@ class TestCheckLlmSpecificParameters:
         }
 
         # Should not raise any exception
-        check_llm_specific_parameters(config)
+        _validate_llm_parameters(config)
 
     def test_llm_valid_lora_finetuning_config(self):
         """Test that valid LORA finetuning config passes validation."""
@@ -1200,7 +1305,7 @@ class TestCheckLlmSpecificParameters:
         }
 
         # Should not raise any exception
-        check_llm_specific_parameters(config)
+        _validate_llm_parameters(config)
 
     def test_llm_valid_mlm_task_config(self):
         """Test that valid MLM task config passes validation."""
@@ -1214,7 +1319,7 @@ class TestCheckLlmSpecificParameters:
         }
 
         # Should not raise any exception
-        check_llm_specific_parameters(config)
+        _validate_llm_parameters(config)
 
 
 class TestStrictModeValidation:
@@ -1231,7 +1336,16 @@ class TestStrictModeValidation:
             "num_of_rounds": 5,
             "num_of_clients": 10,
             "num_of_malicious_clients": 2,
-            "attack_type": "label_flipping",
+            "attack_schedule": [
+                {
+                    "start_round": 1,
+                    "end_round": 5,
+                    "attack_type": "label_flipping",
+                    "flip_fraction": 1.0,
+                    "selection_strategy": "percentage",
+                    "malicious_percentage": 0.2,
+                }
+            ],
             "show_plots": "false",
             "save_plots": "true",
             "save_csv": "true",
@@ -1272,7 +1386,16 @@ class TestStrictModeValidation:
             "num_of_rounds": 5,
             "num_of_clients": 10,
             "num_of_malicious_clients": 2,
-            "attack_type": "label_flipping",
+            "attack_schedule": [
+                {
+                    "start_round": 1,
+                    "end_round": 5,
+                    "attack_type": "label_flipping",
+                    "flip_fraction": 1.0,
+                    "selection_strategy": "percentage",
+                    "malicious_percentage": 0.2,
+                }
+            ],
             "show_plots": "false",
             "save_plots": "true",
             "save_csv": "true",
@@ -1312,7 +1435,16 @@ class TestStrictModeValidation:
             "num_of_rounds": 5,
             "num_of_clients": 10,
             "num_of_malicious_clients": 2,
-            "attack_type": "label_flipping",
+            "attack_schedule": [
+                {
+                    "start_round": 1,
+                    "end_round": 5,
+                    "attack_type": "label_flipping",
+                    "flip_fraction": 1.0,
+                    "selection_strategy": "percentage",
+                    "malicious_percentage": 0.2,
+                }
+            ],
             "show_plots": "false",
             "save_plots": "true",
             "save_csv": "true",
@@ -1352,7 +1484,16 @@ class TestStrictModeValidation:
             "num_of_rounds": 5,
             "num_of_clients": 5,
             "num_of_malicious_clients": 2,
-            "attack_type": "label_flipping",
+            "attack_schedule": [
+                {
+                    "start_round": 1,
+                    "end_round": 5,
+                    "attack_type": "label_flipping",
+                    "flip_fraction": 1.0,
+                    "selection_strategy": "percentage",
+                    "malicious_percentage": 0.4,
+                }
+            ],
             "show_plots": "false",
             "save_plots": "true",
             "save_csv": "true",
@@ -1396,7 +1537,16 @@ class TestStrictModeValidation:
             "num_of_rounds": 5,
             "num_of_clients": 10,
             "num_of_malicious_clients": 2,
-            "attack_type": "label_flipping",
+            "attack_schedule": [
+                {
+                    "start_round": 1,
+                    "end_round": 5,
+                    "attack_type": "label_flipping",
+                    "flip_fraction": 1.0,
+                    "selection_strategy": "percentage",
+                    "malicious_percentage": 0.2,
+                }
+            ],
             "show_plots": "false",
             "save_plots": "true",
             "save_csv": "true",
@@ -1436,7 +1586,16 @@ class TestStrictModeValidation:
             "num_of_rounds": 5,
             "num_of_clients": 10,
             "num_of_malicious_clients": 2,
-            "attack_type": "label_flipping",
+            "attack_schedule": [
+                {
+                    "start_round": 1,
+                    "end_round": 5,
+                    "attack_type": "label_flipping",
+                    "flip_fraction": 1.0,
+                    "selection_strategy": "percentage",
+                    "malicious_percentage": 0.2,
+                }
+            ],
             "show_plots": "false",
             "save_plots": "true",
             "save_csv": "true",
@@ -1479,7 +1638,16 @@ class TestValidateStrategyConfigLlmIntegration:
             "num_of_rounds": 5,
             "num_of_clients": 10,
             "num_of_malicious_clients": 2,
-            "attack_type": "label_flipping",
+            "attack_schedule": [
+                {
+                    "start_round": 1,
+                    "end_round": 5,
+                    "attack_type": "label_flipping",
+                    "flip_fraction": 1.0,
+                    "selection_strategy": "percentage",
+                    "malicious_percentage": 0.2,
+                }
+            ],
             "show_plots": "false",
             "save_plots": "true",
             "save_csv": "true",
@@ -1519,7 +1687,16 @@ class TestValidateStrategyConfigLlmIntegration:
             "num_of_rounds": 5,
             "num_of_clients": 10,
             "num_of_malicious_clients": 2,
-            "attack_type": "label_flipping",
+            "attack_schedule": [
+                {
+                    "start_round": 1,
+                    "end_round": 5,
+                    "attack_type": "label_flipping",
+                    "flip_fraction": 1.0,
+                    "selection_strategy": "percentage",
+                    "malicious_percentage": 0.2,
+                }
+            ],
             "show_plots": "false",
             "save_plots": "true",
             "save_csv": "true",
@@ -1556,7 +1733,16 @@ class TestValidateStrategyConfigLlmIntegration:
             "num_of_rounds": 5,
             "num_of_clients": 5,  # Too few clients
             "num_of_malicious_clients": 2,
-            "attack_type": "label_flipping",
+            "attack_schedule": [
+                {
+                    "start_round": 1,
+                    "end_round": 5,
+                    "attack_type": "label_flipping",
+                    "flip_fraction": 1.0,
+                    "selection_strategy": "percentage",
+                    "malicious_percentage": 0.4,
+                }
+            ],
             "show_plots": "false",
             "save_plots": "true",
             "save_csv": "true",

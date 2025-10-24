@@ -27,7 +27,6 @@ class TestConfigLoader:
                 "remove_clients": "true",
                 "num_of_clients": 10,
                 "num_of_malicious_clients": 2,
-                "attack_type": "label_flipping",
                 "show_plots": "false",
                 "save_plots": "false",
                 "save_csv": "true",
@@ -50,6 +49,16 @@ class TestConfigLoader:
                     "trust_threshold": 0.7,
                     "beta_value": 0.5,
                     "num_of_clusters": 1,
+                    "attack_schedule": [
+                        {
+                            "start_round": 1,
+                            "end_round": 5,
+                            "attack_type": "label_flipping",
+                            "flip_fraction": 1.0,
+                            "selection_strategy": "percentage",
+                            "malicious_percentage": 0.2,
+                        }
+                    ],
                 }
             ],
         }
@@ -84,7 +93,6 @@ class TestConfigLoader:
                 "remove_clients": "true",
                 "num_of_clients": 10,
                 "num_of_malicious_clients": 2,
-                "attack_type": "label_flipping",
                 "show_plots": "false",
                 "save_plots": "false",
                 "save_csv": "true",
@@ -107,6 +115,16 @@ class TestConfigLoader:
                     "trust_threshold": 0.7,
                     "beta_value": 0.5,
                     "num_of_clusters": 1,
+                    "attack_schedule": [
+                        {
+                            "start_round": 1,
+                            "end_round": 5,
+                            "attack_type": "label_flipping",
+                            "flip_fraction": 1.0,
+                            "selection_strategy": "percentage",
+                            "malicious_percentage": 0.2,
+                        }
+                    ],
                 },
                 {
                     "aggregation_strategy_keyword": "pid",
@@ -114,6 +132,16 @@ class TestConfigLoader:
                     "Kp": 1.0,
                     "Ki": 0.1,
                     "Kd": 0.01,
+                    "attack_schedule": [
+                        {
+                            "start_round": 1,
+                            "end_round": 5,
+                            "attack_type": "label_flipping",
+                            "flip_fraction": 1.0,
+                            "selection_strategy": "percentage",
+                            "malicious_percentage": 0.2,
+                        }
+                    ],
                 },
             ],
         }
@@ -232,7 +260,6 @@ class TestConfigLoader:
                 "remove_clients": "true",
                 "num_of_clients": 5,
                 "num_of_malicious_clients": 1,
-                "attack_type": "label_flipping",
                 "show_plots": "false",
                 "save_plots": "false",
                 "save_csv": "true",
@@ -249,7 +276,20 @@ class TestConfigLoader:
                 "batch_size": 32,
             },
             "simulation_strategies": [
-                {"aggregation_strategy_keyword": "krum", "num_krum_selections": 3}
+                {
+                    "aggregation_strategy_keyword": "krum",
+                    "num_krum_selections": 3,
+                    "attack_schedule": [
+                        {
+                            "start_round": 1,
+                            "end_round": 3,
+                            "attack_type": "label_flipping",
+                            "flip_fraction": 1.0,
+                            "selection_strategy": "percentage",
+                            "malicious_percentage": 0.2,
+                        }
+                    ],
+                }
             ],
         }
 
@@ -282,7 +322,6 @@ class TestConfigLoader:
                 "remove_clients": "false",
                 "num_of_clients": 5,
                 "num_of_malicious_clients": 0,
-                "attack_type": "label_flipping",
                 "show_plots": "false",
                 "save_plots": "false",
                 "save_csv": "false",
@@ -298,7 +337,12 @@ class TestConfigLoader:
                 "num_of_client_epochs": 1,
                 "batch_size": 32,
             },
-            "simulation_strategies": [{"aggregation_strategy_keyword": "rfa"}],
+            "simulation_strategies": [
+                {
+                    "aggregation_strategy_keyword": "rfa",
+                    "attack_schedule": [],
+                }
+            ],
         }
 
         dataset_config = {
@@ -334,7 +378,6 @@ class TestConfigLoader:
                 "remove_clients": "false",
                 "num_of_clients": 3,
                 "num_of_malicious_clients": 0,
-                "attack_type": "label_flipping",
                 "show_plots": "false",
                 "save_plots": "false",
                 "save_csv": "false",
@@ -350,7 +393,12 @@ class TestConfigLoader:
                 "num_of_client_epochs": 1,
                 "batch_size": 32,
             },
-            "simulation_strategies": [{"aggregation_strategy_keyword": "bulyan"}],
+            "simulation_strategies": [
+                {
+                    "aggregation_strategy_keyword": "bulyan",
+                    "attack_schedule": [],
+                }
+            ],
         }
 
         dataset_config = {"its": "datasets/its", "femnist_iid": "datasets/femnist_iid"}
@@ -382,7 +430,6 @@ class TestConfigLoader:
                 "remove_clients": "false",
                 "num_of_clients": 3,
                 "num_of_malicious_clients": 0,
-                "attack_type": "label_flipping",
                 "show_plots": "false",
                 "save_plots": "false",
                 "save_csv": "false",
@@ -398,7 +445,12 @@ class TestConfigLoader:
                 "num_of_client_epochs": 1,
                 "batch_size": 32,
             },
-            "simulation_strategies": [{"aggregation_strategy_keyword": "bulyan"}],
+            "simulation_strategies": [
+                {
+                    "aggregation_strategy_keyword": "bulyan",
+                    "attack_schedule": [],
+                }
+            ],
         }
 
         dataset_config = {"its": "datasets/its"}
@@ -434,7 +486,6 @@ class TestConfigLoader:
                 "remove_clients": "true",
                 "num_of_clients": 10,
                 "num_of_malicious_clients": 2,
-                "attack_type": "label_flipping",
                 "show_plots": "false",
                 "save_plots": "false",
                 "save_csv": "true",
@@ -457,6 +508,16 @@ class TestConfigLoader:
                     "trust_threshold": 0.7,
                     "beta_value": 0.5,
                     "num_of_clusters": 1,
+                    "attack_schedule": [
+                        {
+                            "start_round": 1,
+                            "end_round": 5,
+                            "attack_type": "label_flipping",
+                            "flip_fraction": 1.0,
+                            "selection_strategy": "percentage",
+                            "malicious_percentage": 0.2,
+                        }
+                    ],
                 }
             ],
         }
@@ -510,7 +571,6 @@ class TestConfigLoader:
                 "remove_clients": "true",
                 "num_of_clients": 20,
                 "num_of_malicious_clients": 4,
-                "attack_type": "label_flipping",
                 "show_plots": "true",
                 "save_plots": "true",
                 "save_csv": "true",
@@ -527,10 +587,33 @@ class TestConfigLoader:
                 "batch_size": 64,
             },
             "simulation_strategies": [
-                {"aggregation_strategy_keyword": "trimmed_mean", "trim_ratio": 0.3},
+                {
+                    "aggregation_strategy_keyword": "trimmed_mean",
+                    "trim_ratio": 0.3,
+                    "attack_schedule": [
+                        {
+                            "start_round": 1,
+                            "end_round": 10,
+                            "attack_type": "label_flipping",
+                            "flip_fraction": 1.0,
+                            "selection_strategy": "percentage",
+                            "malicious_percentage": 0.2,
+                        }
+                    ],
+                },
                 {
                     "aggregation_strategy_keyword": "multi-krum",
                     "num_krum_selections": 12,
+                    "attack_schedule": [
+                        {
+                            "start_round": 1,
+                            "end_round": 10,
+                            "attack_type": "label_flipping",
+                            "flip_fraction": 1.0,
+                            "selection_strategy": "percentage",
+                            "malicious_percentage": 0.2,
+                        }
+                    ],
                 },
             ],
         }
@@ -582,7 +665,6 @@ class TestConfigLoader:
                 "remove_clients": "false",
                 "num_of_clients": 3,
                 "num_of_malicious_clients": 0,
-                "attack_type": "label_flipping",
                 "show_plots": "false",
                 "save_plots": "false",
                 "save_csv": "false",
@@ -598,7 +680,12 @@ class TestConfigLoader:
                 "num_of_client_epochs": 1,
                 "batch_size": 32,
             },
-            "simulation_strategies": [{"aggregation_strategy_keyword": "rfa"}],
+            "simulation_strategies": [
+                {
+                    "aggregation_strategy_keyword": "rfa",
+                    "attack_schedule": [],
+                }
+            ],
         }
 
         usecase_file = tmp_path / "usecase.json"
