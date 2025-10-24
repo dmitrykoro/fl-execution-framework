@@ -258,15 +258,18 @@ def _validate_dependent_params(strategy_config: dict) -> None:
                 f"Missing parameter trim_ratio for trimmed mean aggregation {aggregation_strategy_keyword}"
             )
 
-def _validate_attack_schedule(schedule: list) -> None:
+def _validate_attack_schedule(config: dict) -> None:
     """
-    Validate attack_schedule entries.
+    Validate attack_schedule entries and enforce related constraints.
 
     Ensures each schedule entry has:
     - Valid round ranges
     - Required attack-type-specific parameters
     - Proper selection strategy configuration
+    - Preserve_dataset set to false
     """
+    schedule = config.get("attack_schedule", [])
+
     for idx, entry in enumerate(schedule):
         entry_desc = f"attack_schedule entry {idx}"
 
@@ -335,6 +338,16 @@ def _validate_attack_schedule(schedule: list) -> None:
                         f"({entry1.get('attack_type')} and {entry2.get('attack_type')}). "
                         f"Both attacks will be stacked and applied sequentially."
                     )
+
+    # Force preserve_dataset to false when using attack_schedule
+    if schedule and config.get("preserve_dataset") == "true":
+        config["preserve_dataset"] = "false"
+        logging.info(
+            "ATTACK SCHEDULE DETECTED: Auto-configured preserve_dataset = false\n"
+            "  - Dynamic attacks poison data in-memory during training rounds\n"
+            "  - Filesystem dataset remains clean (not poisoned)\n"
+            "  - Use 'save_attack_snapshots' to inspect poisoned data"
+        )
 
 
 def _validate_llm_parameters(strategy_config: dict) -> None:
@@ -425,10 +438,9 @@ def validate_strategy_config(config: dict) -> None:
 
     _validate_dependent_params(config)
 
-    use_llm_keyword = config["use_llm"]
-    if use_llm_keyword == "true":
+    if config["use_llm"] == "true":
         _validate_llm_parameters(config)
 
-    _validate_attack_schedule(config["attack_schedule"])
+    _validate_attack_schedule(config)
 
     _apply_strict_mode(config)
