@@ -54,10 +54,6 @@ config_schema = {
         "num_of_malicious_clients": {
             "type": "integer"
         },
-        "attack_type": {
-            "type": "string",
-            "enum": ["label_flipping", "gaussian_noise"]
-        },
         "show_plots": {
             "type": "string",
             "enum": ["true", "false"]
@@ -189,19 +185,6 @@ config_schema = {
             "type": "number"
         },
 
-        # Dynamic poisoning attacks
-        "dynamic_attacks": {
-            "type": "object",
-            "properties": {
-                "enabled": {
-                    "type": "boolean"
-                },
-                "schedule": {
-                    "type": "array"
-                }
-            }
-        },
-
         # Attack scheduling
         "attack_schedule": {
             "type": "array",
@@ -210,7 +193,7 @@ config_schema = {
                 "properties": {
                     "start_round": {"type": "integer", "minimum": 1},
                     "end_round": {"type": "integer", "minimum": 1},
-                    "attack_type": {"type": "string", "enum": ["label_flipping", "gaussian_noise"]},
+                    "attack_type": {"type": "string", "enum": ["label_flipping", "gaussian_noise", "brightness", "token_replacement"]},
                     "selection_strategy": {"type": "string", "enum": ["specific", "random", "percentage"]},
                     "malicious_client_ids": {"type": "array", "items": {"type": "integer"}},
                     "malicious_client_count": {"type": "integer", "minimum": 1},
@@ -321,10 +304,6 @@ def _validate_attack_schedule(schedule: list) -> None:
             if "malicious_client_ids" not in entry:
                 raise ValidationError(
                     f"{entry_desc}: 'specific' selection strategy requires 'malicious_client_ids' list"
-                )
-            if not isinstance(entry["malicious_client_ids"], list):
-                raise ValidationError(
-                    f"{entry_desc}: 'malicious_client_ids' must be a list of integers"
                 )
 
         elif selection_strategy == "random":

@@ -14,12 +14,10 @@ class StrategyConfig:
     num_of_rounds: int = None
     num_of_clients: int = None
     num_of_malicious_clients: int = None
-    attack_type: str = None
-    attack_ratio: float = None
-    target_noise_snr: float = None
     show_plots: bool = None
     save_plots: bool = None
     save_csv: bool = None
+    save_attack_snapshots: bool = None
     training_device: str = None
     cpus_per_client: int = None
     gpus_per_client: float = None
@@ -51,7 +49,7 @@ class StrategyConfig:
 
     strategy_number: int = None
 
-    attack_schedule: Optional[list] = None
+    attack_schedule: list = None
 
     def __init__(self, **kwargs):
         for key, value in kwargs.items():

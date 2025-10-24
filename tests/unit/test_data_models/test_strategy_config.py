@@ -259,14 +259,24 @@ class TestStrategyConfig:
 
     def test_attack_parameters(self):
         """Test attack-related parameters."""
+        attack_schedule = [
+            {
+                "start_round": 1,
+                "end_round": 10,
+                "attack_type": "gaussian_noise",
+                "attack_ratio": 0.3,
+                "target_noise_snr": 10.0,
+                "selection_strategy": "percentage",
+                "malicious_percentage": 0.2,
+            }
+        ]
         config = StrategyConfig(
             num_of_malicious_clients=2,
-            attack_type="gaussian_noise",
-            attack_ratio=0.3,
-            target_noise_snr=10.0,
+            attack_schedule=attack_schedule,
         )
 
         assert config.num_of_malicious_clients == 2
-        assert config.attack_type == "gaussian_noise"
-        assert config.attack_ratio == 0.3
-        assert config.target_noise_snr == 10.0
+        assert config.attack_schedule == attack_schedule
+        assert config.attack_schedule[0]["attack_type"] == "gaussian_noise"
+        assert config.attack_schedule[0]["attack_ratio"] == 0.3
+        assert config.attack_schedule[0]["target_noise_snr"] == 10.0
