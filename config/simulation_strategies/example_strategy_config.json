@@ -9,8 +9,7 @@
     "num_of_clients": 5,
     "num_of_malicious_clients": 1,
     "attack_ratio": 1.0,
-    "gaussian_noise_mean": 0,
-    "gaussian_noise_std": 75,
+    "target_noise_snr": 10.0,
     "show_plots": "false",
     "save_plots": "true",
     "save_csv": "true",
@@ -47,11 +46,30 @@
   },
   "simulation_strategies": [
     {
-      "attack_type": "gaussian_noise",
+      "attack_schedule": [
+        {
+          "start_round": 1,
+          "end_round": 4,
+          "attack_type": "gaussian_noise",
+          "target_noise_snr": 10.0,
+          "attack_ratio": 1.0,
+          "selection_strategy": "percentage",
+          "malicious_percentage": 0.2
+        }
+      ],
       "num_std_dev": 2
     },
     {
-      "attack_type": "label_flipping",
+      "attack_schedule": [
+        {
+          "start_round": 1,
+          "end_round": 4,
+          "attack_type": "label_flipping",
+          "flip_fraction": 1.0,
+          "selection_strategy": "percentage",
+          "malicious_percentage": 0.2
+        }
+      ],
       "num_std_dev": 3
     }
   ]

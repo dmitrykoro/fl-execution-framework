@@ -2,10 +2,11 @@
     "shared_settings": {
       "remove_clients": "true",
       "dataset_keyword": "femnist_iid",
+      "use_llm": "false",
+      "model_type": "cnn",
       "num_of_rounds": 50,
       "num_of_clients": 40,
       "num_of_malicious_clients": 5,
-      "attack_type": "label_flipping",
       "show_plots": "false",
       "save_plots": "true",
       "save_csv": "true",
@@ -33,10 +34,30 @@
     "simulation_strategies": [
       {
         "aggregation_strategy_keyword": "pid",
+        "attack_schedule": [
+          {
+            "start_round": 1,
+            "end_round": 50,
+            "attack_type": "label_flipping",
+            "flip_fraction": 1.0,
+            "selection_strategy": "percentage",
+            "malicious_percentage": 0.125
+          }
+        ],
         "num_std_dev": 2.33
       },
       {
         "aggregation_strategy_keyword": "pid_standardized",
+        "attack_schedule": [
+          {
+            "start_round": 1,
+            "end_round": 50,
+            "attack_type": "label_flipping",
+            "flip_fraction": 1.0,
+            "selection_strategy": "percentage",
+            "malicious_percentage": 0.125
+          }
+        ],
         "num_std_dev": 2.33
       }
     ]

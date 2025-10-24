@@ -2,16 +2,17 @@
     "shared_settings": {
       "remove_clients": "true",
       "dataset_keyword": "its",
+      "use_llm": "false",
+      "model_type": "cnn",
       "num_of_rounds": 50,
       "begin_removing_from_round": 5,
       "num_of_malicious_clients": 2,
-      "attack_type": "label_flipping",
       "show_plots": "false",
       "save_plots": "true",
       "save_csv": "true",
       "training_device": "cpu",
       "cpus_per_client": 1,
-      "gpus_per_client": 0,
+      "gpus_per_client": 0.0,
       "trust_threshold": 0.15,
       "reputation_threshold": 0.15,
       "beta_value": 0.75,
@@ -36,6 +37,16 @@
     },
     "simulation_strategies": [
       {
+        "attack_schedule": [
+          {
+            "start_round": 1,
+            "end_round": 50,
+            "attack_type": "label_flipping",
+            "flip_fraction": 1.0,
+            "selection_strategy": "percentage",
+            "malicious_percentage": 0.25
+          }
+        ]
       }
     ]
   }
