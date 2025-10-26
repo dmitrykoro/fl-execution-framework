@@ -64,11 +64,11 @@ class SimulationStrategyHistory:
     ) -> None:
         """Append the round history info to the history. Only those values provided will be updated."""
 
-        if score_calculation_time_nanos:
+        if score_calculation_time_nanos is not None:
             self.rounds_history.score_calculation_time_nanos_history.append(score_calculation_time_nanos)
-        if removal_threshold:
+        if removal_threshold is not None:
             self.rounds_history.removal_threshold_history.append(removal_threshold)
-        if loss_aggregated:
+        if loss_aggregated is not None:
             self.rounds_history.aggregated_loss_history.append(loss_aggregated)
 
     def update_client_participation(
