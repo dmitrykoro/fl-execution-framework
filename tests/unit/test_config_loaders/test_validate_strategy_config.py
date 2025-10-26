@@ -1704,9 +1704,7 @@ class TestValidateAttackSchedule:
         with pytest.raises(ValidationError) as exc_info:
             validate_strategy_config(config)
 
-        assert "end_round (15) exceeds num_of_rounds (10)" in str(
-            exc_info.value
-        )
+        assert "end_round (15) exceeds num_of_rounds (10)" in str(exc_info.value)
 
     def test_label_flipping_missing_flip_fraction(self):
         """Test validation fails when label_flipping is missing flip_fraction."""
@@ -1994,10 +1992,8 @@ class TestValidateAttackSchedule:
             exc_info.value
         )
 
-    def test_overlapping_attacks_same_type_logs_warning(self, caplog):
-        """Test that overlapping attacks with same type log warning."""
-        import logging
-
+    def test_overlapping_attacks_same_type_raises_error(self):
+        """Test that overlapping attacks with same type raises ValidationError."""
         config = {
             "aggregation_strategy_keyword": "trust",
             "remove_clients": "true",
@@ -2045,17 +2041,11 @@ class TestValidateAttackSchedule:
             "num_of_clusters": 1,
         }
 
-        with caplog.at_level(logging.WARNING):
+        with pytest.raises(ValidationError) as exc_info:
             validate_strategy_config(config)
 
-        assert any(
-            "overlapping rounds with same attack_type" in record.message
-            for record in caplog.records
-        )
-        assert any(
-            "Entry 0 will take precedence" in record.message
-            for record in caplog.records
-        )
+        assert "Overlapping rounds with same attack type" in str(exc_info.value)
+        assert "label_flipping" in str(exc_info.value)
 
     def test_overlapping_attacks_different_types_logs_info(self, caplog):
         """Test that overlapping attacks with different types log info."""
@@ -2715,7 +2705,9 @@ class TestValidateStrategyConfigLlmIntegration:
 
         selected_42 = config_seed_42["attack_schedule"][0]["_selected_clients"]
         selected_99 = config_seed_99["attack_schedule"][0]["_selected_clients"]
-        selected_42_again = config_seed_42_again["attack_schedule"][0]["_selected_clients"]
+        selected_42_again = config_seed_42_again["attack_schedule"][0][
+            "_selected_clients"
+        ]
 
         # Different seeds should produce different selections
         assert selected_42 != selected_99, (
