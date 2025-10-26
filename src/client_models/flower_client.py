@@ -84,34 +84,35 @@ class FlowerClient(fl.client.NumPyClient):
                     if should_poison and attack_configs:
                         original_labels = labels.clone()
 
+                        # Apply all attacks sequentially
                         for attack_config in attack_configs:
                             images, labels = apply_poisoning_attack(images, labels, attack_config)
 
-                            # Save attack snapshot on first batch of first epoch (per attack)
-                            if (self.save_attack_snapshots and self.output_dir and
-                                epoch == 0 and batch_idx == 0):
-                                save_attack_snapshot(
-                                    client_id=self.client_id,
-                                    round_num=current_round,
-                                    attack_config=attack_config,
-                                    data_sample=images,
-                                    labels_sample=labels,
-                                    original_labels_sample=original_labels,
-                                    output_dir=self.output_dir,
-                                    max_samples=self.snapshot_max_samples,
-                                    save_format=self.snapshot_format,
-                                    experiment_info=self.experiment_info,
-                                )
-                                save_visual_snapshot(
-                                    client_id=self.client_id,
-                                    round_num=current_round,
-                                    attack_config=attack_config,
-                                    data_sample=images.cpu().numpy(),
-                                    labels_sample=labels.cpu().numpy(),
-                                    original_labels_sample=original_labels.cpu().numpy(),
-                                    output_dir=self.output_dir,
-                                    experiment_info=self.experiment_info,
-                                )
+                        # Save ONE snapshot AFTER all attacks applied
+                        if (self.save_attack_snapshots and self.output_dir and
+                            epoch == 0 and batch_idx == 0):
+                            save_attack_snapshot(
+                                client_id=self.client_id,
+                                round_num=current_round,
+                                attack_config=attack_configs,
+                                data_sample=images,
+                                labels_sample=labels,
+                                original_labels_sample=original_labels,
+                                output_dir=self.output_dir,
+                                max_samples=self.snapshot_max_samples,
+                                save_format=self.snapshot_format,
+                                experiment_info=self.experiment_info,
+                            )
+                            save_visual_snapshot(
+                                client_id=self.client_id,
+                                round_num=current_round,
+                                attack_config=attack_configs,
+                                data_sample=images.cpu().numpy(),
+                                labels_sample=labels.cpu().numpy(),
+                                original_labels_sample=original_labels.cpu().numpy(),
+                                output_dir=self.output_dir,
+                                experiment_info=self.experiment_info,
+                            )
 
                     images, labels = images.to(self.training_device), labels.to(self.training_device)
                     optimizer.zero_grad()
