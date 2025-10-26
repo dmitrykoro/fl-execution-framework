@@ -10,7 +10,7 @@
       "show_plots": "false",
       "save_plots": "true",
       "save_csv": "true",
-      "training_device": "cpu",
+      "training_device": "auto",
       "cpus_per_client": 1,
       "gpus_per_client": 0.0,
       "trust_threshold": 0.15,

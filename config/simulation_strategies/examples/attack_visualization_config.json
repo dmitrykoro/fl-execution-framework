@@ -15,7 +15,7 @@
     "save_csv": "true",
     "preserve_dataset": "false",
     "training_subset_fraction": 0.3,
-    "training_device": "cpu",
+    "training_device": "auto",
     "cpus_per_client": 1,
     "gpus_per_client": 0.0,
     "min_fit_clients": 6,
