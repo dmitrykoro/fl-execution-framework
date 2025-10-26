@@ -1,6 +1,12 @@
+import argparse
 import json
 import logging
+import os
 import sys
+
+# Suppress joblib CPU count warnings
+os.environ["LOKY_MAX_CPU_COUNT"] = str(os.cpu_count() or 1)
+os.environ["OMP_NUM_THREADS"] = str(os.cpu_count() or 1)
 
 from src.config_loaders.config_loader import ConfigLoader
 
@@ -14,15 +20,44 @@ from src.data_models.simulation_strategy_config import StrategyConfig
 from src.dataset_handlers.dataset_handler import DatasetHandler
 
 
+def parse_arguments() -> argparse.Namespace:
+    """Parse command-line arguments."""
+    parser = argparse.ArgumentParser(
+        description="FL Execution Framework - Run federated learning simulations"
+    )
+
+    parser.add_argument(
+        "config",
+        type=str,
+        nargs="?",
+        default="example_strategy_config.json",
+        help="Config filename (default: example_strategy_config.json)"
+    )
+
+    parser.add_argument(
+        "--log-level",
+        type=str,
+        choices=["DEBUG", "INFO", "WARNING", "ERROR"],
+        default="INFO",
+        help="Set logging verbosity (default: INFO)"
+    )
+
+    return parser.parse_args()
+
+
 class SimulationRunner:
     def __init__(
             self,
-            config_filename: str
+            config_filename: str,
+            log_level: str = "INFO"
     ) -> None:
 
         # Configure logging only if not already configured
         if not logging.getLogger().hasHandlers():
-            logging.basicConfig(level=logging.INFO)
+            logging.basicConfig(
+                level=getattr(logging, log_level),
+                format="%(levelname)s: %(message)s"
+            )
 
         self._config_loader = ConfigLoader(
             usecase_config_path=f"config/simulation_strategies/{config_filename}",
@@ -82,11 +117,8 @@ class SimulationRunner:
 
 
 if __name__ == "__main__":
-    """Run simulation with config file in command line args or default example."""
-    if len(sys.argv) > 1:
-        config_filename = sys.argv[1]
-    else:
-        config_filename = "example_strategy_config.json"
+    """Run simulation with config file and optional log level."""
+    args = parse_arguments()
 
-    simulation_runner = SimulationRunner(config_filename)
+    simulation_runner = SimulationRunner(args.config, args.log_level)
     simulation_runner.run()
