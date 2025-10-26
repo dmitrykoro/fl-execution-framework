@@ -26,6 +26,8 @@ class FlowerClient(fl.client.NumPyClient):
             num_malicious_clients=0,
             attacks_schedule=None,
             save_attack_snapshots=False,
+            snapshot_format="both",
+            snapshot_max_samples=5,
             output_dir=None,
             experiment_info=None,
     ):
@@ -40,6 +42,8 @@ class FlowerClient(fl.client.NumPyClient):
         self.num_malicious_clients = num_malicious_clients
         self.attacks_schedule = attacks_schedule
         self.save_attack_snapshots = save_attack_snapshots
+        self.snapshot_format = snapshot_format
+        self.snapshot_max_samples = snapshot_max_samples
         self.output_dir = output_dir
         self.experiment_info = experiment_info
 
@@ -94,7 +98,8 @@ class FlowerClient(fl.client.NumPyClient):
                                     labels_sample=labels,
                                     original_labels_sample=original_labels,
                                     output_dir=self.output_dir,
-                                    max_samples=5,
+                                    max_samples=self.snapshot_max_samples,
+                                    save_format=self.snapshot_format,
                                     experiment_info=self.experiment_info,
                                 )
                                 save_visual_snapshot(
