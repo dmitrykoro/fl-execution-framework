@@ -18,12 +18,13 @@ class StrategyConfig:
     save_plots: bool = None
     save_csv: bool = None
     save_attack_snapshots: bool = None
+    snapshot_format: str = "pickle"
+    snapshot_max_samples: int = 5
     training_device: str = None
     cpus_per_client: int = None
     gpus_per_client: float = None
 
     trust_threshold: float = None
-    reputation_threshold: float = None
     beta_value: float = None
     num_of_clusters: int = None
 

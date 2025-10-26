@@ -198,6 +198,7 @@ config_schema = {
                     "malicious_client_ids": {"type": "array", "items": {"type": "integer"}},
                     "malicious_client_count": {"type": "integer", "minimum": 1},
                     "malicious_percentage": {"type": "number", "minimum": 0.0, "maximum": 1.0},
+                    "random_seed": {"type": "integer", "minimum": 0},
                     "flip_fraction": {"type": "number", "minimum": 0.0, "maximum": 1.0},
                     "target_noise_snr": {"type": "number"},
                     "attack_ratio": {"type": "number", "minimum": 0.0, "maximum": 1.0}
@@ -210,6 +211,15 @@ config_schema = {
         "save_attack_snapshots": {
             "type": "string",
             "enum": ["true", "false"]
+        },
+        "snapshot_format": {
+            "type": "string",
+            "enum": ["pickle", "visual", "both"]
+        },
+        "snapshot_max_samples": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 50
         }
     },
     "required": [
@@ -258,6 +268,69 @@ def _validate_dependent_params(strategy_config: dict) -> None:
                 f"Missing parameter trim_ratio for trimmed mean aggregation {aggregation_strategy_keyword}"
             )
 
+def _populate_client_selection(config: dict) -> None:
+    """
+    Populate _selected_clients for random and percentage selection strategies.
+
+    For reproducibility, uses deterministic seeding:
+    - If attack entry has 'random_seed': use it
+    - Otherwise: auto-generate seed from attack parameters
+
+    Research-backed approach: Fixed client selection per attack window
+    (not re-randomized each round) for reproducibility.
+    """
+    import random
+
+    schedule = config.get("attack_schedule", [])
+    num_of_clients = config.get("num_of_clients")
+
+    for idx, entry in enumerate(schedule):
+        selection_strategy = entry.get("selection_strategy")
+
+        if selection_strategy == "specific":
+            # Already has explicit malicious_client_ids, nothing to do
+            continue
+
+        elif selection_strategy in ("random", "percentage"):
+            if "random_seed" in entry:
+                seed = entry["random_seed"]
+            else:
+                # Auto-generate seed from attack parameters for reproducibility
+                seed_string = f"{entry.get('attack_type')}_{entry.get('start_round')}_{entry.get('end_round')}_{idx}"
+                seed = hash(seed_string) % (2**32)
+
+            random.seed(seed)
+
+            if selection_strategy == "random":
+                num_malicious = entry.get("malicious_client_count")
+            else:
+                malicious_percentage = entry.get("malicious_percentage")
+                num_malicious = int(num_of_clients * malicious_percentage)
+
+            if num_malicious > num_of_clients:
+                raise ValidationError(
+                    f"attack_schedule entry {idx}: Cannot select {num_malicious} clients "
+                    f"when only {num_of_clients} clients exist"
+                )
+
+            if num_malicious <= 0:
+                raise ValidationError(
+                    f"attack_schedule entry {idx}: Must select at least 1 malicious client "
+                    f"(got {num_malicious})"
+                )
+
+            all_client_ids = list(range(num_of_clients))
+            selected_clients = sorted(random.sample(all_client_ids, num_malicious))
+
+            entry["_selected_clients"] = selected_clients
+
+            logging.info(
+                f"attack_schedule entry {idx} ({selection_strategy}): "
+                f"Selected clients {selected_clients} for {entry.get('attack_type')} attack "
+                f"(seed={seed})"
+            )
+
+
 def _validate_attack_schedule(config: dict) -> None:
     """
     Validate attack_schedule entries and enforce related constraints.
@@ -282,6 +355,12 @@ def _validate_attack_schedule(config: dict) -> None:
             )
 
         # Validate attack type and its required parameters
+        num_of_rounds = config.get("num_of_rounds")
+        if end_round > num_of_rounds:
+            raise ValidationError(
+                f"{entry_desc}: end_round ({end_round}) exceeds num_of_rounds ({num_of_rounds})"
+            )
+
         attack_type = entry.get("attack_type")
 
         if attack_type == "label_flipping":
@@ -328,9 +407,20 @@ def _validate_attack_schedule(config: dict) -> None:
                     entry2["end_round"] < entry1["start_round"]):
                 # Check if same attack type
                 if entry1.get("attack_type") == entry2.get("attack_type"):
-                    logging.warning(
-                        f"attack_schedule entries {i} and {j} have overlapping rounds with same attack_type "
-                        f"({entry1.get('attack_type')}). Entry {i} will take precedence for this attack type."
+                    raise ValidationError(
+                        f"CONFIG REJECTED: Overlapping rounds with same attack type\n"
+                        f"\n"
+                        f"Conflict:\n"
+                        f"  - Entry {i}: {entry1.get('attack_type')} (rounds {entry1['start_round']}-{entry1['end_round']})\n"
+                        f"  - Entry {j}: {entry2.get('attack_type')} (rounds {entry2['start_round']}-{entry2['end_round']})\n"
+                        f"\n"
+                        f"Reason:\n"
+                        f"  - Cannot have the same attack type active in overlapping rounds\n"
+                        f"  - Config is the single source of truth - it must be unambiguous\n"
+                        f"\n"
+                        f"Fix:\n"
+                        f"  - Adjust round ranges to not overlap for same attack type\n"
+                        f"  - Or use different attack types if you want stacked attacks\n"
                     )
                 else:
                     logging.info(
@@ -339,14 +429,21 @@ def _validate_attack_schedule(config: dict) -> None:
                         f"Both attacks will be stacked and applied sequentially."
                     )
 
-    # Force preserve_dataset to false when using attack_schedule
+    # Strict rejection: preserve_dataset incompatible with attack_schedule
     if schedule and config.get("preserve_dataset") == "true":
-        config["preserve_dataset"] = "false"
-        logging.info(
-            "ATTACK SCHEDULE DETECTED: Auto-configured preserve_dataset = false\n"
-            "  - Dynamic attacks poison data in-memory during training rounds\n"
-            "  - Filesystem dataset remains clean (not poisoned)\n"
-            "  - Use 'save_attack_snapshots' to inspect poisoned data"
+        raise ValidationError(
+            "CONFIG REJECTED: Cannot use attack_schedule with preserve_dataset=true\n"
+            "\n"
+            "Reason:\n"
+            "  - attack_schedule applies attacks in-memory during training rounds\n"
+            "  - preserve_dataset=true expects pre-poisoned filesystem dataset\n"
+            "  - These modes are incompatible\n"
+            "\n"
+            "Fix:\n"
+            "  Set 'preserve_dataset': 'false' in your config file\n"
+            "  Use 'save_attack_snapshots': 'true' to inspect poisoned data\n"
+            "\n"
+            "Config is the single source of truth - it must reflect intended execution."
         )
 
 
@@ -442,5 +539,7 @@ def validate_strategy_config(config: dict) -> None:
         _validate_llm_parameters(config)
 
     _validate_attack_schedule(config)
+
+    _populate_client_selection(config)
 
     _apply_strict_mode(config)
