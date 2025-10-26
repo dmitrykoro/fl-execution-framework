@@ -58,6 +58,13 @@ def _add_attack_background_shading(
         "token_replacement": "#99ff99" # Green
     }
 
+    ATTACK_HATCHES = {
+        "label_flipping": "////",  # Dense diagonal right
+        "gaussian_noise": "\\\\\\\\",  # Dense diagonal left
+        "brightness": "....",  # Dense dots
+        "token_replacement": "xxxx",  # Dense crosses
+    }
+
     # Track which attack periods we've already added to avoid duplicate labels
     added_attacks = set()
 
@@ -81,8 +88,11 @@ def _add_attack_background_shading(
         ax.axvspan(
             entry["start_round"],
             entry["end_round"],
-            alpha=0.25,
-            color=ATTACK_COLORS.get(entry["attack_type"], "#dddddd"),
+            alpha=0.15,
+            facecolor=ATTACK_COLORS.get(entry["attack_type"], "#dddddd"),
+            hatch=ATTACK_HATCHES.get(entry["attack_type"], ""),
+            edgecolor="black",
+            linewidth=0.5,
             label=f'{entry["attack_type"]} (r{entry["start_round"]}-{entry["end_round"]})'
         )
 
