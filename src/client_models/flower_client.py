@@ -9,7 +9,7 @@ from typing import List
 
 from src.network_models.bert_model_definition import get_peft_model_state_dict, set_peft_model_state_dict
 from src.attack_utils.poisoning import should_poison_this_round, apply_poisoning_attack
-from src.attack_utils.attack_snapshots import save_attack_snapshot
+from src.attack_utils.attack_snapshots import save_attack_snapshot, save_visual_snapshot
 
 
 class FlowerClient(fl.client.NumPyClient):
@@ -27,6 +27,7 @@ class FlowerClient(fl.client.NumPyClient):
             attacks_schedule=None,
             save_attack_snapshots=False,
             output_dir=None,
+            experiment_info=None,
     ):
         self.client_id = client_id
         self.net = net
@@ -40,6 +41,7 @@ class FlowerClient(fl.client.NumPyClient):
         self.attacks_schedule = attacks_schedule
         self.save_attack_snapshots = save_attack_snapshots
         self.output_dir = output_dir
+        self.experiment_info = experiment_info
 
     def set_parameters(self, net, parameters: List[np.ndarray]):
         if self.use_lora:
@@ -76,7 +78,8 @@ class FlowerClient(fl.client.NumPyClient):
                     )
 
                     if should_poison and attack_configs:
-                        # Stack multiple attacks sequentially
+                        original_labels = labels.clone()
+
                         for attack_config in attack_configs:
                             images, labels = apply_poisoning_attack(images, labels, attack_config)
 
@@ -89,8 +92,20 @@ class FlowerClient(fl.client.NumPyClient):
                                     attack_config=attack_config,
                                     data_sample=images,
                                     labels_sample=labels,
+                                    original_labels_sample=original_labels,
                                     output_dir=self.output_dir,
                                     max_samples=5,
+                                    experiment_info=self.experiment_info,
+                                )
+                                save_visual_snapshot(
+                                    client_id=self.client_id,
+                                    round_num=current_round,
+                                    attack_config=attack_config,
+                                    data_sample=images.cpu().numpy(),
+                                    labels_sample=labels.cpu().numpy(),
+                                    original_labels_sample=original_labels.cpu().numpy(),
+                                    output_dir=self.output_dir,
+                                    experiment_info=self.experiment_info,
                                 )
 
                     images, labels = images.to(self.training_device), labels.to(self.training_device)

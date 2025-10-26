@@ -130,6 +130,22 @@ class FederatedSimulation:
             },
         )
 
+        if self.strategy_config.attack_schedule and self.directory_handler:
+            from src.attack_utils.snapshot_html_reports import generate_snapshot_index, generate_summary_json
+            import logging
+
+            output_dir = getattr(self.directory_handler, 'dirname', None)
+            if output_dir:
+                try:
+                    run_config = {
+                        "num_of_clients": self.strategy_config.num_of_clients,
+                        "num_of_rounds": self.strategy_config.num_of_rounds,
+                    }
+                    generate_summary_json(output_dir, run_config)
+                    generate_snapshot_index(output_dir, run_config)
+                except Exception as e:
+                    logging.warning(f"Failed to generate attack snapshot index/summary: {e}")
+
     def _assign_all_properties(self) -> None:
         """Assign simulation properties based on strategy_dict"""
 
@@ -388,6 +404,15 @@ class FederatedSimulation:
         if isinstance(save_attack_snapshots, str):
             save_attack_snapshots = save_attack_snapshots == "true"
 
+        experiment_info = None
+        if output_dir:
+            from pathlib import Path
+            experiment_info = {
+                "run_id": Path(output_dir).name,
+                "total_clients": self.strategy_config.num_of_clients,
+                "total_rounds": self.strategy_config.num_of_rounds,
+            }
+
         return FlowerClient(
             client_id=int(cid),
             net=net,
@@ -401,6 +426,7 @@ class FederatedSimulation:
             attacks_schedule=attacks_schedule,
             save_attack_snapshots=save_attack_snapshots,
             output_dir=output_dir,
+            experiment_info=experiment_info,
         ).to_client()
 
     @staticmethod
