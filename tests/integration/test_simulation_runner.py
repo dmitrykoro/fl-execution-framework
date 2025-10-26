@@ -260,7 +260,9 @@ class TestSimulationRunnerInitialization:
             SimulationRunner("test_config.json")
 
         # Assert
-        mock_logging_config.assert_called_once_with(level=logging.INFO)
+        mock_logging_config.assert_called_once_with(
+            level=logging.INFO, format="%(levelname)s: %(message)s"
+        )
 
 
 class TestSimulationRunnerExecution:

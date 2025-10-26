@@ -100,6 +100,7 @@ def _verify_pickle_snapshot(
     assert "metadata" in snapshot
     assert "data" in snapshot
     assert "labels" in snapshot
+    assert "original_labels" in snapshot
 
     # Verify metadata
     metadata = snapshot["metadata"]
@@ -111,6 +112,7 @@ def _verify_pickle_snapshot(
     # Verify data
     assert len(snapshot["data"]) == expected_num_samples
     assert len(snapshot["labels"]) == expected_num_samples
+    assert len(snapshot["original_labels"]) == expected_num_samples
 
 
 def _verify_json_metadata(
@@ -159,11 +161,18 @@ class TestSaveAttackSnapshot:
             attack_config=attack_config,
             data_sample=data,
             labels_sample=labels,
+            original_labels_sample=labels.clone(),
             output_dir=str(tmp_path),
             save_format="pickle",
         )
 
-        snapshot_path = tmp_path / "attack_snapshots" / "client_0_round_3.pickle"
+        snapshot_path = (
+            tmp_path
+            / "attack_snapshots"
+            / "client_0"
+            / "round_3"
+            / "label_flipping.pickle"
+        )
         _verify_pickle_snapshot(
             snapshot_path,
             expected_client_id=0,
@@ -183,11 +192,18 @@ class TestSaveAttackSnapshot:
             attack_config=attack_config,
             data_sample=data,
             labels_sample=labels,
+            original_labels_sample=labels.clone(),
             output_dir=str(tmp_path),
             save_format="json",
         )
 
-        snapshot_path = tmp_path / "attack_snapshots" / "client_1_round_5.json"
+        snapshot_path = (
+            tmp_path
+            / "attack_snapshots"
+            / "client_1"
+            / "round_5"
+            / "gaussian_noise.json"
+        )
         _verify_json_metadata(
             snapshot_path,
             expected_client_id=1,
@@ -206,12 +222,19 @@ class TestSaveAttackSnapshot:
             attack_config=attack_config,
             data_sample=data,
             labels_sample=labels,
+            original_labels_sample=labels.clone(),
             output_dir=str(tmp_path),
             max_samples=3,
             save_format="pickle",
         )
 
-        snapshot_path = tmp_path / "attack_snapshots" / "client_0_round_1.pickle"
+        snapshot_path = (
+            tmp_path
+            / "attack_snapshots"
+            / "client_0"
+            / "round_1"
+            / "label_flipping.pickle"
+        )
         with open(snapshot_path, "rb") as f:
             snapshot = pickle.load(f)
 
@@ -234,11 +257,18 @@ class TestSaveAttackSnapshot:
             attack_config=attack_config,
             data_sample=data,
             labels_sample=labels,
+            original_labels_sample=labels.clone(),
             output_dir=str(tmp_path),
             save_format="pickle",
         )
 
-        snapshot_path = tmp_path / "attack_snapshots" / "client_2_round_7.pickle"
+        snapshot_path = (
+            tmp_path
+            / "attack_snapshots"
+            / "client_2"
+            / "round_7"
+            / "label_flipping.pickle"
+        )
         with open(snapshot_path, "rb") as f:
             snapshot = pickle.load(f)
 
@@ -261,6 +291,7 @@ class TestSaveAttackSnapshot:
             attack_config=attack_config,
             data_sample=data,
             labels_sample=labels,
+            original_labels_sample=labels.clone(),
             output_dir=str(tmp_path),
             save_format="pickle",
         )
@@ -282,6 +313,7 @@ class TestSaveAttackSnapshot:
             attack_config=attack_config,
             data_sample=data1,
             labels_sample=labels1,
+            original_labels_sample=labels1.clone(),
             output_dir=str(tmp_path),
             save_format="pickle",
         )
@@ -293,12 +325,19 @@ class TestSaveAttackSnapshot:
             attack_config=attack_config,
             data_sample=data2,
             labels_sample=labels2,
+            original_labels_sample=labels2.clone(),
             output_dir=str(tmp_path),
             save_format="pickle",
         )
 
         # Should have latest data (5 samples, not 3)
-        snapshot_path = tmp_path / "attack_snapshots" / "client_0_round_1.pickle"
+        snapshot_path = (
+            tmp_path
+            / "attack_snapshots"
+            / "client_0"
+            / "round_1"
+            / "label_flipping.pickle"
+        )
         with open(snapshot_path, "rb") as f:
             snapshot = pickle.load(f)
 
@@ -322,6 +361,7 @@ class TestSaveAttackSnapshot:
             attack_config=attack_config,
             data_sample=data,
             labels_sample=labels,
+            original_labels_sample=labels.clone(),
             output_dir=str(tmp_path),
             save_format="pickle",
         )
@@ -350,12 +390,19 @@ class TestSaveAttackSnapshot:
             attack_config=attack_config,
             data_sample=data,
             labels_sample=labels,
+            original_labels_sample=labels.clone(),
             output_dir=str(tmp_path),
             max_samples=max_samples,
             save_format="pickle",
         )
 
-        snapshot_path = tmp_path / "attack_snapshots" / "client_0_round_1.pickle"
+        snapshot_path = (
+            tmp_path
+            / "attack_snapshots"
+            / "client_0"
+            / "round_1"
+            / "label_flipping.pickle"
+        )
         with open(snapshot_path, "rb") as f:
             snapshot = pickle.load(f)
 
@@ -377,11 +424,18 @@ class TestSaveAttackSnapshot:
             attack_config=attack_config,
             data_sample=data,
             labels_sample=labels,
+            original_labels_sample=labels.clone(),
             output_dir=str(tmp_path),
             save_format="pickle",
         )
 
-        snapshot_path = tmp_path / "attack_snapshots" / "client_0_round_1.pickle"
+        snapshot_path = (
+            tmp_path
+            / "attack_snapshots"
+            / "client_0"
+            / "round_1"
+            / "label_flipping.pickle"
+        )
         with open(snapshot_path, "rb") as f:
             snapshot = pickle.load(f)
 
@@ -406,12 +460,19 @@ class TestLoadAttackSnapshot:
             attack_config=attack_config,
             data_sample=data,
             labels_sample=labels,
+            original_labels_sample=labels.clone(),
             output_dir=str(tmp_path),
             save_format="pickle",
         )
 
         # Load snapshot
-        snapshot_path = tmp_path / "attack_snapshots" / "client_0_round_1.pickle"
+        snapshot_path = (
+            tmp_path
+            / "attack_snapshots"
+            / "client_0"
+            / "round_1"
+            / "label_flipping.pickle"
+        )
         snapshot = load_attack_snapshot(str(snapshot_path))
 
         assert snapshot is not None
@@ -433,12 +494,19 @@ class TestLoadAttackSnapshot:
             attack_config=attack_config,
             data_sample=data,
             labels_sample=labels,
+            original_labels_sample=labels.clone(),
             output_dir=str(tmp_path),
             save_format="json",
         )
 
         # Load snapshot
-        snapshot_path = tmp_path / "attack_snapshots" / "client_1_round_2.json"
+        snapshot_path = (
+            tmp_path
+            / "attack_snapshots"
+            / "client_1"
+            / "round_2"
+            / "gaussian_noise.json"
+        )
         snapshot = load_attack_snapshot(str(snapshot_path))
 
         assert snapshot is not None
@@ -518,6 +586,7 @@ class TestListAttackSnapshots:
                     attack_config=attack_config,
                     data_sample=data,
                     labels_sample=labels,
+                    original_labels_sample=labels.clone(),
                     output_dir=str(tmp_path),
                     save_format="pickle",
                 )
@@ -539,6 +608,7 @@ class TestListAttackSnapshots:
             attack_config=attack_config,
             data_sample=data,
             labels_sample=labels,
+            original_labels_sample=labels.clone(),
             output_dir=str(tmp_path),
             save_format="pickle",
         )
@@ -550,14 +620,15 @@ class TestListAttackSnapshots:
             attack_config=attack_config,
             data_sample=data,
             labels_sample=labels,
+            original_labels_sample=labels.clone(),
             output_dir=str(tmp_path),
             save_format="json",
         )
 
         snapshots = list_attack_snapshots(str(tmp_path))
 
-        # Should list both formats
-        assert len(snapshots) == 2
+        # Only pickle files are listed (JSON files not included in list_attack_snapshots)
+        assert len(snapshots) == 1
 
     def test_list_snapshots_ignores_other_files(self, tmp_path):
         """Test that list_attack_snapshots ignores non-snapshot files."""
@@ -571,6 +642,7 @@ class TestListAttackSnapshots:
             attack_config=attack_config,
             data_sample=data,
             labels_sample=labels,
+            original_labels_sample=labels.clone(),
             output_dir=str(tmp_path),
             save_format="pickle",
         )
@@ -598,6 +670,7 @@ class TestListAttackSnapshots:
                 attack_config=attack_config,
                 data_sample=data,
                 labels_sample=labels,
+                original_labels_sample=labels.clone(),
                 output_dir=str(tmp_path),
                 save_format="pickle",
             )
@@ -632,6 +705,7 @@ class TestGetSnapshotSummary:
             attack_config=attack_config,
             data_sample=data,
             labels_sample=labels,
+            original_labels_sample=labels.clone(),
             output_dir=str(tmp_path),
             save_format="pickle",
         )
@@ -655,6 +729,7 @@ class TestGetSnapshotSummary:
                 attack_config=_create_attack_config("label_flipping"),
                 data_sample=data,
                 labels_sample=labels,
+                original_labels_sample=labels.clone(),
                 output_dir=str(tmp_path),
                 save_format="pickle",
             )
@@ -666,6 +741,7 @@ class TestGetSnapshotSummary:
             attack_config=_create_attack_config("gaussian_noise"),
             data_sample=data,
             labels_sample=labels,
+            original_labels_sample=labels.clone(),
             output_dir=str(tmp_path),
             save_format="pickle",
         )
@@ -690,6 +766,7 @@ class TestGetSnapshotSummary:
                 attack_config=attack_config,
                 data_sample=data,
                 labels_sample=labels,
+                original_labels_sample=labels.clone(),
                 output_dir=str(tmp_path),
                 save_format="pickle",
             )
@@ -711,6 +788,7 @@ class TestGetSnapshotSummary:
             attack_config=attack_config,
             data_sample=data,
             labels_sample=labels,
+            original_labels_sample=labels.clone(),
             output_dir=str(tmp_path),
             save_format="pickle",
         )
@@ -731,13 +809,16 @@ class TestGetSnapshotSummary:
             attack_config=attack_config,
             data_sample=data,
             labels_sample=labels,
+            original_labels_sample=labels.clone(),
             output_dir=str(tmp_path),
             save_format="pickle",
         )
 
-        # Create corrupted snapshot
+        # Create corrupted snapshot in hierarchical structure
         snapshots_dir = tmp_path / "attack_snapshots"
-        corrupted_path = snapshots_dir / "client_1_round_2.pickle"
+        corrupted_dir = snapshots_dir / "client_1" / "round_2"
+        corrupted_dir.mkdir(parents=True, exist_ok=True)
+        corrupted_path = corrupted_dir / "label_flipping.pickle"
         corrupted_path.write_bytes(b"corrupted data")
 
         summary = get_snapshot_summary(str(tmp_path))
@@ -758,6 +839,7 @@ class TestGetSnapshotSummary:
                 attack_config=_create_attack_config("label_flipping"),
                 data_sample=data,
                 labels_sample=labels,
+                original_labels_sample=labels.clone(),
                 output_dir=str(tmp_path),
                 save_format="pickle",
             )
