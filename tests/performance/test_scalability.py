@@ -6,7 +6,6 @@ and performance scaling across different configurations.
 """
 
 import statistics
-import sys
 import time
 from typing import Any, Dict, List, Optional, Tuple
 from tests.common import Mock, np, pytest
@@ -114,7 +113,7 @@ class TestClientScalability:
             if prev_time > 0:
                 client_ratio = curr_clients / prev_clients
                 time_ratio = curr_time / prev_time
-                tolerance = 3.0 if sys.version_info < (3, 10) else 2.0
+                tolerance = 3.0
 
                 assert time_ratio <= client_ratio * tolerance, (
                     f"{strategy_name} complexity issue: {client_ratio:.1f}x clients led to {time_ratio:.1f}x time"
@@ -464,7 +463,7 @@ class TestComputationalComplexity:
             if prev_time > 0:
                 client_ratio = curr_clients / prev_clients
                 time_ratio = curr_time / prev_time
-                tolerance = 3.0 if sys.version_info < (3, 10) else 2.0
+                tolerance = 3.0
 
                 assert time_ratio <= client_ratio * tolerance, (
                     f"{strategy_name} complexity issue: {client_ratio:.1f}x clients led to {time_ratio:.1f}x time"
