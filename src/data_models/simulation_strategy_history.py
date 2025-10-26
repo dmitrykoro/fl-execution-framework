@@ -1,7 +1,6 @@
 import numpy as np
 
 from dataclasses import dataclass, field
-from typing import Optional
 
 from src.data_models.client_info import ClientInfo
 from src.data_models.round_info import RoundsInfo
@@ -16,7 +15,7 @@ class SimulationStrategyHistory:
 
     strategy_config: StrategyConfig
     dataset_handler: DatasetHandler
-    rounds_history: Optional[RoundsInfo] = None
+    rounds_history: RoundsInfo = field(init=False)
     _clients_dict: dict = field(default_factory=dict)
 
     def __post_init__(self):
@@ -145,7 +144,13 @@ class SimulationStrategyHistory:
 
             for client_info in self.get_all_clients():
 
-                client_is_malicious = client_info.is_malicious
+                # Determine malicious status for this specific round using attack_schedule
+                should_poison, _ = should_poison_this_round(
+                    current_round=round_num + 1,  # round_num is 0-indexed
+                    client_id=client_info.client_id,
+                    attack_schedule=self.strategy_config.attack_schedule
+                )
+                client_is_malicious = should_poison
                 client_was_aggregated = client_info.aggregation_participation_history[round_num] == 1
 
                 if self.strategy_config.remove_clients:
