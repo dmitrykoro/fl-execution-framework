@@ -15,6 +15,7 @@ class MedQuADDatasetLoader:
             chunk_size: int = 256,
             mlm_probability: float = 0.15,
             num_poisoned_clients: int = 0,
+            attack_schedule=None,
             tokenize_columns=["answer"],
             remove_columns=["answer", "token_type_ids", "question"],
         ):
@@ -26,6 +27,7 @@ class MedQuADDatasetLoader:
         self.chunk_size = chunk_size
         self.mlm_probability = mlm_probability
         self.num_poisoned_clients = num_poisoned_clients
+        self.attack_schedule = attack_schedule
         self.tokenize_columns = tokenize_columns
         self.remove_columns = remove_columns
     
@@ -38,10 +40,13 @@ class MedQuADDatasetLoader:
         valloaders = []
 
         tokenizer = AutoTokenizer.from_pretrained(self.model_name)
-        
-        poisoned_client_ids = []
-        for i in range(self.num_poisoned_clients):
-            poisoned_client_ids.append(i)
+
+        # Skip filesystem poisoning if attack_schedule is configured
+        # (dynamic poisoning will be applied in-memory during training)
+        if self.attack_schedule:
+            poisoned_client_ids = []
+        else:
+            poisoned_client_ids = list(range(self.num_poisoned_clients))
 
         client_folders = [d for d in os.listdir(self.dataset_dir) if d.startswith("client_")]
         for client_folder in sorted(client_folders, key=lambda string: int(string.split("_")[1])):
