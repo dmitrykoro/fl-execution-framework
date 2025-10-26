@@ -1,12 +1,10 @@
 import logging
 import sys
-import os
 
 import flwr
 
-from flwr.client import Client, ClientApp, NumPyClient
+from flwr.client import Client
 from flwr.common import ndarrays_to_parameters
-from flwr.server.strategy.aggregate import weighted_loss_avg
 from typing import List, Tuple
 
 from peft import PeftModel, get_peft_model_state_dict
@@ -53,7 +51,6 @@ from src.simulation_strategies.bulyan_strategy import BulyanStrategy
 
 from src.data_models.simulation_strategy_config import StrategyConfig
 from src.data_models.simulation_strategy_history import SimulationStrategyHistory
-from src.data_models.round_info import RoundsInfo
 
 from src.dataset_handlers.dataset_handler import DatasetHandler
 
@@ -101,8 +98,7 @@ class FederatedSimulation:
 
         self.strategy_history = SimulationStrategyHistory(
             strategy_config=self.strategy_config,
-            dataset_handler=self.dataset_handler,
-            rounds_history=RoundsInfo(simulation_strategy_config=self.strategy_config)
+            dataset_handler=self.dataset_handler
         )
 
         self._dataset_dir = dataset_dir
