@@ -242,6 +242,8 @@ def show_plots_within_strategy(
         if simulation_strategy.strategy_config.show_plots:
             plt.show()
 
+        plt.close()
+
 
 def show_inter_strategy_plots(
         executed_simulation_strategies: list,
@@ -292,6 +294,8 @@ def show_inter_strategy_plots(
         if executed_simulation_strategies[0].strategy_config.show_plots:
             plt.show()
 
+        plt.close()
+
     # bar plots
     barable_metrics = executed_simulation_strategies[0].strategy_history.rounds_history.barable_metrics
 
@@ -331,3 +335,5 @@ def show_inter_strategy_plots(
 
         if executed_simulation_strategies[0].strategy_config.show_plots:
             plt.show()
+
+        plt.close()
