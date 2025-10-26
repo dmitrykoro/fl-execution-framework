@@ -284,6 +284,7 @@ STRATEGY_CONFIGS = {
         "num_of_clients": 10,
         "trust_threshold": 0.7,
         "beta_value": 0.5,
+        "config_is_ai_generated": False,
     },
     "pid": {
         "aggregation_strategy_keyword": "pid",
@@ -292,24 +293,28 @@ STRATEGY_CONFIGS = {
         "Kp": 1.0,
         "Ki": 0.1,
         "Kd": 0.01,
+        "config_is_ai_generated": False,
     },
     "krum": {
         "aggregation_strategy_keyword": "krum",
         "num_of_rounds": 4,
         "num_of_clients": 12,
         "num_krum_selections": 8,
+        "config_is_ai_generated": False,
     },
     "multi-krum": {
         "aggregation_strategy_keyword": "multi-krum",
         "num_of_rounds": 4,
         "num_of_clients": 12,
         "num_krum_selections": 8,
+        "config_is_ai_generated": False,
     },
     "trimmed_mean": {
         "aggregation_strategy_keyword": "trimmed_mean",
         "num_of_rounds": 4,
         "num_of_clients": 10,
         "trim_ratio": 0.2,
+        "config_is_ai_generated": False,
     },
 }
 
