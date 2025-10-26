@@ -574,7 +574,7 @@ class TestConfigLoader:
                 "show_plots": "true",
                 "save_plots": "true",
                 "save_csv": "true",
-                "preserve_dataset": "true",
+                "preserve_dataset": "false",
                 "training_subset_fraction": 0.9,
                 "training_device": "gpu",
                 "cpus_per_client": 2,

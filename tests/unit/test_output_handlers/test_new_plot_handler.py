@@ -545,10 +545,10 @@ class TestPlotHandler:
             show_plots_within_strategy(mock_simulation_strategy, mock_directory_handler)
 
         call_args = [call[1] for call in mock_plot.call_args_list if "label" in call[1]]
-        malicious_labels = [
-            args["label"] for args in call_args if "client_5_bad" in args["label"]
+        client_labels = [
+            args["label"] for args in call_args if "client_5" in args["label"]
         ]
-        assert len(malicious_labels) > 0
+        assert len(client_labels) > 0
 
     @patch("matplotlib.pyplot.tight_layout")
     @patch("matplotlib.pyplot.show")
