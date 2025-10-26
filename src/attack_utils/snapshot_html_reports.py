@@ -102,6 +102,10 @@ def generate_snapshot_index(output_dir: str, run_config: Optional[dict] = None) 
             metadata = snapshot.get("metadata", snapshot)
             attack_config = metadata.get("attack_config", {})
 
+            # Handle list case (multiple attacks combined)
+            if isinstance(attack_config, list):
+                attack_config = attack_config[0] if attack_config else {}
+
             # Extract relevant parameters based on attack type
             attack_type = metadata.get("attack_type", "unknown")
             params = []
