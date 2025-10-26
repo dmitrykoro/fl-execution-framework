@@ -10,16 +10,40 @@ import logging
 import pickle
 from datetime import datetime
 from pathlib import Path
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, Union, List
 
 import numpy as np
 import torch
 
 
+def _extract_attack_type(attack_config: Union[dict, List[dict]]) -> str:
+    """
+    Extract attack type from attack config, handling both dict and list inputs.
+
+    Args:
+        attack_config: Either a single attack config dict or a list of attack config dicts
+
+    Returns:
+        Attack type string (composite if multiple attacks)
+    """
+    if isinstance(attack_config, list):
+        if attack_config:
+            # Create composite attack type from all configs
+            attack_types = [
+                cfg.get("attack_type") or cfg.get("type", "unknown")
+                for cfg in attack_config
+            ]
+            return "_".join(attack_types)
+        else:
+            return "unknown"
+    else:
+        return attack_config.get("attack_type") or attack_config.get("type", "unknown")
+
+
 def save_attack_snapshot(
     client_id: int,
     round_num: int,
-    attack_config: dict,
+    attack_config: Union[dict, List[dict]],
     data_sample: torch.Tensor,
     labels_sample: torch.Tensor,
     original_labels_sample: torch.Tensor,
@@ -34,7 +58,7 @@ def save_attack_snapshot(
     Args:
         client_id: ID of the attacking client
         round_num: Current training round
-        attack_config: Attack configuration dict (flat or nested)
+        attack_config: Attack configuration dict or list of dicts (for multiple attacks)
         data_sample: Poisoned data tensor (first N samples from batch)
         labels_sample: Poisoned labels tensor (first N samples from batch)
         original_labels_sample: Original labels before poisoning
@@ -43,9 +67,7 @@ def save_attack_snapshot(
         save_format: Format to save ('pickle' or 'json' for metadata only)
         experiment_info: Optional experiment metadata (run_id, total_clients, total_rounds)
     """
-    attack_type = attack_config.get("attack_type") or attack_config.get(
-        "type", "unknown"
-    )
+    attack_type = _extract_attack_type(attack_config)
 
     snapshots_base = Path(output_dir) / "attack_snapshots"
     snapshot_dir = snapshots_base / f"client_{client_id}" / f"round_{round_num}"
@@ -184,7 +206,7 @@ def get_snapshot_summary(output_dir: str) -> dict:
 def save_visual_snapshot(
     client_id: int,
     round_num: int,
-    attack_config: dict,
+    attack_config: Union[dict, List[dict]],
     data_sample: np.ndarray,
     labels_sample: np.ndarray,
     original_labels_sample: np.ndarray,
@@ -197,16 +219,14 @@ def save_visual_snapshot(
     Args:
         client_id: ID of the attacking client
         round_num: Current training round
-        attack_config: Attack configuration dict
+        attack_config: Attack configuration dict or list of dicts (for multiple attacks)
         data_sample: Poisoned data as numpy array
         labels_sample: Poisoned labels as numpy array
         original_labels_sample: Original labels before poisoning
         output_dir: Base output directory
         experiment_info: Optional experiment metadata (run_id, total_clients, total_rounds)
     """
-    attack_type = attack_config.get("attack_type") or attack_config.get(
-        "type", "unknown"
-    )
+    attack_type = _extract_attack_type(attack_config)
 
     snapshots_base = Path(output_dir) / "attack_snapshots"
     snapshot_dir = snapshots_base / f"client_{client_id}" / f"round_{round_num}"
@@ -259,7 +279,7 @@ def _save_image_grid(
     labels: np.ndarray,
     original_labels: np.ndarray,
     filepath: Path,
-    attack_config: dict,
+    attack_config: Union[dict, List[dict]],
 ) -> None:
     """Save image samples as PNG grid with attack-specific annotations."""
     import matplotlib.pyplot as plt
@@ -283,9 +303,7 @@ def _save_image_grid(
     else:
         axes = axes.flatten() if hasattr(axes, "flatten") else axes
 
-    attack_type = attack_config.get("attack_type") or attack_config.get(
-        "type", "unknown"
-    )
+    attack_type = _extract_attack_type(attack_config)
 
     for i in range(num_images):
         ax = axes[i]
@@ -298,12 +316,20 @@ def _save_image_grid(
         if attack_type == "label_flipping":
             title = f"Label: {labels[i]}\n(was {original_labels[i]})"
         elif attack_type == "gaussian_noise":
-            snr = attack_config.get("target_noise_snr", "?")
+            # Handle both dict and list cases
+            if isinstance(attack_config, list):
+                snr = attack_config[0].get("target_noise_snr", "?") if attack_config else "?"
+            else:
+                snr = attack_config.get("target_noise_snr", "?")
             title = f"Noisy (SNR: {snr}dB)\nLabel: {labels[i]}"
         elif attack_type == "brightness":
-            delta = attack_config.get(
-                "brightness_delta", attack_config.get("factor", "?")
-            )
+            # Handle both dict and list cases
+            if isinstance(attack_config, list):
+                delta = attack_config[0].get("brightness_delta", attack_config[0].get("factor", "?")) if attack_config else "?"
+            else:
+                delta = attack_config.get(
+                    "brightness_delta", attack_config.get("factor", "?")
+                )
             title = f"Brightness: {delta}\nLabel: {labels[i]}"
         elif attack_type == "token_replacement":
             title = f"Token poisoned\nLabel: {labels[i]}"
