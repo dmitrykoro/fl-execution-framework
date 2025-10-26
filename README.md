@@ -86,7 +86,7 @@ Defines the aggregation strategy. Options:
 - `save_csv`: Save metrics as `.csv` files in `out/` directory (`true`/`false`).
 - `preserve_dataset`: save poisoned dataset for verification (`true`/`false`).
 - `training_subset_fraction`: fraction of each client's dataset for training (e.g., `0.9` for 90% training, 10% evaluation).
-- `model_type`: type of model being trained
+- `model_type`: type of model being trained. 
 
 - **Flower settings**:
   - `training_device`: `cpu`, `gpu`, or `cuda`.
@@ -113,9 +113,10 @@ Defines the aggregation strategy. Options:
 
 #### Strategy-specific parameters
 
+**For `bulyan`, `krum`, `multi-krum-based`, `multi-krum`, `rfa`, `trimmed_mean`, `pid` strategies**: 
+
 **For `trust` strategy**:
 
-- `begin_removing_from_round`: start round for removing malicious clients.
 - `trust_threshold`: threshold for client removal (typically, in the range `0-1`).
 - `beta_value`: constant for Trust & Reputation calculus.
 - `num_of_clusters`: number of clusters (must be `1`).

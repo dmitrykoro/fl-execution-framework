@@ -10,10 +10,10 @@ class ConfigLoader:
     def __init__(
             self,
             usecase_config_path: str,
-            dataset_config_path: str
+            dataset_config_path: str = "config/dataset_keyword_to_dataset_dir.json"
     ) -> None:
         self.usecase_config_path = os.path.join(usecase_config_path)
-        self.usecase_config_list = self._merge_usecase_configs(self.usecase_config_path)
+        self.usecase_config_list = self._merge_and_validate_usecase_configs(self.usecase_config_path)
 
         self.dataset_config_path = os.path.join(dataset_config_path)
         self.dataset_config_list = self._set_config(self.dataset_config_path)
@@ -37,7 +37,7 @@ class ConfigLoader:
             sys.exit(-1)
 
     @staticmethod
-    def _merge_usecase_configs(config_path: str) -> list:
+    def _merge_and_validate_usecase_configs(config_path: str) -> list:
         """Merge usecase JSON to create full config for each strategy"""
         try:
             with open(config_path) as f:
@@ -58,7 +58,7 @@ class ConfigLoader:
 
         except Exception as e:
             logging.error(f"Error while loading config from JSON: {e}")
-            sys.exit(-1)
+            raise
 
     @staticmethod
     def _set_config(config_path: str) -> dict:
@@ -72,4 +72,4 @@ class ConfigLoader:
 
         except Exception as e:
             logging.error(f"Error while loading config from JSON: {e}")
-            sys.exit(-1)
+            raise

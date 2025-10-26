@@ -210,6 +210,26 @@ config_schema = {
         "save_attack_snapshots": {
             "type": "string",
             "enum": ["true", "false"]
+        },
+
+        "config_is_ai_generated": {
+            "type": "string"
+        },
+
+        "user_prompt_for_ai_generated": {
+            "type": "string"
+        },
+
+        "ai_agent_config_reasoning": {
+            "type": "string"
+        },
+
+        "ai_configuration_error": {
+            "type": "string"
+        },
+
+        "num_ai_config_corrections": {
+            "type": "number"
         }
     },
     "required": [
@@ -219,7 +239,7 @@ config_schema = {
         "training_subset_fraction", "training_device", "cpus_per_client",
         "gpus_per_client", "min_fit_clients", "min_evaluate_clients",
         "min_available_clients", "evaluate_metrics_aggregation_fn",
-        "num_of_client_epochs", "batch_size", "attack_schedule"
+        "num_of_client_epochs", "batch_size", "attack_schedule", "config_is_ai_generated"
     ]
 }
 
@@ -240,7 +260,7 @@ def _validate_dependent_params(strategy_config: dict) -> None:
                 )
     elif aggregation_strategy_keyword in ("pid", "pid_scaled", "pid_standardized", "pid_standardized_score_based"):
         pid_specific_parameters = [
-            "num_std_dev", "Kp", "Ki", "Kd"
+            "num_std_dev", "Kp", "Ki", "Kd", "begin_removing_from_round"
         ]
         for param in pid_specific_parameters:
             if param not in strategy_config:
@@ -253,9 +273,14 @@ def _validate_dependent_params(strategy_config: dict) -> None:
                 f"Missing parameter num_krum_selections for Krum-based aggregation {aggregation_strategy_keyword}"
             )
     elif aggregation_strategy_keyword == "trimmed_mean":
-        if "trim_ratio" not in strategy_config:
+        if "trim_ratio" not in strategy_config or "begin_removing_from_round" not in strategy_config:
             raise ValidationError(
                 f"Missing parameter trim_ratio for trimmed mean aggregation {aggregation_strategy_keyword}"
+            )
+    if aggregation_strategy_keyword in ("bulyan", "krum", "multi-krum-based", "multi-krum", "rfa", "trimmed_mean", "pid"):
+        if "begin_removing_from_round" not in strategy_config:
+            raise ValidationError(
+                f"Missing parameter begin_removing_from_round for aggregation {aggregation_strategy_keyword}"
             )
 
 def _validate_attack_schedule(config: dict) -> None:
@@ -388,8 +413,8 @@ def _validate_llm_parameters(strategy_config: dict) -> None:
 def _apply_strict_mode(config: dict) -> None:
     """Handle strict_mode validation and client configuration logic."""
 
-    # Set strict_mode to "true" by default if not specified
-    if "strict_mode" not in config:
+    # Set strict_mode to "true" by default if not specified; force strict mode when config is AI generated
+    if "strict_mode" not in config or config["config_is_ai_generated"] == "true":
         config["strict_mode"] = "true"
 
     strict_mode = config["strict_mode"] == "true"

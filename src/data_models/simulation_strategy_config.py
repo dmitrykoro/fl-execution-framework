@@ -51,6 +51,12 @@ class StrategyConfig:
 
     attack_schedule: list = None
 
+    config_is_ai_generated: bool = False
+    user_prompt_for_ai_generated: str = None
+    ai_agent_config_reasoning: str = None
+    ai_configuration_error: str = None
+    num_ai_config_corrections: int = None
+
     def __init__(self, **kwargs):
         for key, value in kwargs.items():
             if value in ("true", "false"):

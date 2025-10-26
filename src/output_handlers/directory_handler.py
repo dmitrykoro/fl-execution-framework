@@ -149,7 +149,6 @@ class DirectoryHandler:
                 metric_std = np.std(collected_history) if collected_history else 0.0
 
                 if metric_name in (
-                        "average_accuracy_history",
                         "removal_accuracy_history",
                         "removal_precision_history",
                         "removal_recall_history",
