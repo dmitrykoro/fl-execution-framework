@@ -67,6 +67,9 @@ class SimulationRunner:
                 format="%(levelname)s: %(message)s"
             )
 
+        # Suppress Flower's INFO logging duplication
+        logging.getLogger("flwr").setLevel(logging.WARNING)
+
         self._config_loader = ConfigLoader(
             usecase_config_path=f"config/simulation_strategies/{config_filename}",
             dataset_config_path=f"config/dataset_keyword_to_dataset_dir.json"

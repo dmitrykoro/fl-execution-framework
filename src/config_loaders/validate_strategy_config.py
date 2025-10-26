@@ -324,7 +324,7 @@ def _populate_client_selection(config: dict) -> None:
 
             entry["_selected_clients"] = selected_clients
 
-            logging.info(
+            logging.debug(
                 f"attack_schedule entry {idx} ({selection_strategy}): "
                 f"Selected clients {selected_clients} for {entry.get('attack_type')} attack "
                 f"(seed={seed})"
@@ -423,7 +423,7 @@ def _validate_attack_schedule(config: dict) -> None:
                         f"  - Or use different attack types if you want stacked attacks\n"
                     )
                 else:
-                    logging.info(
+                    logging.debug(
                         f"attack_schedule entries {i} and {j} have overlapping rounds with different attack types "
                         f"({entry1.get('attack_type')} and {entry2.get('attack_type')}). "
                         f"Both attacks will be stacked and applied sequentially."
