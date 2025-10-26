@@ -2,7 +2,7 @@ import argparse
 import json
 import logging
 import os
-import sys
+import torch
 
 # Suppress joblib CPU count warnings
 os.environ["LOKY_MAX_CPU_COUNT"] = str(os.cpu_count() or 1)
@@ -18,6 +18,14 @@ from src.federated_simulation import FederatedSimulation
 from src.data_models.simulation_strategy_config import StrategyConfig
 
 from src.dataset_handlers.dataset_handler import DatasetHandler
+
+
+def _serialize_config_for_logging(config_dict: dict) -> str:
+    """Serialize config dict to JSON, converting torch.device to string."""
+    serializable_dict = config_dict.copy()
+    if isinstance(serializable_dict.get("training_device"), torch.device):
+        serializable_dict["training_device"] = str(serializable_dict["training_device"])
+    return json.dumps(serializable_dict, indent=4)
 
 
 def parse_arguments() -> argparse.Namespace:
@@ -79,7 +87,7 @@ class SimulationRunner:
             logging.info(
                 "\n" + "-" * 50 + f"Executing new strategy" + "-" * 50 + "\n" +
                 "Strategy config:\n" +
-                json.dumps(strategy_config_dict, indent=4)
+                _serialize_config_for_logging(strategy_config_dict)
             )
 
             strategy_config = StrategyConfig.from_dict(strategy_config_dict)

@@ -4,6 +4,7 @@ import logging
 import sys
 
 from src.config_loaders.validate_strategy_config import validate_strategy_config
+from src.utils.device_utils import get_device
 
 
 class ConfigLoader:
@@ -53,6 +54,11 @@ class ConfigLoader:
                 # Validate the strategy configuration
                 validate_strategy_config(strategy)
                 logging.info(f"Successfully validated config from {config_path}.")
+
+                # Convert training_device to torch.device with CUDA fallback
+                if "training_device" in strategy:
+                    device_str = strategy["training_device"]
+                    strategy["training_device"] = get_device(device_str)
 
             return raw_config["simulation_strategies"]
 
