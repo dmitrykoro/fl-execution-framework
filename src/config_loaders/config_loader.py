@@ -50,14 +50,18 @@ class ConfigLoader:
             for strategy in raw_config['simulation_strategies']:
                 strategy.update(shared_settings)
 
+            # Convert training_device to torch.device with CUDA fallback
+            device_obj = None
+            if "training_device" in shared_settings:
+                device_str = shared_settings["training_device"]
+                device_obj = get_device(device_str)
+
             for strategy in raw_config['simulation_strategies']:
                 # Validate the strategy configuration
                 validate_strategy_config(strategy)
 
-                # Convert training_device to torch.device with CUDA fallback
-                if "training_device" in strategy:
-                    device_str = strategy["training_device"]
-                    strategy["training_device"] = get_device(device_str)
+                if device_obj is not None:
+                    strategy["training_device"] = device_obj
 
             num_strategies = len(raw_config['simulation_strategies'])
             logging.info(f"Successfully validated {num_strategies} {'strategy' if num_strategies == 1 else 'strategies'} from {config_path}.")

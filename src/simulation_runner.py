@@ -67,8 +67,9 @@ class SimulationRunner:
                 format="%(levelname)s: %(message)s"
             )
 
-        # Suppress Flower's INFO logging duplication
-        logging.getLogger("flwr").setLevel(logging.WARNING)
+        # Prevent Flower's logs from duplicating
+        flwr_logger = logging.getLogger("flwr")
+        flwr_logger.propagate = False
 
         self._config_loader = ConfigLoader(
             usecase_config_path=f"config/simulation_strategies/{config_filename}",
