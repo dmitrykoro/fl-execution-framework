@@ -87,6 +87,146 @@ Configs are JSON files with two main sections:
 
 **Example config**: `config/simulation_strategies/example_strategy_config.json`
 
+### 📋 Configuration Parameter Reference
+
+**Complete parameter registry** - all available configuration options:
+
+#### Common Parameters
+
+| Parameter | Type | Values | Default | Description |
+|-----------|------|--------|---------|-------------|
+| `aggregation_strategy_keyword` | string | `"trust"`, `"pid"`, `"pid_scaled"`, `"pid_standardized"`, `"pid_standardized_score_based"`, `"multi-krum"`, `"krum"`, `"multi-krum-based"`, `"trimmed_mean"`, `"rfa"`, `"bulyan"` | Required | Byzantine-tolerant aggregation strategy |
+| `dataset_keyword` | string | `"femnist_iid"`, `"femnist_niid"`, `"its"`, `"pneumoniamnist"`, `"bloodmnist"`, `"breastmnist"`, `"pathmnist"`, `"dermamnist"`, `"octmnist"`, `"retinamnist"`, `"tissuemnist"`, `"organamnist"`, `"organcmnist"`, `"organsmnist"`, `"lung_photos"`, `"medquad"` | Required | Dataset for training |
+| `num_of_rounds` | integer | > 0 | Required | Total federated learning rounds |
+| `num_of_clients` | integer | > 0 | Required | Number of participating clients |
+| `num_of_malicious_clients` | integer | ≥ 0 | Required | Static malicious clients (deprecated - use `attack_schedule`) |
+| `strict_mode` | string | `"true"`, `"false"` | `"true"` | Enforce all clients participate every round |
+| `remove_clients` | string | `"true"`, `"false"` | Required | Enable Byzantine client removal |
+| `show_plots` | string | `"true"`, `"false"` | Required | Display plots during runtime |
+| `save_plots` | string | `"true"`, `"false"` | Required | Save plots to `out/` directory |
+| `save_csv` | string | `"true"`, `"false"` | Required | Save metrics as CSV files |
+| `preserve_dataset` | string | `"true"`, `"false"` | `"false"` | Keep poisoned dataset after execution (incompatible with `attack_schedule`) |
+| `training_subset_fraction` | number | 0.0-1.0 | Required | Fraction of data used for training vs evaluation |
+| `model_type` | string | `"cnn"`, `"transformer"` | `"cnn"` | Neural network architecture type |
+| `training_device` | string | `"auto"`, `"cpu"`, `"gpu"`, `"cuda"` | `"auto"` | Hardware device (`auto` detects CUDA with CPU fallback) |
+| `cpus_per_client` | integer | > 0 | Required | CPU cores allocated per client |
+| `gpus_per_client` | number | ≥ 0 | Required | GPU fraction per client (0 for CPU-only) |
+| `num_of_client_epochs` | integer | > 0 | Required | Local training epochs per round |
+| `batch_size` | integer | > 0 | Required | Training batch size |
+
+#### Attack Scheduling (Dynamic Poisoning)
+
+| Parameter | Type | Values | Default | Description |
+|-----------|------|--------|---------|-------------|
+| `attack_schedule` | array | List of attack entries | `[]` | Round-based attack configuration (see below) |
+
+**Attack Schedule Entry Structure:**
+
+| Field | Type | Values | Required | Description |
+|-------|------|--------|----------|-------------|
+| `start_round` | integer | 1 to `num_of_rounds` | Yes | First round to apply attack |
+| `end_round` | integer | 1 to `num_of_rounds` | Yes | Last round to apply attack |
+| `attack_type` | string | `"label_flipping"`, `"gaussian_noise"`, `"brightness"`, `"token_replacement"` | Yes | Type of attack |
+| `selection_strategy` | string | `"specific"`, `"random"`, `"percentage"` | Yes | How to select malicious clients |
+| `malicious_client_ids` | array | List of client IDs | For `"specific"` | Exact clients to attack |
+| `malicious_client_count` | integer | 1 to `num_of_clients` | For `"random"` | Number of random clients |
+| `malicious_percentage` | number | 0.0-1.0 | For `"percentage"` | Fraction of clients to attack |
+
+**Attack-Specific Parameters:**
+
+| Attack Type | Parameter | Type | Required | Description |
+|-------------|-----------|------|----------|-------------|
+| `label_flipping` | `flip_fraction` | number (0.0-1.0) | Yes | Fraction of labels to flip |
+| `label_flipping` | `target_class` | integer | No | Target class for targeted attacks |
+| `gaussian_noise` | `target_noise_snr` | number (dB) | Yes | Signal-to-noise ratio in decibels |
+| `gaussian_noise` | `attack_ratio` | number (0.0-1.0) | Yes | Fraction of samples to poison |
+| `brightness` | `factor` | number | Yes | Brightness multiplier (0.0=black, 1.0=unchanged, >1.0=brighter) |
+| `token_replacement` | `replacement_prob` | number (0.0-1.0) | Yes | Probability of replacing each token |
+| `token_replacement` | `vocab_size` | integer | No | Vocabulary size (default: 30522) |
+
+**Example:**
+
+```json
+"attack_schedule": [
+  {
+    "start_round": 3,
+    "end_round": 8,
+    "attack_type": "label_flipping",
+    "flip_fraction": 0.7,
+    "selection_strategy": "specific",
+    "malicious_client_ids": [0, 1, 2]
+  },
+  {
+    "start_round": 5,
+    "end_round": 10,
+    "attack_type": "gaussian_noise",
+    "target_noise_snr": 10.0,
+    "attack_ratio": 1.0,
+    "selection_strategy": "percentage",
+    "malicious_percentage": 0.2
+  }
+]
+```
+
+> **Note**: Overlapping attacks with different types will stack and apply sequentially. See [Attack Scheduling Guide](docs/attack-scheduling.md) for detailed examples.
+
+#### Strategy-Specific Parameters
+
+**Trust Strategy:**
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `begin_removing_from_round` | integer | Required | First round to start removing clients |
+| `trust_threshold` | number (0-1) | Required | Threshold for client removal |
+| `beta_value` | number | Required | Trust calculation constant |
+
+**PID Strategies** (`pid`, `pid_scaled`, `pid_standardized`, `pid_standardized_score_based`):
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `Kp` | number | Required | Proportional gain |
+| `Ki` | number | Required | Integral gain |
+| `Kd` | number | Required | Derivative gain |
+| `num_std_dev` | number | Required | Standard deviations for threshold |
+
+**Krum Strategies** (`krum`, `multi-krum`, `multi-krum-based`):
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `num_krum_selections` | integer | Required | Number of clients to select |
+
+**Trimmed Mean Strategy:**
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `trim_ratio` | number (0-0.5) | Required | Fraction of extreme values to discard |
+
+**Bulyan Strategy:**
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `num_krum_selections` | integer | Required | Multi-Krum selections for first filtering step |
+
+#### LLM Parameters (for `medquad` dataset)
+
+| Parameter | Type | Values | Default | Description |
+|-----------|------|--------|---------|-------------|
+| `use_llm` | string | `"true"`, `"false"` | `"false"` | Enable LLM training |
+| `llm_model` | string | `"microsoft/BiomedNLP-BiomedBERT-base-uncased-abstract-fulltext"` | Required if `use_llm=true` | Pretrained model |
+| `llm_task` | string | `"mlm"` | `"mlm"` | Task type (masked language modeling) |
+| `llm_chunk_size` | integer | > 0 | Required | Token sequence length |
+| `mlm_probability` | number (0-1) | 0.15 | Masking probability for MLM | |
+| `llm_finetuning` | string | `"full"`, `"lora"` | `"full"` | Fine-tuning method |
+| `lora_rank` | integer | > 0 | For `lora` | Rank of low-rank matrices |
+| `lora_alpha` | integer | > 0 | For `lora` | Scaling factor |
+| `lora_dropout` | number (0-1) | For `lora` | Dropout rate | |
+
+**See also:**
+
+- [Configuration Quick Start](docs/config/quick-start.md) - Ready-to-run templates
+- [Attack Scheduling Guide](docs/attack-scheduling.md) - Detailed attack examples and best practices
+- [Parameter Reference](docs/config/parameters.md) - Extended parameter documentation
+
 ---
 
 ## ⚙️ Manual Setup & Configuration
