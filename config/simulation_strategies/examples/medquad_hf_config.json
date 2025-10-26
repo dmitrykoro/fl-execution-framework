@@ -16,7 +16,7 @@
     "show_plots": "false",
     "save_plots": "true",
     "save_csv": "true",
-    "preserve_dataset": "true",
+    "preserve_dataset": "false",
     "training_subset_fraction": 0.8,
     "training_device": "cpu",
     "cpus_per_client": 2,
@@ -26,7 +26,10 @@
     "min_available_clients": 5,
     "evaluate_metrics_aggregation_fn": "weighted_average",
     "num_of_client_epochs": 1,
-    "batch_size": 8
+    "batch_size": 8,
+    "save_attack_snapshots": "true",
+    "snapshot_format": "both",
+    "snapshot_max_samples": 5
   },
   "simulation_strategies": [
     {
