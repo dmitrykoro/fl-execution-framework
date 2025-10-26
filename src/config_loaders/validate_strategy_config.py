@@ -423,7 +423,7 @@ def _validate_attack_schedule(config: dict) -> None:
                         f"  - Or use different attack types if you want stacked attacks\n"
                     )
                 else:
-                    logging.debug(
+                    logging.info(
                         f"attack_schedule entries {i} and {j} have overlapping rounds with different attack types "
                         f"({entry1.get('attack_type')} and {entry2.get('attack_type')}). "
                         f"Both attacks will be stacked and applied sequentially."
