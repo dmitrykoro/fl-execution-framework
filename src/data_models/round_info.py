@@ -125,8 +125,11 @@ class RoundsInfo:
             self.removal_recall_history.append(recall)
 
             # f1: 2 * precision * recall / (precision + recall)
-            self.removal_f1_history.append(
+            f1 = (
                 2 * precision * recall / (precision + recall)
+                if (precision + recall) > 0
+                else 0.0
             )
+            self.removal_f1_history.append(f1)
 
             self.total_fp_and_fn_history.append(round_fp + round_fn)
