@@ -82,7 +82,7 @@ def test_trust_strategy_builds_reputation(self):
 
 ## 🔧 Strategy Auto-Configuration
 
-**Problem**: Students use production defaults → convergence failures
+**Problem**: Users use production defaults → convergence failures
 **Solution**: Auto-configure based on strategy type
 
 ```python
