@@ -65,6 +65,10 @@ class TestDirectoryHandler:
             "aggregated_loss_history",
             "average_accuracy_history",
         ]
+        mock_rounds.statsable_metrics = [
+            "aggregated_loss_history",
+            "average_accuracy_history",
+        ]
 
         def get_metric(name):
             if name == "aggregated_loss_history":
@@ -78,8 +82,8 @@ class TestDirectoryHandler:
         history = SimulationStrategyHistory(
             strategy_config=mock_strategy_config,
             dataset_handler=mock_dataset_handler,
-            rounds_history=mock_rounds,
         )
+        history.rounds_history = mock_rounds
         history.get_all_clients = Mock(return_value=mock_client_info_list)
         return history
 
@@ -204,8 +208,8 @@ class TestDirectoryHandler:
         history = SimulationStrategyHistory(
             strategy_config=mock_strategy_config,
             dataset_handler=mock_dataset_handler,
-            rounds_history=Mock(spec=RoundsInfo),
         )
+        history.rounds_history = Mock(spec=RoundsInfo)
         history.get_all_clients = Mock(return_value=[client_with_missing_metrics])
 
         csv_dir = tmp_path / "csv_missing_test"
