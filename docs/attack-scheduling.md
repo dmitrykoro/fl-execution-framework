@@ -2,6 +2,25 @@
 
 **Round-based attack scheduling with support for stacking multiple attack types.**
 
+## Table of Contents
+
+- [Quick Start](#-quick-start)
+- [Overview](#-overview)
+- [Quick Reference](#-quick-reference)
+- [Attack Stacking](#-attack-stacking)
+- [How Poisoning Works](#️-how-poisoning-works)
+- [Client Selection Strategies](#-client-selection-strategies)
+- [When to Use](#-when-to-use)
+- [Expected Validation Messages](#-expected-validation-messages)
+- [Attack Types](#-attack-types)
+- [Attack Snapshot System](#-attack-snapshot-system)
+- [Programmatic Analysis](#-programmatic-analysis)
+- [Example Configurations](#-example-configurations)
+- [Viewing Results](#-viewing-results)
+- [Configuration Schema](#-configuration-schema)
+- [Troubleshooting](#-troubleshooting)
+- [Implementation Details](#-implementation-details)
+
 ---
 
 ## ⚡ Quick Start
@@ -32,8 +51,11 @@ Add `attack_schedule` to your strategy config:
 ### Running
 
 ```bash
-python src/simulation_runner.py your_config.json
+python -m src.simulation_runner your_config.json
 ```
+
+> Note: Runnable preset configuration examples can be found in `config/simulation_strategies/examples`  
+> E.g., `python -m src.simulation_runner examples/attack_visualization_config.json`
 
 ---
 
@@ -60,12 +82,64 @@ Rounds 11-12: Normal training ✅
 
 ---
 
+## 📸 Visual Snapshot Feature
+
+Inspect poisoned data directly.
+
+### Example: Label Flipping Attack Visualization
+
+![Visual Snapshot Label Flip](assets/visual_snapshot_label_flipping.png)
+> **Screenshot Location**: Run `attack_visualization_config.json` and capture `out/*/attack_snapshots/client_0/round_3/label_flipping_visual.png`
+>
+> Shows 5 FEMNIST handwritten digits with labels changed by label flipping attack. Each image shows "Label: X (was Y)" to visualize the poisoning effect.
+
+### Example: Gaussian Noise Attack Visualization
+
+![Visual Snapshot Gaussian Noise](assets/visual_snapshot_gaussian_noise.png)
+> **Screenshot Location**: Find a round with gaussian_noise attack in `out/*/attack_snapshots/client_X/round_Y/gaussian_noise_visual.png`
+>
+> Shows images with added gaussian noise. Titles display SNR level and attack ratio used.
+
+### Example: Brightness Attack Visualization
+
+![Visual Snapshot Brightness](assets/visual_snapshot_brightness.png)
+> **Screenshot Location**: Find a round with brightness attack in `out/*/attack_snapshots/client_X/round_Y/brightness_visual.png`
+>
+> Shows images with brightness adjustments. Titles display brightness delta value used.
+
+### Example: Snapshot Metadata (JSON)
+
+![Metadata JSON Example](assets/snapshot_metadata_example.png)
+> **Screenshot Location**: Open `out/*/attack_snapshots/client_0/round_3/label_flipping_metadata.json` in text editor
+>
+> Human-readable attack details showing client ID, round number, attack type, and full configuration parameters.
+
+### Example: Snapshot Directory Structure
+
+![Directory Structure](assets/snapshot_directory_structure.png)
+> **Screenshot Location**: File explorer view of `out/*/attack_snapshots/` folder showing hierarchical structure
+>
+> Shows the hierarchical organization: `client_X/round_Y/` with three file types per attack: `.pickle` (full data), `_visual.png` (image preview), and `_metadata.json` (attack config).
+
+**Recommended config for screenshots**: Use `examples/attack_visualization_config.json` - it's optimized for visual demonstration with:
+
+- Only 12 rounds (fast execution)
+- Multiple attack types (label flipping, noise, brightness)
+- Separated attack windows (no overlaps for clear examples)
+- Dramatic attack parameters (SNR 5.0dB, brightness 0.6, flip 0.8)
+- `snapshot_format: "both"` for all file types
+- Small dataset subset for quick testing
+
+---
+
 ## 📋 Quick Reference
 
 | Feature | Config Key | Values | Notes |
 |---------|-----------|--------|-------|
 | **Attack scheduling** | `attack_schedule` | List of attack configs | Required |
-| **Save snapshots** | `save_attack_snapshots` | `"true"` / `"false"` | Optional: saves first 5 samples per attack |
+| **Save snapshots** | `save_attack_snapshots` | `"true"` / `"false"` | Optional: saves samples per attack |
+| **Snapshot format** | `snapshot_format` | `"pickle"`, `"visual"`, `"both"` | Default: `"pickle"`. Use `"both"` for PNG + pickle + JSON |
+| **Snapshot samples** | `snapshot_max_samples` | 1-50 | Default: 5. Number of samples per snapshot |
 | **Round range** | `start_round`, `end_round` | 1 to `num_of_rounds` | Inclusive range |
 | **Attack types** | `attack_type` | `"label_flipping"`, `"gaussian_noise"`, `"brightness"`, `"token_replacement"` | Per schedule entry |
 | **Client selection** | `selection_strategy` | `"specific"`, `"random"`, `"percentage"` | How to choose malicious clients |
@@ -75,6 +149,9 @@ Rounds 11-12: Normal training ✅
 | **Label flip intensity** | `flip_fraction` | 0.0-1.0 | Required for label_flipping |
 | **Noise level** | `target_noise_snr` | Positive number (dB) | Required for gaussian_noise, higher = less noise |
 | **Noise coverage** | `attack_ratio` | 0.0-1.0 | Required for gaussian_noise, fraction of samples |
+| **Brightness multiplier** | `factor` | 0.0+ (e.g., `0.3`, `1.8`) | Required for brightness, <1.0 = darker, >1.0 = brighter |
+| **Token replacement rate** | `replacement_prob` | 0.0-1.0 | Required for token_replacement |
+| **Vocabulary size** | `vocab_size` | Integer (e.g., `30522`) | Required for token_replacement, must match model |
 
 ---
 
@@ -303,7 +380,11 @@ requires 'malicious_client_ids' list
 
 ## 💣 Attack Types
 
+**Implementation**: All attack functions in `src/attack_utils/poisoning.py`
+
 ### Label Flipping (Classification)
+
+**Function**: `apply_label_flipping(labels, flip_fraction, target_class, num_classes)`
 
 **Random flipping:**
 
@@ -335,6 +416,8 @@ Use for: Testing label-based Byzantine defenses, studying targeted vs untargeted
 ---
 
 ### Gaussian Noise (Images)
+
+**Function**: `apply_gaussian_noise(images, target_noise_snr, attack_ratio)`
 
 ```json
 {
@@ -370,38 +453,265 @@ Use for: Testing defenses against gradient-based attacks, evaluating aggregation
 
 ---
 
+### Brightness Attack (Images)
+
+**Function**: `apply_brightness_attack(images, factor)`
+
+```json
+{
+  "attack_type": "brightness",
+  "factor": 0.3
+}
+```
+
+**Parameters:**
+
+- `factor` (number): Brightness multiplier applied to image pixels
+  - `0.0` = completely black
+  - `0.5` = half brightness (darker)
+  - `1.0` = unchanged (no attack)
+  - `2.0` = twice as bright
+
+**How it works:**
+
+Multiplies all pixel values by the factor and clamps to valid range [0, 1]:
+
+```python
+brightness_attacked = clamp(image * factor, 0, 1)
+```
+
+**Examples:**
+
+```json
+// Make images very dark
+{
+  "attack_type": "brightness",
+  "factor": 0.2,
+  "selection_strategy": "percentage",
+  "malicious_percentage": 0.25
+}
+
+// Make images brighter
+{
+  "attack_type": "brightness",
+  "factor": 1.8,
+  "selection_strategy": "specific",
+  "malicious_client_ids": [0, 1, 2]
+}
+```
+
+**Visual impact:**
+
+- `factor < 1.0`: Images become darker (shadows, underexposure)
+- `factor > 1.0`: Images become brighter (highlights, overexposure)
+- Simulates poor lighting conditions or camera sensor issues
+
+Use for: Testing robustness to lighting variations, image quality degradation, simulating real-world data quality issues
+
+---
+
+### Token Replacement (NLP)
+
+**Function**: `apply_token_replacement(input_ids, replacement_prob, vocab_size)`
+
+```json
+{
+  "attack_type": "token_replacement",
+  "replacement_prob": 0.25,
+  "vocab_size": 30522
+}
+```
+
+**Parameters:**
+
+- `replacement_prob` (0.0-1.0): Probability of replacing each token with random token
+- `vocab_size` (integer): Size of vocabulary to sample random tokens from
+  - Default: `30522` (BERT vocabulary size)
+  - Must match model's vocabulary
+
+**How it works:**
+
+For each token in the input sequence:
+
+1. Generate random number between 0 and 1
+2. If random < `replacement_prob`: replace with random token ID from [0, vocab_size)
+3. Otherwise: keep original token
+
+```python
+mask = random() < replacement_prob
+random_tokens = randint(0, vocab_size)
+poisoned = where(mask, random_tokens, original_tokens)
+```
+
+**Examples:**
+
+```json
+// Moderate corruption (25% tokens replaced)
+{
+  "attack_type": "token_replacement",
+  "replacement_prob": 0.25,
+  "vocab_size": 30522,
+  "selection_strategy": "specific",
+  "malicious_client_ids": [0, 1]
+}
+
+// Heavy corruption (50% tokens replaced)
+{
+  "attack_type": "token_replacement",
+  "replacement_prob": 0.5,
+  "vocab_size": 30522,
+  "selection_strategy": "percentage",
+  "malicious_percentage": 0.2
+}
+```
+
+**Important notes:**
+
+- Only works with NLP datasets (`medquad`)
+- Requires `model_type: "transformer"`
+- Vocabulary size must match your model:
+  - BERT models: `30522`
+  - GPT-2 models: `50257`
+  - Custom models: Check tokenizer documentation
+- Higher `replacement_prob` = more semantic corruption
+
+**Visual example:**
+
+Original: "The patient has symptoms of fever and cough"
+With `replacement_prob=0.3`: "The patient has [RANDOM] of [RANDOM] and cough"
+
+Use for: Testing NLP model robustness, simulating noisy text data, studying text-based Byzantine attacks
+
+---
+
 ## 📸 Attack Snapshot System
+
+**Implementation**: `src/attack_utils/attack_snapshots.py` - See `save_attack_snapshot()` and `load_attack_snapshot()`
 
 ### Overview
 
-The snapshot system saves **first N samples** of poisoned data for inspection without filesystem overhead.
+The snapshot system saves **first N samples** of poisoned data for inspection. Snapshots are created **only for rounds where attacks are active**.
+
+**Visual snapshots**: PNG and JSON files can be viewed without Python.
 
 ### Configuration
 
 ```json
 {
   "attack_schedule": [ /* ... */ ],
-  "save_attack_snapshots": true
+  "save_attack_snapshots": "true",
+  "snapshot_format": "both",        // "pickle" | "visual" | "both"
+  "snapshot_max_samples": 5         // Number of samples (1-50)
 }
 ```
+
+**Snapshot Format Options:**
+
+- `"pickle"` - Binary files (requires Python to view)
+- `"visual"` - PNG images + metadata JSON (no code needed!)
+- `"both"` - **Recommended**: All formats for maximum flexibility
 
 ### Storage Location
 
 ```bash
 out/<run_id>/attack_snapshots/
-├── client_0_round_3.pickle
-├── client_0_round_4.pickle
-├── client_1_round_3.pickle
-└── ...
+├── index.html                               # Interactive HTML viewer
+├── summary.json                             # Experiment metadata
+├── client_<id>/
+│   └── round_<num>/
+│       ├── <attack_type>.pickle             # Full data
+│       ├── <attack_type>_visual.png         # Image grid
+│       └── <attack_type>_metadata.json      # Attack config + metadata
 ```
 
-### Loading Snapshots
+**Example structure:**
+
+```bash
+client_0/
+├── round_2/
+│   ├── label_flipping.pickle
+│   ├── label_flipping_visual.png
+│   └── label_flipping_metadata.json
+└── round_6/
+    ├── brightness.pickle
+    ├── brightness_visual.png
+    └── brightness_metadata.json
+
+client_1/
+└── round_4/
+    ├── label_flipping.pickle
+    ├── label_flipping_visual.png
+    ├── label_flipping_metadata.json
+    ├── gaussian_noise.pickle            # Attack stacking
+    ├── gaussian_noise_visual.png
+    └── gaussian_noise_metadata.json
+```
+
+**Generated files:**
+
+- **index.html** - Sortable/filterable table with links
+- **summary.json** - Experiment metadata and attack timeline
+- **Pickle files** - Full data arrays for programmatic analysis
+- **Visual PNG files** - Image grids with labels
+- **Metadata JSON files** - Full attack config + experiment info + timestamp
+
+---
+
+### 🎯 Interactive Index
+
+Open `attack_snapshots/index.html` in browser for:
+
+- Sortable table (click column headers to sort)
+- Filter by client or attack type
+- Search functionality
+- Direct links to visuals and metadata
+- Summary statistics
+
+### 📄 Visual Snapshots
+
+PNG files show poisoned data samples:
+
+- Located in `client_<id>/round_<num>/<attack_type>_visual.png`
+- Displays image grid with labels showing original vs poisoned values
+- Grayscale or RGB depending on dataset
+
+### 📄 Metadata Structure
+
+JSON files contain full attack configuration:
+
+```json
+{
+  "client_id": 0,
+  "round_num": 3,
+  "attack_type": "label_flipping",
+  "num_samples": 16,
+  "attack_config": {
+    "attack_type": "label_flipping",
+    "flip_fraction": 0.8,
+    "target_class": null,
+    "start_round": 2,
+    "end_round": 5,
+    "selection_strategy": "specific",
+    "malicious_client_ids": [0, 1]
+  },
+  "timestamp": "<ISO-8601>",
+  "experiment_info": {
+    "run_id": "<run_id>",
+    "total_clients": 6,
+    "total_rounds": 10
+  }
+}
+```
+
+---
+
+### Loading Snapshots (Programmatic Analysis)
 
 ```python
 from src.attack_utils.attack_snapshots import load_attack_snapshot
 
 snapshot = load_attack_snapshot(
-    "out/api_run_20250123_142233/attack_snapshots/client_0_round_3.pickle"
+    "out/<run_id>/attack_snapshots/client_0/round_3/label_flipping.pickle"
 )
 
 # Metadata
@@ -435,6 +745,19 @@ Use for: Validating attack implementation, debugging, visualizing poisoned sampl
 
 ---
 
+## 📊 Programmatic Analysis
+
+For advanced Python-based analysis of snapshot data, see **[Snapshot Analysis Guide](./snapshot-analysis-guide.md)**.
+
+Covers:
+
+- Loading and inspecting pickle files
+- Matplotlib visualization examples
+- Statistical analysis (label distributions, batch processing)
+- Export to CSV/Excel/JSON/PNG
+
+---
+
 ## 🧪 Example Configurations
 
 ### Basic Attack
@@ -455,7 +778,9 @@ Use for: Validating attack implementation, debugging, visualizing poisoned sampl
       "malicious_client_ids": [0, 1, 2]
     }
   ],
-  "save_attack_snapshots": true
+  "save_attack_snapshots": "true",
+  "snapshot_format": "both",
+  "snapshot_max_samples": 5
 }
 ```
 
@@ -563,36 +888,44 @@ Find defense failure threshold:
 
 ## 📊 Viewing Results
 
-After running a simulation, results are saved in `out/`:
+Results are saved in `out/<run_id>/`:
 
 ```bash
-out/api_run_20250123_142233/
-├── attack_snapshots/        # If save_attack_snapshots enabled
-│   ├── client_0_round_3.pickle
-│   └── ...
-├── plots/
-│   ├── accuracy_history.pdf
-│   └── loss_history.pdf
-├── metrics.csv
-└── config.json
+out/<run_id>/
+├── attack_snapshots/              # If save_attack_snapshots enabled
+│   ├── index.html                 # Interactive viewer
+│   ├── summary.json               # Experiment metadata
+│   ├── client_<id>/
+│   │   └── round_<num>/
+│   │       ├── <attack_type>.pickle
+│   │       ├── <attack_type>_visual.png
+│   │       └── <attack_type>_metadata.json
+├── accuracy_history_0.pdf         # Client accuracy plots with attack shading
+├── loss_history_0.pdf             # Loss plots with attack shading
+├── csv/
+│   ├── per_client_metrics_0.csv
+│   └── round_metrics_0.csv
+└── output.log
 ```
 
 **Key metrics to analyze:**
 
 - **Per-client accuracy** - Look for drops during attack rounds
-- **Krum scores** - Higher scores indicate outlier detection
+- **Attack shading in plots** - Colored background shows when attacks are active
+- **Krum/Multi-Krum scores** - Higher scores indicate outlier detection
 - **Removal history** - Track which clients were excluded
 
-**Plot Legend:**
+**Plot Features:**
 
-When using `attack_schedule`, plots show:
+When using `attack_schedule`, plots include:
 
-```text
-Legend: clients
-        (malicious vary by round - see config)
-```
-
-This indicates dynamic attack scheduling (clients aren't statically marked as "_bad").
+- **Background shading** - Colored regions show attack-active rounds
+  - Light red: Label flipping attacks
+  - Light blue: Gaussian noise attacks
+  - Light yellow: Brightness attacks
+  - Light green: Token replacement attacks
+- **Clean client labels** - All clients labeled uniformly (e.g., `client_0`, `client_1`)
+- **No static "_bad" suffix** - Attack status changes dynamically per round
 
 ---
 
@@ -613,7 +946,9 @@ This indicates dynamic attack scheduling (clients aren't statically marked as "_
       "malicious_client_ids": [0, 1]
     }
   ],
-  "save_attack_snapshots": true
+  "save_attack_snapshots": "true",
+  "snapshot_format": "both",
+  "snapshot_max_samples": 5
 }
 ```
 
@@ -625,6 +960,8 @@ This indicates dynamic attack scheduling (clients aren't statically marked as "_
 - `attack_ratio`: 0.0 < attack_ratio ≤ 1.0
 - `malicious_percentage`: 0.0 < percentage ≤ 1.0
 - `target_noise_snr`: SNR > 0 (in dB)
+- `snapshot_format`: Must be `"pickle"`, `"visual"`, or `"both"`
+- `snapshot_max_samples`: 1 ≤ samples ≤ 50
 
 ---
 
