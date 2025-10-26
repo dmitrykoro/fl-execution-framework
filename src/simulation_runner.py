@@ -35,7 +35,7 @@ def parse_arguments() -> argparse.Namespace:
     )
 
     parser.add_argument(
-        "config",
+        "config_filename",
         type=str,
         nargs="?",
         default="example_strategy_config.json",
@@ -128,5 +128,5 @@ if __name__ == "__main__":
     """Run simulation with config file and optional log level."""
     args = parse_arguments()
 
-    simulation_runner = SimulationRunner(args.config, args.log_level)
+    simulation_runner = SimulationRunner(args.config_filename, args.log_level)
     simulation_runner.run()
