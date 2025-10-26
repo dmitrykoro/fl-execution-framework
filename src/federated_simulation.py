@@ -281,6 +281,7 @@ class FederatedSimulation:
                 chunk_size=self.strategy_config.llm_chunk_size,
                 mlm_probability=self.strategy_config.mlm_probability,
                 num_poisoned_clients=self.strategy_config.num_of_malicious_clients,
+                attack_schedule=self.strategy_config.attack_schedule,
                 **common_kwargs
             )
             if self.strategy_config.llm_finetuning == "lora":
