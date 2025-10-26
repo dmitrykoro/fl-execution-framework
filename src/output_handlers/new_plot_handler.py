@@ -34,6 +34,59 @@ def _generate_multi_string_strategy_label(strategy_config: StrategyConfig) -> st
     return _generate_single_string_strategy_label(strategy_config).replace(', ', '\n')
 
 
+def _add_attack_background_shading(
+    ax: plt.Axes,
+    attack_schedule: list,
+    client_id: int = None,
+) -> None:
+    """
+    Add background shading for attack-active rounds.
+
+    Args:
+        ax: Matplotlib axes object
+        attack_schedule: List of attack schedule entries
+        client_id: If None, show ALL attacks across all clients.
+                  If specified, only show attacks affecting that client.
+    """
+    if not attack_schedule:
+        return
+
+    ATTACK_COLORS = {
+        "label_flipping": "#ff9999",  # Red
+        "gaussian_noise": "#9999ff",  # Blue
+        "brightness": "#ffff99",      # Yellow
+        "token_replacement": "#99ff99" # Green
+    }
+
+    # Track which attack periods we've already added to avoid duplicate labels
+    added_attacks = set()
+
+    for entry in attack_schedule:
+        if client_id is not None:
+            selection = entry.get("selection_strategy")
+            if selection == "specific":
+                if client_id not in entry.get("malicious_client_ids", []):
+                    continue
+            elif selection == "random":
+                # For random selection, show shading for all clients since any could be affected
+                pass
+
+        attack_key = (entry["attack_type"], entry["start_round"], entry["end_round"])
+
+        if attack_key in added_attacks:
+            continue
+
+        added_attacks.add(attack_key)
+
+        ax.axvspan(
+            entry["start_round"],
+            entry["end_round"],
+            alpha=0.25,
+            color=ATTACK_COLORS.get(entry["attack_type"], "#dddddd"),
+            label=f'{entry["attack_type"]} (r{entry["start_round"]}-{entry["end_round"]})'
+        )
+
+
 def show_plots_within_strategy(
         simulation_strategy: FederatedSimulation,
         directory_handler: DirectoryHandler
@@ -55,6 +108,14 @@ def show_plots_within_strategy(
 
     for metric_name in plottable_metrics:
         plt.figure(figsize=plot_size)
+        ax = plt.gca()
+
+        if simulation_strategy.strategy_config.attack_schedule:
+            _add_attack_background_shading(
+                ax,
+                simulation_strategy.strategy_config.attack_schedule,
+                client_id=None,
+            )
 
         removal_threshold_history = simulation_strategy.strategy_history.rounds_history.removal_threshold_history
 
@@ -76,14 +137,8 @@ def show_plots_within_strategy(
             # Ensure rounds and metric_values have matching dimensions
             min_length = min(len(client_info.rounds), len(metric_values))
 
-            # Don't mark static malicious clients if using attack_schedule
-            if simulation_strategy.strategy_config.attack_schedule:
-                client_label = f"client_{client_info.client_id}"
-            else:
-                client_label = (
-                    f"client_{client_info.client_id}"
-                    if not client_info.is_malicious else f"client_{client_info.client_id}_bad"
-                )
+            # All clients labeled uniformly
+            client_label = f"client_{client_info.client_id}"
 
             plt.plot(
                 client_info.rounds[:min_length],
@@ -108,11 +163,7 @@ def show_plots_within_strategy(
             f"{simulation_strategy.strategy_config.aggregation_strategy_keyword}\n{plot_strategy_title}"
         )
 
-        # Update legend title based on attack_schedule presence
-        if simulation_strategy.strategy_config.attack_schedule:
-            legend_title = 'clients\n(malicious vary by round - see config)'
-        else:
-            legend_title = 'clients'
+        legend_title = 'clients'
 
         plt.legend(
             title=legend_title, bbox_to_anchor=(1.05, 1),
