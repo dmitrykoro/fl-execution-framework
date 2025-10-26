@@ -83,7 +83,7 @@ Configs are JSON files with two main sections:
 - `dataset_keyword`: Datasets spanning medical imaging, NLP, and handwriting with IID/non-IID distributions
 - `attack_schedule`: Round-based attack scheduling (label flipping, noise, brightness) - see [Attack Scheduling Guide](docs/attack-scheduling.md)
 - `num_of_rounds`, `num_of_clients`, `num_of_malicious_clients`: Simulation scale
-- `training_device`: Hardware (`cpu`, `gpu`, `cuda`)
+- `training_device`: Hardware (`auto`, `cpu`, `gpu`, `cuda`) - `auto` automatically detects CUDA with CPU fallback
 
 **Example config**: `config/simulation_strategies/example_strategy_config.json`
 
@@ -147,7 +147,7 @@ pip install -r requirements.txt
 
 ### Troubleshooting
 
-**GPU/CUDA setup**: Ensure correct PyTorch/CUDA drivers installed for `training_device: "cuda"`
+**GPU/CUDA setup**: Use `training_device: "auto"` for automatic detection with CPU fallback, or explicitly set `"cuda"` (requires PyTorch/CUDA drivers)
 
 **Dataset downloads**: First run downloads datasets automatically (may take several minutes)
 
