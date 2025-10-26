@@ -573,7 +573,9 @@ class TestValidateStrategyConfigInvalidValues:
         with pytest.raises(ValidationError) as exc_info:
             validate_strategy_config(config)
 
-        assert "'quantum' is not one of ['cpu', 'gpu', 'cuda']" in str(exc_info.value)
+        assert "'quantum' is not one of ['auto', 'cpu', 'gpu', 'cuda']" in str(
+            exc_info.value
+        )
 
     def test_invalid_data_types(self):
         """Test validation fails for invalid data types."""
