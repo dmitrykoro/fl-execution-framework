@@ -12,6 +12,51 @@ from src.output_handlers.directory_handler import DirectoryHandler
 plot_size = (11, 7)
 bar_width = 0.2
 
+ATTACK_ABBREV = {
+    "label_flipping": "lf",
+    "gaussian_noise": "gn",
+    "brightness": "br",
+    "token_replacement": "tr"
+}
+
+
+def _get_client_attack_summary(client_id: int, attack_schedule: list) -> str:
+    """
+    Generate abbreviated attack summary for a specific client.
+
+    Args:
+        client_id: ID of the client to check
+        attack_schedule: List of attack schedule entries
+
+    Returns:
+        Formatted string like " (lf r2-6, gn r4-8)" or empty string if no attacks
+    """
+    if not attack_schedule:
+        return ""
+
+    client_attacks = []
+
+    for entry in attack_schedule:
+        selection = entry.get("selection_strategy")
+        is_targeted = False
+
+        if selection == "specific":
+            if client_id in entry.get("malicious_client_ids", []):
+                is_targeted = True
+        elif selection == "random" or selection == "percentage":
+            if client_id in entry.get("_selected_clients", []):
+                is_targeted = True
+
+        if is_targeted:
+            attack_type = entry["attack_type"]
+            abbrev = ATTACK_ABBREV.get(attack_type, attack_type[:2])
+            attack_str = f"{abbrev} r{entry['start_round']}-{entry['end_round']}"
+            client_attacks.append(attack_str)
+
+    if client_attacks:
+        return f" ({', '.join(client_attacks)})"
+    return ""
+
 
 def _generate_single_string_strategy_label(strategy_config: StrategyConfig) -> str:
     """Generate single-string label for strategy (better to use as legend)"""
@@ -147,8 +192,12 @@ def show_plots_within_strategy(
             # Ensure rounds and metric_values have matching dimensions
             min_length = min(len(client_info.rounds), len(metric_values))
 
-            # All clients labeled uniformly
-            client_label = f"client_{client_info.client_id}"
+            # Generate label with attack summary
+            attack_summary = _get_client_attack_summary(
+                client_info.client_id,
+                simulation_strategy.strategy_config.attack_schedule
+            )
+            client_label = f"client_{client_info.client_id}{attack_summary}"
 
             plt.plot(
                 client_info.rounds[:min_length],
