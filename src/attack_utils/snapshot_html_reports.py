@@ -20,20 +20,54 @@ from .attack_snapshots import (
 )
 
 
-def generate_summary_json(output_dir: str, run_config: Optional[dict] = None) -> None:
+def _get_snapshots_dir_checked(
+    output_dir: str, strategy_number: int = 0
+) -> Optional[Path]:
+    """Get snapshots directory and verify it exists."""
+    snapshots_dir = Path(output_dir) / f"attack_snapshots_{strategy_number}"
+    if not snapshots_dir.exists():
+        logging.warning(
+            f"No attack_snapshots_{strategy_number} directory found in {output_dir}"
+        )
+        return None
+    return snapshots_dir
+
+
+def _extract_attack_params_for_display(
+    attack_type: str, attack_config: dict
+) -> list:
+    """Extract attack parameters formatted for HTML display."""
+    html_attack_params = []
+    if attack_type == "label_flipping":
+        html_attack_params.append(f"flip_fraction={attack_config.get('flip_fraction', '?')}")
+        target_class = attack_config.get("target_class")
+        if target_class is not None:
+            html_attack_params.append(f"target_class={target_class}")
+    elif attack_type == "gaussian_noise":
+        html_attack_params.append(f"SNR={attack_config.get('target_noise_snr', '?')}dB")
+        html_attack_params.append(f"ratio={attack_config.get('attack_ratio', '?')}")
+    elif attack_type == "brightness":
+        html_attack_params.append(f"delta={attack_config.get('brightness_delta', '?')}")
+        html_attack_params.append(f"ratio={attack_config.get('attack_ratio', '?')}")
+    return html_attack_params
+
+
+def generate_summary_json(
+    output_dir: str, run_config: Optional[dict] = None, strategy_number: int = 0
+) -> None:
     """
     Generate summary.json with experiment metadata and attack timeline.
 
     Args:
         output_dir: Base output directory
         run_config: Optional strategy configuration dict
+        strategy_number: Strategy number for multi-strategy runs (default: 0)
     """
-    snapshots_dir = Path(output_dir) / "attack_snapshots"
-    if not snapshots_dir.exists():
-        logging.warning(f"No attack_snapshots directory found in {output_dir}")
+    snapshots_dir = _get_snapshots_dir_checked(output_dir, strategy_number)
+    if not snapshots_dir:
         return
 
-    summary = get_snapshot_summary(output_dir)
+    summary = get_snapshot_summary(output_dir, strategy_number)
 
     run_id = Path(output_dir).name
     full_summary = {
@@ -48,10 +82,10 @@ def generate_summary_json(output_dir: str, run_config: Optional[dict] = None) ->
     if run_config:
         full_summary["experiment"]["total_clients"] = run_config.get("num_of_clients")
         full_summary["experiment"]["total_rounds"] = run_config.get("num_of_rounds")
-        full_summary["experiment"]["config_file"] = "strategy_config_0.json"
+        full_summary["experiment"]["config_file"] = f"strategy_config_{strategy_number}.json"
 
     # Build attack timeline: {client_id: {round_num: [attack_types]}}
-    snapshots = list_attack_snapshots(output_dir)
+    snapshots = list_attack_snapshots(output_dir, strategy_number)
     for snapshot_path in snapshots:
         snapshot = load_attack_snapshot(str(snapshot_path))
         if snapshot:
@@ -77,7 +111,9 @@ def generate_summary_json(output_dir: str, run_config: Optional[dict] = None) ->
         logging.warning(f"Failed to generate summary.json: {e}")
 
 
-def generate_snapshot_index(output_dir: str, run_config: Optional[dict] = None) -> None:
+def generate_snapshot_index(
+    output_dir: str, run_config: Optional[dict] = None, strategy_number: int = 0
+) -> None:
     """
     Generate interactive HTML index for attack snapshots.
 
@@ -86,14 +122,14 @@ def generate_snapshot_index(output_dir: str, run_config: Optional[dict] = None) 
     Args:
         output_dir: Base output directory
         run_config: Optional strategy configuration dict for metadata
+        strategy_number: Strategy number for multi-strategy runs (default: 0)
     """
-    snapshots_dir = Path(output_dir) / "attack_snapshots"
-    if not snapshots_dir.exists():
-        logging.warning(f"No attack_snapshots directory found in {output_dir}")
+    snapshots_dir = _get_snapshots_dir_checked(output_dir, strategy_number)
+    if not snapshots_dir:
         return
 
     # Gather all snapshot metadata
-    snapshots = list_attack_snapshots(output_dir)
+    snapshots = list_attack_snapshots(output_dir, strategy_number)
     snapshot_data = []
 
     for snapshot_path in snapshots:
@@ -108,20 +144,7 @@ def generate_snapshot_index(output_dir: str, run_config: Optional[dict] = None) 
 
             # Extract relevant parameters based on attack type
             attack_type = metadata.get("attack_type", "unknown")
-            params = []
-            if attack_type == "label_flipping":
-                params.append(
-                    f"flip_fraction={attack_config.get('flip_fraction', '?')}"
-                )
-                target_class = attack_config.get("target_class")
-                if target_class is not None:
-                    params.append(f"target_class={target_class}")
-            elif attack_type == "gaussian_noise":
-                params.append(f"SNR={attack_config.get('target_noise_snr', '?')}dB")
-                params.append(f"ratio={attack_config.get('attack_ratio', '?')}")
-            elif attack_type == "brightness":
-                params.append(f"delta={attack_config.get('brightness_delta', '?')}")
-                params.append(f"ratio={attack_config.get('attack_ratio', '?')}")
+            attack_parameters = _extract_attack_params_for_display(attack_type, attack_config)
 
             # Get relative paths for links
             rel_path = snapshot_path.relative_to(snapshots_dir)
@@ -134,7 +157,7 @@ def generate_snapshot_index(output_dir: str, run_config: Optional[dict] = None) 
                     "round": round_num,
                     "attack_type": attack_type,
                     "samples": metadata.get("num_samples", 0),
-                    "parameters": ", ".join(params) if params else "N/A",
+                    "parameters": ", ".join(attack_parameters) if attack_parameters else "N/A",
                     "pickle_path": str(rel_path),
                     "visual_path": f"client_{client_id}/round_{round_num}/{attack_type}_visual.png",
                     "metadata_path": f"client_{client_id}/round_{round_num}/{attack_type}_metadata.json",

@@ -42,6 +42,64 @@ def _extract_attack_type(attack_config: Union[dict, List[dict]]) -> str:
         return attack_config.get("attack_type") or attack_config.get("type", "unknown")
 
 
+def _get_snapshot_dir(
+    output_dir: str, client_id: int, round_num: int, strategy_number: int = 0
+) -> Path:
+    """Get or create snapshot directory path."""
+    snapshots_base = Path(output_dir) / f"attack_snapshots_{strategy_number}"
+    snapshot_dir = snapshots_base / f"client_{client_id}" / f"round_{round_num}"
+    snapshot_dir.mkdir(parents=True, exist_ok=True)
+    return snapshot_dir
+
+
+def _create_snapshot_metadata(
+    client_id: int,
+    round_num: int,
+    attack_type: str,
+    attack_config: Union[dict, List[dict]],
+    num_samples: int,
+    data_shape: Optional[list] = None,
+    labels_shape: Optional[list] = None,
+    experiment_info: Optional[Dict[str, Any]] = None,
+) -> dict:
+    """Create metadata dictionary for snapshot."""
+    metadata = {
+        "client_id": client_id,
+        "round_num": round_num,
+        "attack_type": attack_type,
+        "attack_config": attack_config,
+        "num_samples": num_samples,
+        "timestamp": datetime.now().isoformat(),
+    }
+
+    if data_shape:
+        metadata["data_shape"] = data_shape
+    if labels_shape:
+        metadata["labels_shape"] = labels_shape
+    if experiment_info:
+        metadata["experiment_info"] = experiment_info
+
+    return metadata
+
+
+def _extract_attack_param(
+    attack_config: Union[dict, List[dict]], *attack_parameters: str, default: Any = "?"
+) -> Any:
+    """Extract parameter from attack config, handling dict/list cases."""
+    config = (
+        attack_config[0]
+        if isinstance(attack_config, list) and attack_config
+        else attack_config
+    )
+
+    if isinstance(config, dict):
+        for attack_parameter in attack_parameters:
+            if attack_parameter in config:
+                return config[attack_parameter]
+
+    return default
+
+
 def save_attack_snapshot(
     client_id: int,
     round_num: int,
@@ -53,6 +111,7 @@ def save_attack_snapshot(
     max_samples: int = 5,
     save_format: str = "pickle",
     experiment_info: Optional[Dict[str, Any]] = None,
+    strategy_number: int = 0,
 ) -> None:
     """
     Save lightweight snapshot of poisoned data for inspection.
@@ -68,30 +127,25 @@ def save_attack_snapshot(
         max_samples: Maximum number of samples to save (default: 5)
         save_format: Format to save ('pickle', 'json', or 'both')
         experiment_info: Optional experiment metadata (run_id, total_clients, total_rounds)
+        strategy_number: Strategy number for multi-strategy runs (default: 0)
     """
     attack_type = _extract_attack_type(attack_config)
-
-    snapshots_base = Path(output_dir) / "attack_snapshots"
-    snapshot_dir = snapshots_base / f"client_{client_id}" / f"round_{round_num}"
-    snapshot_dir.mkdir(parents=True, exist_ok=True)
+    snapshot_dir = _get_snapshot_dir(output_dir, client_id, round_num, strategy_number)
 
     data_sample = data_sample[:max_samples]
     labels_sample = labels_sample[:max_samples]
     original_labels_sample = original_labels_sample[:max_samples]
 
-    metadata = {
-        "client_id": client_id,
-        "round_num": round_num,
-        "attack_type": attack_type,
-        "attack_config": attack_config,
-        "num_samples": len(data_sample),
-        "data_shape": list(data_sample.shape),
-        "labels_shape": list(labels_sample.shape),
-        "timestamp": datetime.now().isoformat(),
-    }
-
-    if experiment_info:
-        metadata["experiment_info"] = experiment_info
+    metadata = _create_snapshot_metadata(
+        client_id=client_id,
+        round_num=round_num,
+        attack_type=attack_type,
+        attack_config=attack_config,
+        num_samples=len(data_sample),
+        data_shape=list(data_sample.shape),
+        labels_shape=list(labels_sample.shape),
+        experiment_info=experiment_info,
+    )
 
     try:
         if save_format == "both":
@@ -177,17 +231,18 @@ def load_attack_snapshot(filepath: str) -> Optional[dict]:
         return None
 
 
-def list_attack_snapshots(output_dir: str) -> list:
+def list_attack_snapshots(output_dir: str, strategy_number: int = 0) -> list:
     """
     List all attack snapshots in an output directory.
 
     Args:
         output_dir: Base output directory
+        strategy_number: Strategy number for multi-strategy runs (default: 0)
 
     Returns:
         List of snapshot file paths (pickle files preferred, JSON metadata as fallback)
     """
-    snapshots_dir = Path(output_dir) / "attack_snapshots"
+    snapshots_dir = Path(output_dir) / f"attack_snapshots_{strategy_number}"
     if not snapshots_dir.exists():
         return []
 
@@ -202,17 +257,18 @@ def list_attack_snapshots(output_dir: str) -> list:
     return sorted(json_snapshots)
 
 
-def get_snapshot_summary(output_dir: str) -> dict:
+def get_snapshot_summary(output_dir: str, strategy_number: int = 0) -> dict:
     """
     Get summary statistics for all attack snapshots in a run.
 
     Args:
         output_dir: Base output directory
+        strategy_number: Strategy number for multi-strategy runs (default: 0)
 
     Returns:
         Dict with summary statistics (client IDs, rounds, attack types, etc.)
     """
-    snapshots = list_attack_snapshots(output_dir)
+    snapshots = list_attack_snapshots(output_dir, strategy_number)
 
     summary = {
         "total_snapshots": len(snapshots),
@@ -246,6 +302,7 @@ def save_visual_snapshot(
     original_labels_sample: np.ndarray,
     output_dir: str,
     experiment_info: Optional[Dict[str, Any]] = None,
+    strategy_number: int = 0,
 ) -> None:
     """
     Save visual PNG/TXT files alongside pickle for viewing.
@@ -259,12 +316,10 @@ def save_visual_snapshot(
         original_labels_sample: Original labels before poisoning
         output_dir: Base output directory
         experiment_info: Optional experiment metadata (run_id, total_clients, total_rounds)
+        strategy_number: Strategy number for multi-strategy runs (default: 0)
     """
     attack_type = _extract_attack_type(attack_config)
-
-    snapshots_base = Path(output_dir) / "attack_snapshots"
-    snapshot_dir = snapshots_base / f"client_{client_id}" / f"round_{round_num}"
-    snapshot_dir.mkdir(parents=True, exist_ok=True)
+    snapshot_dir = _get_snapshot_dir(output_dir, client_id, round_num, strategy_number)
 
     try:
         if len(data_sample.shape) == 4:  # (N, C, H, W)
@@ -284,17 +339,14 @@ def save_visual_snapshot(
                 snapshot_dir / filename,
             )
 
-        metadata = {
-            "client_id": client_id,
-            "round_num": round_num,
-            "attack_type": attack_type,
-            "num_samples": len(data_sample),
-            "attack_config": attack_config,
-            "timestamp": datetime.now().isoformat(),
-        }
-
-        if experiment_info:
-            metadata["experiment_info"] = experiment_info
+        metadata = _create_snapshot_metadata(
+            client_id=client_id,
+            round_num=round_num,
+            attack_type=attack_type,
+            attack_config=attack_config,
+            num_samples=len(data_sample),
+            experiment_info=experiment_info,
+        )
 
         metadata_path = snapshot_dir / f"{attack_type}_metadata.json"
         with open(metadata_path, "w") as f:
@@ -349,30 +401,10 @@ def _save_image_grid(
         if attack_type == "label_flipping":
             title = f"Label: {labels[i]}\n(was {original_labels[i]})"
         elif attack_type == "gaussian_noise":
-            # Handle both dict and list cases
-            if isinstance(attack_config, list):
-                snr = (
-                    attack_config[0].get("target_noise_snr", "?")
-                    if attack_config
-                    else "?"
-                )
-            else:
-                snr = attack_config.get("target_noise_snr", "?")
+            snr = _extract_attack_param(attack_config, "target_noise_snr")
             title = f"Noisy (SNR: {snr}dB)\nLabel: {labels[i]}"
         elif attack_type == "brightness":
-            # Handle both dict and list cases
-            if isinstance(attack_config, list):
-                delta = (
-                    attack_config[0].get(
-                        "brightness_delta", attack_config[0].get("factor", "?")
-                    )
-                    if attack_config
-                    else "?"
-                )
-            else:
-                delta = attack_config.get(
-                    "brightness_delta", attack_config.get("factor", "?")
-                )
+            delta = _extract_attack_param(attack_config, "brightness_delta", "factor")
             title = f"Brightness: {delta}\nLabel: {labels[i]}"
         elif attack_type == "token_replacement":
             title = f"Token poisoned\nLabel: {labels[i]}"
