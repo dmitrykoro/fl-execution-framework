@@ -73,6 +73,7 @@ def mock_client_parameters():
     rng = np.random.default_rng(42)
     return [rng.standard_normal(100) for _ in range(5)]
 
+
 # Attack Snapshot Testing Fixtures
 @pytest.fixture
 def sample_attack_data():

@@ -135,8 +135,8 @@ class FederatedSimulation:
                         "num_of_clients": self.strategy_config.num_of_clients,
                         "num_of_rounds": self.strategy_config.num_of_rounds,
                     }
-                    generate_summary_json(output_dir, run_config)
-                    generate_snapshot_index(output_dir, run_config)
+                    generate_summary_json(output_dir, run_config, self.strategy_config.strategy_number)
+                    generate_snapshot_index(output_dir, run_config, self.strategy_config.strategy_number)
                 except Exception as e:
                     logging.warning(f"Failed to generate attack snapshot index/summary: {e}")
 
@@ -427,6 +427,7 @@ class FederatedSimulation:
             snapshot_max_samples=snapshot_max_samples,
             output_dir=output_dir,
             experiment_info=experiment_info,
+            strategy_number=self.strategy_config.strategy_number,
         ).to_client()
 
     @staticmethod

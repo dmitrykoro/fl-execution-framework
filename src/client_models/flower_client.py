@@ -28,6 +28,7 @@ class FlowerClient(fl.client.NumPyClient):
             snapshot_max_samples=5,
             output_dir=None,
             experiment_info=None,
+            strategy_number=0,
     ):
         self.client_id = client_id
         self.net = net
@@ -44,6 +45,7 @@ class FlowerClient(fl.client.NumPyClient):
         self.snapshot_max_samples = snapshot_max_samples
         self.output_dir = output_dir
         self.experiment_info = experiment_info
+        self.strategy_number = strategy_number
 
     def set_parameters(self, net, parameters: list[np.ndarray]):
         if self.use_lora:
@@ -100,6 +102,7 @@ class FlowerClient(fl.client.NumPyClient):
                                 max_samples=self.snapshot_max_samples,
                                 save_format=self.snapshot_format,
                                 experiment_info=self.experiment_info,
+                                strategy_number=self.strategy_number,
                             )
                             save_visual_snapshot(
                                 client_id=self.client_id,
@@ -110,6 +113,7 @@ class FlowerClient(fl.client.NumPyClient):
                                 original_labels_sample=original_labels.cpu().numpy(),
                                 output_dir=self.output_dir,
                                 experiment_info=self.experiment_info,
+                                strategy_number=self.strategy_number,
                             )
 
                     images, labels = images.to(self.training_device), labels.to(self.training_device)
