@@ -16,10 +16,6 @@ setup_logging_with_file "tests/logs" "examples_run"
 # Find Python interpreter
 find_python_interpreter
 
-log_info "Starting sequential run of all example configs..."
-log_and_tee "=================================================="
-log_and_tee ""
-
 # Auto-discover all example configs
 CONFIGS=()
 EXAMPLES_DIR="config/simulation_strategies/examples"
@@ -30,23 +26,66 @@ done < <(find "$EXAMPLES_DIR" -maxdepth 1 -name "*.json" -type f -print0 | sort 
 
 TOTAL="${#CONFIGS[@]}"
 
-# Run each config
+# Interactive menu
+echo ""
+echo "=================================================="
+echo "Example Config Runner"
+echo "=================================================="
+echo ""
+echo "Select a config to run:"
+echo "  0) Run all configs"
 for i in "${!CONFIGS[@]}"; do
-    config="${CONFIGS[$i]}"
-    current=$((i + 1))
+    echo "  $((i + 1))) ${CONFIGS[$i]}"
+done
+echo ""
+read -p "Enter selection: " selection
 
-    log_and_tee "[$current/$TOTAL] Running $config..."
+# Validate input
+if ! [[ "$selection" =~ ^[0-9]+$ ]] || [ "$selection" -lt 0 ] || [ "$selection" -gt "$TOTAL" ]; then
+    log_error "Invalid selection"
+    exit 1
+fi
+
+log_and_tee ""
+log_and_tee "=================================================="
+
+# Run selected config(s)
+if [ "$selection" -eq 0 ]; then
+    log_info "Running all example configs..."
+    log_and_tee ""
+
+    for i in "${!CONFIGS[@]}"; do
+        config="${CONFIGS[$i]}"
+        current=$((i + 1))
+
+        log_and_tee "[$current/$TOTAL] Running $config..."
+        if run_python src/simulation_runner.py "examples/$config" --log-level ERROR 2>&1 | tee -a "$LOG_FILE"; then
+            log_info "Completed $current/$TOTAL"
+        else
+            log_error "Failed on $config"
+            exit 1
+        fi
+        log_and_tee ""
+    done
+
+    log_and_tee "=================================================="
+    log_info "All configs completed!"
+else
+    config="${CONFIGS[$((selection - 1))]}"
+    log_info "Running $config..."
+    log_and_tee ""
+
     if run_python src/simulation_runner.py "examples/$config" --log-level ERROR 2>&1 | tee -a "$LOG_FILE"; then
-        log_info "Completed $current/$TOTAL"
+        log_info "Completed successfully"
     else
         log_error "Failed on $config"
         exit 1
     fi
-    log_and_tee ""
-done
 
-log_and_tee "=================================================="
-log_info "All configs completed!"
+    log_and_tee "=================================================="
+    log_info "Config completed!"
+fi
+
 log_and_tee ""
 log_info "Output directories:"
 ls -d out/*/ 2>/dev/null | tail -11 | tee -a "$LOG_FILE" || log_warning "No output directories found"
