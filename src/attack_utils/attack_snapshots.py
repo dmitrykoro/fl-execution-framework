@@ -7,11 +7,13 @@ and debugging.
 
 import json
 import logging
+import math
 import pickle
 from datetime import datetime
 from pathlib import Path
 from typing import Optional, Dict, Any, Union, List
-
+import matplotlib
+from matplotlib import pyplot as plt
 import numpy as np
 import torch
 
@@ -282,8 +284,7 @@ def _save_image_grid(
     attack_config: Union[dict, List[dict]],
 ) -> None:
     """Save image samples as PNG grid with attack-specific annotations."""
-    import matplotlib.pyplot as plt
-    import math
+    matplotlib.use("Agg")
 
     num_images = len(images)
 
@@ -318,14 +319,24 @@ def _save_image_grid(
         elif attack_type == "gaussian_noise":
             # Handle both dict and list cases
             if isinstance(attack_config, list):
-                snr = attack_config[0].get("target_noise_snr", "?") if attack_config else "?"
+                snr = (
+                    attack_config[0].get("target_noise_snr", "?")
+                    if attack_config
+                    else "?"
+                )
             else:
                 snr = attack_config.get("target_noise_snr", "?")
             title = f"Noisy (SNR: {snr}dB)\nLabel: {labels[i]}"
         elif attack_type == "brightness":
             # Handle both dict and list cases
             if isinstance(attack_config, list):
-                delta = attack_config[0].get("brightness_delta", attack_config[0].get("factor", "?")) if attack_config else "?"
+                delta = (
+                    attack_config[0].get(
+                        "brightness_delta", attack_config[0].get("factor", "?")
+                    )
+                    if attack_config
+                    else "?"
+                )
             else:
                 delta = attack_config.get(
                     "brightness_delta", attack_config.get("factor", "?")
