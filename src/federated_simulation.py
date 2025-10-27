@@ -5,8 +5,6 @@ import flwr
 
 from flwr.client import Client
 from flwr.common import ndarrays_to_parameters
-from typing import List, Tuple
-
 from peft import PeftModel, get_peft_model_state_dict
 
 
@@ -55,7 +53,7 @@ from src.data_models.simulation_strategy_history import SimulationStrategyHistor
 from src.dataset_handlers.dataset_handler import DatasetHandler
 
 
-def weighted_average(metrics: List[Tuple[int, dict]]) -> dict:
+def weighted_average(metrics: list[tuple[int, dict]]) -> dict:
     """Compute weighted average of metrics from multiple clients."""
     if not metrics:
         return {}

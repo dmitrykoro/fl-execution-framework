@@ -5,8 +5,6 @@ import numpy as np
 import torch
 
 from collections import OrderedDict
-from typing import List
-
 from src.network_models.bert_model_definition import get_peft_model_state_dict, set_peft_model_state_dict
 from src.attack_utils.poisoning import should_poison_this_round, apply_poisoning_attack
 from src.attack_utils.attack_snapshots import save_attack_snapshot, save_visual_snapshot
@@ -47,7 +45,7 @@ class FlowerClient(fl.client.NumPyClient):
         self.output_dir = output_dir
         self.experiment_info = experiment_info
 
-    def set_parameters(self, net, parameters: List[np.ndarray]):
+    def set_parameters(self, net, parameters: list[np.ndarray]):
         if self.use_lora:
             params_dict = zip(get_peft_model_state_dict(net).keys(), parameters)
             state_dict = OrderedDict({k: torch.Tensor(v) for k, v in params_dict})
