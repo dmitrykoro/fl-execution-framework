@@ -73,6 +73,39 @@ def mock_client_parameters():
     rng = np.random.default_rng(42)
     return [rng.standard_normal(100) for _ in range(5)]
 
+# Attack Snapshot Testing Fixtures
+@pytest.fixture
+def sample_attack_data():
+    """Generate sample data tensors for attack snapshot tests."""
+    from tests.common import create_sample_tensors
+
+    data, labels = create_sample_tensors(batch_size=5)
+    return data, labels, labels.clone()
+
+
+@pytest.fixture
+def attack_config_label_flipping():
+    """Generate label flipping attack configuration."""
+    from tests.common import create_attack_config
+
+    return create_attack_config("label_flipping", flip_fraction=0.7)
+
+
+@pytest.fixture
+def attack_config_gaussian_noise():
+    """Generate gaussian noise attack configuration."""
+    from tests.common import create_attack_config
+
+    return create_attack_config("gaussian_noise", target_noise_snr=10.0)
+
+
+@pytest.fixture
+def nested_attack_config():
+    """Generate nested attack configuration."""
+    from tests.common import create_nested_attack_config
+
+    return create_nested_attack_config("label_flipping", flip_fraction=0.5)
+
 
 # Test failure logging setup
 failure_logger = logging.getLogger("test_failure_helper")

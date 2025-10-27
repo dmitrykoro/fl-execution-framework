@@ -18,7 +18,8 @@ import locale
 import logging
 import contextlib
 import inspect
-from typing import Generator, List, Tuple, Any, Dict, Optional
+from pathlib import Path
+from typing import Generator, List, Tuple, Any, Dict, Optional, Union
 from unittest.mock import Mock
 
 # Third-party imports (conditional to avoid import errors)
@@ -268,6 +269,190 @@ def create_mock_flower_client(client_id: int) -> Mock:
 
 
 # =============================================================================
+# ATTACK SNAPSHOT TESTING UTILITIES
+# =============================================================================
+
+try:
+    import torch
+except ImportError:
+    torch = None
+
+try:
+    import json
+    import pickle
+except ImportError:
+    json = None
+    pickle = None
+
+
+def create_sample_tensors(
+    batch_size: int = 5, image_shape: tuple = (1, 28, 28), num_classes: int = 10
+) -> tuple:
+    """
+    Create sample data and label tensors for testing attack snapshots.
+
+    Args:
+        batch_size: Number of samples in batch
+        image_shape: Shape of each image (C, H, W)
+        num_classes: Number of classes for labels
+
+    Returns:
+        Tuple of (data_tensor, labels_tensor)
+    """
+    if torch is None:
+        raise ImportError("torch is required for create_sample_tensors")
+    data = torch.rand(batch_size, *image_shape)
+    labels = torch.randint(0, num_classes, (batch_size,))
+    return data, labels
+
+
+def create_attack_config(attack_type: str = "label_flipping", **kwargs) -> dict:
+    """
+    Create attack configuration dictionary.
+
+    Args:
+        attack_type: Type of attack
+        **kwargs: Additional attack-specific parameters
+
+    Returns:
+        Attack configuration dictionary
+    """
+    config = {"attack_type": attack_type}
+    config.update(kwargs)
+    return config
+
+
+def create_nested_attack_config(attack_type: str = "label_flipping", **kwargs) -> dict:
+    """
+    Create nested attack configuration (schedule-style).
+
+    Args:
+        attack_type: Type of attack
+        **kwargs: Additional attack-specific parameters
+
+    Returns:
+        Nested attack configuration dictionary
+    """
+    config = {
+        "type": attack_type,
+        "parameters": kwargs,
+    }
+    return config
+
+
+def build_snapshot_path(
+    output_dir: Union[Path, str],
+    client_id: int,
+    round_num: int,
+    attack_type: str,
+    file_format: str = "pickle",
+    strategy_number: int = 0,
+) -> Path:
+    """
+    Build path to snapshot file following framework conventions.
+
+    Args:
+        output_dir: Base output directory
+        client_id: Client ID
+        round_num: Round number
+        attack_type: Attack type
+        file_format: Format ('pickle' or 'json')
+        strategy_number: Strategy number (default: 0)
+
+    Returns:
+        Path to snapshot file
+    """
+    if file_format == "json":
+        filename = f"{attack_type}_metadata.json"
+    else:
+        filename = f"{attack_type}.pickle"
+
+    return (
+        Path(output_dir)
+        / f"attack_snapshots_{strategy_number}"
+        / f"client_{client_id}"
+        / f"round_{round_num}"
+        / filename
+    )
+
+
+def verify_pickle_snapshot(
+    filepath: Union[Path, str],
+    expected_client_id: int,
+    expected_round: int,
+    expected_attack_type: str,
+    expected_num_samples: int,
+) -> None:
+    """
+    Verify pickle snapshot file contents.
+
+    Args:
+        filepath: Path to snapshot file
+        expected_client_id: Expected client ID
+        expected_round: Expected round number
+        expected_attack_type: Expected attack type
+        expected_num_samples: Expected number of samples
+    """
+    if pickle is None:
+        raise ImportError("pickle is required for verify_pickle_snapshot")
+
+    filepath = Path(filepath) if isinstance(filepath, str) else filepath
+    assert filepath.exists(), f"Snapshot file should exist: {filepath}"
+
+    with open(filepath, "rb") as f:
+        snapshot = pickle.load(f)
+
+    # Verify structure
+    assert "metadata" in snapshot
+    assert "data" in snapshot
+    assert "labels" in snapshot
+    assert "original_labels" in snapshot
+
+    # Verify metadata
+    metadata = snapshot["metadata"]
+    assert metadata["client_id"] == expected_client_id
+    assert metadata["round_num"] == expected_round
+    assert metadata["attack_type"] == expected_attack_type
+    assert metadata["num_samples"] == expected_num_samples
+
+    # Verify data
+    assert len(snapshot["data"]) == expected_num_samples
+    assert len(snapshot["labels"]) == expected_num_samples
+    assert len(snapshot["original_labels"]) == expected_num_samples
+
+
+def verify_json_metadata(
+    filepath: Union[Path, str],
+    expected_client_id: int,
+    expected_round: int,
+    expected_attack_type: str,
+) -> None:
+    """
+    Verify JSON metadata file contents.
+
+    Args:
+        filepath: Path to JSON file
+        expected_client_id: Expected client ID
+        expected_round: Expected round number
+        expected_attack_type: Expected attack type
+    """
+    if json is None:
+        raise ImportError("json is required for verify_json_metadata")
+
+    filepath = Path(filepath) if isinstance(filepath, str) else filepath
+    assert filepath.exists(), f"Metadata file should exist: {filepath}"
+
+    with open(filepath, "r") as f:
+        metadata = json.load(f)
+
+    assert metadata["client_id"] == expected_client_id
+    assert metadata["round_num"] == expected_round
+    assert metadata["attack_type"] == expected_attack_type
+    assert "data_shape" in metadata
+    assert "labels_shape" in metadata
+
+
+# =============================================================================
 # CONSTANTS AND CONFIGURATION
 # =============================================================================
 
@@ -350,6 +535,13 @@ __all__ = [
     "FLTestHelpers",
     "assert_valid_fl_result",
     "create_mock_flower_client",
+    # Attack snapshot testing utilities
+    "create_sample_tensors",
+    "create_attack_config",
+    "create_nested_attack_config",
+    "build_snapshot_path",
+    "verify_pickle_snapshot",
+    "verify_json_metadata",
     # Constants
     "DEFAULT_PARAM_SHAPE",
     "DEFAULT_NUM_CLIENTS",
