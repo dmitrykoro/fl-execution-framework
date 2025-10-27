@@ -186,7 +186,7 @@ class BulyanStrategy(fl.server.strategy.FedAvg):
         available_clients = client_manager.all()
 
         # Warm‑up: keep everyone
-        if self.current_round <= self.begin_removing_from_round:
+        if self.begin_removing_from_round is not None and self.current_round <= self.begin_removing_from_round:
             fit_ins = fl.common.FitIns(parameters, {"server_round": server_round})
             return [(c, fit_ins) for c in available_clients.values()]
 

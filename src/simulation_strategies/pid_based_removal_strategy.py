@@ -261,7 +261,7 @@ class PIDBasedRemovalStrategy(fl.server.strategy.FedAvg):
         available_clients = client_manager.all()  # dictionary with client IDs as keys and RayActorClientProxy objects as values
 
         # in the warmup rounds, select all clients
-        if self.current_round <= self.begin_removing_from_round - 1:
+        if self.begin_removing_from_round is not None and self.current_round <= self.begin_removing_from_round - 1:
             fit_ins = fl.common.FitIns(parameters, {"server_round": server_round})
             return [(client, fit_ins) for client in available_clients.values()]
 
@@ -269,7 +269,7 @@ class PIDBasedRemovalStrategy(fl.server.strategy.FedAvg):
 
         if self.remove_clients:
             # in the first round after warmup, remove the client with the highest PID
-            if self.current_round == self.begin_removing_from_round and False:
+            if self.begin_removing_from_round is not None and self.current_round == self.begin_removing_from_round and False:
                 highest_pid_client = max(client_pids, key=client_pids.get)
                 self.logger.info(f"Removing client with highest PID: {highest_pid_client}")
                 # add this client to the removed_clients list
