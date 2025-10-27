@@ -89,36 +89,26 @@ Inspect poisoned data directly.
 ### Example: Label Flipping Attack Visualization
 
 ![Visual Snapshot Label Flip](assets/visual_snapshot_label_flipping.png)
-> **Screenshot Location**: Run `attack_visualization_config.json` and capture `out/*/attack_snapshots/client_0/round_3/label_flipping_visual.png`
->
 > Shows 5 FEMNIST handwritten digits with labels changed by label flipping attack. Each image shows "Label: X (was Y)" to visualize the poisoning effect.
 
 ### Example: Gaussian Noise Attack Visualization
 
 ![Visual Snapshot Gaussian Noise](assets/visual_snapshot_gaussian_noise.png)
-> **Screenshot Location**: Find a round with gaussian_noise attack in `out/*/attack_snapshots/client_X/round_Y/gaussian_noise_visual.png`
->
 > Shows images with added gaussian noise. Titles display SNR level and attack ratio used.
 
 ### Example: Brightness Attack Visualization
 
 ![Visual Snapshot Brightness](assets/visual_snapshot_brightness.png)
-> **Screenshot Location**: Find a round with brightness attack in `out/*/attack_snapshots/client_X/round_Y/brightness_visual.png`
->
 > Shows images with brightness adjustments. Titles display brightness delta value used.
 
 ### Example: Snapshot Metadata (JSON)
 
 ![Metadata JSON Example](assets/snapshot_metadata_example.png)
-> **Screenshot Location**: Open `out/*/attack_snapshots/client_0/round_3/label_flipping_metadata.json` in text editor
->
 > Human-readable attack details showing client ID, round number, attack type, and full configuration parameters.
 
 ### Example: Snapshot Directory Structure
 
 ![Directory Structure](assets/snapshot_directory_structure.png)
-> **Screenshot Location**: File explorer view of `out/*/attack_snapshots/` folder showing hierarchical structure
->
 > Shows the hierarchical organization: `client_X/round_Y/` with three file types per attack: `.pickle` (full data), `_visual.png` (image preview), and `_metadata.json` (attack config).
 
 **Recommended config for screenshots**: Use `examples/attack_visualization_config.json` - it's optimized for visual demonstration with:
