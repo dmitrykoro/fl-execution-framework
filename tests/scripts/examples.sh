@@ -55,14 +55,14 @@ if [ "$selection" -eq 0 ]; then
     log_and_tee ""
 
     for i in "${!CONFIGS[@]}"; do
-        config="${CONFIGS[$i]}"
+        config_filename="${CONFIGS[$i]}"
         current=$((i + 1))
 
-        log_and_tee "[$current/$TOTAL] Running $config..."
-        if run_python src/simulation_runner.py "examples/$config" --log-level ERROR 2>&1 | tee -a "$LOG_FILE"; then
+        log_and_tee "[$current/$TOTAL] Running $config_filename..."
+        if run_python src/simulation_runner.py "examples/$config_filename" --log-level ERROR 2>&1 | tee -a "$LOG_FILE"; then
             log_info "Completed $current/$TOTAL"
         else
-            log_error "Failed on $config"
+            log_error "Failed on $config_filename"
             exit 1
         fi
         log_and_tee ""
@@ -71,14 +71,14 @@ if [ "$selection" -eq 0 ]; then
     log_and_tee "=================================================="
     log_info "All configs completed!"
 else
-    config="${CONFIGS[$((selection - 1))]}"
-    log_info "Running $config..."
+    config_filename="${CONFIGS[$((selection - 1))]}"
+    log_info "Running $config_filename..."
     log_and_tee ""
 
-    if run_python src/simulation_runner.py "examples/$config" --log-level ERROR 2>&1 | tee -a "$LOG_FILE"; then
+    if run_python src/simulation_runner.py "examples/$config_filename" --log-level ERROR 2>&1 | tee -a "$LOG_FILE"; then
         log_info "Completed successfully"
     else
-        log_error "Failed on $config"
+        log_error "Failed on $config_filename"
         exit 1
     fi
 
