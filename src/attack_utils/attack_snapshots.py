@@ -66,7 +66,7 @@ def save_attack_snapshot(
         original_labels_sample: Original labels before poisoning
         output_dir: Base output directory (e.g., "out/api_run_...")
         max_samples: Maximum number of samples to save (default: 5)
-        save_format: Format to save ('pickle' or 'json' for metadata only)
+        save_format: Format to save ('pickle', 'json', or 'both')
         experiment_info: Optional experiment metadata (run_id, total_clients, total_rounds)
     """
     attack_type = _extract_attack_type(attack_config)
@@ -93,11 +93,31 @@ def save_attack_snapshot(
     if experiment_info:
         metadata["experiment_info"] = experiment_info
 
-    filename = f"{attack_type}.{save_format}"
-    filepath = snapshot_dir / filename
-
     try:
-        if save_format == "pickle":
+        if save_format == "both":
+            # Save both pickle and JSON formats
+            pickle_path = snapshot_dir / f"{attack_type}.pickle"
+            json_path = snapshot_dir / f"{attack_type}_metadata.json"
+
+            snapshot = {
+                "metadata": metadata,
+                "data": data_sample.cpu().numpy(),
+                "labels": labels_sample.cpu().numpy(),
+                "original_labels": original_labels_sample.cpu().numpy(),
+            }
+            with open(pickle_path, "wb") as f:
+                pickle.dump(snapshot, f, protocol=pickle.HIGHEST_PROTOCOL)
+
+            with open(json_path, "w") as f:
+                json.dump(metadata, f, indent=2)
+
+            logging.debug(
+                f"Saved {attack_type} attack snapshot: client {client_id}, round {round_num} "
+                f"({len(data_sample)} samples) -> {pickle_path} and {json_path}"
+            )
+
+        elif save_format == "pickle":
+            filepath = snapshot_dir / f"{attack_type}.pickle"
             snapshot = {
                 "metadata": metadata,
                 "data": data_sample.cpu().numpy(),
@@ -107,14 +127,19 @@ def save_attack_snapshot(
             with open(filepath, "wb") as f:
                 pickle.dump(snapshot, f, protocol=pickle.HIGHEST_PROTOCOL)
 
+            logging.debug(
+                f"Saved {attack_type} attack snapshot: client {client_id}, round {round_num} "
+                f"({len(data_sample)} samples) -> {filepath}"
+            )
+
         elif save_format == "json":
+            filepath = snapshot_dir / f"{attack_type}_metadata.json"
             with open(filepath, "w") as f:
                 json.dump(metadata, f, indent=2)
 
-        logging.debug(
-            f"Saved {attack_type} attack snapshot: client {client_id}, round {round_num} "
-            f"({len(data_sample)} samples) -> {filepath}"
-        )
+            logging.debug(
+                f"Saved {attack_type} attack snapshot metadata: client {client_id}, round {round_num} -> {filepath}"
+            )
 
     except Exception as e:
         logging.warning(f"Failed to save attack snapshot for client {client_id}: {e}")
@@ -160,14 +185,21 @@ def list_attack_snapshots(output_dir: str) -> list:
         output_dir: Base output directory
 
     Returns:
-        List of snapshot file paths (hierarchical: client_*/round_*/*.pickle)
+        List of snapshot file paths (pickle files preferred, JSON metadata as fallback)
     """
     snapshots_dir = Path(output_dir) / "attack_snapshots"
     if not snapshots_dir.exists():
         return []
 
-    snapshots = list(snapshots_dir.glob("client_*/round_*/*.pickle"))
-    return sorted(snapshots)
+    # First, try to find pickle files
+    pickle_snapshots = list(snapshots_dir.glob("client_*/round_*/*.pickle"))
+
+    if pickle_snapshots:
+        return sorted(pickle_snapshots)
+
+    # Fallback: find JSON metadata files if no pickle files exist
+    json_snapshots = list(snapshots_dir.glob("client_*/round_*/*_metadata.json"))
+    return sorted(json_snapshots)
 
 
 def get_snapshot_summary(output_dir: str) -> dict:
