@@ -3,7 +3,7 @@ import numpy as np
 import flwr as fl
 import torch
 import logging
-from typing import Dict, List, Optional, Tuple, Union
+from typing import Optional, Union
 from sklearn.cluster import KMeans
 from sklearn.preprocessing import MinMaxScaler
 from flwr.common import FitRes, Parameters, Scalar
@@ -24,7 +24,7 @@ class RFABasedRemovalStrategy(FedAvg):
         self.rounds_history = {}
         self.client_scores = {}
 
-    def aggregate_fit(self, server_round: int, results: List[Tuple[ClientProxy, FitRes]], failures: List[Union[Tuple[ClientProxy, FitRes], BaseException]]) -> Tuple[Optional[Parameters], Dict[str, Scalar]]:
+    def aggregate_fit(self, server_round: int, results: list[tuple[ClientProxy, FitRes]], failures: list[Union[tuple[ClientProxy, FitRes], BaseException]]) -> tuple[Optional[Parameters], dict[str, Scalar]]:
         if not results:
             return super().aggregate_fit(server_round, results, failures)
 
@@ -131,7 +131,7 @@ class RFABasedRemovalStrategy(FedAvg):
             median = new_median
         return median
 
-    def configure_fit(self, server_round: int, parameters: Parameters, client_manager) -> List[Tuple[ClientProxy, fl.common.FitIns]]:
+    def configure_fit(self, server_round: int, parameters: Parameters, client_manager) -> list[tuple[ClientProxy, fl.common.FitIns]]:
         # Fetch available clients as a dictionary.
         available_clients = client_manager.all()  # dictionary with client IDs as keys and RayActorClientProxy objects as values
 
@@ -163,9 +163,9 @@ class RFABasedRemovalStrategy(FedAvg):
     def aggregate_evaluate(
             self,
             server_round: int,
-            results: List[Tuple[ClientProxy, EvaluateRes]],
-            failures: List[Tuple[Union[ClientProxy, EvaluateRes], BaseException]]
-    ) -> Tuple[Optional[float], Dict[str, Scalar]]:
+            results: list[tuple[ClientProxy, EvaluateRes]],
+            failures: list[tuple[Union[ClientProxy, EvaluateRes], BaseException]]
+    ) -> tuple[Optional[float], dict[str, Scalar]]:
         logging.info('\n' + '-' * 50 + f'AGGREGATION ROUND {server_round}' + '-' * 50)
 
         previous_round = str(self.current_round - 1)

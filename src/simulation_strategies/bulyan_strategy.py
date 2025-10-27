@@ -4,7 +4,7 @@ import flwr as fl
 import torch
 import logging
 import os
-from typing import Dict, List, Optional, Tuple, Union
+from typing import Optional, Union
 
 from sklearn.cluster import KMeans
 from sklearn.preprocessing import MinMaxScaler
@@ -53,7 +53,7 @@ class BulyanStrategy(fl.server.strategy.FedAvg):
         self.begin_removing_from_round = begin_removing_from_round
 
         # --- Internal state -------------------------------------------
-        self.client_scores: Dict[str, float] = {}
+        self.client_scores: dict[str, float] = {}
         self.removed_client_ids: set[str] = set()
         self.current_round: int = 0
         self.strategy_history = strategy_history
@@ -86,9 +86,9 @@ class BulyanStrategy(fl.server.strategy.FedAvg):
     def aggregate_fit(
         self,
         server_round: int,
-        results: List[Tuple[ClientProxy, FitRes]],
-        failures: List[Union[Tuple[ClientProxy, FitRes], BaseException]],
-    ) -> Tuple[Optional[Parameters], Dict[str, Scalar]]:
+        results: list[tuple[ClientProxy, FitRes]],
+        failures: list[Union[tuple[ClientProxy, FitRes], BaseException]],
+    ) -> tuple[Optional[Parameters], dict[str, Scalar]]:
         self.current_round += 1
 
         # Update client.is_malicious based on attack_schedule for dynamic attacks
@@ -182,7 +182,7 @@ class BulyanStrategy(fl.server.strategy.FedAvg):
         server_round: int,
         parameters: Parameters,
         client_manager,
-    ) -> List[Tuple[ClientProxy, fl.common.FitIns]]:
+    ) -> list[tuple[ClientProxy, fl.common.FitIns]]:
         available_clients = client_manager.all()
 
         # Warm‑up: keep everyone
@@ -233,9 +233,9 @@ class BulyanStrategy(fl.server.strategy.FedAvg):
     def aggregate_evaluate(
         self,
         server_round: int,
-        results: List[Tuple[ClientProxy, EvaluateRes]],
-        failures: List[Tuple[Union[ClientProxy, EvaluateRes], BaseException]],
-    ) -> Tuple[Optional[float], Dict[str, Scalar]]:
+        results: list[tuple[ClientProxy, EvaluateRes]],
+        failures: list[tuple[Union[ClientProxy, EvaluateRes], BaseException]],
+    ) -> tuple[Optional[float], dict[str, Scalar]]:
         self.logger.info("\n" + "-" * 50 + f"AGGREGATION ROUND {server_round}" + "-" * 50)
 
         for cp, ev in results:

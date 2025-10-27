@@ -3,7 +3,7 @@ import numpy as np
 import flwr as fl
 import logging
 
-from typing import Dict, List, Optional, Tuple, Union, Set
+from typing import Optional, Union
 
 from flwr.common import FitRes, Parameters, Scalar
 from flwr.server.strategy.aggregate import weighted_loss_avg
@@ -38,9 +38,9 @@ class TrimmedMeanBasedRemovalStrategy(FedAvg):
     def aggregate_fit(
             self,
             server_round: int,
-            results: List[Tuple],
-            failures: List[BaseException]
-    ) -> Tuple[Optional[Union[ndarrays_to_parameters, bytes]], Dict[str, Scalar]]:
+            results: list[tuple],
+            failures: list[BaseException]
+    ) -> tuple[Optional[Union[ndarrays_to_parameters, bytes]], dict[str, Scalar]]:
 
         self.current_round += 1
 
@@ -74,7 +74,7 @@ class TrimmedMeanBasedRemovalStrategy(FedAvg):
         weights_by_layer = list(zip(*[w for w, _, _ in weights_results]))
         aggregated = []
 
-        trimmed_clients: Set[str] = set()
+        trimmed_clients: set[str] = set()
 
         for layer_weights in weights_by_layer:
             stacked = np.stack(layer_weights)  # Shape: (n_clients, layer_shape...)
@@ -113,7 +113,7 @@ class TrimmedMeanBasedRemovalStrategy(FedAvg):
             self,
             server_round: int,
             parameters: Parameters, client_manager
-    ) -> List[Tuple[ClientProxy, fl.common.FitIns]]:
+    ) -> list[tuple[ClientProxy, fl.common.FitIns]]:
 
         currently_removed_client_ids = set()
 
@@ -141,9 +141,9 @@ class TrimmedMeanBasedRemovalStrategy(FedAvg):
     def aggregate_evaluate(
             self,
             server_round: int,
-            results: List[Tuple[ClientProxy, EvaluateRes]],
-            failures: List[Tuple[Union[ClientProxy, EvaluateRes], BaseException]]
-    ) -> Tuple[Optional[float], Dict[str, Scalar]]:
+            results: list[tuple[ClientProxy, EvaluateRes]],
+            failures: list[tuple[Union[ClientProxy, EvaluateRes], BaseException]]
+    ) -> tuple[Optional[float], dict[str, Scalar]]:
 
         logging.info('\n' + '-' * 50 + f'AGGREGATION ROUND {server_round}' + '-' * 50)
 
@@ -196,7 +196,7 @@ class TrimmedMeanBasedRemovalStrategy(FedAvg):
 
         return loss_aggregated, metrics_aggregated
 
-    def _average_weights(self, weights: List[List[np.ndarray]]) -> List[np.ndarray]:
+    def _average_weights(self, weights: list[list[np.ndarray]]) -> list[np.ndarray]:
         """Compute average weights."""
         num_weights = len(weights)
         avg_weights = []
