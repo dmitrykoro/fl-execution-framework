@@ -202,7 +202,7 @@ class TestSaveAttackSnapshot:
             / "attack_snapshots"
             / "client_1"
             / "round_5"
-            / "gaussian_noise.json"
+            / "gaussian_noise_metadata.json"
         )
         _verify_json_metadata(
             snapshot_path,
@@ -505,7 +505,7 @@ class TestLoadAttackSnapshot:
             / "attack_snapshots"
             / "client_1"
             / "round_2"
-            / "gaussian_noise.json"
+            / "gaussian_noise_metadata.json"
         )
         snapshot = load_attack_snapshot(str(snapshot_path))
 
