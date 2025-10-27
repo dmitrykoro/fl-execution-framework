@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import List, Union, Optional
+from typing import Union, Optional
 
 
 @dataclass
@@ -8,13 +8,13 @@ class ClientInfo:
     client_id: int
     num_of_rounds: int
     is_malicious: bool = None
-    rounds: List[int] = None
+    rounds: list[int] = None
 
-    removal_criterion_history: List[Union[float, None]] = None
-    absolute_distance_history: List[Union[float, None]] = None
-    loss_history: List[Union[float, None]] = None
-    accuracy_history: List[Union[float, None]] = None
-    aggregation_participation_history: List[Union[int, None]] = None
+    removal_criterion_history: list[Union[float, None]] = None
+    absolute_distance_history: list[Union[float, None]] = None
+    loss_history: list[Union[float, None]] = None
+    accuracy_history: list[Union[float, None]] = None
+    aggregation_participation_history: list[Union[int, None]] = None
 
     plottable_metrics = [
         "removal_criterion_history",
@@ -77,7 +77,7 @@ class ClientInfo:
         if aggregation_participation is not None:
             self.aggregation_participation_history[current_round - 1] = aggregation_participation
 
-    def get_metric_by_name(self, metric: str) -> List:
+    def get_metric_by_name(self, metric: str) -> list:
         """Get single plottable or savable metric values by name"""
 
         return getattr(self, metric)
