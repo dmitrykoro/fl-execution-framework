@@ -20,6 +20,7 @@
       "Kp": 1,
       "Ki": 0.6,
       "Kd": 0.4,
+      "num_std_dev": 1.5,
       "num_krum_selections": 16,
       "weighted_median_factor": 1,
       "trim_ratio": 0.1,
