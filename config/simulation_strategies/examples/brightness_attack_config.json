@@ -1,6 +1,7 @@
 {
   "shared_settings": {
-    "aggregation_strategy_keyword": "fedavg",
+    "aggregation_strategy_keyword": "multi-krum",
+    "num_krum_selections": 4,
     "remove_clients": "false",
     "dataset_keyword": "femnist_iid",
     "model_type": "cnn",
