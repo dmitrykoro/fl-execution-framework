@@ -74,7 +74,9 @@ class MedQuADDatasetLoader:
                 return result
 
             client_dataset = client_dataset.map(tokenize_function, batched=True)
-            client_dataset = client_dataset.remove_columns(self.remove_columns)
+            columns_to_remove = [col for col in self.remove_columns if col in client_dataset["train"].column_names]
+            if columns_to_remove:
+                client_dataset = client_dataset.remove_columns(columns_to_remove)
             client_dataset = client_dataset.map(chunk_function, batched=True)
             dataset = client_dataset["train"].train_test_split(test_size=(1 - self.training_subset_fraction))
 
