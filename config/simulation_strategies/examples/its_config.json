@@ -1,21 +1,21 @@
 {
     "shared_settings": {
       "aggregation_strategy_keyword": "bulyan",
-      "remove_clients": "true",
+      "remove_clients": true,
       "dataset_keyword": "its",
-      "use_llm": "false",
-      "model_type": "cnn",
       "num_of_rounds": 50,
       "num_of_clients": 8,
       "begin_removing_from_round": 5,
       "num_of_malicious_clients": 2,
-      "show_plots": "false",
-      "save_plots": "true",
-      "save_csv": "true",
-      "training_device": "auto",
+      "attack_type": "label_flipping",
+      "show_plots": false,
+      "save_plots": true,
+      "save_csv": true,
+      "training_device": "cpu",
       "cpus_per_client": 1,
       "gpus_per_client": 0.0,
       "trust_threshold": 0.15,
+      "reputation_threshold": 0.15,
       "beta_value": 0.75,
       "num_of_clusters": 1,
       "pid_threshold": 1,
@@ -32,23 +32,10 @@
       "evaluate_metrics_aggregation_fn": "weighted_average",
       "num_of_client_epochs": 4,
       "batch_size": 10,
-      "preserve_dataset": "false",
-      "save_attack_snapshots": "true",
-      "snapshot_format": "both",
-      "snapshot_max_samples": 5
+      "preserve_dataset": true
     },
     "simulation_strategies": [
       {
-        "attack_schedule": [
-          {
-            "start_round": 1,
-            "end_round": 50,
-            "attack_type": "label_flipping",
-            "flip_fraction": 1.0,
-            "selection_strategy": "percentage",
-            "malicious_percentage": 0.25
-          }
-        ]
       }
     ]
   }

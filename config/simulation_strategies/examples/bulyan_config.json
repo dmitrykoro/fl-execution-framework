@@ -3,18 +3,18 @@
       "aggregation_strategy_keyword": "bulyan",
       "remove_clients": "true",
       "dataset_keyword": "femnist_iid",
-      "use_llm": "false",
-      "model_type": "cnn",
       "num_of_rounds": 50,
       "num_of_clients": 20,
       "num_of_malicious_clients": 2,
+      "attack_type": "label_flipping",
       "show_plots": "false",
       "save_plots": "true",
       "save_csv": "true",
-      "training_device": "auto",
+      "training_device": "cpu",
       "cpus_per_client": 1,
       "gpus_per_client": 0.0,
       "trust_threshold": 0.15,
+      "reputation_threshold": 0.15,
       "beta_value": 0.75,
       "num_of_clusters": 1,
       "Kp": 1,
@@ -28,24 +28,10 @@
       "evaluate_metrics_aggregation_fn": "weighted_average",
       "num_of_client_epochs": 3,
       "batch_size": 10,
-      "preserve_dataset": "false",
-      "save_attack_snapshots": "true",
-      "snapshot_format": "both",
-      "snapshot_max_samples": 5,
+      "preserve_dataset": "true",
       "begin_removing_from_round": 2
     },
     "simulation_strategies": [
-      {
-        "attack_schedule": [
-          {
-            "start_round": 1,
-            "end_round": 50,
-            "attack_type": "label_flipping",
-            "flip_fraction": 1.0,
-            "selection_strategy": "percentage",
-            "malicious_percentage": 0.1
-          }
-        ]
-      }
+      {}
     ]
   }
