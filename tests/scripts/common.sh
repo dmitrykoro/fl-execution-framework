@@ -8,15 +8,27 @@ set -eu
 # ============================================================================
 
 log_info() {
-    echo "✅ $1"
+    if [ -n "${LOG_FILE:-}" ]; then
+        echo "✅ $1" | tee -a "$LOG_FILE"
+    else
+        echo "✅ $1"
+    fi
 }
 
 log_warning() {
-    echo "⚠️  $1"
+    if [ -n "${LOG_FILE:-}" ]; then
+        echo "⚠️  $1" | tee -a "$LOG_FILE"
+    else
+        echo "⚠️  $1"
+    fi
 }
 
 log_error() {
-    echo "❌ $1" >&2
+    if [ -n "${LOG_FILE:-}" ]; then
+        echo "❌ $1" | tee -a "$LOG_FILE" >&2
+    else
+        echo "❌ $1" >&2
+    fi
 }
 
 setup_logging_with_file() {

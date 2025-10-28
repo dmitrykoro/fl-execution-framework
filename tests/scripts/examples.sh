@@ -59,7 +59,9 @@ if [ "$selection" -eq 0 ]; then
         current=$((i + 1))
 
         log_and_tee "[$current/$TOTAL] Running $config_filename..."
-        if run_python src/simulation_runner.py "examples/$config_filename" --log-level ERROR 2>&1 | tee -a "$LOG_FILE"; then
+        run_python src/simulation_runner.py "testing/$config_filename" --log-level DEBUG 2>&1 | tee -a "$LOG_FILE"
+        exit_code="${PIPESTATUS[0]}"
+        if [ "$exit_code" -eq 0 ]; then
             log_info "Completed $current/$TOTAL"
         else
             log_error "Failed on $config_filename"
@@ -75,7 +77,9 @@ else
     log_info "Running $config_filename..."
     log_and_tee ""
 
-    if run_python src/simulation_runner.py "examples/$config_filename" --log-level ERROR 2>&1 | tee -a "$LOG_FILE"; then
+    run_python src/simulation_runner.py "testing/$config_filename" --log-level DEBUG 2>&1 | tee -a "$LOG_FILE"
+    exit_code="${PIPESTATUS[0]}"
+    if [ "$exit_code" -eq 0 ]; then
         log_info "Completed successfully"
     else
         log_error "Failed on $config_filename"
