@@ -106,7 +106,7 @@ def save_attack_snapshot(
     attack_config: Union[dict, List[dict]],
     data_sample: torch.Tensor,
     labels_sample: torch.Tensor,
-    original_labels_sample: torch.Tensor,
+    original_labels_sample: Optional[torch.Tensor],
     output_dir: str,
     max_samples: int = 5,
     save_format: str = "pickle",
@@ -122,7 +122,7 @@ def save_attack_snapshot(
         attack_config: Attack configuration dict or list of dicts (for multiple attacks)
         data_sample: Poisoned data tensor (first N samples from batch)
         labels_sample: Poisoned labels tensor (first N samples from batch)
-        original_labels_sample: Original labels before poisoning
+        original_labels_sample: Original labels before poisoning (None for transformer/text models)
         output_dir: Base output directory (e.g., "out/api_run_...")
         max_samples: Maximum number of samples to save (default: 5)
         save_format: Format to save ('pickle', 'json', or 'both')
@@ -134,7 +134,8 @@ def save_attack_snapshot(
 
     data_sample = data_sample[:max_samples]
     labels_sample = labels_sample[:max_samples]
-    original_labels_sample = original_labels_sample[:max_samples]
+    if original_labels_sample is not None:
+        original_labels_sample = original_labels_sample[:max_samples]
 
     metadata = _create_snapshot_metadata(
         client_id=client_id,
@@ -157,7 +158,7 @@ def save_attack_snapshot(
                 "metadata": metadata,
                 "data": data_sample.cpu().numpy(),
                 "labels": labels_sample.cpu().numpy(),
-                "original_labels": original_labels_sample.cpu().numpy(),
+                "original_labels": original_labels_sample.cpu().numpy() if original_labels_sample is not None else None,
             }
             with open(pickle_path, "wb") as f:
                 pickle.dump(snapshot, f, protocol=pickle.HIGHEST_PROTOCOL)
@@ -176,7 +177,7 @@ def save_attack_snapshot(
                 "metadata": metadata,
                 "data": data_sample.cpu().numpy(),
                 "labels": labels_sample.cpu().numpy(),
-                "original_labels": original_labels_sample.cpu().numpy(),
+                "original_labels": original_labels_sample.cpu().numpy() if original_labels_sample is not None else None,
             }
             with open(filepath, "wb") as f:
                 pickle.dump(snapshot, f, protocol=pickle.HIGHEST_PROTOCOL)

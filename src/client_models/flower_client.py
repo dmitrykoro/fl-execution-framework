@@ -47,6 +47,48 @@ class FlowerClient(fl.client.NumPyClient):
         self.experiment_info = experiment_info
         self.strategy_number = strategy_number
 
+    def _save_attack_snapshots(self, current_round, attack_configs, data_sample, labels_sample, original_data_sample=None):
+        """Helper method to save attack snapshots for both CNN and transformer models.
+
+        Args:
+            current_round: Current training round
+            attack_configs: List of attack configurations applied
+            data_sample: Poisoned data (images for CNN, input_ids for transformer)
+            labels_sample: Poisoned labels
+            original_data_sample: Original unpoisoned data (optional, for CNN visual snapshots)
+        """
+        if not (self.save_attack_snapshots and self.output_dir):
+            return
+
+        # Save text snapshot
+        save_attack_snapshot(
+            client_id=self.client_id,
+            round_num=current_round,
+            attack_config=attack_configs,
+            data_sample=data_sample,
+            labels_sample=labels_sample,
+            original_labels_sample=None,  # Not needed for text snapshots
+            output_dir=self.output_dir,
+            max_samples=self.snapshot_max_samples,
+            save_format=self.snapshot_format,
+            experiment_info=self.experiment_info,
+            strategy_number=self.strategy_number,
+        )
+
+        # Save visual snapshot only for CNN (images)
+        if self.model_type == "cnn" and original_data_sample is not None:
+            save_visual_snapshot(
+                client_id=self.client_id,
+                round_num=current_round,
+                attack_config=attack_configs,
+                data_sample=data_sample.cpu().numpy(),
+                labels_sample=labels_sample.cpu().numpy(),
+                original_labels_sample=original_data_sample.cpu().numpy(),
+                output_dir=self.output_dir,
+                experiment_info=self.experiment_info,
+                strategy_number=self.strategy_number,
+            )
+
     def set_parameters(self, net, parameters: list[np.ndarray]):
         if self.use_lora:
             params_dict = zip(get_peft_model_state_dict(net).keys(), parameters)
@@ -88,32 +130,14 @@ class FlowerClient(fl.client.NumPyClient):
                         for attack_config in attack_configs:
                             images, labels = apply_poisoning_attack(images, labels, attack_config)
 
-                        # Save ONE snapshot AFTER all attacks applied
-                        if (self.save_attack_snapshots and self.output_dir and
-                            epoch == 0 and batch_idx == 0):
-                            save_attack_snapshot(
-                                client_id=self.client_id,
-                                round_num=current_round,
-                                attack_config=attack_configs,
+                        # Save snapshot after all attacks applied
+                        if epoch == 0 and batch_idx == 0:
+                            self._save_attack_snapshots(
+                                current_round=current_round,
+                                attack_configs=attack_configs,
                                 data_sample=images,
                                 labels_sample=labels,
-                                original_labels_sample=original_labels,
-                                output_dir=self.output_dir,
-                                max_samples=self.snapshot_max_samples,
-                                save_format=self.snapshot_format,
-                                experiment_info=self.experiment_info,
-                                strategy_number=self.strategy_number,
-                            )
-                            save_visual_snapshot(
-                                client_id=self.client_id,
-                                round_num=current_round,
-                                attack_config=attack_configs,
-                                data_sample=images.cpu().numpy(),
-                                labels_sample=labels.cpu().numpy(),
-                                original_labels_sample=original_labels.cpu().numpy(),
-                                output_dir=self.output_dir,
-                                experiment_info=self.experiment_info,
-                                strategy_number=self.strategy_number,
+                                original_data_sample=original_labels,
                             )
 
                     images, labels = images.to(self.training_device), labels.to(self.training_device)
@@ -155,6 +179,16 @@ class FlowerClient(fl.client.NumPyClient):
                                 batch["input_ids"], _ = apply_poisoning_attack(
                                     batch["input_ids"], batch["labels"], attack_config
                                 )
+
+                        # Save snapshot after all attacks applied
+                        if epoch == 0 and batch_idx == 0:
+                            self._save_attack_snapshots(
+                                current_round=current_round,
+                                attack_configs=attack_configs,
+                                data_sample=batch["input_ids"],
+                                labels_sample=batch["labels"],
+                                original_data_sample=None,  # No visual snapshots for transformers
+                            )
 
                     batch = {k: v.to(self.training_device) for k, v in batch.items()}
                     labels = batch["labels"]
