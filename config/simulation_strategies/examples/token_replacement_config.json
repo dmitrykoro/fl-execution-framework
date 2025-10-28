@@ -22,7 +22,7 @@
     "training_subset_fraction": 0.8,
     "training_device": "auto",
     "cpus_per_client": 2,
-    "gpus_per_client": 0.0,
+    "gpus_per_client": 0.16,
     "min_fit_clients": 6,
     "min_evaluate_clients": 6,
     "min_available_clients": 6,

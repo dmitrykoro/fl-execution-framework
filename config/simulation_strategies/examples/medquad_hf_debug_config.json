@@ -1,0 +1,50 @@
+{
+  "shared_settings": {
+    "aggregation_strategy_keyword": "multi-krum",
+    "num_krum_selections": 2,
+    "remove_clients": "false",
+    "dataset_keyword": "medquad",
+    "model_type": "transformer",
+    "use_llm": "true",
+    "llm_model": "microsoft/BiomedNLP-BiomedBERT-base-uncased-abstract-fulltext",
+    "llm_task": "mlm",
+    "llm_chunk_size": 256,
+    "llm_finetuning": "full",
+    "mlm_probability": 0.15,
+    "num_of_rounds": 3,
+    "num_of_clients": 3,
+    "num_of_malicious_clients": 1,
+    "show_plots": "false",
+    "save_plots": "true",
+    "save_csv": "true",
+    "preserve_dataset": "false",
+    "training_subset_fraction": 0.3,
+    "training_device": "auto",
+    "cpus_per_client": 2,
+    "gpus_per_client": 0.33,
+    "min_fit_clients": 3,
+    "min_evaluate_clients": 3,
+    "min_available_clients": 3,
+    "evaluate_metrics_aggregation_fn": "weighted_average",
+    "num_of_client_epochs": 1,
+    "batch_size": 8,
+    "save_attack_snapshots": "true",
+    "snapshot_format": "both",
+    "snapshot_max_samples": 5
+  },
+  "simulation_strategies": [
+    {
+      "attack_schedule": [
+        {
+          "start_round": 1,
+          "end_round": 3,
+          "attack_type": "token_replacement",
+          "replacement_prob": 0.3,
+          "vocab_size": 30522,
+          "selection_strategy": "specific",
+          "malicious_client_ids": [0]
+        }
+      ]
+    }
+  ]
+}
