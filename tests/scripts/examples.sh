@@ -18,7 +18,7 @@ find_python_interpreter
 
 # Auto-discover all example configs
 CONFIGS=()
-EXAMPLES_DIR="config/simulation_strategies/examples"
+EXAMPLES_DIR="config/simulation_strategies/testing"
 while IFS= read -r -d '' config_path; do
     config_name=$(basename "$config_path")
     CONFIGS+=("$config_name")
