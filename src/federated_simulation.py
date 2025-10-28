@@ -46,6 +46,7 @@ from src.simulation_strategies.trimmed_mean_based_removal_strategy import Trimme
 from src.simulation_strategies.mutli_krum_strategy import MultiKrumStrategy
 from src.simulation_strategies.rfa_based_removal_strategy import RFABasedRemovalStrategy
 from src.simulation_strategies.bulyan_strategy import BulyanStrategy
+from src.simulation_strategies.fedavg_strategy import FedAvgStrategy
 
 from src.data_models.simulation_strategy_config import StrategyConfig
 from src.data_models.simulation_strategy_history import SimulationStrategyHistory
@@ -372,6 +373,17 @@ class FederatedSimulation:
             self._aggregation_strategy = BulyanStrategy(
                 num_krum_selections=self.strategy_config.num_krum_selections,
                 **common_kwargs
+            )
+
+        elif aggregation_strategy_keyword == "fedavg":
+            self._aggregation_strategy = FedAvgStrategy(
+                strategy_history=self.strategy_history,
+                initial_parameters=ndarrays_to_parameters(self._get_model_params(self._network_model)),
+                min_fit_clients=self.strategy_config.min_fit_clients,
+                min_evaluate_clients=self.strategy_config.min_evaluate_clients,
+                min_available_clients=self.strategy_config.min_available_clients,
+                evaluate_metrics_aggregation_fn=self.strategy_config.evaluate_metrics_aggregation_fn,
+                fit_metrics_aggregation_fn=weighted_average,
             )
 
         else:

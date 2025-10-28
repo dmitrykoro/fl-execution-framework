@@ -9,7 +9,7 @@ config_schema = {
             "type": "string",
             "enum": ["trust", "pid", "pid_scaled", "pid_standardized", "pid_standardized_score_based",
                     "multi-krum", "krum", "multi-krum-based", "trimmed_mean",
-                    "rfa", "bulyan"]
+                    "rfa", "bulyan", "fedavg"]
         },
         "strict_mode": {
             "type": "string",
