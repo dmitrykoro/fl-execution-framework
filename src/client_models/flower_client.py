@@ -140,10 +140,11 @@ class FlowerClient(fl.client.NumPyClient):
             net.train()
 
             for epoch in range(epochs):
+                logging.debug(f"[Client {self.client_id}] Starting epoch {epoch + 1}/{epochs}")
                 total_loss = 0
                 correct, total = 0, 0
 
-                for batch in trainloader:
+                for batch_idx, batch in enumerate(trainloader):
                     should_poison, attack_configs = should_poison_this_round(
                         current_round, self.client_id, self.attacks_schedule
                     )
@@ -179,8 +180,13 @@ class FlowerClient(fl.client.NumPyClient):
                         correct += (preds[mask] == labels[mask]).sum().item()
                         total += mask.sum().item()
 
+                    # Log progress every 10 batches
+                    if (batch_idx + 1) % 10 == 0:
+                        logging.debug(f"[Client {self.client_id}] Batch {batch_idx + 1}/{len(trainloader)} - Loss: {loss.item():.4f}")
+
                 epoch_loss = total_loss / len(trainloader)
                 epoch_acc = correct / total if total > 0 else 0
+                logging.debug(f"[Client {self.client_id}] Epoch {epoch + 1} complete - Loss: {epoch_loss:.4f}, Accuracy: {epoch_acc:.4f}")
 
                 if verbose:
                     print(f"Epoch {epoch + 1}: train loss {epoch_loss}, accuracy {epoch_acc}")
@@ -239,6 +245,7 @@ class FlowerClient(fl.client.NumPyClient):
             raise ValueError(f"Unsupported model type: {self.model_type}. Supported types are 'cnn' and 'mlm'.")
 
     def fit(self, parameters, config):
+        logging.debug(f"[Client {self.client_id}] Starting fit() - Setting parameters and beginning training")
         self.set_parameters(self.net, parameters)
 
         # Capture global LoRA parameters for FedProx
@@ -246,7 +253,9 @@ class FlowerClient(fl.client.NumPyClient):
         if self.model_type == "transformer" and self.use_lora and self.client_id >= self.num_malicious_clients:
             global_params = [torch.tensor(p, device=self.training_device) for p in self.get_parameters(config=None)]
 
+        logging.debug(f"[Client {self.client_id}] Training for {self.num_of_client_epochs} epoch(s) with {len(self.trainloader)} batches")
         epoch_loss, epoch_acc = self.train(self.net, self.trainloader, epochs=self.num_of_client_epochs, global_params=global_params, config=config)
+        logging.debug(f"[Client {self.client_id}] Training complete - Loss: {epoch_loss:.4f}, Accuracy: {epoch_acc:.4f}")
 
         return self.get_parameters(self.net), len(self.trainloader), {"loss": epoch_loss, "accuracy": epoch_acc}
 
