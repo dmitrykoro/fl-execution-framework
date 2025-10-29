@@ -13,6 +13,10 @@ class DatasetHandler:
 
     def setup_dataset(self) -> None:
         """Copy the specified number of clients' subsets to runtime folder"""
+        # Skip copying for HuggingFace datasets (loaded on-the-fly)
+        if self.src_dataset == "huggingface":
+            logging.info(f"Skipping dataset copy for HuggingFace dataset: {self._strategy_config.dataset_keyword}")
+            return
         self._copy_dataset(self._strategy_config.num_of_clients)
 
     def teardown_dataset(self) -> None:

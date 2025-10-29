@@ -29,6 +29,8 @@ config_schema = {
                 "flair",
                 "bloodmnist",
                 "medquad",
+                "financial_phrasebank",
+                "lexglue",
                 "lung_photos",
                 "breastmnist",
                 "pathmnist",
