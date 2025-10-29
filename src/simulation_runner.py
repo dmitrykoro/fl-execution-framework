@@ -2,7 +2,10 @@ import argparse
 import json
 import logging
 import os
+import time
 import torch
+import gc
+import ray
 
 # Suppress joblib CPU count warnings
 os.environ["LOKY_MAX_CPU_COUNT"] = str(os.cpu_count() or 1)
@@ -82,6 +85,10 @@ class SimulationRunner:
     def run(self):
         """Run simulations according to the specified usecase config"""
 
+        # Extend Ray worker timeout to ensure reliability in multi-strategy runs
+        os.environ["RAY_worker_register_timeout_seconds"] = "60"
+        logging.debug("Set RAY_worker_register_timeout_seconds=60 for multi-strategy reliability")
+
         executed_simulation_strategies = []
 
         for strategy_config_dict, strategy_number in zip(
@@ -123,6 +130,31 @@ class SimulationRunner:
             self._directory_handler.save_csv_and_config(simulation_strategy.strategy_history)
 
             dataset_handler.teardown_dataset()
+
+            # Ensure Ray is initialized before shutting it down to prevent errors in multi-strategy runs
+            if ray.is_initialized():
+                logging.info("Shutting down Ray before cleanup...")
+                ray.shutdown()
+                # Allow time for Ray processes to cleanup
+                time.sleep(3.0)
+                logging.debug("Ray shutdown complete after 3s cleanup delay")
+
+            logging.info(f"Cleaning up resources after strategy {strategy_number}")
+
+            # Clear GPU memory if available
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
+                logging.debug("GPU cache cleared")
+
+            # Keep only the strategy_history for plotting
+            simulation_strategy._network_model = None
+            simulation_strategy._trainloaders = None
+            simulation_strategy._valloaders = None
+            simulation_strategy._dataset_loader = None
+
+            # Force garbage collection to free memory
+            gc.collect()
+            logging.debug("Garbage collection completed")
 
         # after all strategies are executed, show comparison averaging plots
         new_plot_handler.show_inter_strategy_plots(executed_simulation_strategies, self._directory_handler)
