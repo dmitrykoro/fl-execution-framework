@@ -74,6 +74,34 @@ def mock_client_parameters():
     return [rng.standard_normal(100) for _ in range(5)]
 
 
+# Dataset Loader Testing Fixtures
+@pytest.fixture
+def medquad_column_names():
+    """Standard column names for MedQuAD dataset mocks."""
+    return ["input_ids", "attention_mask", "answer", "token_type_ids", "question"]
+
+
+@pytest.fixture
+def mock_dataset_dict_chain(medquad_column_names):
+    """Create configured DatasetDict mock with method chaining support."""
+    from unittest.mock import Mock
+
+    mock_dataset_dict = Mock()
+    mock_train_dataset = Mock()
+    mock_train_dataset.column_names = medquad_column_names
+
+    # Configure method chaining
+    mock_dataset_dict.map.return_value = mock_dataset_dict
+    mock_dataset_dict.remove_columns.return_value = mock_dataset_dict
+    mock_dataset_dict.__getitem__ = Mock(return_value=mock_train_dataset)
+    mock_train_dataset.train_test_split.return_value = {
+        "train": Mock(),
+        "test": Mock(),
+    }
+
+    return mock_dataset_dict, mock_train_dataset
+
+
 # Attack Snapshot Testing Fixtures
 @pytest.fixture
 def sample_attack_data():

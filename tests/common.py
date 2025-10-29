@@ -175,6 +175,67 @@ def init_test_environment(
 
 
 # =============================================================================
+# DATASET LOADER TESTING UTILITIES
+# =============================================================================
+
+
+@contextlib.contextmanager
+def mock_medquad_dependencies(
+    mock_dataset_dict, glob_return=None, tokenizer_return=None
+) -> Generator[Dict[str, Any], None, None]:
+    """
+    Context manager for patching MedQuAD dataset loader dependencies.
+
+    Args:
+        mock_dataset_dict: Pre-configured mock DatasetDict
+        glob_return: Return value for glob.glob (default: ["data.json"])
+        tokenizer_return: Mock tokenizer instance (default: Mock())
+
+    Yields:
+        Dictionary with mock objects: {
+            'load_dataset': mock_load_dataset,
+            'tokenizer': mock_tokenizer,
+            'glob': mock_glob,
+            'dataloader': mock_dataloader,
+            'collator': mock_collator
+        }
+    """
+    from unittest.mock import Mock, patch
+
+    if glob_return is None:
+        glob_return = ["data.json"]
+    if tokenizer_return is None:
+        tokenizer_return = Mock()
+
+    with (
+        patch("src.dataset_loaders.medquad_dataset_loader.glob.glob") as mock_glob,
+        patch(
+            "src.dataset_loaders.medquad_dataset_loader.AutoTokenizer.from_pretrained"
+        ) as mock_tokenizer,
+        patch(
+            "src.dataset_loaders.medquad_dataset_loader.load_dataset"
+        ) as mock_load_dataset,
+        patch(
+            "src.dataset_loaders.medquad_dataset_loader.DataLoader"
+        ) as mock_dataloader,
+        patch(
+            "src.dataset_loaders.medquad_dataset_loader.DataCollatorForLanguageModeling"
+        ) as mock_collator,
+    ):
+        mock_glob.return_value = glob_return
+        mock_tokenizer.return_value = tokenizer_return
+        mock_load_dataset.return_value = mock_dataset_dict
+
+        yield {
+            "load_dataset": mock_load_dataset,
+            "tokenizer": mock_tokenizer,
+            "glob": mock_glob,
+            "dataloader": mock_dataloader,
+            "collator": mock_collator,
+        }
+
+
+# =============================================================================
 # FL TESTING UTILITIES
 # =============================================================================
 
@@ -530,6 +591,8 @@ __all__ = [
     "init_demo_output",
     "setup_test_logging",
     "init_test_environment",
+    # Dataset loader testing utilities
+    "mock_medquad_dependencies",
     # FL testing utilities
     "generate_mock_client_data",
     "FLTestHelpers",
