@@ -8,8 +8,8 @@ config_schema = {
         "aggregation_strategy_keyword": {
             "type": "string",
             "enum": ["trust", "pid", "pid_scaled", "pid_standardized", "pid_standardized_score_based",
-                    "multi-krum", "krum", "multi-krum-based", "trimmed_mean",
-                    "rfa", "bulyan", "fedavg"]
+                     "multi-krum", "krum", "multi-krum-based", "trimmed_mean",
+                     "rfa", "bulyan", "fedavg"]
         },
         "strict_mode": {
             "type": "string",
@@ -198,7 +198,10 @@ config_schema = {
                 "properties": {
                     "start_round": {"type": "integer", "minimum": 1},
                     "end_round": {"type": "integer", "minimum": 1},
-                    "attack_type": {"type": "string", "enum": ["label_flipping", "gaussian_noise", "brightness", "token_replacement"]},
+                    "attack_type": {
+                        "type": "string",
+                        "enum": ["label_flipping", "gaussian_noise", "brightness", "token_replacement"]
+                    },
                     "selection_strategy": {"type": "string", "enum": ["specific", "random", "percentage"]},
                     "malicious_client_ids": {"type": "array", "items": {"type": "integer"}},
                     "malicious_client_count": {"type": "integer", "minimum": 1},
@@ -273,6 +276,7 @@ def _validate_dependent_params(strategy_config: dict) -> None:
                 f"Missing parameter trim_ratio for trimmed mean aggregation {aggregation_strategy_keyword}"
             )
 
+
 def _populate_client_selection(config: dict) -> None:
     """
     Populate _selected_clients for random and percentage selection strategies.
@@ -302,7 +306,7 @@ def _populate_client_selection(config: dict) -> None:
             else:
                 # Auto-generate seed from attack parameters for reproducibility
                 seed_string = f"{entry.get('attack_type')}_{entry.get('start_round')}_{entry.get('end_round')}_{idx}"
-                seed = hash(seed_string) % (2**32)
+                seed = hash(seed_string) % (2 ** 32)
 
             random.seed(seed)
 
@@ -407,9 +411,11 @@ def _validate_attack_schedule(config: dict) -> None:
 
     # Check for overlapping rounds (attack stacking)
     for i, entry1 in enumerate(schedule):
-        for j, entry2 in enumerate(schedule[i+1:], start=i+1):
-            if not (entry1["end_round"] < entry2["start_round"] or
-                    entry2["end_round"] < entry1["start_round"]):
+        for j, entry2 in enumerate(schedule[i + 1:], start=i + 1):
+            if not (
+                    entry1["end_round"] < entry2["start_round"] or
+                    entry2["end_round"] < entry1["start_round"]
+            ):
                 # Check if same attack type
                 if entry1.get("attack_type") == entry2.get("attack_type"):
                     raise ValidationError(
@@ -501,9 +507,11 @@ def _apply_strict_mode(config: dict) -> None:
     num_available_clients = config["min_available_clients"]
 
     # Always check: min_* cannot be greater than num_of_clients
-    if (num_fit_clients > num_of_clients or
-        num_evaluate_clients > num_of_clients or
-        num_available_clients > num_of_clients):
+    if (
+            num_fit_clients > num_of_clients or
+            num_evaluate_clients > num_of_clients or
+            num_available_clients > num_of_clients
+    ):
         raise ValidationError(
             f"EXPERIMENT STOPPED: Client configuration error.\n"
             f"Cannot require more clients than available:\n"
@@ -516,10 +524,11 @@ def _apply_strict_mode(config: dict) -> None:
 
     # If strict_mode is enabled, force all min_* = num_of_clients
     if strict_mode:
-        if (num_fit_clients != num_of_clients or
-            num_evaluate_clients != num_of_clients or
-            num_available_clients != num_of_clients):
-
+        if (
+                num_fit_clients != num_of_clients or
+                num_evaluate_clients != num_of_clients or
+                num_available_clients != num_of_clients
+        ):
             # Force all to equal total clients
             config["min_fit_clients"] = num_of_clients
             config["min_evaluate_clients"] = num_of_clients
