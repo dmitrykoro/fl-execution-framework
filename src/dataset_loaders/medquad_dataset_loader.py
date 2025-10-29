@@ -1,5 +1,6 @@
 import os
 import glob
+import torch
 from datasets import load_dataset
 from transformers import AutoTokenizer
 from torch.utils.data import DataLoader
@@ -30,16 +31,18 @@ class MedQuADDatasetLoader:
         self.attack_schedule = attack_schedule
         self.tokenize_columns = tokenize_columns
         self.remove_columns = remove_columns
-    
+        self.tokenizer = None
+
     def load_datasets(self):
         """
         Loads and tokenizes dataset for masked language modeling (MLM).
         """
-        
+
         trainloaders = []
         valloaders = []
 
-        tokenizer = AutoTokenizer.from_pretrained(self.model_name)
+        self.tokenizer = AutoTokenizer.from_pretrained(self.model_name)
+        tokenizer = self.tokenizer
 
         # Skip filesystem poisoning if attack_schedule is configured
         # (dynamic poisoning will be applied in-memory during training)
@@ -95,10 +98,20 @@ class MedQuADDatasetLoader:
             )
 
             trainloader = DataLoader(
-                dataset["train"], batch_size=self.batch_size, shuffle=True, collate_fn=collate_fn
+                dataset["train"],
+                batch_size=self.batch_size,
+                shuffle=True,
+                collate_fn=collate_fn,
+                num_workers=0,  # Avoid CUDA fork issues
+                pin_memory=torch.cuda.is_available()  # Fast GPU transfer
             )
             valloader = DataLoader(
-                dataset["test"], batch_size=self.batch_size, shuffle=False, collate_fn=collate_fn
+                dataset["test"],
+                batch_size=self.batch_size,
+                shuffle=False,
+                collate_fn=collate_fn,
+                num_workers=0,
+                pin_memory=torch.cuda.is_available()
             )
 
 

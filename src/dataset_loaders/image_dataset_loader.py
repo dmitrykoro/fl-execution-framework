@@ -40,7 +40,19 @@ class ImageDatasetLoader:
                 torch.Generator().manual_seed(42)
             )
 
-            trainloaders.append(DataLoader(train_dataset, batch_size=self.batch_size, shuffle=True))
-            valloaders.append(DataLoader(validation_dataset, batch_size=self.batch_size))
+            trainloaders.append(DataLoader(
+                train_dataset,
+                batch_size=self.batch_size,
+                shuffle=True,
+                num_workers=0,  # Avoid CUDA fork
+                pin_memory=torch.cuda.is_available()  # Fast GPU transfer
+            ))
+            valloaders.append(DataLoader(
+                validation_dataset,
+                batch_size=self.batch_size,
+                shuffle=False,
+                num_workers=0,
+                pin_memory=torch.cuda.is_available()
+            ))
 
         return trainloaders, valloaders
