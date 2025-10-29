@@ -170,14 +170,19 @@ class SimulationStrategyHistory:
                 # sum of accuracies of aggregated clients
                 if client_was_aggregated:
                     num_aggregated_clients += 1
-                    sum_aggregated_accuracies += client_info.accuracy_history[round_num]
-                    round_client_accuracies.append(client_info.accuracy_history[round_num])
+                    accuracy = client_info.accuracy_history[round_num]
+                    if accuracy is not None:
+                        sum_aggregated_accuracies += accuracy
+                        round_client_accuracies.append(accuracy)
 
             self.rounds_history.append_tp_tn_fp_fn(round_tp_count, round_tn_count, round_fp_count, round_fn_count)
             self.rounds_history.average_accuracy_history.append(
                 float(f"{(sum_aggregated_accuracies / num_aggregated_clients * 100):.2f}") if num_aggregated_clients > 0 else 0.000
             )
-            self.rounds_history.average_accuracy_std_history.append(float( f"{np.std(round_client_accuracies) * 100:.2f}"))
+            # Only calculate std if we have at least 2 clients
+            self.rounds_history.average_accuracy_std_history.append(
+                float(f"{np.std(round_client_accuracies) * 100:.2f}") if len(round_client_accuracies) > 1 else 0.00
+            )
 
         if self.strategy_config.remove_clients:
             self.rounds_history.calculate_additional_metrics()
