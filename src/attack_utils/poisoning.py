@@ -5,10 +5,10 @@ This module provides modular attack functions that can be applied dynamically
 during client training loops. Supports both image and text-based attacks.
 """
 
-from typing import Optional, Tuple
 import logging
-
 import torch
+from typing import Optional, Tuple
+from src.attack_utils.token_vocabularies import get_replacement_strategy, get_vocabulary
 
 
 def apply_label_flipping(
@@ -61,7 +61,7 @@ def apply_gaussian_noise(
         images: Tensor of shape (batch_size, C, H, W), normalized to [0, 1]
         mean: Mean of Gaussian distribution (if target_noise_snr not provided)
         std: Standard deviation (if target_noise_snr not provided)
-        target_noise_snr: Target signal-to-noise ratio in dB (if provided, overrides mean/std)
+        target_noise_snr: Target signal-to-noise ratio in dB (overrides mean/std)
         attack_ratio: Fraction of samples in batch to poison (0.0-1.0)
 
     Returns:
@@ -84,11 +84,13 @@ def apply_gaussian_noise(
         # SNR-based approach
         # SNR(dB) = 10 * log10(signal_power / noise_power)
         # → noise_power = signal_power / (10^(SNR/10))
-        signal_power = torch.mean(poisoned_images[indices]**2, dim=(1, 2, 3), keepdim=True)
+        signal_power = torch.mean(
+            poisoned_images[indices] ** 2, dim=(1, 2, 3), keepdim=True
+        )
         noise_power = signal_power / (10 ** (target_noise_snr / 10))
         noise = torch.randn_like(poisoned_images[indices]) * torch.sqrt(noise_power)
     else:
-        # Direct mean/std noise
+        # Fallback: Direct mean/std noise
         noise = torch.randn_like(poisoned_images[indices]) * std + mean
 
     poisoned_images[indices] = torch.clamp(poisoned_images[indices] + noise, 0, 1)
@@ -110,25 +112,48 @@ def apply_brightness_attack(images: torch.Tensor, factor: float = 0.5) -> torch.
 
 
 def apply_token_replacement(
-    tokens: torch.Tensor, replacement_prob: float = 0.2, vocab_size: int = 30522
+    tokens: torch.Tensor,
+    replacement_prob: float = 0.2,
+    target_token_ids: Optional[list] = None,
+    replacement_token_ids: Optional[list] = None,
 ) -> torch.Tensor:
     """
-    Replace tokens with random tokens from vocabulary.
+    Replace specific target tokens with replacement tokens.
+
+    Uses vocabulary-based targeted replacement (e.g., "treatment" → "avoid", "doctor" → "harmful").
 
     Args:
         tokens: Tensor of token IDs (batch_size, seq_len)
-        replacement_prob: Probability of replacing each token
-        vocab_size: Size of vocabulary (default: BERT vocab size)
+        replacement_prob: Probability of replacing each target token
+        target_token_ids: List of token IDs to target for replacement
+        replacement_token_ids: List of token IDs to use as replacements
 
     Returns:
-        torch.Tensor: Tokens with random replacements
+        torch.Tensor: Tokens with targeted replacements applied
     """
     if replacement_prob <= 0:
         return tokens
 
-    mask = torch.rand_like(tokens, dtype=torch.float32) < replacement_prob
-    random_tokens = torch.randint(0, vocab_size, tokens.shape)
-    return torch.where(mask, random_tokens, tokens)
+    if not target_token_ids or not replacement_token_ids:
+        return tokens
+
+    modified_tokens = tokens.clone()
+
+    for batch_idx in range(tokens.shape[0]):
+        for seq_idx in range(tokens.shape[1]):
+            token_id = tokens[batch_idx, seq_idx].item()
+
+            # Check if this token is in our target list
+            if token_id in target_token_ids:
+                # Replace with probability
+                if torch.rand(1).item() < replacement_prob:
+                    # Choose random replacement from replacement list
+                    replacement_id = replacement_token_ids[
+                        torch.randint(0, len(replacement_token_ids), (1,)).item()
+                    ]
+                    modified_tokens[batch_idx, seq_idx] = replacement_id
+
+    return modified_tokens
 
 
 def should_poison_this_round(
@@ -195,7 +220,7 @@ def should_poison_this_round(
 
 
 def apply_poisoning_attack(
-    data: torch.Tensor, labels: torch.Tensor, attack_config: dict
+    data: torch.Tensor, labels: torch.Tensor, attack_config: dict, tokenizer=None
 ) -> Tuple[torch.Tensor, torch.Tensor]:
     """
     Apply poisoning attack based on attack_schedule configuration.
@@ -204,6 +229,7 @@ def apply_poisoning_attack(
         data: Input data (images or tokens)
         labels: Labels
         attack_config: Attack entry from attack_schedule
+        tokenizer: Optional tokenizer for converting target/replacement token strings to IDs
 
     Returns:
         Tuple[torch.Tensor, torch.Tensor]: (poisoned_data, poisoned_labels)
@@ -239,9 +265,7 @@ def apply_poisoning_attack(
 
         if target_noise_snr is not None:
             data = apply_gaussian_noise(
-                data,
-                target_noise_snr=target_noise_snr,
-                attack_ratio=attack_ratio
+                data, target_noise_snr=target_noise_snr, attack_ratio=attack_ratio
             )
         else:
             # Fallback to std/mean
@@ -249,17 +273,65 @@ def apply_poisoning_attack(
                 data,
                 mean=attack_config.get("mean", 0.0),
                 std=attack_config.get("std", 0.1),
-                attack_ratio=attack_ratio
+                attack_ratio=attack_ratio,
             )
 
     elif attack_type == "brightness":
         data = apply_brightness_attack(data, factor=attack_config.get("factor", 0.5))
 
     elif attack_type == "token_replacement":
+        # Convert target/replacement tokens to IDs if provided
+        target_token_ids = attack_config.get("target_token_ids")
+        replacement_token_ids = attack_config.get("replacement_token_ids")
+
+        if tokenizer and not target_token_ids:
+            # Vocabulary-based token replacement
+            if "target_vocabulary" not in attack_config:
+                raise ValueError(
+                    "Token replacement attack requires 'target_vocabulary' in attack_config. "
+                    "Use predefined vocabularies from token_vocabularies.py (e.g., 'comprehensive_medical', "
+                    "'medical_treatment', 'vaccines_immunization'). "
+                    "See src/attack_utils/token_vocabularies.py for available vocabularies."
+                )
+
+            vocab_name = attack_config.get("target_vocabulary")
+            strategy_name = attack_config.get("replacement_strategy", "negative")
+
+            target_tokens = get_vocabulary(vocab_name)
+            replacement_tokens = get_replacement_strategy(strategy_name)
+
+            logging.info(
+                f"Using vocabulary '{vocab_name}' with '{strategy_name}' replacement strategy"
+            )
+            logging.info(
+                f"Loaded {len(target_tokens)} target tokens, {len(replacement_tokens)} replacement tokens"
+            )
+
+            # Encode tokens to IDs
+            if target_tokens and replacement_tokens:
+                # Handle multi-token words by taking first token ID
+                target_token_ids = [
+                    tokenizer.encode(token, add_special_tokens=False)[0]
+                    for token in target_tokens
+                    if tokenizer.encode(token, add_special_tokens=False)
+                ]
+                replacement_token_ids = [
+                    tokenizer.encode(token, add_special_tokens=False)[0]
+                    for token in replacement_tokens
+                    if tokenizer.encode(token, add_special_tokens=False)
+                ]
+
+                logging.info(
+                    f"Targeted replacement: {len(target_token_ids)} target IDs, {len(replacement_token_ids)} replacement IDs"
+                )
+
         data = apply_token_replacement(
             data,
-            replacement_prob=attack_config.get("replacement_prob", 0.2),
-            vocab_size=attack_config.get("vocab_size", 30522),
+            replacement_prob=attack_config.get(
+                "replacement_prob", attack_config.get("replacement_probability", 0.2)
+            ),
+            target_token_ids=target_token_ids,
+            replacement_token_ids=replacement_token_ids,
         )
 
     return data, labels
