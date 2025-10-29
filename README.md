@@ -95,8 +95,8 @@ Configs are JSON files with two main sections:
 
 | Parameter | Type | Values | Default | Description |
 |-----------|------|--------|---------|-------------|
-| `aggregation_strategy_keyword` | string | `"trust"`, `"pid"`, `"pid_scaled"`, `"pid_standardized"`, `"pid_standardized_score_based"`, `"multi-krum"`, `"krum"`, `"multi-krum-based"`, `"trimmed_mean"`, `"rfa"`, `"bulyan"` | Required | Byzantine-tolerant aggregation strategy |
-| `dataset_keyword` | string | `"femnist_iid"`, `"femnist_niid"`, `"its"`, `"pneumoniamnist"`, `"bloodmnist"`, `"breastmnist"`, `"pathmnist"`, `"dermamnist"`, `"octmnist"`, `"retinamnist"`, `"tissuemnist"`, `"organamnist"`, `"organcmnist"`, `"organsmnist"`, `"lung_photos"`, `"medquad"` | Required | Dataset for training |
+| `aggregation_strategy_keyword` | string | `"trust"`, `"pid"`, `"pid_scaled"`, `"pid_standardized"`, `"pid_standardized_score_based"`, `"multi-krum"`, `"krum"`, `"multi-krum-based"`, `"trimmed_mean"`, `"rfa"`, `"bulyan"`, `"fedavg"` | Required | Byzantine-tolerant aggregation strategy |
+| `dataset_keyword` | string | `"femnist_iid"`, `"femnist_niid"`, `"its"`, `"pneumoniamnist"`, `"flair"`, `"bloodmnist"`, `"medquad"`, `"financial_phrasebank"`, `"lexglue"`, `"lung_photos"`, `"breastmnist"`, `"pathmnist"`, `"dermamnist"`, `"octmnist"`, `"retinamnist"`, `"tissuemnist"`, `"organamnist"`, `"organcmnist"`, `"organsmnist"` | Required | Dataset for training |
 | `num_of_rounds` | integer | > 0 | Required | Total federated learning rounds |
 | `num_of_clients` | integer | > 0 | Required | Number of participating clients |
 | `num_of_malicious_clients` | integer | ≥ 0 | Required | Static malicious clients (deprecated - use `attack_schedule`) |
@@ -141,8 +141,26 @@ Configs are JSON files with two main sections:
 | `gaussian_noise` | `target_noise_snr` | number (dB) | Yes | Signal-to-noise ratio in decibels |
 | `gaussian_noise` | `attack_ratio` | number (0.0-1.0) | Yes | Fraction of samples to poison |
 | `brightness` | `factor` | number | Yes | Brightness multiplier (0.0=black, 1.0=unchanged, >1.0=brighter) |
-| `token_replacement` | `replacement_prob` | number (0.0-1.0) | Yes | Probability of replacing each token |
-| `token_replacement` | `vocab_size` | integer | No | Vocabulary size (default: 30522) |
+| `token_replacement` | `target_vocabulary` | string | Yes | Predefined vocabulary to target (see table below) |
+| `token_replacement` | `replacement_strategy` | string | Yes | Replacement strategy to use (see table below) |
+| `token_replacement` | `replacement_probability` | number (0.0-1.0) | Yes | Probability of replacing each target token |
+
+**Token Replacement Vocabularies:**
+
+| Vocabulary Name | Description | Example Tokens |
+|----------------|-------------|----------------|
+| `medical` | Medical/healthcare domain terms | treatment, diagnosis, doctor, hospital, patient, vaccine, surgery, symptom, disease, medication |
+| `financial` | Financial/market domain terms | stock, profit, investment, revenue, market, trading, portfolio, asset, bond, equity |
+| `legal` | Legal/court domain terms | plaintiff, defendant, court, judge, attorney, lawsuit, trial, verdict, evidence, statute |
+
+**Replacement Strategies:**
+
+| Strategy Name | Description | Example Replacements |
+|--------------|-------------|---------------------|
+| `negative` | Negative/harmful words for misinformation attacks | avoid, refuse, harmful, dangerous, unsafe, ineffective, pointless, misleading |
+| `positive` | Positive/beneficial words for testing defenses | beneficial, effective, helpful, safe, proven, recommended, essential |
+
+> **Note**: All vocabularies and strategies are defined in `src/attack_utils/token_vocabularies.py`. The vocabulary-based system follows 2025 NLP poisoning research best practices for targeted, semantically-aware attacks.
 
 **Example:**
 
@@ -212,7 +230,7 @@ Configs are JSON files with two main sections:
 | Parameter | Type | Values | Default | Description |
 |-----------|------|--------|---------|-------------|
 | `use_llm` | string | `"true"`, `"false"` | `"false"` | Enable LLM training |
-| `llm_model` | string | `"microsoft/BiomedNLP-BiomedBERT-base-uncased-abstract-fulltext"` | Required if `use_llm=true` | Pretrained model |
+| `llm_model` | string | `"microsoft/BiomedNLP-BiomedBERT-base-uncased-abstract-fulltext"`, `"distilbert-base-uncased"` | Required if `use_llm=true` | Pretrained model |
 | `llm_task` | string | `"mlm"` | `"mlm"` | Task type (masked language modeling) |
 | `llm_chunk_size` | integer | > 0 | Required | Token sequence length |
 | `mlm_probability` | number (0-1) | 0.15 | Masking probability for MLM | |
