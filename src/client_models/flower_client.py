@@ -29,6 +29,7 @@ class FlowerClient(fl.client.NumPyClient):
             output_dir=None,
             experiment_info=None,
             strategy_number=0,
+            tokenizer=None,
     ):
         self.client_id = client_id
         self.net = net
@@ -46,8 +47,9 @@ class FlowerClient(fl.client.NumPyClient):
         self.output_dir = output_dir
         self.experiment_info = experiment_info
         self.strategy_number = strategy_number
+        self.tokenizer = tokenizer
 
-    def _save_attack_snapshots(self, current_round, attack_configs, data_sample, labels_sample, original_data_sample=None):
+    def _save_attack_snapshots(self, current_round, attack_configs, data_sample, labels_sample, original_data_sample=None, original_labels_sample=None):
         """Helper method to save attack snapshots for both CNN and transformer models.
 
         Args:
@@ -55,19 +57,20 @@ class FlowerClient(fl.client.NumPyClient):
             attack_configs: List of attack configurations applied
             data_sample: Poisoned data (images for CNN, input_ids for transformer)
             labels_sample: Poisoned labels
-            original_data_sample: Original unpoisoned data (optional, for CNN visual snapshots)
+            original_data_sample: Original unpoisoned data (images for CNN, input_ids for transformer)
+            original_labels_sample: Original unpoisoned labels (for label flipping)
         """
         if not (self.save_attack_snapshots and self.output_dir):
             return
 
-        # Save text snapshot
+        # Save pickle/JSON snapshot
         save_attack_snapshot(
             client_id=self.client_id,
             round_num=current_round,
             attack_config=attack_configs,
             data_sample=data_sample,
             labels_sample=labels_sample,
-            original_labels_sample=None,  # Not needed for text snapshots
+            original_labels_sample=original_labels_sample,
             output_dir=self.output_dir,
             max_samples=self.snapshot_max_samples,
             save_format=self.snapshot_format,
@@ -75,19 +78,34 @@ class FlowerClient(fl.client.NumPyClient):
             strategy_number=self.strategy_number,
         )
 
-        # Save visual snapshot only for CNN (images)
-        if self.model_type == "cnn" and original_data_sample is not None:
-            save_visual_snapshot(
-                client_id=self.client_id,
-                round_num=current_round,
-                attack_config=attack_configs,
-                data_sample=data_sample.cpu().numpy(),
-                labels_sample=labels_sample.cpu().numpy(),
-                original_labels_sample=original_data_sample.cpu().numpy(),
-                output_dir=self.output_dir,
-                experiment_info=self.experiment_info,
-                strategy_number=self.strategy_number,
-            )
+        # Save visual snapshot (PNG for CNN, TXT for transformer)
+        if self.snapshot_format in ["visual", "both"]:
+            if self.model_type == "cnn" and original_data_sample is not None:
+                save_visual_snapshot(
+                    client_id=self.client_id,
+                    round_num=current_round,
+                    attack_config=attack_configs,
+                    data_sample=data_sample.cpu().numpy(),
+                    labels_sample=labels_sample.cpu().numpy(),
+                    original_labels_sample=original_labels_sample.cpu().numpy() if original_labels_sample is not None else labels_sample.cpu().numpy(),
+                    output_dir=self.output_dir,
+                    experiment_info=self.experiment_info,
+                    strategy_number=self.strategy_number,
+                )
+            elif self.model_type == "transformer" and original_data_sample is not None and self.tokenizer is not None:
+                save_visual_snapshot(
+                    client_id=self.client_id,
+                    round_num=current_round,
+                    attack_config=attack_configs,
+                    data_sample=data_sample.cpu().numpy(),
+                    labels_sample=labels_sample.cpu().numpy(),
+                    original_labels_sample=original_labels_sample.cpu().numpy() if original_labels_sample is not None else labels_sample.cpu().numpy(),
+                    output_dir=self.output_dir,
+                    experiment_info=self.experiment_info,
+                    strategy_number=self.strategy_number,
+                    tokenizer=self.tokenizer,
+                    original_data_sample=original_data_sample.cpu().numpy(),
+                )
 
     def set_parameters(self, net, parameters: list[np.ndarray]):
         if self.use_lora:
@@ -124,11 +142,12 @@ class FlowerClient(fl.client.NumPyClient):
                     )
 
                     if should_poison and attack_configs:
+                        original_images = images.clone()
                         original_labels = labels.clone()
 
                         # Apply all attacks sequentially
                         for attack_config in attack_configs:
-                            images, labels = apply_poisoning_attack(images, labels, attack_config)
+                            images, labels = apply_poisoning_attack(images, labels, attack_config, tokenizer=self.tokenizer)
 
                         # Save snapshot after all attacks applied
                         if epoch == 0 and batch_idx == 0:
@@ -137,7 +156,8 @@ class FlowerClient(fl.client.NumPyClient):
                                 attack_configs=attack_configs,
                                 data_sample=images,
                                 labels_sample=labels,
-                                original_data_sample=original_labels,
+                                original_data_sample=original_images,
+                                original_labels_sample=original_labels,
                             )
 
                     images, labels = images.to(self.training_device), labels.to(self.training_device)
@@ -151,6 +171,9 @@ class FlowerClient(fl.client.NumPyClient):
                     epoch_loss += loss
                     total += labels.size(0)
                     correct += (torch.max(outputs.data, 1)[1] == labels).sum().item()
+
+                    # Free intermediate tensors
+                    del outputs, loss
 
                 epoch_loss /= len(trainloader.dataset) if len(trainloader.dataset) > 0 else 1
                 epoch_acc = correct / total if total > 0 else 0.0
@@ -173,11 +196,15 @@ class FlowerClient(fl.client.NumPyClient):
                         current_round, self.client_id, self.attacks_schedule
                     )
                     if should_poison and attack_configs:
+                        # Capture original data before poisoning
+                        original_input_ids = batch["input_ids"].clone()
+                        original_labels = batch["labels"].clone()
+
                         # Stack multiple attacks sequentially
                         for attack_config in attack_configs:
                             if attack_config.get("attack_type") == "token_replacement":
-                                batch["input_ids"], _ = apply_poisoning_attack(
-                                    batch["input_ids"], batch["labels"], attack_config
+                                batch["input_ids"], batch["labels"] = apply_poisoning_attack(
+                                    batch["input_ids"], batch["labels"], attack_config, tokenizer=self.tokenizer
                                 )
 
                         # Save snapshot after all attacks applied
@@ -187,7 +214,8 @@ class FlowerClient(fl.client.NumPyClient):
                                 attack_configs=attack_configs,
                                 data_sample=batch["input_ids"],
                                 labels_sample=batch["labels"],
-                                original_data_sample=None,  # No visual snapshots for transformers
+                                original_data_sample=original_input_ids,
+                                original_labels_sample=original_labels,
                             )
 
                     batch = {k: v.to(self.training_device) for k, v in batch.items()}
@@ -217,6 +245,9 @@ class FlowerClient(fl.client.NumPyClient):
                     # Log progress every 10 batches
                     if (batch_idx + 1) % 10 == 0:
                         logging.debug(f"[Client {self.client_id}] Batch {batch_idx + 1}/{len(trainloader)} - Loss: {loss.item():.4f}")
+
+                    # Free intermediate tensors
+                    del outputs, loss, batch
 
                 epoch_loss = total_loss / len(trainloader)
                 epoch_acc = correct / total if total > 0 else 0
@@ -291,9 +322,18 @@ class FlowerClient(fl.client.NumPyClient):
         epoch_loss, epoch_acc = self.train(self.net, self.trainloader, epochs=self.num_of_client_epochs, global_params=global_params, config=config)
         logging.debug(f"[Client {self.client_id}] Training complete - Loss: {epoch_loss:.4f}, Accuracy: {epoch_acc:.4f}")
 
+        # GPU memory cleanup to prevent accumulation
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
+
         return self.get_parameters(self.net), len(self.trainloader), {"loss": epoch_loss, "accuracy": epoch_acc}
 
     def evaluate(self, parameters, config):
         self.set_parameters(self.net, parameters)
         loss, accuracy = self.test(self.net, self.valloader)
+
+        # GPU memory cleanup to prevent accumulation
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
+
         return float(loss), len(self.valloader), {"accuracy": float(accuracy)}
