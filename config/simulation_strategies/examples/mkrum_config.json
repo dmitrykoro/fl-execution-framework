@@ -50,7 +50,7 @@
         "min_evaluate_clients": 7,
         "min_available_clients": 7,
         "num_krum_selections": 5
-        
+
       },
       {
         "num_of_clients": 8,

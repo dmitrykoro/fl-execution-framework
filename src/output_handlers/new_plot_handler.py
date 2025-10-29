@@ -224,7 +224,7 @@ def show_plots_within_strategy(
             f"{simulation_strategy.strategy_config.aggregation_strategy_keyword}\n{plot_strategy_title}"
         )
 
-        legend_title = 'clients'
+        legend_title = 'clients and attacks'
 
         plt.legend(
             title=legend_title, bbox_to_anchor=(1.05, 1),

@@ -217,9 +217,9 @@ config_schema = {
             "type": "string",
             "enum": ["true", "false"]
         },
-        "snapshot_format": {
+        "attack_snapshot_format": {
             "type": "string",
-            "enum": ["pickle", "visual", "both"]
+            "enum": ["pickle", "visual", "pickle_and_visual"]
         },
         "snapshot_max_samples": {
             "type": "integer",

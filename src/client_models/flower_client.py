@@ -24,7 +24,7 @@ class FlowerClient(fl.client.NumPyClient):
             num_malicious_clients=0,
             attacks_schedule=None,
             save_attack_snapshots=False,
-            snapshot_format="both",
+            attack_snapshot_format="pickle_and_visual",
             snapshot_max_samples=5,
             output_dir=None,
             experiment_info=None,
@@ -42,7 +42,7 @@ class FlowerClient(fl.client.NumPyClient):
         self.num_malicious_clients = num_malicious_clients
         self.attacks_schedule = attacks_schedule
         self.save_attack_snapshots = save_attack_snapshots
-        self.snapshot_format = snapshot_format
+        self.attack_snapshot_format = attack_snapshot_format
         self.snapshot_max_samples = snapshot_max_samples
         self.output_dir = output_dir
         self.experiment_info = experiment_info
@@ -142,7 +142,6 @@ class FlowerClient(fl.client.NumPyClient):
                     )
 
                     if should_poison and attack_configs:
-                        original_images = images.clone()
                         original_labels = labels.clone()
 
                         # Apply all attacks sequentially

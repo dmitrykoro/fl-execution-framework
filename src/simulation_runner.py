@@ -12,14 +12,10 @@ os.environ["LOKY_MAX_CPU_COUNT"] = str(os.cpu_count() or 1)
 os.environ["OMP_NUM_THREADS"] = str(os.cpu_count() or 1)
 
 from src.config_loaders.config_loader import ConfigLoader
-
 from src.output_handlers.directory_handler import DirectoryHandler
 from src.output_handlers import new_plot_handler
-
 from src.federated_simulation import FederatedSimulation
-
 from src.data_models.simulation_strategy_config import StrategyConfig
-
 from src.dataset_handlers.dataset_handler import DatasetHandler
 
 

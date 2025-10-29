@@ -467,7 +467,7 @@ class FederatedSimulation:
         if isinstance(save_attack_snapshots, str):
             save_attack_snapshots = save_attack_snapshots == "true"
 
-        snapshot_format = getattr(self.strategy_config, 'snapshot_format', 'both')
+        attack_snapshot_format = getattr(self.strategy_config, 'attack_snapshot_format', 'pickle_and_visual')
         snapshot_max_samples = getattr(self.strategy_config, 'snapshot_max_samples', 5)
 
         experiment_info = None
@@ -496,7 +496,7 @@ class FederatedSimulation:
             num_malicious_clients=self.strategy_config.num_of_malicious_clients,
             attacks_schedule=attacks_schedule,
             save_attack_snapshots=save_attack_snapshots,
-            snapshot_format=snapshot_format,
+            attack_snapshot_format=attack_snapshot_format,
             snapshot_max_samples=snapshot_max_samples,
             output_dir=output_dir,
             experiment_info=experiment_info,

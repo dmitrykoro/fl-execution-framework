@@ -117,7 +117,7 @@ Inspect poisoned data directly.
 - Multiple attack types (label flipping, noise, brightness)
 - Separated attack windows (no overlaps for clear examples)
 - Dramatic attack parameters (SNR 5.0dB, brightness 0.6, flip 0.8)
-- `snapshot_format: "both"` for all file types
+- `attack_snapshot_format: "pickle_and_visual"` for all file types
 - Small dataset subset for quick testing
 
 ---
@@ -128,7 +128,7 @@ Inspect poisoned data directly.
 |---------|-----------|--------|-------|
 | **Attack scheduling** | `attack_schedule` | List of attack configs | Required |
 | **Save snapshots** | `save_attack_snapshots` | `"true"` / `"false"` | Optional: saves samples per attack |
-| **Snapshot format** | `snapshot_format` | `"pickle"`, `"visual"`, `"both"` | Default: `"pickle"`. Use `"both"` for PNG + pickle + JSON |
+| **Snapshot format** | `attack_snapshot_format` | `"pickle"`, `"visual"`, `"pickle_and_visual"` | Default: `"pickle"`. Use `"pickle_and_visual"` for PNG + pickle + JSON |
 | **Snapshot samples** | `snapshot_max_samples` | 1-50 | Default: 5. Number of samples per snapshot |
 | **Round range** | `start_round`, `end_round` | 1 to `num_of_rounds` | Inclusive range |
 | **Attack types** | `attack_type` | `"label_flipping"`, `"gaussian_noise"`, `"brightness"`, `"token_replacement"` | Per schedule entry |
@@ -590,7 +590,7 @@ The snapshot system saves **first N samples** of poisoned data for inspection. S
 {
   "attack_schedule": [ /* ... */ ],
   "save_attack_snapshots": "true",
-  "snapshot_format": "both",        // "pickle" | "visual" | "both"
+  "attack_snapshot_format": "pickle_and_visual",        // "pickle" | "visual" | "pickle_and_visual"
   "snapshot_max_samples": 5         // Number of samples (1-50)
 }
 ```
@@ -769,7 +769,7 @@ Covers:
     }
   ],
   "save_attack_snapshots": "true",
-  "snapshot_format": "both",
+  "attack_snapshot_format": "pickle_and_visual",
   "snapshot_max_samples": 5
 }
 ```
@@ -937,7 +937,7 @@ When using `attack_schedule`, plots include:
     }
   ],
   "save_attack_snapshots": "true",
-  "snapshot_format": "both",
+  "attack_snapshot_format": "pickle_and_visual",
   "snapshot_max_samples": 5
 }
 ```
@@ -950,7 +950,7 @@ When using `attack_schedule`, plots include:
 - `attack_ratio`: 0.0 < attack_ratio ≤ 1.0
 - `malicious_percentage`: 0.0 < percentage ≤ 1.0
 - `target_noise_snr`: SNR > 0 (in dB)
-- `snapshot_format`: Must be `"pickle"`, `"visual"`, or `"both"`
+- `attack_snapshot_format`: Must be `"pickle"`, `"visual"`, or `"pickle_and_visual"`
 - `snapshot_max_samples`: 1 ≤ samples ≤ 50
 
 ---

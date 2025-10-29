@@ -18,7 +18,7 @@ class StrategyConfig:
     save_plots: bool = None
     save_csv: bool = None
     save_attack_snapshots: bool = None
-    snapshot_format: str = "pickle"
+    attack_snapshot_format: str = "pickle"
     snapshot_max_samples: int = 5
     training_device: str = None
     cpus_per_client: int = None

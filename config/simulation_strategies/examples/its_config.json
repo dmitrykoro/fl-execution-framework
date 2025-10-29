@@ -32,7 +32,10 @@
       "evaluate_metrics_aggregation_fn": "weighted_average",
       "num_of_client_epochs": 4,
       "batch_size": 10,
-      "preserve_dataset": true
+      "preserve_dataset": true,
+      "save_attack_snapshots": "true",
+      "attack_snapshot_format": "pickle_and_visual",
+      "snapshot_max_samples": 5
     },
     "simulation_strategies": [
       {
