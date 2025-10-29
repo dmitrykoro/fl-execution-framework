@@ -136,8 +136,8 @@ Configs are JSON files with two main sections:
 
 | Attack Type | Parameter | Type | Required | Description |
 |-------------|-----------|------|----------|-------------|
-| `label_flipping` | `flip_fraction` | number (0.0-1.0) | Yes | Fraction of labels to flip |
-| `label_flipping` | `target_class` | integer | No | Target class for targeted attacks |
+| `label_flipping` | `flip_fraction` | number (0.0-1.0) | Yes | Fraction of labels to flip (each sample gets independently random new label unless `target_class` specified) |
+| `label_flipping` | `target_class` | integer | No | If specified, all flipped labels assigned to this class (targeted attack); if omitted, each sample gets independent random label (untargeted attack) |
 | `gaussian_noise` | `target_noise_snr` | number (dB) | Yes | Signal-to-noise ratio in decibels |
 | `gaussian_noise` | `attack_ratio` | number (0.0-1.0) | Yes | Fraction of samples to poison |
 | `brightness` | `factor` | number | Yes | Brightness multiplier (0.0=black, 1.0=unchanged, >1.0=brighter) |
