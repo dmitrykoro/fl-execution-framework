@@ -199,12 +199,20 @@
                     <tr>
                         <td>{{ item.client }}</td>
                         <td>{{ item.round }}</td>
-                        <td><span class="attack-type {{ item.attack_type }}">{{ item.attack_type }}</span></td>
+                        <td>
+                            {% for attack_type in item.attack_types %}
+                            <span class="attack-type {{ attack_type }}">{{ attack_type }}</span>
+                            {% endfor %}
+                        </td>
                         <td>{{ item.samples }}</td>
                         <td class="params">{{ item.parameters }}</td>
                         <td class="files">
                             <a href="{{ item.pickle_path }}" title="Download pickle file">📦</a>
+                            {% if item.visual_type == "text" %}
+                            <a href="{{ item.visual_path }}" target="_blank" title="View text samples">📝</a>
+                            {% else %}
                             <a href="{{ item.visual_path }}" target="_blank" title="View visual">🖼️</a>
+                            {% endif %}
                             <a href="{{ item.metadata_path }}" target="_blank" title="View metadata">📄</a>
                         </td>
                     </tr>

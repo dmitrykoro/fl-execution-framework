@@ -14,9 +14,9 @@ from typing import Optional
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 
 from .attack_snapshots import (
+    get_snapshot_summary,
     list_attack_snapshots,
     load_attack_snapshot,
-    get_snapshot_summary,
 )
 
 
@@ -33,13 +33,13 @@ def _get_snapshots_dir_checked(
     return snapshots_dir
 
 
-def _extract_attack_params_for_display(
-    attack_type: str, attack_config: dict
-) -> list:
+def _extract_attack_params_for_display(attack_type: str, attack_config: dict) -> list:
     """Extract attack parameters formatted for HTML display."""
     html_attack_params = []
     if attack_type == "label_flipping":
-        html_attack_params.append(f"flip_fraction={attack_config.get('flip_fraction', '?')}")
+        html_attack_params.append(
+            f"flip_fraction={attack_config.get('flip_fraction', '?')}"
+        )
         target_class = attack_config.get("target_class")
         if target_class is not None:
             html_attack_params.append(f"target_class={target_class}")
@@ -49,7 +49,38 @@ def _extract_attack_params_for_display(
     elif attack_type == "brightness":
         html_attack_params.append(f"delta={attack_config.get('brightness_delta', '?')}")
         html_attack_params.append(f"ratio={attack_config.get('attack_ratio', '?')}")
+    elif attack_type == "token_replacement":
+        vocab = attack_config.get("target_vocabulary")
+        strategy = attack_config.get("replacement_strategy")
+        prob = attack_config.get("replacement_probability")
+        if vocab:
+            html_attack_params.append(f"vocab={vocab}")
+        if strategy:
+            html_attack_params.append(f"strategy={strategy}")
+        if prob is not None:
+            html_attack_params.append(f"prob={prob}")
     return html_attack_params
+
+
+def _split_composite_attack_info(attack_type: str, attack_configs: list) -> list:
+    """
+    Split composite attack type into individual attack entries for display.
+
+    Args:
+        attack_type: Composite attack type like "label_flipping_brightness"
+        attack_configs: List of attack config dicts
+
+    Returns:
+        List of dicts with 'type', 'config', and 'params' for each attack
+    """
+    # Match each type with its config by looking at attack_type field
+    attack_info = []
+    for config in attack_configs:
+        config_type = config.get("attack_type", "unknown")
+        params = _extract_attack_params_for_display(config_type, config)
+        attack_info.append({"type": config_type, "params": params})
+
+    return attack_info
 
 
 def generate_summary_json(
@@ -82,7 +113,9 @@ def generate_summary_json(
     if run_config:
         full_summary["experiment"]["total_clients"] = run_config.get("num_of_clients")
         full_summary["experiment"]["total_rounds"] = run_config.get("num_of_rounds")
-        full_summary["experiment"]["config_file"] = f"strategy_config_{strategy_number}.json"
+        full_summary["experiment"]["config_file"] = (
+            f"strategy_config_{strategy_number}.json"
+        )
 
     # Build attack timeline: {client_id: {round_num: [attack_types]}}
     snapshots = list_attack_snapshots(output_dir, strategy_number)
@@ -137,32 +170,74 @@ def generate_snapshot_index(
         if snapshot:
             metadata = snapshot.get("metadata", snapshot)
             attack_config = metadata.get("attack_config", {})
-
-            # Handle list case (multiple attacks combined)
-            if isinstance(attack_config, list):
-                attack_config = attack_config[0] if attack_config else {}
-
-            # Extract relevant parameters based on attack type
             attack_type = metadata.get("attack_type", "unknown")
-            attack_parameters = _extract_attack_params_for_display(attack_type, attack_config)
-
-            # Get relative paths for links
-            rel_path = snapshot_path.relative_to(snapshots_dir)
             client_id = metadata.get("client_id")
             round_num = metadata.get("round_num")
 
-            snapshot_data.append(
-                {
-                    "client": client_id,
-                    "round": round_num,
-                    "attack_type": attack_type,
-                    "samples": metadata.get("num_samples", 0),
-                    "parameters": ", ".join(attack_parameters) if attack_parameters else "N/A",
-                    "pickle_path": str(rel_path),
-                    "visual_path": f"client_{client_id}/round_{round_num}/{attack_type}_visual.png",
-                    "metadata_path": f"client_{client_id}/round_{round_num}/{attack_type}_metadata.json",
-                }
-            )
+            # Handle stacked attacks (multiple attacks in one round)
+            if isinstance(attack_config, list) and len(attack_config) > 1:
+                # Split composite attack into individual attacks
+                attack_info_list = _split_composite_attack_info(
+                    attack_type, attack_config
+                )
+
+                # Create list of attack types and parameters for display
+                attack_types = [info["type"] for info in attack_info_list]
+                all_params = []
+                for info in attack_info_list:
+                    if info["params"]:
+                        all_params.extend(info["params"])
+
+                snapshot_data.append(
+                    {
+                        "client": client_id,
+                        "round": round_num,
+                        "attack_types": attack_types,  # Multiple attacks
+                        "is_stacked": True,
+                        "samples": metadata.get("num_samples", 0),
+                        "parameters": ", ".join(all_params) if all_params else "N/A",
+                        "pickle_path": str(snapshot_path.relative_to(snapshots_dir)),
+                        "visual_path": f"client_{client_id}/round_{round_num}/{attack_type}_visual.png",
+                        "visual_type": "image",
+                        "metadata_path": f"client_{client_id}/round_{round_num}/{attack_type}_metadata.json",
+                    }
+                )
+            else:
+                # Single attack
+                if isinstance(attack_config, list):
+                    attack_config = attack_config[0] if attack_config else {}
+
+                # Extract relevant parameters based on attack type
+                attack_parameters = _extract_attack_params_for_display(
+                    attack_type, attack_config
+                )
+
+                # Determine file extension based on attack type
+                if attack_type == "token_replacement":
+                    visual_filename = f"{attack_type}_samples.txt"
+                    visual_type = "text"
+                else:
+                    visual_filename = f"{attack_type}_visual.png"
+                    visual_type = "image"
+
+                snapshot_data.append(
+                    {
+                        "client": client_id,
+                        "round": round_num,
+                        "attack_types": [
+                            attack_type
+                        ],  # Single attack in list for consistency
+                        "is_stacked": False,
+                        "samples": metadata.get("num_samples", 0),
+                        "parameters": (
+                            ", ".join(attack_parameters) if attack_parameters else "N/A"
+                        ),
+                        "pickle_path": str(snapshot_path.relative_to(snapshots_dir)),
+                        "visual_path": f"client_{client_id}/round_{round_num}/{visual_filename}",
+                        "visual_type": visual_type,
+                        "metadata_path": f"client_{client_id}/round_{round_num}/{attack_type}_metadata.json",
+                    }
+                )
 
     # Sort by client, then round
     snapshot_data.sort(key=lambda x: (x["client"], x["round"]))
@@ -188,7 +263,7 @@ def _generate_index_html(
     template_dir = Path(__file__).parent / "templates"
     env = Environment(
         loader=FileSystemLoader(template_dir),
-        autoescape=select_autoescape(['html', 'xml'])
+        autoescape=select_autoescape(["html", "xml"]),
     )
     template = env.get_template("snapshot_index.html.jinja")
 
@@ -199,9 +274,13 @@ def _generate_index_html(
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
     # Calculate unique values for stats
-    unique_clients = sorted(set(s['client'] for s in snapshot_data))
-    unique_rounds = sorted(set(s['round'] for s in snapshot_data))
-    unique_attack_types = sorted(set(s['attack_type'] for s in snapshot_data))
+    unique_clients = sorted(set(s["client"] for s in snapshot_data))
+    unique_rounds = sorted(set(s["round"] for s in snapshot_data))
+    # Flatten attack_types lists to get all unique attack types
+    all_attack_types = []
+    for s in snapshot_data:
+        all_attack_types.extend(s["attack_types"])
+    unique_attack_types = sorted(set(all_attack_types))
 
     # Render template
     context = {

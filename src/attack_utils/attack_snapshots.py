@@ -11,11 +11,12 @@ import math
 import pickle
 from datetime import datetime
 from pathlib import Path
-from typing import Optional, Dict, Any, Union, List
+from typing import Any, Dict, List, Optional, Union
+
 import matplotlib
-from matplotlib import pyplot as plt
 import numpy as np
 import torch
+from matplotlib import pyplot as plt
 
 
 def _extract_attack_type(attack_config: Union[dict, List[dict]]) -> str:
@@ -158,7 +159,11 @@ def save_attack_snapshot(
                 "metadata": metadata,
                 "data": data_sample.cpu().numpy(),
                 "labels": labels_sample.cpu().numpy(),
-                "original_labels": original_labels_sample.cpu().numpy() if original_labels_sample is not None else None,
+                "original_labels": (
+                    original_labels_sample.cpu().numpy()
+                    if original_labels_sample is not None
+                    else None
+                ),
             }
             with open(pickle_path, "wb") as f:
                 pickle.dump(snapshot, f, protocol=pickle.HIGHEST_PROTOCOL)
@@ -177,7 +182,11 @@ def save_attack_snapshot(
                 "metadata": metadata,
                 "data": data_sample.cpu().numpy(),
                 "labels": labels_sample.cpu().numpy(),
-                "original_labels": original_labels_sample.cpu().numpy() if original_labels_sample is not None else None,
+                "original_labels": (
+                    original_labels_sample.cpu().numpy()
+                    if original_labels_sample is not None
+                    else None
+                ),
             }
             with open(filepath, "wb") as f:
                 pickle.dump(snapshot, f, protocol=pickle.HIGHEST_PROTOCOL)
@@ -247,7 +256,7 @@ def list_attack_snapshots(output_dir: str, strategy_number: int = 0) -> list:
     if not snapshots_dir.exists():
         return []
 
-    # First, try to find pickle files
+    # First, find pickle files because they contain full data
     pickle_snapshots = list(snapshots_dir.glob("client_*/round_*/*.pickle"))
 
     if pickle_snapshots:
@@ -304,6 +313,8 @@ def save_visual_snapshot(
     output_dir: str,
     experiment_info: Optional[Dict[str, Any]] = None,
     strategy_number: int = 0,
+    tokenizer=None,
+    original_data_sample: Optional[np.ndarray] = None,
 ) -> None:
     """
     Save visual PNG/TXT files alongside pickle for viewing.
@@ -311,19 +322,21 @@ def save_visual_snapshot(
     Args:
         client_id: ID of the attacking client
         round_num: Current training round
-        attack_config: Attack configuration dict or list of dicts (for multiple attacks)
+        attack_config: Attack configuration dict or list of dicts for multiple attacks
         data_sample: Poisoned data as numpy array
         labels_sample: Poisoned labels as numpy array
         original_labels_sample: Original labels before poisoning
         output_dir: Base output directory
-        experiment_info: Optional experiment metadata (run_id, total_clients, total_rounds)
-        strategy_number: Strategy number for multi-strategy runs (default: 0)
+        experiment_info: Optional experiment metadata
+        strategy_number: Strategy number for multi-strategy runs
+        tokenizer: Optional tokenizer for decoding text
+        original_data_sample: Optional original data before poisoning
     """
     attack_type = _extract_attack_type(attack_config)
     snapshot_dir = _get_snapshot_dir(output_dir, client_id, round_num, strategy_number)
 
     try:
-        if len(data_sample.shape) == 4:  # (N, C, H, W)
+        if len(data_sample.shape) == 4:  # (N, C, H, W) Image data
             filename = f"{attack_type}_visual.png"
             _save_image_grid(
                 data_sample,
@@ -332,12 +345,16 @@ def save_visual_snapshot(
                 snapshot_dir / filename,
                 attack_config,
             )
-        else:
+        else:  # Text data
             filename = f"{attack_type}_samples.txt"
             _save_text_samples(
                 labels_sample,
                 original_labels_sample,
                 snapshot_dir / filename,
+                attack_config=attack_config,
+                tokenizer=tokenizer,
+                input_ids_original=original_data_sample,
+                input_ids_poisoned=data_sample,
             )
 
         metadata = _create_snapshot_metadata(
@@ -399,18 +416,44 @@ def _save_image_grid(
         else:  # RGB
             ax.imshow(images[i].transpose(1, 2, 0))
 
-        if attack_type == "label_flipping":
-            title = f"Label: {labels[i]}\n(was {original_labels[i]})"
-        elif attack_type == "gaussian_noise":
-            snr = _extract_attack_param(attack_config, "target_noise_snr")
-            title = f"Noisy (SNR: {snr}dB)\nLabel: {labels[i]}"
-        elif attack_type == "brightness":
-            delta = _extract_attack_param(attack_config, "brightness_delta", "factor")
-            title = f"Brightness: {delta}\nLabel: {labels[i]}"
-        elif attack_type == "token_replacement":
-            title = f"Token poisoned\nLabel: {labels[i]}"
-        else:
-            title = f"{attack_type}\nLabel: {labels[i]}"
+        # Handle composite attacks (multiple attacks stacked)
+        if isinstance(attack_config, list) and len(attack_config) > 1:
+            # Build title from all attack types
+            title_parts = []
+            for cfg in attack_config:
+                cfg_type = cfg.get("attack_type", "unknown")
+                if cfg_type == "label_flipping":
+                    title_parts.append(
+                        f"Label Flip: {labels[i]} (was {original_labels[i]})"
+                    )
+                elif cfg_type == "gaussian_noise":
+                    snr = cfg.get("target_noise_snr", "?")
+                    title_parts.append(f"Noise (SNR: {snr}dB)")
+                elif cfg_type == "brightness":
+                    delta = cfg.get("brightness_delta", cfg.get("factor", "?"))
+                    title_parts.append(f"Brightness: {delta}")
+                elif cfg_type == "token_replacement":
+                    title_parts.append("Token poisoned")
+            title = (
+                "\n".join(title_parts)
+                if title_parts
+                else f"{attack_type}\nLabel: {labels[i]}"
+            )
+        else:  # Single attack
+            if attack_type == "label_flipping":
+                title = f"Label: {labels[i]}\n(was {original_labels[i]})"
+            elif attack_type == "gaussian_noise":
+                snr = _extract_attack_param(attack_config, "target_noise_snr")
+                title = f"Noisy (SNR: {snr}dB)\nLabel: {labels[i]}"
+            elif attack_type == "brightness":
+                delta = _extract_attack_param(
+                    attack_config, "brightness_delta", "factor"
+                )
+                title = f"Brightness: {delta}\nLabel: {labels[i]}"
+            elif attack_type == "token_replacement":
+                title = f"Token poisoned\nLabel: {labels[i]}"
+            else:
+                title = f"{attack_type}\nLabel: {labels[i]}"
 
         ax.set_title(title, fontsize=14, fontweight="bold")
         ax.axis("off")
@@ -427,10 +470,117 @@ def _save_text_samples(
     labels: np.ndarray,
     original_labels: np.ndarray,
     filepath: Path,
+    attack_config: Optional[Union[dict, List[dict]]] = None,
+    tokenizer=None,
+    input_ids_original: Optional[np.ndarray] = None,
+    input_ids_poisoned: Optional[np.ndarray] = None,
 ) -> None:
-    """Save text sample labels as TXT."""
-    with open(filepath, "w") as f:
-        f.write("Sample Labels (Poisoned vs Original)\n")
-        f.write("=" * 40 + "\n")
-        for i, (label, orig) in enumerate(zip(labels, original_labels)):
-            f.write(f"Sample {i}: {label} (was {orig})\n")
+    """
+    Save text sample visualization as TXT.
+
+    When tokenizer and input_ids are provided, creates side-by-side comparison
+    Otherwise, falls back to simple label comparison.
+    """
+    with open(filepath, "w", encoding="utf-8") as f:
+        if (
+            tokenizer is not None
+            and input_ids_original is not None
+            and input_ids_poisoned is not None
+        ):
+            # Visualization with decoded text
+            f.write("=" * 80 + "\n")
+            f.write("TOKEN REPLACEMENT ATTACK VISUALIZATION\n")
+            f.write("=" * 80 + "\n\n")
+
+            if attack_config:
+                attack_type = _extract_attack_type(attack_config)
+                f.write(f"Attack Type: {attack_type}\n")
+
+                if attack_type == "token_replacement":
+                    target_vocab = _extract_attack_param(
+                        attack_config, "target_vocabulary", default="unknown"
+                    )
+                    replacement_strategy = _extract_attack_param(
+                        attack_config, "replacement_strategy", default="negative"
+                    )
+                    replacement_prob = _extract_attack_param(
+                        attack_config, "replacement_probability", default=1.0
+                    )
+
+                    f.write(f"Target Vocabulary: {target_vocab}\n")
+                    f.write(f"Replacement Strategy: {replacement_strategy}\n")
+                    f.write(f"Replacement Probability: {replacement_prob}\n")
+
+                f.write("\n" + "=" * 80 + "\n\n")
+
+            # Show each sample with decoded text
+            for i in range(len(labels)):
+                f.write(f"--- Sample {i} ---\n\n")
+
+                original_tokens = input_ids_original[i]
+                poisoned_tokens = input_ids_poisoned[i]
+
+                try:
+                    original_text = tokenizer.decode(
+                        original_tokens, skip_special_tokens=True
+                    )
+                    poisoned_text = tokenizer.decode(
+                        poisoned_tokens, skip_special_tokens=True
+                    )
+
+                    f.write(f'ORIGINAL: "{original_text}"\n')
+                    f.write(f'POISONED: "{poisoned_text}"\n')
+
+                    # Highlight differences
+                    if original_text != poisoned_text:
+                        f.write(
+                            "          " + "^" * 15 + "[REPLACED]" + "^" * 15 + "\n"
+                        )
+
+                    current_label = labels[i]
+                    original_label = original_labels[i]
+
+                    # Check if labels are arrays (MLM) or scalars (classification)
+                    if isinstance(current_label, np.ndarray) and current_label.size > 1:
+                        # MLM case: show summary statistics
+                        label_changed = not np.array_equal(
+                            current_label, original_label
+                        )
+                        num_masked_original = np.sum(original_label != -100)
+                        num_masked_current = np.sum(current_label != -100)
+
+                        if label_changed:
+                            f.write(
+                                f"Labels: {num_masked_original} masked tokens → {num_masked_current} masked tokens (CHANGED)\n"
+                            )
+                        else:
+                            f.write(
+                                f"Labels: {num_masked_original} masked tokens (unchanged)\n"
+                            )
+                    else:
+                        # Classification case: show actual label values
+                        if np.array_equal(current_label, original_label):
+                            f.write(f"Label: {current_label} (unchanged)\n")
+                        else:
+                            f.write(
+                                f"Label: {original_label} → {current_label} (FLIPPED)\n"
+                            )
+
+                except Exception as e:
+                    # Fallback if decoding fails
+                    f.write(f"[Decoding error: {e}]\n")
+                    f.write(
+                        f"Original token IDs (first 10): {original_tokens[:10].tolist()}\n"
+                    )
+                    f.write(
+                        f"Poisoned token IDs (first 10): {poisoned_tokens[:10].tolist()}\n"
+                    )
+
+                f.write("\n")
+
+        else:
+            # Fallback: simple label comparison
+            f.write("Sample Labels (Poisoned vs Original)\n")
+            f.write("=" * 40 + "\n")
+            for i, (label, orig) in enumerate(zip(labels, original_labels)):
+                f.write(f"Sample {i}: {label} (was {orig})\n")
