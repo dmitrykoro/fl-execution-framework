@@ -59,6 +59,38 @@ class MultiKrumStrategy(fl.server.strategy.FedAvg):
 
         self.strategy_history = strategy_history
 
+    def _calculate_chunked_distance(self, params1: np.ndarray, params2: np.ndarray, chunk_size: int = 10_000_000) -> float:
+        """
+        Calculate L2 distance between two parameter arrays using chunked processing.
+        Memory-efficient for large models (e.g., transformers with 100M+ parameters).
+
+        Args:
+            params1: Flattened parameter array for client 1
+            params2: Flattened parameter array for client 2
+            chunk_size: Number of parameters to process at once (default: 10M)
+
+        Returns:
+            L2 distance between the two parameter arrays
+        """
+        total_params = len(params1)
+        squared_diff_sum = 0.0
+
+        # Process in chunks to avoid memory overflow
+        for start_idx in range(0, total_params, chunk_size):
+            end_idx = min(start_idx + chunk_size, total_params)
+            chunk1 = params1[start_idx:end_idx]
+            chunk2 = params2[start_idx:end_idx]
+
+            # Compute squared difference for this chunk
+            diff = chunk1 - chunk2
+            squared_diff_sum += np.sum(diff ** 2)
+
+            # Free memory immediately
+            del diff, chunk1, chunk2
+
+        # Return L2 norm (square root of sum of squared differences)
+        return np.sqrt(squared_diff_sum)
+
     def _calculate_multi_krum_scores(
             self,
             results: list[tuple[ClientProxy, FitRes]],
@@ -79,10 +111,23 @@ class MultiKrumStrategy(fl.server.strategy.FedAvg):
         param_data = flat_param_data
         num_clients = len(param_data)
 
+        # Determine if we need chunked calculation (for transformers)
+        param_size = len(param_data[0]) if param_data else 0
+        use_chunked = param_size > 50_000_000  # Use chunked for models >50M parameters
+
+        if use_chunked:
+            logging.info(
+                f"Multi-Krum using chunked distance calculation for large model "
+                f"({param_size:,} parameters)"
+            )
+
         # Compute pairwise distances between clients' model updates
         for i in range(num_clients):
             for j in range(i + 1, num_clients):
-                distances[i, j] = np.linalg.norm(param_data[i] - param_data[j])
+                if use_chunked:
+                    distances[i, j] = self._calculate_chunked_distance(param_data[i], param_data[j])
+                else:
+                    distances[i, j] = np.linalg.norm(param_data[i] - param_data[j])
                 distances[j, i] = distances[i, j]
 
         # Calculate Multi-Krum scores based on the distances

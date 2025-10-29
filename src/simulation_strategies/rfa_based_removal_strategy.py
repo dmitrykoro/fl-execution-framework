@@ -198,6 +198,14 @@ class RFABasedRemovalStrategy(FedAvg):
                 aggregate_value.append((evaluate_res.num_examples, evaluate_res.loss))
                 number_of_clients_in_loss_calc += 1
 
+        # Ensure at least one client remains for evaluation
+        if not aggregate_value:
+            logging.warning(
+                f'Round {server_round}: No clients available for evaluation '
+                f'(all {len(results)} clients removed). Returning None for loss.'
+            )
+            return None, {}
+
         loss_aggregated = weighted_loss_avg(aggregate_value)
 
         for result in results:
