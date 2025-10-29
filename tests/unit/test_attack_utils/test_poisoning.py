@@ -258,7 +258,12 @@ class TestApplyTokenReplacement:
         torch.manual_seed(42)  # For reproducibility
         tokens = torch.tensor([[1, 2, 3, 4, 5]] * 100)  # Repeat for statistical test
 
-        result = apply_token_replacement(tokens, replacement_prob=0.3, vocab_size=10)
+        result = apply_token_replacement(
+            tokens,
+            replacement_prob=0.3,
+            target_token_ids=[2, 3, 4],
+            replacement_token_ids=[20, 30, 40],
+        )
 
         # Should have some changes
         changed = ~torch.equal(result, tokens)
@@ -268,24 +273,37 @@ class TestApplyTokenReplacement:
         """Test full token replacement."""
         tokens = torch.tensor([[1, 2, 3, 4, 5], [6, 7, 8, 9, 10]])
 
-        result = apply_token_replacement(tokens, replacement_prob=1.0, vocab_size=30522)
+        result = apply_token_replacement(
+            tokens,
+            replacement_prob=1.0,
+            target_token_ids=[1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
+            replacement_token_ids=[100, 200, 300, 400, 500],
+        )
 
         # Most tokens should be different (extremely unlikely to match randomly)
         num_changed = (result != tokens).sum().item()
         assert num_changed > 0
 
     def test_token_values_within_vocab(self):
-        """Test that replaced tokens are within vocabulary range."""
+        """Test that replaced tokens are from replacement list."""
         tokens = torch.tensor([[1, 2, 3, 4, 5]] * 10)
-        vocab_size = 1000
+        target_token_ids = [2, 3, 4]
+        replacement_token_ids = [100, 200, 300]
 
         result = apply_token_replacement(
-            tokens, replacement_prob=0.5, vocab_size=vocab_size
+            tokens,
+            replacement_prob=1.0,
+            target_token_ids=target_token_ids,
+            replacement_token_ids=replacement_token_ids,
         )
 
-        # All tokens should be in range [0, vocab_size)
-        assert torch.all(result >= 0)
-        assert torch.all(result < vocab_size)
+        # Check that replaced tokens are from the replacement list
+        for batch_idx in range(result.shape[0]):
+            for seq_idx in range(result.shape[1]):
+                token = result[batch_idx, seq_idx].item()
+                # Token should either be unchanged (1 or 5) or be a replacement token
+                if token not in [1, 5]:
+                    assert token in replacement_token_ids
 
 
 class TestShouldPoisonThisRound:
@@ -563,8 +581,9 @@ class TestApplyPoisoningAttack:
 
         attack_config = {
             "attack_type": "token_replacement",
-            "replacement_prob": 0.5,
-            "vocab_size": 30522,
+            "replacement_prob": 1.0,
+            "target_token_ids": [1, 2, 3, 4, 5],
+            "replacement_token_ids": [100, 200, 300, 400, 500],
         }
 
         result_tokens, result_labels = apply_poisoning_attack(
