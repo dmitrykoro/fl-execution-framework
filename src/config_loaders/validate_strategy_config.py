@@ -553,7 +553,5 @@ def validate_strategy_config(config: dict) -> None:
         _validate_llm_parameters(config)
 
     _validate_attack_schedule(config)
-
     _populate_client_selection(config)
-
     _apply_strict_mode(config)
