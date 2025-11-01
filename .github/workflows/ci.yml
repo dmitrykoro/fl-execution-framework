@@ -2,9 +2,10 @@ name: CI Pipeline
 
 on:
   push:
-    branches: [ "*" ]
-  pull_request:
-    branches: [ main, master ]
+  # Uncomment the following lines to enable CI on push and pull request events:
+  #   branches: [ "*" ]
+  # pull_request:
+  #   branches: [ main, master ]
 
 jobs:
   test:
