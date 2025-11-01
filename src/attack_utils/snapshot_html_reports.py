@@ -73,7 +73,6 @@ def _split_composite_attack_info(attack_type: str, attack_configs: list) -> list
     Returns:
         List of dicts with 'type', 'config', and 'params' for each attack
     """
-    # Match each type with its config by looking at attack_type field
     attack_info = []
     for config in attack_configs:
         config_type = config.get("attack_type", "unknown")
@@ -176,7 +175,6 @@ def generate_snapshot_index(
 
             # Handle stacked attacks (multiple attacks in one round)
             if isinstance(attack_config, list) and len(attack_config) > 1:
-                # Split composite attack into individual attacks
                 attack_info_list = _split_composite_attack_info(
                     attack_type, attack_config
                 )
@@ -196,10 +194,10 @@ def generate_snapshot_index(
                         "is_stacked": True,
                         "samples": metadata.get("num_samples", 0),
                         "parameters": ", ".join(all_params) if all_params else "N/A",
-                        "pickle_path": str(snapshot_path.relative_to(snapshots_dir)),
-                        "visual_path": f"client_{client_id}/round_{round_num}/{attack_type}_visual.png",
+                        "pickle_path": snapshot_path.relative_to(snapshots_dir).as_posix(),
+                        "visual_path": (Path(f"client_{client_id}") / f"round_{round_num}" / f"{attack_type}_visual.png").as_posix(),
                         "visual_type": "image",
-                        "metadata_path": f"client_{client_id}/round_{round_num}/{attack_type}_metadata.json",
+                        "metadata_path": (Path(f"client_{client_id}") / f"round_{round_num}" / f"{attack_type}_metadata.json").as_posix(),
                     }
                 )
             else:
@@ -207,12 +205,10 @@ def generate_snapshot_index(
                 if isinstance(attack_config, list):
                     attack_config = attack_config[0] if attack_config else {}
 
-                # Extract relevant parameters based on attack type
                 attack_parameters = _extract_attack_params_for_display(
                     attack_type, attack_config
                 )
 
-                # Determine file extension based on attack type
                 if attack_type == "token_replacement":
                     visual_filename = f"{attack_type}_samples.txt"
                     visual_type = "text"
@@ -226,16 +222,16 @@ def generate_snapshot_index(
                         "round": round_num,
                         "attack_types": [
                             attack_type
-                        ],  # Single attack in list for consistency
+                        ],
                         "is_stacked": False,
                         "samples": metadata.get("num_samples", 0),
                         "parameters": (
                             ", ".join(attack_parameters) if attack_parameters else "N/A"
                         ),
-                        "pickle_path": str(snapshot_path.relative_to(snapshots_dir)),
-                        "visual_path": f"client_{client_id}/round_{round_num}/{visual_filename}",
+                        "pickle_path": snapshot_path.relative_to(snapshots_dir).as_posix(),
+                        "visual_path": (Path(f"client_{client_id}") / f"round_{round_num}" / visual_filename).as_posix(),
                         "visual_type": visual_type,
-                        "metadata_path": f"client_{client_id}/round_{round_num}/{attack_type}_metadata.json",
+                        "metadata_path": (Path(f"client_{client_id}") / f"round_{round_num}" / f"{attack_type}_metadata.json").as_posix(),
                     }
                 )
 
