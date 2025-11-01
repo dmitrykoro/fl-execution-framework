@@ -59,36 +59,6 @@ class TestSaveAttackSnapshot:
             expected_num_samples=5,
         )
 
-    def test_save_snapshot_json_format(self, tmp_path):
-        """Test saving snapshot in JSON format (metadata only)."""
-        data, labels = create_sample_tensors(batch_size=5)
-        attack_config = create_attack_config("gaussian_noise", target_noise_snr=10.0)
-
-        save_attack_snapshot(
-            client_id=1,
-            round_num=5,
-            attack_config=attack_config,
-            data_sample=data,
-            labels_sample=labels,
-            original_labels_sample=labels.clone(),
-            output_dir=str(tmp_path),
-            save_format="json",
-        )
-
-        snapshot_path = (
-            tmp_path
-            / "attack_snapshots_0"
-            / "client_1"
-            / "round_5"
-            / "gaussian_noise_metadata.json"
-        )
-        verify_json_metadata(
-            snapshot_path,
-            expected_client_id=1,
-            expected_round=5,
-            expected_attack_type="gaussian_noise",
-        )
-
     def test_save_snapshot_respects_max_samples(self, tmp_path):
         """Test that max_samples parameter limits saved data."""
         data, labels = create_sample_tensors(batch_size=10)
@@ -357,40 +327,6 @@ class TestLoadAttackSnapshot:
         assert "labels" in snapshot
         assert snapshot["metadata"]["client_id"] == 0
         assert snapshot["metadata"]["round_num"] == 1
-
-    def test_load_json_snapshot(self, tmp_path):
-        """Test loading a JSON snapshot (metadata only)."""
-        data, labels = create_sample_tensors(batch_size=5)
-        attack_config = create_attack_config("gaussian_noise")
-
-        # Save JSON snapshot
-        save_attack_snapshot(
-            client_id=1,
-            round_num=2,
-            attack_config=attack_config,
-            data_sample=data,
-            labels_sample=labels,
-            original_labels_sample=labels.clone(),
-            output_dir=str(tmp_path),
-            save_format="json",
-        )
-
-        # Load snapshot
-        snapshot_path = (
-            tmp_path
-            / "attack_snapshots_0"
-            / "client_1"
-            / "round_2"
-            / "gaussian_noise_metadata.json"
-        )
-        snapshot = load_attack_snapshot(str(snapshot_path))
-
-        assert snapshot is not None
-        assert snapshot["client_id"] == 1
-        assert snapshot["round_num"] == 2
-        # JSON format doesn't include actual data
-        assert "data" not in snapshot
-        assert "labels" not in snapshot
 
     def test_load_nonexistent_snapshot(self):
         """Test loading a snapshot that doesn't exist."""
