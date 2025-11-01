@@ -2,6 +2,8 @@
     "shared_settings": {
       "remove_clients": "true",
       "dataset_keyword": "femnist_iid",
+      "use_llm": "false",
+      "model_type": "cnn",
       "num_of_rounds": 100,
       "begin_removing_from_round": 5,
       "num_of_malicious_clients": 2,
@@ -11,7 +13,7 @@
       "save_csv": "true",
       "training_device": "cpu",
       "cpus_per_client": 1,
-      "gpus_per_client": 0.25,
+      "gpus_per_client": 0.0,
       "trust_threshold": 0,
       "reputation_threshold": 0.15,
       "beta_value": 0.75,
@@ -26,8 +28,9 @@
       "evaluate_metrics_aggregation_fn": "weighted_average",
       "num_of_client_epochs": 2,
       "batch_size": 20,
-      "preserve_dataset": "true",
-      "aggregation_strategy_keyword": "krum"
+      "preserve_dataset": "false",
+      "aggregation_strategy_keyword": "krum",
+      "attack_schedule": []
     },
     "simulation_strategies": [
       {

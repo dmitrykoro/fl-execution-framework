@@ -2,6 +2,8 @@
     "shared_settings": {
       "remove_clients": "true",
       "dataset_keyword": "its",
+      "use_llm": "false",
+      "model_type": "cnn",
       "num_of_rounds": 50,
       "begin_removing_from_round": 5,
       "num_of_malicious_clients": 2,
@@ -20,6 +22,7 @@
       "Kp": 1,
       "Ki": 0.6,
       "Kd": 0.4,
+      "num_std_dev": 2.0,
       "num_krum_selections": 16,
       "weighted_median_factor": 1,
       "trim_ratio": 0.1,
@@ -30,12 +33,13 @@
       "batch_size": 10,
       "preserve_dataset": "false",
       "save_attack_snapshots": "true",
-      "snapshot_format": "both",
+      "attack_snapshot_format": "pickle_and_visual",
       "snapshot_max_samples": 5,
       "num_of_clients": 8,
       "min_fit_clients": 8,
       "min_evaluate_clients": 8,
-      "min_available_clients": 8
+      "min_available_clients": 8,
+      "attack_schedule": []
     },
     "simulation_strategies": [
       {

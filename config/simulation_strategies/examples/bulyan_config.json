@@ -3,6 +3,8 @@
       "aggregation_strategy_keyword": "bulyan",
       "remove_clients": "true",
       "dataset_keyword": "femnist_iid",
+      "use_llm": "false",
+      "model_type": "cnn",
       "num_of_rounds": 50,
       "num_of_clients": 20,
       "num_of_malicious_clients": 2,
@@ -28,8 +30,9 @@
       "evaluate_metrics_aggregation_fn": "weighted_average",
       "num_of_client_epochs": 3,
       "batch_size": 10,
-      "preserve_dataset": "true",
-      "begin_removing_from_round": 2
+      "preserve_dataset": "false",
+      "begin_removing_from_round": 2,
+      "attack_schedule": []
     },
     "simulation_strategies": [
       {}

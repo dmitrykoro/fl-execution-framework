@@ -11,9 +11,9 @@
     "show_plots": "false",
     "save_plots": "true",
     "save_csv": "true",
-    "training_device": "auto",
+    "training_device": "cpu",
     "cpus_per_client": 1,
-    "gpus_per_client": 0.0,
+    "gpus_per_client": 0.2,
     "trust_threshold": 0.15,
     "beta_value": 0.75,
     "num_of_clusters": 1,
@@ -42,45 +42,44 @@
     "save_attack_snapshots": "true",
     "attack_snapshot_format": "pickle_and_visual",
     "snapshot_max_samples": 5,
-    "begin_removing_from_round": 2
+    "begin_removing_from_round": 2,
+    "attack_schedule": [
+      {
+        "start_round": 1,
+        "end_round": 3,
+        "attack_type": "label_flipping",
+        "flip_fraction": 1.0,
+        "selection_strategy": "specific",
+        "malicious_client_ids": [0]
+      },
+      {
+        "start_round": 5,
+        "end_round": 7,
+        "attack_type": "label_flipping",
+        "flip_fraction": 1.0,
+        "selection_strategy": "specific",
+        "malicious_client_ids": [1]
+      },
+      {
+        "start_round": 10,
+        "end_round": 12,
+        "attack_type": "label_flipping",
+        "flip_fraction": 1.0,
+        "selection_strategy": "specific",
+        "malicious_client_ids": [2]
+      },
+      {
+        "start_round": 15,
+        "end_round": 17,
+        "attack_type": "label_flipping",
+        "flip_fraction": 1.0,
+        "selection_strategy": "specific",
+        "malicious_client_ids": [3]
+      }
+    ]
   },
   "simulation_strategies": [
     {
-      "attack_schedule": [
-        {
-          "start_round": 1,
-          "end_round": 3,
-          "attack_type": "label_flipping",
-          "flip_fraction": 1.0,
-          "selection_strategy": "specific",
-          "malicious_client_ids": [0]
-        },
-        {
-          "start_round": 5,
-          "end_round": 7,
-          "attack_type": "label_flipping",
-          "flip_fraction": 1.0,
-          "selection_strategy": "specific",
-          "malicious_client_ids": [1]
-        },
-        {
-          "start_round": 10,
-          "end_round": 12,
-          "attack_type": "label_flipping",
-          "flip_fraction": 1.0,
-          "selection_strategy": "specific",
-          "malicious_client_ids": [2]
-        },
-        {
-          "start_round": 15,
-          "end_round": 17,
-          "attack_type": "label_flipping",
-          "flip_fraction": 1.0,
-          "selection_strategy": "specific",
-          "malicious_client_ids": [3]
-        }
-
-      ],
       "num_std_dev": 2.33
     }
   ]
