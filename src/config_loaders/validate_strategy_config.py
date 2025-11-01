@@ -121,7 +121,7 @@ config_schema = {
         # Flower settings
         "training_device": {
             "type": "string",
-            "enum": ["auto", "cpu", "gpu", "cuda"]
+            "enum": ["cpu", "gpu"]
         },
         "cpus_per_client": {
             "type": "integer"
