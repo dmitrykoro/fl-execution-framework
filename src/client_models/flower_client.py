@@ -73,13 +73,13 @@ class FlowerClient(fl.client.NumPyClient):
             original_labels_sample=original_labels_sample,
             output_dir=self.output_dir,
             max_samples=self.snapshot_max_samples,
-            save_format=self.snapshot_format,
+            save_format=self.attack_snapshot_format,
             experiment_info=self.experiment_info,
             strategy_number=self.strategy_number,
         )
 
         # Save visual snapshot (PNG for CNN, TXT for transformer)
-        if self.snapshot_format in ["visual", "both"]:
+        if self.attack_snapshot_format in ["visual", "pickle_and_visual"]:
             if self.model_type == "cnn" and original_data_sample is not None:
                 save_visual_snapshot(
                     client_id=self.client_id,
@@ -91,6 +91,7 @@ class FlowerClient(fl.client.NumPyClient):
                     output_dir=self.output_dir,
                     experiment_info=self.experiment_info,
                     strategy_number=self.strategy_number,
+                    original_data_sample=original_data_sample.cpu().numpy(),
                 )
             elif self.model_type == "transformer" and original_data_sample is not None and self.tokenizer is not None:
                 save_visual_snapshot(
@@ -142,6 +143,7 @@ class FlowerClient(fl.client.NumPyClient):
                     )
 
                     if should_poison and attack_configs:
+                        original_images = images.clone()
                         original_labels = labels.clone()
 
                         # Apply all attacks sequentially
@@ -321,7 +323,6 @@ class FlowerClient(fl.client.NumPyClient):
         epoch_loss, epoch_acc = self.train(self.net, self.trainloader, epochs=self.num_of_client_epochs, global_params=global_params, config=config)
         logging.debug(f"[Client {self.client_id}] Training complete - Loss: {epoch_loss:.4f}, Accuracy: {epoch_acc:.4f}")
 
-        # GPU memory cleanup to prevent accumulation
         if torch.cuda.is_available():
             torch.cuda.empty_cache()
 
@@ -331,7 +332,6 @@ class FlowerClient(fl.client.NumPyClient):
         self.set_parameters(self.net, parameters)
         loss, accuracy = self.test(self.net, self.valloader)
 
-        # GPU memory cleanup to prevent accumulation
         if torch.cuda.is_available():
             torch.cuda.empty_cache()
 
