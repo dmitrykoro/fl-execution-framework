@@ -1,8 +1,7 @@
 """
 Lightweight attack data snapshot logging.
 
-Provides utilities for saving small snapshots of poisoned data for inspection
-and debugging.
+Provides utilities for saving small snapshots of poisoned data.
 """
 
 import json
@@ -101,6 +100,148 @@ def _extract_attack_param(
     return default
 
 
+def _save_metadata_json(filepath: Path, metadata: dict) -> None:
+    """Save metadata as JSON file."""
+    with open(filepath, "w") as f:
+        json.dump(metadata, f, indent=2)
+
+
+def _save_pickle_snapshot(
+    snapshot_dir: Path,
+    attack_type: str,
+    data_sample: torch.Tensor,
+    labels_sample: torch.Tensor,
+    original_labels_sample: Optional[torch.Tensor],
+    metadata: dict,
+    client_id: int,
+    round_num: int,
+) -> None:
+    """Save snapshot as pickle + JSON metadata."""
+    pickle_path = snapshot_dir / f"{attack_type}.pickle"
+    json_path = snapshot_dir / f"{attack_type}_metadata.json"
+
+    snapshot = {
+        "metadata": metadata,
+        "data": data_sample.cpu().numpy(),
+        "labels": labels_sample.cpu().numpy(),
+        "original_labels": (
+            original_labels_sample.cpu().numpy()
+            if original_labels_sample is not None
+            else None
+        ),
+    }
+
+    with open(pickle_path, "wb") as f:
+        pickle.dump(snapshot, f, protocol=pickle.HIGHEST_PROTOCOL)
+
+    _save_metadata_json(json_path, metadata)
+
+    logging.debug(
+        f"Saved {attack_type} attack snapshot: client {client_id}, round {round_num} "
+        f"({len(data_sample)} samples) -> {pickle_path} and {json_path}"
+    )
+
+
+def _display_image(ax, image: np.ndarray) -> None:
+    """Display image on axis, handling grayscale vs RGB."""
+    if image.shape[0] == 1:  # Grayscale (C, H, W)
+        ax.imshow(image[0], cmap="gray")
+    else:  # RGB
+        ax.imshow(image.transpose(1, 2, 0))
+
+
+def _normalize_axes(axes, rows: int, cols: int):
+    """Normalize matplotlib axes to consistent 2D array format."""
+    if rows == 1 and cols == 1:
+        return [[axes]]
+    elif rows == 1:
+        return [axes]
+    elif cols == 1:
+        return [[ax] for ax in axes]
+    else:
+        return axes
+
+
+def _build_single_attack_title(
+    attack_config: Union[dict, List[dict]],
+    attack_type: str,
+    labels: np.ndarray,
+    original_labels: np.ndarray,
+    index: int,
+    style: str,
+) -> str:
+    """Build title for single attack type."""
+    if attack_type == "label_flipping":
+        if style == "side_by_side":
+            return f"Poisoned\nLabel: {labels[index]}"
+        return f"Label: {labels[index]}\n(was {original_labels[index]})"
+
+    elif attack_type == "gaussian_noise":
+        snr = _extract_attack_param(attack_config, "target_noise_snr")
+        if style == "side_by_side":
+            return f"Poisoned (Noise)\nSNR: {snr}dB\nLabel: {labels[index]}"
+        return f"Noisy (SNR: {snr}dB)\nLabel: {labels[index]}"
+
+    elif attack_type == "brightness":
+        delta = _extract_attack_param(attack_config, "brightness_delta", "factor")
+        if style == "side_by_side":
+            return f"Poisoned (Brightness)\nFactor: {delta}\nLabel: {labels[index]}"
+        return f"Brightness: {delta}\nLabel: {labels[index]}"
+
+    elif attack_type == "token_replacement":
+        return f"Token poisoned\nLabel: {labels[index]}"
+
+    else:
+        prefix = f"Poisoned ({attack_type})" if style == "side_by_side" else attack_type
+        return f"{prefix}\nLabel: {labels[index]}"
+
+
+def _build_attack_title(
+    attack_config: Union[dict, List[dict]],
+    attack_type: str,
+    labels: np.ndarray,
+    original_labels: np.ndarray,
+    index: int,
+    style: str = "side_by_side",
+) -> str:
+    """Build title for poisoned image based on attack type."""
+    if isinstance(attack_config, list) and len(attack_config) > 1:
+        # Composite attacks
+        title_parts = ["Poisoned"] if style == "side_by_side" else []
+
+        for cfg in attack_config:
+            cfg_type = cfg.get("attack_type", "unknown")
+            if cfg_type == "label_flipping":
+                if style == "side_by_side":
+                    title_parts.append(f"Label: {labels[index]}")
+                else:
+                    title_parts.append(
+                        f"Label Flip: {labels[index]} (was {original_labels[index]})"
+                    )
+            elif cfg_type == "gaussian_noise":
+                snr = cfg.get("target_noise_snr", "?")
+                if style == "side_by_side":
+                    title_parts.append(f"Noise: {snr}dB")
+                else:
+                    title_parts.append(f"Noise (SNR: {snr}dB)")
+            elif cfg_type == "brightness":
+                delta = cfg.get("brightness_delta", cfg.get("factor", "?"))
+                title_parts.append(f"Brightness: {delta}")
+            elif cfg_type == "token_replacement" and style == "fallback":
+                title_parts.append("Token poisoned")
+
+        return (
+            "\n".join(title_parts)
+            if title_parts
+            else f"{attack_type}\nLabel: {labels[index]}"
+        )
+    else:
+        # Single attack
+        return _build_single_attack_title(
+            attack_config, attack_type, labels, original_labels, index, style
+        )
+
+
 def save_attack_snapshot(
     client_id: int,
     round_num: int,
@@ -150,59 +291,24 @@ def save_attack_snapshot(
     )
 
     try:
-        if save_format == "both":
-            # Save both pickle and JSON formats
-            pickle_path = snapshot_dir / f"{attack_type}.pickle"
+        if save_format in ("pickle_and_visual", "pickle"):
+            _save_pickle_snapshot(
+                snapshot_dir,
+                attack_type,
+                data_sample,
+                labels_sample,
+                original_labels_sample,
+                metadata,
+                client_id,
+                round_num,
+            )
+
+        elif save_format == "visual":
             json_path = snapshot_dir / f"{attack_type}_metadata.json"
-
-            snapshot = {
-                "metadata": metadata,
-                "data": data_sample.cpu().numpy(),
-                "labels": labels_sample.cpu().numpy(),
-                "original_labels": (
-                    original_labels_sample.cpu().numpy()
-                    if original_labels_sample is not None
-                    else None
-                ),
-            }
-            with open(pickle_path, "wb") as f:
-                pickle.dump(snapshot, f, protocol=pickle.HIGHEST_PROTOCOL)
-
-            with open(json_path, "w") as f:
-                json.dump(metadata, f, indent=2)
+            _save_metadata_json(json_path, metadata)
 
             logging.debug(
-                f"Saved {attack_type} attack snapshot: client {client_id}, round {round_num} "
-                f"({len(data_sample)} samples) -> {pickle_path} and {json_path}"
-            )
-
-        elif save_format == "pickle":
-            filepath = snapshot_dir / f"{attack_type}.pickle"
-            snapshot = {
-                "metadata": metadata,
-                "data": data_sample.cpu().numpy(),
-                "labels": labels_sample.cpu().numpy(),
-                "original_labels": (
-                    original_labels_sample.cpu().numpy()
-                    if original_labels_sample is not None
-                    else None
-                ),
-            }
-            with open(filepath, "wb") as f:
-                pickle.dump(snapshot, f, protocol=pickle.HIGHEST_PROTOCOL)
-
-            logging.debug(
-                f"Saved {attack_type} attack snapshot: client {client_id}, round {round_num} "
-                f"({len(data_sample)} samples) -> {filepath}"
-            )
-
-        elif save_format == "json":
-            filepath = snapshot_dir / f"{attack_type}_metadata.json"
-            with open(filepath, "w") as f:
-                json.dump(metadata, f, indent=2)
-
-            logging.debug(
-                f"Saved {attack_type} attack snapshot metadata: client {client_id}, round {round_num} -> {filepath}"
+                f"Saved {attack_type} attack snapshot metadata: client {client_id}, round {round_num} -> {json_path}"
             )
 
     except Exception as e:
@@ -250,19 +356,17 @@ def list_attack_snapshots(output_dir: str, strategy_number: int = 0) -> list:
         strategy_number: Strategy number for multi-strategy runs (default: 0)
 
     Returns:
-        List of snapshot file paths (pickle files preferred, JSON metadata as fallback)
+        List of snapshot file paths
     """
     snapshots_dir = Path(output_dir) / f"attack_snapshots_{strategy_number}"
     if not snapshots_dir.exists():
         return []
 
-    # First, find pickle files because they contain full data
     pickle_snapshots = list(snapshots_dir.glob("client_*/round_*/*.pickle"))
 
     if pickle_snapshots:
         return sorted(pickle_snapshots)
 
-    # Fallback: find JSON metadata files if no pickle files exist
     json_snapshots = list(snapshots_dir.glob("client_*/round_*/*_metadata.json"))
     return sorted(json_snapshots)
 
@@ -344,6 +448,7 @@ def save_visual_snapshot(
                 original_labels_sample,
                 snapshot_dir / filename,
                 attack_config,
+                original_images=original_data_sample,
             )
         else:  # Text data
             filename = f"{attack_type}_samples.txt"
@@ -356,19 +461,6 @@ def save_visual_snapshot(
                 input_ids_original=original_data_sample,
                 input_ids_poisoned=data_sample,
             )
-
-        metadata = _create_snapshot_metadata(
-            client_id=client_id,
-            round_num=round_num,
-            attack_type=attack_type,
-            attack_config=attack_config,
-            num_samples=len(data_sample),
-            experiment_info=experiment_info,
-        )
-
-        metadata_path = snapshot_dir / f"{attack_type}_metadata.json"
-        with open(metadata_path, "w") as f:
-            json.dump(metadata, f, indent=2)
 
         logging.debug(
             f"Saved {attack_type} visual snapshot: client {client_id}, round {round_num} -> {snapshot_dir}"
@@ -384,83 +476,137 @@ def _save_image_grid(
     original_labels: np.ndarray,
     filepath: Path,
     attack_config: Union[dict, List[dict]],
+    original_images: Optional[np.ndarray] = None,
 ) -> None:
-    """Save image samples as PNG grid with attack-specific annotations."""
+    """
+    Save image samples as PNG grid with attack-specific annotations.
+
+    If original_images provided, creates side-by-side comparison grid.
+    Otherwise, shows only poisoned images.
+    """
     matplotlib.use("Agg")
 
-    num_images = len(images)
-
-    max_cols = 8
-    if num_images <= max_cols:
-        rows, cols = 1, num_images
-    else:
-        cols = max_cols
-        rows = math.ceil(num_images / cols)
-
-    figsize = (4 * cols, 4 * rows)
-
-    fig, axes = plt.subplots(rows, cols, figsize=figsize, layout="constrained")
-
-    if num_images == 1:
-        axes = [axes]
-    else:
-        axes = axes.flatten() if hasattr(axes, "flatten") else axes
-
+    num_samples = len(images)
     attack_type = _extract_attack_type(attack_config)
 
-    for i in range(num_images):
-        ax = axes[i]
+    # Side-by-side comparison
+    if original_images is not None:
+        # 8 columns: 4 pairs of [Original | Poisoned] per row
+        pairs_per_row = 4
+        cols = pairs_per_row * 2
+        rows = math.ceil(num_samples / pairs_per_row)
+        figsize = (3 * cols, 3 * rows)
 
-        if images.shape[1] == 1:  # Grayscale
-            ax.imshow(images[i, 0], cmap="gray")
-        else:  # RGB
-            ax.imshow(images[i].transpose(1, 2, 0))
+        # Spacing between pairs for visual separation
+        fig, axes = plt.subplots(
+            rows, cols, figsize=figsize,
+            gridspec_kw={'wspace': 0.3, 'hspace': 0.5}
+        )
 
-        # Handle composite attacks (multiple attacks stacked)
-        if isinstance(attack_config, list) and len(attack_config) > 1:
-            # Build title from all attack types
-            title_parts = []
-            for cfg in attack_config:
-                cfg_type = cfg.get("attack_type", "unknown")
-                if cfg_type == "label_flipping":
-                    title_parts.append(
-                        f"Label Flip: {labels[i]} (was {original_labels[i]})"
-                    )
-                elif cfg_type == "gaussian_noise":
-                    snr = cfg.get("target_noise_snr", "?")
-                    title_parts.append(f"Noise (SNR: {snr}dB)")
-                elif cfg_type == "brightness":
-                    delta = cfg.get("brightness_delta", cfg.get("factor", "?"))
-                    title_parts.append(f"Brightness: {delta}")
-                elif cfg_type == "token_replacement":
-                    title_parts.append("Token poisoned")
-            title = (
-                "\n".join(title_parts)
-                if title_parts
-                else f"{attack_type}\nLabel: {labels[i]}"
+        # Normalize axes for consistent indexing
+        axes = _normalize_axes(axes, rows, cols)
+
+        for i in range(num_samples):
+            pair_idx = i % pairs_per_row  # Which pair in the row (0-3)
+            row_idx = i // pairs_per_row  # Which row
+            col_original = pair_idx * 2  # Original column (0, 2, 4, 6)
+            col_poisoned = pair_idx * 2 + 1  # Poisoned column (1, 3, 5, 7)
+
+            # Original image
+            ax_original = axes[row_idx][col_original]
+            _display_image(ax_original, original_images[i])
+
+            ax_original.set_title(
+                f"Original\nLabel: {original_labels[i]}",
+                fontsize=10,
+                fontweight="bold",
+                color="#2c3e50"
             )
-        else:  # Single attack
-            if attack_type == "label_flipping":
-                title = f"Label: {labels[i]}\n(was {original_labels[i]})"
-            elif attack_type == "gaussian_noise":
-                snr = _extract_attack_param(attack_config, "target_noise_snr")
-                title = f"Noisy (SNR: {snr}dB)\nLabel: {labels[i]}"
-            elif attack_type == "brightness":
-                delta = _extract_attack_param(
-                    attack_config, "brightness_delta", "factor"
+            ax_original.axis("off")
+
+            # Poisoned image
+            ax_poisoned = axes[row_idx][col_poisoned]
+            _display_image(ax_poisoned, images[i])
+
+            # Build title for poisoned image
+            title = _build_attack_title(
+                attack_config, attack_type, labels, original_labels, i, "side_by_side"
+            )
+
+            ax_poisoned.set_title(
+                title,
+                fontsize=10,
+                fontweight="bold",
+                color="#c0392b"
+            )
+            ax_poisoned.axis("off")
+
+        # Hide unused subplots
+        total_pairs_needed = num_samples
+        total_subplots = rows * pairs_per_row
+        for i in range(total_pairs_needed, total_subplots):
+            pair_idx = i % pairs_per_row
+            row_idx = i // pairs_per_row
+            col_original = pair_idx * 2
+            col_poisoned = pair_idx * 2 + 1
+            axes[row_idx][col_original].axis("off")
+            axes[row_idx][col_poisoned].axis("off")
+
+        # Add vertical separators between pairs
+        for row_idx in range(rows):
+            for pair_idx in range(pairs_per_row - 1):  # Don't add after last pair
+                # Draw vertical line after each poisoned column (columns 1, 3, 5)
+                col_poisoned = pair_idx * 2 + 1
+                ax_poisoned = axes[row_idx][col_poisoned]
+
+                # Get the position of this subplot
+                bbox = ax_poisoned.get_position()
+
+                # Add vertical line in figure coordinates
+                line = plt.Line2D(
+                    [bbox.x1 + 0.015, bbox.x1 + 0.015],  # x position (slightly right of subplot)
+                    [bbox.y0, bbox.y1],  # y position (full height)
+                    transform=fig.transFigure,
+                    color='#95a5a6',
+                    linewidth=2,
+                    linestyle='-',
+                    alpha=0.6
                 )
-                title = f"Brightness: {delta}\nLabel: {labels[i]}"
-            elif attack_type == "token_replacement":
-                title = f"Token poisoned\nLabel: {labels[i]}"
-            else:
-                title = f"{attack_type}\nLabel: {labels[i]}"
+                fig.add_artist(line)
 
-        ax.set_title(title, fontsize=14, fontweight="bold")
-        ax.axis("off")
+    else:
+        # Fallback: original behavior (poisoned images only)
+        max_cols = 8
+        if num_samples <= max_cols:
+            rows, cols = 1, num_samples
+        else:
+            cols = max_cols
+            rows = math.ceil(num_samples / cols)
 
-    total_subplots = rows * cols
-    for i in range(num_images, total_subplots):
-        axes[i].axis("off")
+        figsize = (4 * cols, 4 * rows)
+        fig, axes = plt.subplots(rows, cols, figsize=figsize, layout="constrained")
+
+        if num_samples == 1:
+            axes = [axes]
+        else:
+            axes = axes.flatten() if hasattr(axes, "flatten") else axes
+
+        for i in range(num_samples):
+            ax = axes[i]
+
+            _display_image(ax, images[i])
+
+            # Build title using helper
+            title = _build_attack_title(
+                attack_config, attack_type, labels, original_labels, i, "fallback"
+            )
+
+            ax.set_title(title, fontsize=14, fontweight="bold")
+            ax.axis("off")
+
+        total_subplots = rows * cols
+        for i in range(num_samples, total_subplots):
+            axes[i].axis("off")
 
     plt.savefig(filepath, dpi=150, bbox_inches="tight")
     plt.close()
