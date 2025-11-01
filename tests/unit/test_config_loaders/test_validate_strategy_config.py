@@ -127,7 +127,7 @@ class TestValidateStrategyConfig:
             "save_csv": "false",
             "preserve_dataset": "false",
             "training_subset_fraction": 0.9,
-            "training_device": "cuda",
+            "training_device": "gpu",
             "cpus_per_client": 1,
             "gpus_per_client": 1.0,
             "min_fit_clients": 10,
@@ -573,7 +573,7 @@ class TestValidateStrategyConfigInvalidValues:
         with pytest.raises(ValidationError) as exc_info:
             validate_strategy_config(config)
 
-        assert "'quantum' is not one of ['auto', 'cpu', 'gpu', 'cuda']" in str(
+        assert "'quantum' is not one of ['cpu', 'gpu']" in str(
             exc_info.value
         )
 
