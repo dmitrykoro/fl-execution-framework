@@ -31,7 +31,9 @@ class TestDeviceUtils(unittest.TestCase):
     @patch("torch.cuda.is_available", return_value=True)
     @patch("torch.cuda.get_device_name", return_value="NVIDIA Test GPU")
     @patch("torch.cuda.get_device_properties")
-    def test_get_device_gpu_available(self, mock_props, mock_get_name, mock_is_available):
+    def test_get_device_gpu_available(
+        self, mock_props, mock_get_name, mock_is_available
+    ):
         """GPU mode should return CUDA when available"""
         mock_props.return_value = Mock(total_memory=8 * 1024**3)
         device = get_device("gpu")
@@ -78,7 +80,9 @@ class TestDeviceUtils(unittest.TestCase):
     @patch("torch.cuda.is_available", return_value=True)
     @patch("torch.cuda.get_device_name", return_value="NVIDIA Test GPU")
     @patch("torch.cuda.get_device_properties")
-    def test_explicit_cpu_overrides_gpu(self, mock_props, mock_get_name, mock_is_available):
+    def test_explicit_cpu_overrides_gpu(
+        self, mock_props, mock_get_name, mock_is_available
+    ):
         """CPU should be used even when GPU is available if explicitly requested"""
         mock_props.return_value = Mock(total_memory=8 * 1024**3)
         device = get_device("cpu")

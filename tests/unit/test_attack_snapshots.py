@@ -9,7 +9,6 @@ from tests.common import (
     create_attack_config,
     create_nested_attack_config,
     verify_pickle_snapshot,
-    verify_json_metadata,
 )
 
 from src.attack_utils.attack_snapshots import (
