@@ -124,7 +124,7 @@ config_schema = {
             "enum": ["cpu", "gpu"]
         },
         "cpus_per_client": {
-            "type": "integer"
+            "type": "number"
         },
         "gpus_per_client": {
             "type": "number"

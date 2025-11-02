@@ -21,7 +21,7 @@ class StrategyConfig:
     attack_snapshot_format: str = "pickle"
     snapshot_max_samples: int = 5
     training_device: str = None
-    cpus_per_client: int = None
+    cpus_per_client: float = None
     gpus_per_client: float = None
 
     trust_threshold: float = None
