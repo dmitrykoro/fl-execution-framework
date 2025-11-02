@@ -7,7 +7,6 @@
       "num_of_rounds": 50,
       "begin_removing_from_round": 5,
       "num_of_malicious_clients": 2,
-      "attack_type": "label_flipping",
       "show_plots": "false",
       "save_plots": "true",
       "save_csv": "true",
@@ -39,7 +38,17 @@
       "min_fit_clients": 8,
       "min_evaluate_clients": 8,
       "min_available_clients": 8,
-      "attack_schedule": []
+      "attack_schedule": [
+        {
+          "start_round": 1,
+          "end_round": 50,
+          "attack_type": "label_flipping",
+          "flip_fraction": 1.0,
+          "target_class": 1,
+          "selection_strategy": "specific",
+          "malicious_client_ids": [0, 1]
+        }
+      ]
     },
     "simulation_strategies": [
       {

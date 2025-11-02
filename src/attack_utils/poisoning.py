@@ -14,17 +14,15 @@ from src.attack_utils.token_vocabularies import get_replacement_strategy, get_vo
 def apply_label_flipping(
     labels: torch.Tensor,
     flip_fraction: float = 0.5,
-    num_classes: int = 10,
-    target_class: Optional[int] = None,
+    target_class: int = 0,
 ) -> torch.Tensor:
     """
-    Flip a fraction of labels to random or targeted class.
+    Flip a fraction of labels to targeted class.
 
     Args:
         labels: Tensor of shape (batch_size,)
         flip_fraction: Fraction of labels to flip (0.0-1.0)
-        num_classes: Total number of classes in dataset
-        target_class: If specified, flip all to this class (targeted attack)
+        target_class: Target class to flip labels to
 
     Returns:
         torch.Tensor: Labels with flipped values
@@ -37,12 +35,7 @@ def apply_label_flipping(
         return labels
 
     flip_indices = torch.randperm(len(labels))[:num_to_flip]
-
-    if target_class is not None:
-        labels[flip_indices] = target_class
-    else:
-        # Random flipping to different classes
-        labels[flip_indices] = torch.randint(0, num_classes, (num_to_flip,))
+    labels[flip_indices] = target_class
 
     return labels
 
@@ -251,11 +244,16 @@ def apply_poisoning_attack(
     attack_type = attack_config.get("attack_type")
 
     if attack_type == "label_flipping":
+        target_class = attack_config.get("target_class")
+        if target_class is None:
+            raise ValueError(
+                "label_flipping attack requires 'target_class' parameter. "
+                "Example: {'attack_type': 'label_flipping', 'flip_fraction': 1.0, 'target_class': 7}"
+            )
         labels = apply_label_flipping(
             labels,
             flip_fraction=attack_config.get("flip_fraction", 0.5),
-            num_classes=attack_config.get("num_classes", 10),
-            target_class=attack_config.get("target_class"),
+            target_class=target_class,
         )
 
     elif attack_type == "gaussian_noise":
@@ -289,8 +287,8 @@ def apply_poisoning_attack(
             if "target_vocabulary" not in attack_config:
                 raise ValueError(
                     "Token replacement attack requires 'target_vocabulary' in attack_config. "
-                    "Use predefined vocabularies from token_vocabularies.py (e.g., 'comprehensive_medical', "
-                    "'medical_treatment', 'vaccines_immunization'). "
+                    "Use predefined vocabularies from token_vocabularies.py (e.g., 'medical', "
+                    "'financial', 'legal')."
                     "See src/attack_utils/token_vocabularies.py for available vocabularies."
                 )
 
