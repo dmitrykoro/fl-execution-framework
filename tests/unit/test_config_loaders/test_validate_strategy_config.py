@@ -34,6 +34,7 @@ class TestValidateStrategyConfig:
                     "end_round": 5,
                     "attack_type": "label_flipping",
                     "flip_fraction": 1.0,
+                    "target_class": 7,
                     "selection_strategy": "percentage",
                     "malicious_percentage": 0.2,
                 }
@@ -160,6 +161,7 @@ class TestValidateStrategyConfig:
                     "end_round": 6,
                     "attack_type": "label_flipping",
                     "flip_fraction": 1.0,
+                    "target_class": 7,
                     "selection_strategy": "percentage",
                     "malicious_percentage": 0.2,
                 }
@@ -205,6 +207,7 @@ class TestValidateStrategyConfigMissingRequiredParams:
                     "end_round": 5,
                     "attack_type": "label_flipping",
                     "flip_fraction": 1.0,
+                    "target_class": 7,
                     "selection_strategy": "percentage",
                     "malicious_percentage": 0.2,
                 }
@@ -246,6 +249,7 @@ class TestValidateStrategyConfigMissingRequiredParams:
                     "end_round": 5,
                     "attack_type": "label_flipping",
                     "flip_fraction": 1.0,
+                    "target_class": 7,
                     "selection_strategy": "percentage",
                     "malicious_percentage": 0.2,
                 }
@@ -287,6 +291,7 @@ class TestValidateStrategyConfigMissingRequiredParams:
                     "end_round": 5,
                     "attack_type": "label_flipping",
                     "flip_fraction": 1.0,
+                    "target_class": 7,
                     "selection_strategy": "percentage",
                     "malicious_percentage": 0.2,
                 }
@@ -329,6 +334,7 @@ class TestValidateStrategyConfigMissingRequiredParams:
                     "end_round": 5,
                     "attack_type": "label_flipping",
                     "flip_fraction": 1.0,
+                    "target_class": 7,
                     "selection_strategy": "percentage",
                     "malicious_percentage": 0.2,
                 }
@@ -368,6 +374,7 @@ class TestValidateStrategyConfigInvalidValues:
                     "end_round": 5,
                     "attack_type": "label_flipping",
                     "flip_fraction": 1.0,
+                    "target_class": 7,
                     "selection_strategy": "percentage",
                     "malicious_percentage": 0.2,
                 }
@@ -410,6 +417,7 @@ class TestValidateStrategyConfigInvalidValues:
                     "end_round": 5,
                     "attack_type": "label_flipping",
                     "flip_fraction": 1.0,
+                    "target_class": 7,
                     "selection_strategy": "percentage",
                     "malicious_percentage": 0.2,
                 }
@@ -452,6 +460,7 @@ class TestValidateStrategyConfigInvalidValues:
                     "end_round": 5,
                     "attack_type": "label_flipping",
                     "flip_fraction": 1.0,
+                    "target_class": 7,
                     "selection_strategy": "percentage",
                     "malicious_percentage": 0.2,
                 }
@@ -550,6 +559,7 @@ class TestValidateStrategyConfigInvalidValues:
                     "end_round": 5,
                     "attack_type": "label_flipping",
                     "flip_fraction": 1.0,
+                    "target_class": 7,
                     "selection_strategy": "percentage",
                     "malicious_percentage": 0.2,
                 }
@@ -573,9 +583,7 @@ class TestValidateStrategyConfigInvalidValues:
         with pytest.raises(ValidationError) as exc_info:
             validate_strategy_config(config)
 
-        assert "'quantum' is not one of ['cpu', 'gpu']" in str(
-            exc_info.value
-        )
+        assert "'quantum' is not one of ['cpu', 'gpu']" in str(exc_info.value)
 
     def test_invalid_data_types(self):
         """Test validation fails for invalid data types."""
@@ -594,6 +602,7 @@ class TestValidateStrategyConfigInvalidValues:
                     "end_round": 5,
                     "attack_type": "label_flipping",
                     "flip_fraction": 1.0,
+                    "target_class": 7,
                     "selection_strategy": "percentage",
                     "malicious_percentage": 0.2,
                 }
@@ -839,6 +848,7 @@ class TestValidateStrategyConfigErrorMessages:
                     "end_round": 5,
                     "attack_type": "label_flipping",
                     "flip_fraction": 1.0,
+                    "target_class": 7,
                     "selection_strategy": "percentage",
                     "malicious_percentage": 0.2,
                 }
@@ -903,6 +913,7 @@ class TestValidateStrategyConfigErrorMessages:
                     "end_round": 5,
                     "attack_type": "label_flipping",
                     "flip_fraction": 1.0,
+                    "target_class": 7,
                     "selection_strategy": "percentage",
                     "malicious_percentage": 0.2,
                 }
@@ -966,6 +977,7 @@ class TestValidateStrategyConfigEdgeCases:
                     "end_round": 4,
                     "attack_type": "label_flipping",
                     "flip_fraction": 1.0,
+                    "target_class": 7,
                     "selection_strategy": "percentage",
                     "malicious_percentage": 0.2,
                 }
@@ -1061,6 +1073,7 @@ class TestValidateStrategyConfigEdgeCases:
                     "end_round": 5,
                     "attack_type": "label_flipping",
                     "flip_fraction": 1.0,
+                    "target_class": 7,
                     "selection_strategy": "percentage",
                     "malicious_percentage": 0.2,
                 }
@@ -1329,6 +1342,7 @@ class TestStrictModeValidation:
                     "end_round": 5,
                     "attack_type": "label_flipping",
                     "flip_fraction": 1.0,
+                    "target_class": 7,
                     "selection_strategy": "percentage",
                     "malicious_percentage": 0.2,
                 }
@@ -1379,6 +1393,7 @@ class TestStrictModeValidation:
                     "end_round": 5,
                     "attack_type": "label_flipping",
                     "flip_fraction": 1.0,
+                    "target_class": 7,
                     "selection_strategy": "percentage",
                     "malicious_percentage": 0.2,
                 }
@@ -1428,6 +1443,7 @@ class TestStrictModeValidation:
                     "end_round": 5,
                     "attack_type": "label_flipping",
                     "flip_fraction": 1.0,
+                    "target_class": 7,
                     "selection_strategy": "percentage",
                     "malicious_percentage": 0.2,
                 }
@@ -1477,6 +1493,7 @@ class TestStrictModeValidation:
                     "end_round": 5,
                     "attack_type": "label_flipping",
                     "flip_fraction": 1.0,
+                    "target_class": 7,
                     "selection_strategy": "percentage",
                     "malicious_percentage": 0.4,
                 }
@@ -1530,6 +1547,7 @@ class TestStrictModeValidation:
                     "end_round": 5,
                     "attack_type": "label_flipping",
                     "flip_fraction": 1.0,
+                    "target_class": 7,
                     "selection_strategy": "percentage",
                     "malicious_percentage": 0.2,
                 }
@@ -1579,6 +1597,7 @@ class TestStrictModeValidation:
                     "end_round": 5,
                     "attack_type": "label_flipping",
                     "flip_fraction": 1.0,
+                    "target_class": 7,
                     "selection_strategy": "percentage",
                     "malicious_percentage": 0.2,
                 }
@@ -1631,6 +1650,7 @@ class TestValidateAttackSchedule:
                     "end_round": 5,
                     "attack_type": "label_flipping",
                     "flip_fraction": 0.5,
+                    "target_class": 7,
                     "selection_strategy": "specific",
                     "malicious_client_ids": [0],
                 }
@@ -1679,6 +1699,7 @@ class TestValidateAttackSchedule:
                     "end_round": 15,
                     "attack_type": "label_flipping",
                     "flip_fraction": 0.5,
+                    "target_class": 7,
                     "selection_strategy": "specific",
                     "malicious_client_ids": [0],
                 }
@@ -1868,6 +1889,7 @@ class TestValidateAttackSchedule:
                     "end_round": 5,
                     "attack_type": "label_flipping",
                     "flip_fraction": 0.5,
+                    "target_class": 7,
                     "selection_strategy": "specific",
                 }
             ],
@@ -1916,6 +1938,7 @@ class TestValidateAttackSchedule:
                     "end_round": 5,
                     "attack_type": "label_flipping",
                     "flip_fraction": 0.5,
+                    "target_class": 7,
                     "selection_strategy": "random",
                 }
             ],
@@ -1964,6 +1987,7 @@ class TestValidateAttackSchedule:
                     "end_round": 5,
                     "attack_type": "label_flipping",
                     "flip_fraction": 0.5,
+                    "target_class": 7,
                     "selection_strategy": "percentage",
                 }
             ],
@@ -2011,6 +2035,7 @@ class TestValidateAttackSchedule:
                     "end_round": 5,
                     "attack_type": "label_flipping",
                     "flip_fraction": 0.5,
+                    "target_class": 7,
                     "selection_strategy": "specific",
                     "malicious_client_ids": [0],
                 },
@@ -2019,6 +2044,7 @@ class TestValidateAttackSchedule:
                     "end_round": 7,
                     "attack_type": "label_flipping",
                     "flip_fraction": 0.8,
+                    "target_class": 7,
                     "selection_strategy": "specific",
                     "malicious_client_ids": [1],
                 },
@@ -2068,6 +2094,7 @@ class TestValidateAttackSchedule:
                     "end_round": 5,
                     "attack_type": "label_flipping",
                     "flip_fraction": 0.5,
+                    "target_class": 7,
                     "selection_strategy": "specific",
                     "malicious_client_ids": [0],
                 },
@@ -2134,6 +2161,7 @@ class TestValidateStrategyConfigLlmIntegration:
                     "end_round": 5,
                     "attack_type": "label_flipping",
                     "flip_fraction": 1.0,
+                    "target_class": 7,
                     "selection_strategy": "percentage",
                     "malicious_percentage": 0.2,
                 }
@@ -2183,6 +2211,7 @@ class TestValidateStrategyConfigLlmIntegration:
                     "end_round": 5,
                     "attack_type": "label_flipping",
                     "flip_fraction": 1.0,
+                    "target_class": 7,
                     "selection_strategy": "percentage",
                     "malicious_percentage": 0.2,
                 }
@@ -2229,6 +2258,7 @@ class TestValidateStrategyConfigLlmIntegration:
                     "end_round": 5,
                     "attack_type": "label_flipping",
                     "flip_fraction": 1.0,
+                    "target_class": 7,
                     "selection_strategy": "percentage",
                     "malicious_percentage": 0.4,
                 }
@@ -2278,6 +2308,7 @@ class TestValidateStrategyConfigLlmIntegration:
                     "end_round": 8,
                     "attack_type": "label_flipping",
                     "flip_fraction": 0.7,
+                    "target_class": 7,
                     "selection_strategy": "specific",
                     "malicious_client_ids": [0, 1, 2],
                 }
@@ -2321,6 +2352,7 @@ class TestValidateStrategyConfigLlmIntegration:
                     "end_round": 8,
                     "attack_type": "label_flipping",
                     "flip_fraction": 0.7,
+                    "target_class": 7,
                     "selection_strategy": "specific",
                     "malicious_client_ids": [0, 1, 2],
                 }
@@ -2402,6 +2434,7 @@ class TestValidateStrategyConfigLlmIntegration:
                     "end_round": 5,
                     "attack_type": "label_flipping",
                     "flip_fraction": 1.0,
+                    "target_class": 7,
                     "selection_strategy": "percentage",
                     "malicious_percentage": 0.2,  # 20% of 10 = 2 clients
                 }
@@ -2503,6 +2536,7 @@ class TestValidateStrategyConfigLlmIntegration:
                     "end_round": 5,
                     "attack_type": "label_flipping",
                     "flip_fraction": 1.0,
+                    "target_class": 7,
                     "selection_strategy": "percentage",
                     "malicious_percentage": 0.2,
                     "random_seed": 42,
@@ -2543,6 +2577,7 @@ class TestValidateStrategyConfigLlmIntegration:
                     "end_round": 5,
                     "attack_type": "label_flipping",
                     "flip_fraction": 1.0,
+                    "target_class": 7,
                     "selection_strategy": "percentage",
                     "malicious_percentage": 0.2,
                     "random_seed": 42,
@@ -2746,6 +2781,7 @@ class TestValidateStrategyConfigLlmIntegration:
                     "end_round": 5,
                     "attack_type": "label_flipping",
                     "flip_fraction": 1.0,
+                    "target_class": 7,
                     "selection_strategy": "random",
                     "malicious_client_count": 10,  # More than available
                 }
@@ -2792,6 +2828,7 @@ class TestValidateStrategyConfigLlmIntegration:
                     "end_round": 5,
                     "attack_type": "label_flipping",
                     "flip_fraction": 1.0,
+                    "target_class": 7,
                     "selection_strategy": "specific",
                     "malicious_client_ids": [0, 3, 7],
                 }

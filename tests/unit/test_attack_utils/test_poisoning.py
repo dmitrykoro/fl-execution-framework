@@ -25,7 +25,7 @@ class TestApplyLabelFlipping:
         labels = torch.tensor([0, 1, 2, 3, 4])
         original_labels = labels.clone()
 
-        result = apply_label_flipping(labels, flip_fraction=0.0)
+        result = apply_label_flipping(labels, flip_fraction=0.0, target_class=9)
 
         assert torch.equal(result, original_labels)
 
@@ -34,7 +34,7 @@ class TestApplyLabelFlipping:
         labels = torch.tensor([0, 1, 2, 3, 4])
         original_labels = labels.clone()
 
-        result = apply_label_flipping(labels, flip_fraction=-0.5)
+        result = apply_label_flipping(labels, flip_fraction=-0.5, target_class=9)
 
         assert torch.equal(result, original_labels)
 
@@ -44,22 +44,28 @@ class TestApplyLabelFlipping:
         original_labels = labels.clone()
 
         # With only 2 labels and flip_fraction=0.3, int(2 * 0.3) = 0
-        result = apply_label_flipping(labels, flip_fraction=0.3)
+        result = apply_label_flipping(labels, flip_fraction=0.3, target_class=9)
 
         assert torch.equal(result, original_labels)
 
     def test_random_flipping(self):
-        """Test random label flipping (no target class)."""
+        """Test targeted label flipping with target class."""
         labels = torch.tensor([0, 1, 2, 3, 4, 5, 6, 7, 8, 9])
         original_labels = labels.clone()
+        target_class = 7
 
-        result = apply_label_flipping(labels, flip_fraction=0.5, num_classes=10)
+        result = apply_label_flipping(
+            labels, flip_fraction=0.5, target_class=target_class
+        )
 
-        # Should have modified some labels (though some might randomly flip to same value)
-        # Just verify the function executed without error and returned valid labels
+        # Should have modified some labels to target_class
+        # Verify the function executed without error and returned valid labels
         assert len(result) == len(original_labels)
         assert torch.all(result >= 0)
         assert torch.all(result < 10)
+        # Should have at least some labels flipped to target_class
+        num_target = (result == target_class).sum().item()
+        assert num_target > 0
 
     def test_targeted_flipping(self):
         """Test targeted label flipping to specific class."""
@@ -67,7 +73,7 @@ class TestApplyLabelFlipping:
         target_class = 5
 
         result = apply_label_flipping(
-            labels, flip_fraction=0.5, num_classes=10, target_class=target_class
+            labels, flip_fraction=0.5, target_class=target_class
         )
 
         # Count how many labels are now target_class
@@ -84,7 +90,7 @@ class TestApplyLabelFlipping:
         target_class = 9
 
         result = apply_label_flipping(
-            labels, flip_fraction=1.0, num_classes=10, target_class=target_class
+            labels, flip_fraction=1.0, target_class=target_class
         )
 
         # All labels should be target_class
@@ -94,9 +100,10 @@ class TestApplyLabelFlipping:
         """Test that flipped labels are within valid class range."""
         labels = torch.tensor([0, 1, 2, 3, 4, 5, 6, 7, 8, 9])
         num_classes = 10
+        target_class = 7
 
         result = apply_label_flipping(
-            labels, flip_fraction=0.8, num_classes=num_classes
+            labels, flip_fraction=0.8, target_class=target_class
         )
 
         # All labels should be in range [0, num_classes)
@@ -641,8 +648,8 @@ class TestApplyPoisoningAttack:
         images = torch.rand(10, 1, 28, 28)
         labels = torch.tensor([0, 1, 2, 3, 4, 5, 6, 7, 8, 9])
 
-        # Minimal config - should use defaults
-        attack_config = {"attack_type": "label_flipping"}
+        # Minimal config with required target_class - should use default flip_fraction
+        attack_config = {"attack_type": "label_flipping", "target_class": 7}
 
         result_images, result_labels = apply_poisoning_attack(
             images, labels, attack_config

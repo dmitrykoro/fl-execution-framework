@@ -50,6 +50,7 @@ def _create_overlapping_schedule() -> list:
             attack_type="label_flipping",
             client_ids=[0, 1, 2],
             flip_fraction=0.7,
+            target_class=7,
         ),
         _create_attack_schedule_entry(
             start_round=5,
@@ -140,6 +141,7 @@ class TestPoisoningStacking:
                 attack_type="label_flipping",
                 client_ids=[0],
                 flip_fraction=0.5,
+                target_class=5,
             ),
             _create_attack_schedule_entry(
                 start_round=3,
@@ -147,6 +149,7 @@ class TestPoisoningStacking:
                 attack_type="label_flipping",
                 client_ids=[0],
                 flip_fraction=0.8,  # Different parameter
+                target_class=5,
             ),
         ]
 
@@ -225,6 +228,7 @@ class TestPoisoningStacking:
                 "attack_type": "label_flipping",
                 "selection_strategy": selection_strategy,
                 "flip_fraction": 0.5,
+                "target_class": 7,
                 config_key: config_value,  # Pre-selected clients
             }
         ]
@@ -315,6 +319,7 @@ class TestPoisoningStacking:
                     attack_type=attack_type,
                     client_ids=[0],
                     flip_fraction=0.5,
+                    target_class=7,
                     target_noise_snr=10.0,
                     attack_ratio=0.5,
                 )

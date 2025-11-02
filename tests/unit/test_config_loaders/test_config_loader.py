@@ -55,6 +55,7 @@ class TestConfigLoader:
                             "end_round": 5,
                             "attack_type": "label_flipping",
                             "flip_fraction": 1.0,
+                            "target_class": 7,
                             "selection_strategy": "percentage",
                             "malicious_percentage": 0.2,
                         }
@@ -121,6 +122,7 @@ class TestConfigLoader:
                             "end_round": 5,
                             "attack_type": "label_flipping",
                             "flip_fraction": 1.0,
+                            "target_class": 7,
                             "selection_strategy": "percentage",
                             "malicious_percentage": 0.2,
                         }
@@ -138,6 +140,7 @@ class TestConfigLoader:
                             "end_round": 5,
                             "attack_type": "label_flipping",
                             "flip_fraction": 1.0,
+                            "target_class": 7,
                             "selection_strategy": "percentage",
                             "malicious_percentage": 0.2,
                         }
@@ -285,6 +288,7 @@ class TestConfigLoader:
                             "end_round": 3,
                             "attack_type": "label_flipping",
                             "flip_fraction": 1.0,
+                            "target_class": 7,
                             "selection_strategy": "percentage",
                             "malicious_percentage": 0.2,
                         }
@@ -514,6 +518,7 @@ class TestConfigLoader:
                             "end_round": 5,
                             "attack_type": "label_flipping",
                             "flip_fraction": 1.0,
+                            "target_class": 7,
                             "selection_strategy": "percentage",
                             "malicious_percentage": 0.2,
                         }
@@ -596,6 +601,7 @@ class TestConfigLoader:
                             "end_round": 10,
                             "attack_type": "label_flipping",
                             "flip_fraction": 1.0,
+                            "target_class": 7,
                             "selection_strategy": "percentage",
                             "malicious_percentage": 0.2,
                         }
@@ -610,6 +616,7 @@ class TestConfigLoader:
                             "end_round": 10,
                             "attack_type": "label_flipping",
                             "flip_fraction": 1.0,
+                            "target_class": 7,
                             "selection_strategy": "percentage",
                             "malicious_percentage": 0.2,
                         }
