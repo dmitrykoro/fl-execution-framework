@@ -14,6 +14,7 @@ from flwr.server.client_proxy import ClientProxy
 
 from src.output_handlers.directory_handler import DirectoryHandler
 from src.data_models.simulation_strategy_history import SimulationStrategyHistory
+from scipy.stats import norm
 
 class PIDBasedRemovalStrategy(fl.server.strategy.FedAvg):
     def __init__(
@@ -24,6 +25,8 @@ class PIDBasedRemovalStrategy(fl.server.strategy.FedAvg):
             kd: float,
             kp: float,
             num_std_dev: float,
+            adaptive_threshold: bool,
+            num_of_malicious_clients: int,
             strategy_history: SimulationStrategyHistory,
             network_model,
             use_lora,
@@ -45,6 +48,8 @@ class PIDBasedRemovalStrategy(fl.server.strategy.FedAvg):
         self.kd = kd
         self.kp = kp
         self.num_std_dev = num_std_dev
+        self.adaptive_threshold = adaptive_threshold
+        self.num_of_malicious_clients = num_of_malicious_clients
 
         self.current_threshold = None
 
@@ -238,17 +243,26 @@ class PIDBasedRemovalStrategy(fl.server.strategy.FedAvg):
         if self.aggregation_strategy_keyword in ("pid", "pid_standardized_score_based"):
             pid_avg = np.mean(counted_pids)
             pid_std = np.std(counted_pids)
-            self.current_threshold = pid_avg + (self.num_std_dev * pid_std) if len(counted_pids) > 1 else 0
-
+            if self.adaptive_threshold and self.removed_client_ids and len(self.removed_client_ids) < self.num_of_malicious_clients:
+                mal_ratio = len(self.removed_client_ids)/len(self.client_distances)
+                z = norm.ppf(1-mal_ratio)
+                self.current_threshold = pid_avg + z * pid_std
+                
+                self.logger.info(f"ADAPTIVE REMOVAL THRESHOLD: {self.current_threshold} Z-SCORE: {z}")
+            elif self.adaptive_threshold and len(self.removed_client_ids) >= self.num_of_malicious_clients:
+                self.current_threshold = float("inf")
+                self.logger.info(f"REMOVAL THRESHOLD: {self.current_threshold}")
+            else:
+                self.current_threshold = pid_avg + (self.num_std_dev * pid_std) if len(counted_pids) > 1 else 0
+                self.logger.info(f"REMOVAL THRESHOLD: {self.current_threshold}")
         # use distance-based threshold for pid_scaled and pid_standardized
         elif self.aggregation_strategy_keyword in ("pid_scaled", "pid_standardized"):
             distances_avg = np.mean(list(self.client_distances.values())) if self.client_distances else 0
             distances_std = np.std(list(self.client_distances.values())) if self.client_distances else 0
             self.current_threshold = distances_avg + (self.num_std_dev * distances_std) if len(counted_pids) > 1 else 0
+            self.logger.info(f"REMOVAL THRESHOLD: {self.current_threshold}")
 
         self.strategy_history.insert_round_history_entry(removal_threshold=self.current_threshold)
-
-        self.logger.info(f"REMOVAL THRESHOLD: {self.current_threshold}")
 
         return aggregated_parameters, aggregated_metrics
 
