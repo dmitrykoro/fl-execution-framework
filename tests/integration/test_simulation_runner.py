@@ -917,9 +917,9 @@ class TestSimulationRunnerErrorHandling:
             with pytest.raises(RuntimeError):
                 runner.run()
 
-            # Assert - Verify setup was called but teardown was NOT called due to error
+            # Assert - Verify both setup and teardown were called
             mock_dataset_instance.setup_dataset.assert_called_once()
-            mock_dataset_instance.teardown_dataset.assert_not_called()
+            mock_dataset_instance.teardown_dataset.assert_called_once()
 
 
 class TestSimulationRunnerLogging:

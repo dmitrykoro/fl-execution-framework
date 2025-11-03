@@ -91,66 +91,74 @@ class SimulationRunner:
                 self._simulation_strategy_config_dicts,
                 range(len(self._simulation_strategy_config_dicts))
         ):
-            logging.info(
-                "\n" + "-" * 50 + f"Executing new strategy" + "-" * 50 + "\n" +
-                "Strategy config:\n" +
-                _serialize_config_for_logging(strategy_config_dict)
-            )
+            dataset_handler = None
+            simulation_strategy = None
 
-            strategy_config = StrategyConfig.from_dict(strategy_config_dict)
-            setattr(strategy_config, "strategy_number", strategy_number)
+            try:
+                logging.info(
+                    "\n" + "-" * 50 + f"Executing new strategy" + "-" * 50 + "\n" +
+                    "Strategy config:\n" +
+                    _serialize_config_for_logging(strategy_config_dict)
+                )
 
-            self._directory_handler.assign_dataset_dir(strategy_number)
+                strategy_config = StrategyConfig.from_dict(strategy_config_dict)
+                setattr(strategy_config, "strategy_number", strategy_number)
 
-            dataset_handler = DatasetHandler(
-                strategy_config=strategy_config,
-                directory_handler=self._directory_handler,
-                dataset_config_list=self._dataset_config_list
-            )
-            dataset_handler.setup_dataset()
+                self._directory_handler.assign_dataset_dir(strategy_number)
 
-            simulation_strategy = FederatedSimulation(
-                strategy_config=strategy_config,
-                dataset_dir=self._directory_handler.dataset_dir,
-                dataset_handler=dataset_handler,
-                directory_handler=self._directory_handler,
-            )
-            simulation_strategy.run_simulation()
+                dataset_handler = DatasetHandler(
+                    strategy_config=strategy_config,
+                    directory_handler=self._directory_handler,
+                    dataset_config_list=self._dataset_config_list
+                )
+                dataset_handler.setup_dataset()
 
-            executed_simulation_strategies.append(simulation_strategy)
+                simulation_strategy = FederatedSimulation(
+                    strategy_config=strategy_config,
+                    dataset_dir=self._directory_handler.dataset_dir,
+                    dataset_handler=dataset_handler,
+                    directory_handler=self._directory_handler,
+                )
+                simulation_strategy.run_simulation()
 
-            # generate per-client plots
-            new_plot_handler.show_plots_within_strategy(simulation_strategy, self._directory_handler)
+                executed_simulation_strategies.append(simulation_strategy)
 
-            simulation_strategy.strategy_history.calculate_additional_rounds_data()
-            self._directory_handler.save_csv_and_config(simulation_strategy.strategy_history)
+                # generate per-client plots
+                new_plot_handler.show_plots_within_strategy(simulation_strategy, self._directory_handler)
 
-            dataset_handler.teardown_dataset()
+                simulation_strategy.strategy_history.calculate_additional_rounds_data()
+                self._directory_handler.save_csv_and_config(simulation_strategy.strategy_history)
 
-            # Ensure Ray is initialized before shutting it down to prevent errors in multi-strategy runs
-            if ray.is_initialized():
-                logging.info("Shutting down Ray before cleanup...")
-                ray.shutdown()
-                # Allow time for Ray processes to cleanup
-                time.sleep(3.0)
-                logging.debug("Ray shutdown complete after 3s cleanup delay")
+            finally:
+                # Cleanup resources even if simulation crashes
+                if dataset_handler is not None:
+                    dataset_handler.teardown_dataset()
 
-            logging.info(f"Cleaning up resources after strategy {strategy_number}")
+                # Ensure Ray is initialized before shutting it down to prevent errors in multi-strategy runs
+                if ray.is_initialized():
+                    logging.info("Shutting down Ray before cleanup...")
+                    ray.shutdown()
+                    # Allow time for Ray processes to cleanup
+                    time.sleep(3.0)
+                    logging.debug("Ray shutdown complete after 3s cleanup delay")
 
-            # Clear GPU memory if available
-            if torch.cuda.is_available():
-                torch.cuda.empty_cache()
-                logging.debug("GPU cache cleared")
+                logging.info(f"Cleaning up resources after strategy {strategy_number}")
 
-            # Keep only the strategy_history for plotting
-            simulation_strategy._network_model = None
-            simulation_strategy._trainloaders = None
-            simulation_strategy._valloaders = None
-            simulation_strategy._dataset_loader = None
+                # Clear GPU memory if available
+                if torch.cuda.is_available():
+                    torch.cuda.empty_cache()
+                    logging.debug("GPU cache cleared")
 
-            # Force garbage collection to free memory
-            gc.collect()
-            logging.debug("Garbage collection completed")
+                # Keep only the strategy_history for plotting
+                if simulation_strategy is not None:
+                    simulation_strategy._network_model = None
+                    simulation_strategy._trainloaders = None
+                    simulation_strategy._valloaders = None
+                    simulation_strategy._dataset_loader = None
+
+                # Force garbage collection to free memory
+                gc.collect()
+                logging.debug("Garbage collection completed")
 
         # after all strategies are executed, show comparison averaging plots
         new_plot_handler.show_inter_strategy_plots(executed_simulation_strategies, self._directory_handler)
