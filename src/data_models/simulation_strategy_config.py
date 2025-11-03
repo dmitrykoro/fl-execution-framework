@@ -34,6 +34,7 @@ class StrategyConfig:
     Kd: float = None
     num_std_dev: float = None
     adaptive_threshold: bool = None
+    bad_client_rate: int = None
 
     training_subset_fraction: float = None
     min_fit_clients: int = None

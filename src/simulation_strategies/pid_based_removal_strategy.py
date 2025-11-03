@@ -26,6 +26,7 @@ class PIDBasedRemovalStrategy(fl.server.strategy.FedAvg):
             kp: float,
             num_std_dev: float,
             adaptive_threshold: bool,
+            bad_client_rate: int,
             num_of_malicious_clients: int,
             strategy_history: SimulationStrategyHistory,
             network_model,
@@ -49,6 +50,7 @@ class PIDBasedRemovalStrategy(fl.server.strategy.FedAvg):
         self.kp = kp
         self.num_std_dev = num_std_dev
         self.adaptive_threshold = adaptive_threshold
+        self.bad_client_rate = bad_client_rate
         self.num_of_malicious_clients = num_of_malicious_clients
 
         self.current_threshold = None
@@ -243,18 +245,24 @@ class PIDBasedRemovalStrategy(fl.server.strategy.FedAvg):
         if self.aggregation_strategy_keyword in ("pid", "pid_standardized_score_based"):
             pid_avg = np.mean(counted_pids)
             pid_std = np.std(counted_pids)
-            if self.adaptive_threshold and self.removed_client_ids and len(self.removed_client_ids) < self.num_of_malicious_clients:
-                mal_ratio = len(self.removed_client_ids)/len(self.client_distances)
+            if self.adaptive_threshold and len(self.removed_client_ids) >= self.num_of_malicious_clients:
+                self.current_threshold = float("inf")
+                self.logger.info(f"REMOVAL THRESHOLD: {self.current_threshold}")
+            elif self.adaptive_threshold and self.removed_client_ids:
+                mal_ratio = (self.assumed_bad_clients - len(self.removed_client_ids))/len(self.client_distances)
                 z = norm.ppf(1-mal_ratio)
                 self.current_threshold = pid_avg + z * pid_std
                 
-                self.logger.info(f"ADAPTIVE REMOVAL THRESHOLD: {self.current_threshold} Z-SCORE: {z}")
-            elif self.adaptive_threshold and len(self.removed_client_ids) >= self.num_of_malicious_clients:
-                self.current_threshold = float("inf")
-                self.logger.info(f"REMOVAL THRESHOLD: {self.current_threshold}")
+                self.logger.info(f"ADAPTIVE REMOVAL THRESHOLD: {self.current_threshold} Z-SCORE: {z} MAL RATIO: {mal_ratio}")
+            # elif self.adaptive_threshold and len(self.removed_client_ids) >= self.num_of_malicious_clients:
+            #     self.current_threshold = float("inf")
+            #     self.logger.info(f"REMOVAL THRESHOLD: {self.current_threshold}")
             else:
-                self.current_threshold = pid_avg + (self.num_std_dev * pid_std) if len(counted_pids) > 1 else 0
-                self.logger.info(f"REMOVAL THRESHOLD: {self.current_threshold}")
+                percentage = self.bad_client_rate/100
+                z = norm.ppf(1-percentage)
+                self.current_threshold = pid_avg + (z * pid_std) if len(counted_pids) > 1 else 0
+                self.assumed_bad_clients = len(self.client_distances) * (percentage)
+                self.logger.info(f"INITIAL REMOVAL THRESHOLD: {self.current_threshold} Z-SCORE: {z} BAD CLIENTS ASSUMED: {self.assumed_bad_clients}")
         # use distance-based threshold for pid_scaled and pid_standardized
         elif self.aggregation_strategy_keyword in ("pid_scaled", "pid_standardized"):
             distances_avg = np.mean(list(self.client_distances.values())) if self.client_distances else 0

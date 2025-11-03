@@ -321,6 +321,7 @@ class FederatedSimulation:
                 kd=self.strategy_config.Kd,
                 num_std_dev=self.strategy_config.num_std_dev,
                 adaptive_threshold=self.strategy_config.adaptive_threshold,
+                bad_client_rate=self.strategy_config.bad_client_rate,
                 num_of_malicious_clients=self.strategy_config.num_of_malicious_clients,
                 network_model=self._network_model,
                 aggregation_strategy_keyword=aggregation_strategy_keyword,

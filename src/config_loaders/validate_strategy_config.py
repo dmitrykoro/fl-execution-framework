@@ -172,6 +172,9 @@ config_schema = {
         "adaptive_threshold": {
             "type": "boolean"
         },
+        "bad_client_rate": {
+            "type": "number"
+        },
         "Kp": {
             "type": "number"
         },
@@ -220,7 +223,7 @@ def validate_dependent_params(strategy_config: dict) -> None:
                 )
     elif aggregation_strategy_keyword in ("pid", "pid_scaled", "pid_standardized", "pid_standardized_score_based"):
         pid_specific_parameters = [
-            "num_std_dev", "Kp", "Ki", "Kd", "adaptive_threshold"
+            "num_std_dev", "Kp", "Ki", "Kd", "adaptive_threshold", "bad_client_rate"
         ]
         for param in pid_specific_parameters:
             if param not in strategy_config:
