@@ -300,7 +300,7 @@ class FederatedSimulation:
                     lora_rank=self.strategy_config.lora_rank,
                     lora_alpha=self.strategy_config.lora_alpha,
                     lora_dropout=self.strategy_config.lora_dropout,
-                    lora_target_modules=["query", "value"],
+                    lora_target_modules=self.strategy_config.lora_target_modules,
                 )
             else:
                 self._network_model = load_model(
@@ -322,7 +322,7 @@ class FederatedSimulation:
                     lora_rank=self.strategy_config.lora_rank,
                     lora_alpha=self.strategy_config.lora_alpha,
                     lora_dropout=self.strategy_config.lora_dropout,
-                    lora_target_modules=["query", "value"],
+                    lora_target_modules=self.strategy_config.lora_target_modules,
                 )
             else:
                 self._network_model = load_model(
@@ -344,7 +344,7 @@ class FederatedSimulation:
                     lora_rank=self.strategy_config.lora_rank,
                     lora_alpha=self.strategy_config.lora_alpha,
                     lora_dropout=self.strategy_config.lora_dropout,
-                    lora_target_modules=["query", "value"],
+                    lora_target_modules=self.strategy_config.lora_target_modules,
                 )
             else:
                 self._network_model = load_model(
