@@ -46,9 +46,6 @@ def _extract_attack_params_for_display(attack_type: str, attack_config: dict) ->
     elif attack_type == "gaussian_noise":
         html_attack_params.append(f"SNR={attack_config.get('target_noise_snr', '?')}dB")
         html_attack_params.append(f"ratio={attack_config.get('attack_ratio', '?')}")
-    elif attack_type == "brightness":
-        html_attack_params.append(f"delta={attack_config.get('brightness_delta', '?')}")
-        html_attack_params.append(f"ratio={attack_config.get('attack_ratio', '?')}")
     elif attack_type == "token_replacement":
         vocab = attack_config.get("target_vocabulary")
         strategy = attack_config.get("replacement_strategy")
@@ -67,7 +64,7 @@ def _split_composite_attack_info(attack_type: str, attack_configs: list) -> list
     Split composite attack type into individual attack entries for display.
 
     Args:
-        attack_type: Composite attack type like "label_flipping_brightness"
+        attack_type: Composite attack type like "label_flipping_gaussian_noise"
         attack_configs: List of attack config dicts
 
     Returns:

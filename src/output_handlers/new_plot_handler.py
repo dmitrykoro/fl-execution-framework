@@ -17,7 +17,6 @@ bar_width = 0.2
 ATTACK_ABBREV = {
     "label_flipping": "lf",
     "gaussian_noise": "gn",
-    "brightness": "br",
     "token_replacement": "tr"
 }
 
@@ -69,7 +68,6 @@ def _generate_single_string_strategy_label(strategy_config: StrategyConfig) -> s
         f"remove: {strategy_config.remove_clients}, "
         f"remove_from: {strategy_config.begin_removing_from_round if strategy_config.remove_clients else 'n/a'}, "
         f"total clients: {strategy_config.num_of_clients}, "
-        f"bad_clients: {strategy_config.num_of_malicious_clients}, "
         f"client_epochs: {strategy_config.num_of_client_epochs}, "
         f"batch_size: {strategy_config.batch_size}"
     )
@@ -101,14 +99,12 @@ def _add_attack_background_shading(
     ATTACK_COLORS = {
         "label_flipping": "#ff9999",  # Red
         "gaussian_noise": "#9999ff",  # Blue
-        "brightness": "#ffff99",      # Yellow
         "token_replacement": "#99ff99" # Green
     }
 
     ATTACK_HATCHES = {
         "label_flipping": "////",  # Dense diagonal right
         "gaussian_noise": "\\\\\\\\",  # Dense diagonal left
-        "brightness": "....",  # Dense dots
         "token_replacement": "xxxx",  # Dense crosses
     }
 

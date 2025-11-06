@@ -182,12 +182,6 @@ def _build_single_attack_title(
             return f"Poisoned (Noise)\nSNR: {snr}dB\nLabel: {labels[index]}"
         return f"Noisy (SNR: {snr}dB)\nLabel: {labels[index]}"
 
-    elif attack_type == "brightness":
-        delta = _extract_attack_param(attack_config, "brightness_delta", "factor")
-        if style == "side_by_side":
-            return f"Poisoned (Brightness)\nFactor: {delta}\nLabel: {labels[index]}"
-        return f"Brightness: {delta}\nLabel: {labels[index]}"
-
     elif attack_type == "token_replacement":
         return f"Token poisoned\nLabel: {labels[index]}"
 
@@ -224,9 +218,6 @@ def _build_attack_title(
                     title_parts.append(f"Noise: {snr}dB")
                 else:
                     title_parts.append(f"Noise (SNR: {snr}dB)")
-            elif cfg_type == "brightness":
-                delta = cfg.get("brightness_delta", cfg.get("factor", "?"))
-                title_parts.append(f"Brightness: {delta}")
             elif cfg_type == "token_replacement" and style == "fallback":
                 title_parts.append("Token poisoned")
 

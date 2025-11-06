@@ -53,9 +53,6 @@ config_schema = {
         "num_of_clients": {
             "type": "integer"
         },
-        "num_of_malicious_clients": {
-            "type": "integer"
-        },
         "show_plots": {
             "type": "string",
             "enum": ["true", "false"]
@@ -200,7 +197,7 @@ config_schema = {
                     "end_round": {"type": "integer", "minimum": 1},
                     "attack_type": {
                         "type": "string",
-                        "enum": ["label_flipping", "gaussian_noise", "brightness", "token_replacement"]
+                        "enum": ["label_flipping", "gaussian_noise", "token_replacement"]
                     },
                     "selection_strategy": {"type": "string", "enum": ["specific", "random", "percentage"]},
                     "malicious_client_ids": {"type": "array", "items": {"type": "integer"}},
@@ -233,7 +230,7 @@ config_schema = {
     },
     "required": [
         "aggregation_strategy_keyword", "remove_clients", "dataset_keyword", "model_type",
-        "use_llm", "num_of_rounds", "num_of_clients", "num_of_malicious_clients",
+        "use_llm", "num_of_rounds", "num_of_clients",
         "show_plots", "save_plots", "save_csv", "preserve_dataset",
         "training_subset_fraction", "training_device", "cpus_per_client",
         "gpus_per_client", "min_fit_clients", "min_evaluate_clients",

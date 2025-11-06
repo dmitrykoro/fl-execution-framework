@@ -90,20 +90,6 @@ def apply_gaussian_noise(
     return poisoned_images
 
 
-def apply_brightness_attack(images: torch.Tensor, factor: float = 0.5) -> torch.Tensor:
-    """
-    Modify image brightness by a multiplicative factor.
-
-    Args:
-        images: Tensor of shape (batch_size, C, H, W)
-        factor: Brightness multiplier (0.0 = black, 1.0 = unchanged, >1.0 = brighter)
-
-    Returns:
-        torch.Tensor: Images with modified brightness, clamped to [0, 1]
-    """
-    return torch.clamp(images * factor, 0, 1)
-
-
 def apply_token_replacement(
     tokens: torch.Tensor,
     replacement_prob: float = 0.2,
@@ -273,9 +259,6 @@ def apply_poisoning_attack(
                 std=attack_config.get("std", 0.1),
                 attack_ratio=attack_ratio,
             )
-
-    elif attack_type == "brightness":
-        data = apply_brightness_attack(data, factor=attack_config.get("factor", 0.5))
 
     elif attack_type == "token_replacement":
         # Convert target/replacement tokens to IDs if provided
