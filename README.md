@@ -79,10 +79,16 @@ Defines the aggregation strategy. Options:
 - **`attack_schedule`**: array of attack entries for round-based attack configuration. Each entry specifies:
   - `start_round`: when the attack should start (1 to `num_of_rounds`).
   - `end_round`: when the attack should end (1 to `num_of_rounds`).
-  - `attack_type`: `label_flipping`, `gaussian_noise`, `brightness`, or `token_replacement`.
+  - `attack_type`: `label_flipping`, `gaussian_noise`, or `token_replacement`.
   - `selection_strategy`: how to select malicious clients (`specific`, `random`, or `percentage`).
-  - Attack-specific parameters (e.g., `flip_fraction` for label flipping, `target_noise_snr` for gaussian noise).
-  - Client selection parameters (e.g., `malicious_client_ids` for specific strategy).
+  - **Attack-specific parameters (required):**
+    - `label_flipping`: `flip_fraction` (0.0-1.0), `target_class` (integer)
+    - `gaussian_noise`: `target_noise_snr` (dB), `attack_ratio` (0.0-1.0)
+    - `token_replacement`: `replacement_prob` (0.0-1.0), plus either `target_token_ids`/`replacement_token_ids` arrays or `target_vocabulary`/`replacement_strategy` strings
+  - **Client selection parameters (required):**
+    - `specific`: `malicious_client_ids` (array of client IDs)
+    - `random`: `malicious_client_count` (integer)
+    - `percentage`: `malicious_percentage` (0.0-1.0)
 
 - `save_attack_snapshots`: save attack snapshots for analysis (`true`/`false`).
 - `attack_snapshot_format`: format for saving snapshots. Options: `pickle`, `visual`, `pickle_and_visual`.
