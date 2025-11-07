@@ -1,9 +1,9 @@
 name: CI Pipeline
 
 on:
-  # push:
-  # Uncomment the following lines to enable CI on push and pull request events:
-  #   branches: [ "*" ]
+  push:
+  # Change to a real branch name and uncomment pull_request to enable
+    branches: [ "test" ]
   # pull_request:
   #   branches: [ main, master ]
 
