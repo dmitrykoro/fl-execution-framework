@@ -1,7 +1,5 @@
-#!/usr/bin/env python3
-# make_medmentions_from_kb.py
 # Usage:
-#   python make_medmentions_from_kb.py --out-dir datasets/medmentions_st21pv_ner --num-clients 10 --chunk-size 0
+#   python make_medmentions.py --out-dir datasets/medmentions_st21pv_ner --num-clients 10 --chunk-size 0
 #
 # Notes:
 # - We load the KB schema (medmentions_st21pv_bigbio_kb) and convert to a NER-like format.
@@ -13,8 +11,8 @@ import argparse, json, os, re
 from collections import defaultdict
 from typing import List, Tuple, Dict
 from datasets import load_dataset
-# --- add to your imports ---
 import re
+
 try:
     import nltk
     _HAS_NLTK = True
