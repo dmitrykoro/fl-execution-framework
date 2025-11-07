@@ -74,18 +74,12 @@ class RoundsInfo:
         ]
         
         self.savable_metrics += [
-            "mention_precision_history",
-            "mention_recall_history",
-            "mention_f1_history",
             "document_precision_history",
             "document_recall_history",
             "document_f1_history",
         ]
 
         self.plottable_metrics += [
-            "mention_precision_history",
-            "mention_recall_history",
-            "mention_f1_history",
             "document_precision_history",
             "document_recall_history",
             "document_f1_history",

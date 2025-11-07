@@ -230,13 +230,13 @@ class KrumBasedRemovalStrategy(Krum):
             logging.debug(f'Loss: {result[1].loss}')
 
         metrics_aggregated = {}
-                # --------- OPTIONAL strict MedMentions micro-averaged metrics ----------
+        # --------- OPTIONAL strict MedMentions micro-averaged metrics ----------
         # Only enable if at least one client reported strict counts (NER/GPT-2 case)
         has_strict = any(
             ("tp_m" in ev.metrics) or ("tp_d" in ev.metrics) for _, ev in results
         )
 
-        metrics_aggregated: Dict[str, Scalar] = {}  # keep existing dict if you already have one
+        metrics_aggregated: Dict[str, Scalar] = {}  
         if self.remove_clients and self.current_round >= self.begin_removing_from_round:
             effective_resullts = [(cp,ev) for (cp,ev) in results if cp.cid not in self.removed_client_ids]
         else:
@@ -259,7 +259,7 @@ class KrumBasedRemovalStrategy(Krum):
             mp, mr, mf1 = _prf(sum_tp_m, sum_fp_m, sum_fn_m)
             dp, dr, df1 = _prf(sum_tp_d, sum_fp_d, sum_fn_d)
 
-            # Persist to rounds history only if those fields exist (step 5 adds them)
+            # Persist to rounds history only if those fields exist
             rh = getattr(self.strategy_history, "rounds_history", None)
             if rh and hasattr(rh, "mention_precision_history"):
                 rh.mention_precision_history.append(mp)
@@ -269,7 +269,7 @@ class KrumBasedRemovalStrategy(Krum):
                 rh.document_recall_history.append(dr)
                 rh.document_f1_history.append(df1)
 
-            # Expose in aggregated metrics output (nice for logs/exports)
+            # Expose in aggregated metrics output
             metrics_aggregated.update({
                 "mention_precision": float(mp),
                 "mention_recall": float(mr),

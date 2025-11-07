@@ -197,6 +197,7 @@ class DatasetHandler:
                     logging.error(f"Failed to write image: {filepath}")
 
     def _flip_ner_labels(self, client_dir: str) -> None:
+        """Flips the NER labels for a specific client"""
         rng = random.Random()
         try:
             base_seed = 1337
@@ -218,7 +219,7 @@ class DatasetHandler:
             logging.warning(f"No JSON files found for NER poisoning in {client_path}")
             return
 
-        # 1) Collect full label set from this client's files (you could also load a global set if you prefer)
+        #Collect full label set from this client's files
         label_set = set()
         for f in json_files:
             try:
@@ -237,7 +238,7 @@ class DatasetHandler:
             logging.warning(f"Insufficient label variety found in {client_path}; skipping flip.")
             return
 
-        # 2) Rewrite each file with flipped labels
+        #Rewrite each file with flipped labels
         for f in json_files:
             try:
                 with open(f, "r", encoding="utf-8") as fp:
@@ -250,14 +251,12 @@ class DatasetHandler:
 
                     new_tags = []
                     for t in tags:
-                        # Respect attack_ratio (flip only some tokens if ratio < 1.0)
                         if rng.random() > attack_ratio:
                             new_tags.append(t)
                             continue
 
                         # Pick a different label uniformly at random
                         # Build a small candidate list without t
-                        # (Avoids bias; fast for modest label sets)
                         while True:
                             candidate = rng.choice(label_list)
                             if candidate != t:
@@ -275,7 +274,7 @@ class DatasetHandler:
             except Exception as e:
                 logging.error(f"Failed poisoning {f}: {e}")
 
-        # 3) Mark the client folder as poisoned (keeps parity with image attacks)
+        #Mark the client folder as poisoned
         try:
             os.rename(
                 os.path.join(self.dst_dataset, client_dir),

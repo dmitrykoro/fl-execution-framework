@@ -11,7 +11,7 @@ class MedMentionsNERDatasetLoader:
     """
 
     IGNORE_LABEL = -100  # for subword tokens
-    MAX_LEN = 512        # change if you plan to window to 1024 later
+    MAX_LEN = 512        
 
     def __init__(
         self,
@@ -32,7 +32,7 @@ class MedMentionsNERDatasetLoader:
         self.label2id = {l: i for i, l in enumerate(self.label_list)}
         self.id2label = {i: l for l, i in self.label2id.items()}
 
-        # Tokenizer (GPT-2 has no PAD by default)
+        # Tokenizer 
         self.tokenizer = GPT2TokenizerFast.from_pretrained(
             "gpt2",
             add_prefix_space=True,
@@ -42,7 +42,7 @@ class MedMentionsNERDatasetLoader:
         if self.tokenizer.pad_token is None:
             self.tokenizer.pad_token = self.tokenizer.eos_token
 
-        # Let the collator pad dynamically
+        
         self.collator = DataCollatorForTokenClassification(
             tokenizer=self.tokenizer,
             pad_to_multiple_of=8,
@@ -52,7 +52,7 @@ class MedMentionsNERDatasetLoader:
         def _collate_with_meta(features):
             doc_ids = [f.pop("doc_id") for f in features]
             word_lengths = [f.pop("word_length") for f in features]
-            batch = self.collator(features)  # pads/tensorizes only model fields
+            batch = self.collator(features)  #tensorizes only model fields
             batch["doc_id"] = doc_ids
             batch["word_length"] = word_lengths
             return batch
@@ -87,7 +87,7 @@ class MedMentionsNERDatasetLoader:
             batch["tokens"],
             is_split_into_words=True,
             truncation=True,
-            padding=False,            # collator pads
+            padding=False,            
             max_length=self.MAX_LEN,
             return_attention_mask=True,
         )
@@ -107,25 +107,24 @@ class MedMentionsNERDatasetLoader:
                 prev_wid = wid
             labels.append(aligned)
 
-        # NEW: carry these through for strict mention/doc metrics
+       
         doc_ids = [str(d) for d in batch["document_id"]]
         word_lengths = [len(toks) for toks in batch["tokens"]]
 
-        # Return ONLY model fields + the two extras.
-        # (We will still remove the original columns in .map(..., remove_columns=orig_cols))
+        
         return {
             "input_ids": enc["input_ids"],
             "attention_mask": enc["attention_mask"],
             "labels": labels,
-            "doc_id": doc_ids,               # <-- added
-            "word_length": word_lengths,     # <-- added
+            "doc_id": doc_ids,             
+            "word_length": word_lengths,    
         }
 
 
     def _load_one_client(self, client_dir: str) -> Tuple[DataLoader, DataLoader]:
         files_train = glob.glob(os.path.join(client_dir, "train*.json"))
         files_val   = glob.glob(os.path.join(client_dir, "validation*.json"))
-        if not files_val:  # fallback if you only have test
+        if not files_val:  
             files_val = glob.glob(os.path.join(client_dir, "test*.json"))
 
         ds = DatasetDict({
@@ -138,8 +137,8 @@ class MedMentionsNERDatasetLoader:
             n = int(len(ds["train"]) * self.training_subset_fraction)
             ds["train"] = ds["train"].select(range(n))
 
-        # --- CRITICAL: drop ALL original columns so the collator only sees tensors ---
-        orig_cols = ds["train"].column_names  # e.g., ['id','document_id','text','tokens','ner_tags']
+        
+        orig_cols = ds["train"].column_names  
         ds_tok = ds.map(self._encode_align, batched=True, remove_columns=orig_cols)
 
         trainloader = DataLoader(
