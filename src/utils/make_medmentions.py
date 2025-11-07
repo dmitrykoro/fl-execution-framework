@@ -16,8 +16,12 @@ import re
 try:
     import nltk
     _HAS_NLTK = True
-    # make sure punkt is available; if not, run: nltk.download("punkt")
-    nltk.data.find("tokenizers/punkt")
+    try:
+        # Check if 'punkt' tokenizer is already installed
+        nltk.data.find("tokenizers/punkt")
+    except LookupError:
+        # If not installed, download it
+        nltk.download("punkt")
 except Exception:
     _HAS_NLTK = False
 

@@ -82,6 +82,7 @@ urllib3==2.2.2
 xxhash==3.4.1
 yarl==1.9.4
 zipp==3.19.2
+nltk>=3.8.1,<4.0.0
 
 # Testing dependencies
 pytest==8.3.3
@@ -90,3 +91,4 @@ pytest-mock==3.14.0
 pytest-xdist==3.5.0
 mypy==1.13.0
 ruff==0.13.1
+
