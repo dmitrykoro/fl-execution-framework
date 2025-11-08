@@ -10,7 +10,6 @@ import torch
 from src.attack_utils.poisoning import (
     apply_label_flipping,
     apply_gaussian_noise,
-    apply_brightness_attack,
     apply_token_replacement,
     should_poison_this_round,
     apply_poisoning_attack,
@@ -186,56 +185,6 @@ class TestApplyGaussianNoise:
 
         # All values should be clamped
         assert torch.all(result >= 0.0)
-        assert torch.all(result <= 1.0)
-
-
-class TestApplyBrightnessAttack:
-    """Test suite for apply_brightness_attack function."""
-
-    def test_brightness_darkening(self):
-        """Test darkening images with factor < 1."""
-        images = torch.rand(5, 3, 28, 28)
-
-        result = apply_brightness_attack(images, factor=0.5)
-
-        # Images should be darker
-        assert torch.all(result <= images)
-        assert torch.all(result >= 0.0)
-
-    def test_brightness_brightening(self):
-        """Test brightening images with factor > 1."""
-        images = torch.rand(5, 3, 28, 28) * 0.5  # Keep below 0.5 to allow brightening
-
-        result = apply_brightness_attack(images, factor=1.5)
-
-        # Images should be brighter (with clamping)
-        assert torch.all(result >= 0.0)
-        assert torch.all(result <= 1.0)
-
-    def test_brightness_no_change(self):
-        """Test that factor=1.0 doesn't change images."""
-        images = torch.rand(5, 3, 28, 28)
-        original_images = images.clone()
-
-        result = apply_brightness_attack(images, factor=1.0)
-
-        assert torch.allclose(result, original_images)
-
-    def test_brightness_black(self):
-        """Test that factor=0.0 creates black images."""
-        images = torch.rand(5, 3, 28, 28)
-
-        result = apply_brightness_attack(images, factor=0.0)
-
-        assert torch.all(result == 0.0)
-
-    def test_brightness_clamping(self):
-        """Test that brightness values are clamped to [0, 1]."""
-        images = torch.ones(5, 3, 28, 28)
-
-        result = apply_brightness_attack(images, factor=2.0)
-
-        # Should be clamped to 1.0
         assert torch.all(result <= 1.0)
 
 
@@ -560,23 +509,6 @@ class TestApplyPoisoningAttack:
 
         # Images should be modified
         assert not torch.allclose(result_images, original_images, rtol=1e-4)
-
-        # Labels should be unchanged
-        assert torch.equal(result_labels, labels)
-
-    def test_brightness_attack(self):
-        """Test brightness attack application."""
-        images = torch.rand(10, 3, 28, 28)
-        labels = torch.tensor([0, 1, 2, 3, 4, 5, 6, 7, 8, 9])
-
-        attack_config = {"attack_type": "brightness", "factor": 0.5}
-
-        result_images, result_labels = apply_poisoning_attack(
-            images, labels, attack_config
-        )
-
-        # Images should be darker
-        assert torch.all(result_images <= images)
 
         # Labels should be unchanged
         assert torch.equal(result_labels, labels)
