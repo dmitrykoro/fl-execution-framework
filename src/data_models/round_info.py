@@ -74,17 +74,17 @@ class RoundsInfo:
             "removal_f1_history",
         ]
         
-        self.savable_metrics += [
-            "document_precision_history",
-            "document_recall_history",
-            "document_f1_history",
-        ]
-
-        self.plottable_metrics += [
-            "document_precision_history",
-            "document_recall_history",
-            "document_f1_history",
-        ]
+        if getattr(self.simulation_strategy_config, "dataset_keyword", None) == "medmentions":
+            self.savable_metrics += [
+                "document_precision_history",
+                "document_recall_history",
+                "document_f1_history",
+            ]
+            self.plottable_metrics += [
+                "document_precision_history",
+                "document_recall_history",
+                "document_f1_history",
+            ]
 
         if self.simulation_strategy_config.remove_clients:
             self.savable_metrics += self.statsable_metrics
