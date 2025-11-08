@@ -69,6 +69,52 @@ MEDICAL = [
     "vaccine", "vaccines", "vaccination", "vaccinations",
     "immunization", "immunizations", "immunize",
     "shot", "shots", "dose", "doses",
+    # Research methodology (for PubMed/biomedical research)
+    "study", "studies", "trial", "trials",
+    "research", "analysis", "method", "methods",
+    "approach", "investigation", "experiment", "experiments",
+    "design", "protocol", "cohort",
+    "randomized", "controlled", "observational",
+    "prospective", "retrospective",
+    "systematic", "review", "meta-analysis",
+    "data", "results", "findings",
+    # Biomedical entities
+    "protein", "proteins", "gene", "genes",
+    "cell", "cells", "tissue", "tissues",
+    "molecule", "molecules", "enzyme", "enzymes",
+    "receptor", "receptors", "pathway", "pathways",
+    "expression", "signaling", "signal",
+    "DNA", "RNA", "chromosome", "chromosomes",
+    "mutation", "mutations", "antibody", "antibodies",
+    "antigen", "antigens", "biomarker", "biomarkers",
+    "genome", "peptide", "peptides",
+    "acid", "compound", "compounds", "binding",
+    # Statistical and scientific terms
+    "significant", "significance", "correlation", "correlations",
+    "association", "associations", "p-value",
+    "confidence", "interval", "regression",
+    "measured", "observed", "demonstrated",
+    "identified", "reported", "showed",
+    "indicated", "revealed", "suggested",
+    "compared", "assessed", "evaluated",
+    "analyzed", "quantified", "estimated", "detected",
+    # Clinical research terms
+    "efficacy", "safety", "adverse",
+    "effect", "effects", "outcome", "outcomes",
+    "endpoint", "endpoints", "placebo",
+    "response", "responses", "survival",
+    "mortality", "morbidity", "toxicity",
+    # Disease and pathology
+    "cancer", "tumor", "tumors",
+    "malignant", "benign", "acute", "chronic",
+    "progressive", "degenerative",
+    "metastasis", "lesion", "lesions",
+    "pathology", "etiology", "prognosis",
+    "risk", "factor", "factors",
+    # Anatomical and biological
+    "brain", "heart", "liver", "lung", "kidney",
+    "blood", "organ", "organs", "system", "systems",
+    "immune", "neural",
 ]
 
 # Financial/Market domain
