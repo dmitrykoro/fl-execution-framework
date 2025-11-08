@@ -25,12 +25,13 @@ class RoundsInfo:
     removal_precision_history: List[float] = field(default_factory=list)
     removal_recall_history: List[float] = field(default_factory=list)
     removal_f1_history: List[float] = field(default_factory=list)
-    mention_precision_history: list = field(default_factory=list)
-    mention_recall_history:    list = field(default_factory=list)
-    mention_f1_history:        list = field(default_factory=list)
-    document_precision_history: list = field(default_factory=list)
-    document_recall_history:    list = field(default_factory=list)
-    document_f1_history:        list = field(default_factory=list)
+    mention_precision_history: List[float] = field(default_factory=list)
+    mention_recall_history:    List[float] = field(default_factory=list)
+    mention_f1_history:        List[float] = field(default_factory=list)
+    document_precision_history: List[float] = field(default_factory=list)
+    document_recall_history:    List[float] = field(default_factory=list)
+    document_f1_history:        List[float] = field(default_factory=list)
+
 
     
 
