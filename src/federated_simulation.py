@@ -21,7 +21,7 @@ from src.dataset_loaders.image_transformers.lung_photos_image_transformer import
 from src.dataset_loaders.medquad_dataset_loader import MedQuADDatasetLoader
 from src.dataset_loaders.image_transformers.medmnist_2d_grayscale_image_transformer import medmnist_2d_grayscale_image_transformer
 from src.dataset_loaders.image_transformers.medmnist_2d_rgb_image_transformer import medmnist_2d_rgb_image_transformer
-from dataset_loaders.medmentions_dataset_loader import MedMentionsNERDatasetLoader
+from src.dataset_loaders.medmentions_dataset_loader import MedMentionsNERDatasetLoader
 
 
 from src.network_models.its_network_definition import ITSNetwork
@@ -41,7 +41,7 @@ from src.network_models.organamnist_network_definition import OrganAMNISTNetwork
 from src.network_models.organcmnist_network_definition import OrganCMNISTNetwork
 from src.network_models.organsmnist_network_definition import OrganSMNISTNetwork
 from src.network_models.bert_model_definition import load_model, load_model_with_lora
-from network_models.gpt2_model_definition import load_gpt2_ner_model, load_gpt2_ner_with_lora
+from src.network_models.gpt2_model_definition import load_gpt2_ner_model, load_gpt2_ner_with_lora
 
 
 from src.client_models.flower_client import FlowerClient
