@@ -57,7 +57,7 @@ config_schema = {
         },
         "attack_type": {
             "type": "string",
-            "enum": ["label_flipping", "gaussian_noise",'ner_label_flipping']
+            "enum": ["label_flipping", "gaussian_noise", 'ner_label_flipping']
         },
         "show_plots": {
             "type": "string",
@@ -86,7 +86,7 @@ config_schema = {
         },
         "llm_model": {
             "type": "string",
-            "enum": ["microsoft/BiomedNLP-BiomedBERT-base-uncased-abstract-fulltext","gpt2"]
+            "enum": ["microsoft/BiomedNLP-BiomedBERT-base-uncased-abstract-fulltext", "gpt2"]
         },
         "llm_task": {
             "type": "string",
