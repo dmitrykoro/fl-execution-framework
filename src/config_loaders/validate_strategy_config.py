@@ -29,6 +29,7 @@ config_schema = {
                 "flair",
                 "bloodmnist",
                 "medquad",
+                "medal",
                 "financial_phrasebank",
                 "lexglue",
                 "lung_photos",

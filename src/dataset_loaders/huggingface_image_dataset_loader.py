@@ -1,3 +1,4 @@
+import logging
 import torch
 import numpy as np
 from datasets import load_dataset
@@ -50,6 +51,7 @@ class HuggingFaceImageDatasetLoader:
         num_of_clients: int = 10,
         batch_size: int = 32,
         training_subset_fraction: float = 0.8,
+        max_samples: int = None, # Limit dataset size
     ):
         self.hf_dataset_path = hf_dataset_path
         self.hf_dataset_name = hf_dataset_name
@@ -57,6 +59,7 @@ class HuggingFaceImageDatasetLoader:
         self.num_of_clients = num_of_clients
         self.batch_size = batch_size
         self.training_subset_fraction = training_subset_fraction
+        self.max_samples = max_samples
 
         if self.transformer is None:
             self.transformer = transforms.Compose([
@@ -123,11 +126,23 @@ class HuggingFaceImageDatasetLoader:
 
         full_dataset = dataset["train"]
 
+        # Limit dataset size for memory optimization
+        if self.max_samples is not None and len(full_dataset) > self.max_samples:
+            original_size = len(full_dataset)
+            full_dataset = full_dataset.shuffle(seed=42)
+            full_dataset = full_dataset.select(range(self.max_samples))
+            logging.info(
+                f"Dataset optimization: Limited from {original_size:,} to {self.max_samples:,} samples "
+                f"({(self.max_samples/original_size)*100:.1f}%) for faster processing"
+            )
+
         # Use Non-IID for labeled datasets, IID for unlabeled
         if "label" in full_dataset.column_names:
             client_indices_list = self._partition_label_skew_dirichlet(full_dataset, alpha=0.5)
         else:
-            full_dataset = full_dataset.shuffle(seed=42)
+            # Only shuffle if not already shuffled above
+            if self.max_samples is None or len(dataset["train"]) <= self.max_samples:
+                full_dataset = full_dataset.shuffle(seed=42)
             client_indices_list = self._partition_iid(full_dataset)
 
         for client_id in range(self.num_of_clients):

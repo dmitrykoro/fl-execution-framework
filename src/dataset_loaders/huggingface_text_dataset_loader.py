@@ -1,3 +1,4 @@
+import logging
 import torch
 import numpy as np
 from datasets import load_dataset
@@ -34,6 +35,7 @@ class HuggingFaceTextDatasetLoader:
         mlm_probability: float = 0.15,
         num_poisoned_clients: int = 0,
         attack_schedule=None,
+        max_samples: int = None, # Limit dataset size
     ):
         self.hf_dataset_path = hf_dataset_path
         self.hf_dataset_name = hf_dataset_name
@@ -47,6 +49,7 @@ class HuggingFaceTextDatasetLoader:
         self.mlm_probability = mlm_probability
         self.num_poisoned_clients = num_poisoned_clients
         self.attack_schedule = attack_schedule
+        self.max_samples = max_samples
         self.tokenizer = None
 
     def _partition_iid(self, full_dataset):
@@ -116,6 +119,16 @@ class HuggingFaceTextDatasetLoader:
 
         full_dataset = dataset["train"]
 
+        # Limit dataset size for memory optimization
+        if self.max_samples is not None and len(full_dataset) > self.max_samples:
+            original_size = len(full_dataset)
+            full_dataset = full_dataset.shuffle(seed=42)
+            full_dataset = full_dataset.select(range(self.max_samples))
+            logging.info(
+                f"Dataset optimization: Limited from {original_size:,} to {self.max_samples:,} samples "
+                f"({(self.max_samples/original_size)*100:.1f}%) for faster processing"
+            )
+
         if self.remove_columns is None:
             self.remove_columns = [col for col in full_dataset.column_names if col not in ["input_ids", "attention_mask"]]
 
@@ -123,7 +136,9 @@ class HuggingFaceTextDatasetLoader:
         if "label" in full_dataset.column_names:
             client_indices_list = self._partition_label_skew_dirichlet(full_dataset, alpha=0.5)
         else:
-            full_dataset = full_dataset.shuffle(seed=42)
+            # Only shuffle if not already shuffled above
+            if self.max_samples is None or len(dataset["train"]) <= self.max_samples:
+                full_dataset = full_dataset.shuffle(seed=42)
             client_indices_list = self._partition_iid(full_dataset)
 
         for client_id in range(self.num_of_clients):

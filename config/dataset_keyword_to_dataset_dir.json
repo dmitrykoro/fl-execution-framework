@@ -6,6 +6,7 @@
   "pneumoniamnist": "datasets/pneumoniamnist",
   "bloodmnist": "datasets/bloodmnist",
   "medquad": "datasets/medquad",
+  "medal": "huggingface",
   "financial_phrasebank": "huggingface",
   "lexglue": "huggingface",
   "lung_photos": "datasets/lung_photos",
