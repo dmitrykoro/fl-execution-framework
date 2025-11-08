@@ -61,6 +61,7 @@ Defines the aggregation strategy. Options:
   - `organamnist`: axial view CT scans of abdominal organs, 11 classes, 40 clients.
   - `organcmnist`: coronal view CT scans of abdominal organs, 11 classes, 40 clients.
   - `organsmnist`: sagittal view CT scans of abdominal organs, 11 classes, 40 clients.
+  - `medmentions`: PubMed extracts with NER labels, 10 clients (can manually generate more clients using the script in `src/utils/make_medmentions.py`)
 
 - `num_of_rounds`: total aggregation rounds.
 - `num_of_clients`: number of clients (limited to available dataset clients).
