@@ -378,14 +378,3 @@ LEGAL_SPECIFIC: List[str] = [
 # =============================================================================
 
 LEGAL: List[str] = LEGAL_BROAD + LEGAL_NARROW + LEGAL_SPECIFIC
-
-# Statistics
-print(f"Legal Vocabulary Statistics:")
-print(f"  Tier 1 (Broad):    {len(LEGAL_BROAD)} terms")
-print(f"  Tier 2 (Narrow):   {len(LEGAL_NARROW)} terms")
-print(f"  Tier 3 (Specific): {len(LEGAL_SPECIFIC)} terms")
-print(f"  Total:             {len(LEGAL)} terms")
-print(f"\nDistribution:")
-print(f"  Broad:    {len(LEGAL_BROAD)/len(LEGAL)*100:.1f}%")
-print(f"  Narrow:   {len(LEGAL_NARROW)/len(LEGAL)*100:.1f}%")
-print(f"  Specific: {len(LEGAL_SPECIFIC)/len(LEGAL)*100:.1f}%")

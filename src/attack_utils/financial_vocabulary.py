@@ -349,14 +349,3 @@ FINANCIAL_SPECIFIC: List[str] = [
 # =============================================================================
 
 FINANCIAL: List[str] = FINANCIAL_BROAD + FINANCIAL_NARROW + FINANCIAL_SPECIFIC
-
-# Statistics
-print(f"Financial Vocabulary Statistics:")
-print(f"  Tier 1 (Broad):    {len(FINANCIAL_BROAD)} terms")
-print(f"  Tier 2 (Narrow):   {len(FINANCIAL_NARROW)} terms")
-print(f"  Tier 3 (Specific): {len(FINANCIAL_SPECIFIC)} terms")
-print(f"  Total:             {len(FINANCIAL)} terms")
-print(f"\nDistribution:")
-print(f"  Broad:    {len(FINANCIAL_BROAD)/len(FINANCIAL)*100:.1f}%")
-print(f"  Narrow:   {len(FINANCIAL_NARROW)/len(FINANCIAL)*100:.1f}%")
-print(f"  Specific: {len(FINANCIAL_SPECIFIC)/len(FINANCIAL)*100:.1f}%")

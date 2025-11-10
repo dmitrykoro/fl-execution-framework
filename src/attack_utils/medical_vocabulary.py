@@ -359,14 +359,3 @@ MEDICAL_SPECIFIC: List[str] = [
 # =============================================================================
 
 MEDICAL: List[str] = MEDICAL_BROAD + MEDICAL_NARROW + MEDICAL_SPECIFIC
-
-# Statistics
-print(f"Medical Vocabulary Statistics:")
-print(f"  Tier 1 (Broad):    {len(MEDICAL_BROAD)} terms")
-print(f"  Tier 2 (Narrow):   {len(MEDICAL_NARROW)} terms")
-print(f"  Tier 3 (Specific): {len(MEDICAL_SPECIFIC)} terms")
-print(f"  Total:             {len(MEDICAL)} terms")
-print(f"\nDistribution:")
-print(f"  Broad:    {len(MEDICAL_BROAD)/len(MEDICAL)*100:.1f}%")
-print(f"  Narrow:   {len(MEDICAL_NARROW)/len(MEDICAL)*100:.1f}%")
-print(f"  Specific: {len(MEDICAL_SPECIFIC)/len(MEDICAL)*100:.1f}%")
