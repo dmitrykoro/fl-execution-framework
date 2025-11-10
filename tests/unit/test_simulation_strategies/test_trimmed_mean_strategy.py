@@ -56,7 +56,6 @@ class TestTrimmedMeanBasedRemovalStrategy:
         assert trimmed_mean_strategy.trim_ratio == 0.2
         assert trimmed_mean_strategy.strategy_history == mock_strategy_history
         assert trimmed_mean_strategy.current_round == 0
-        assert trimmed_mean_strategy.removed_client_ids == set()
         assert trimmed_mean_strategy.client_scores == {}
 
     def test_aggregate_fit_no_trimming_needed(self, trimmed_mean_strategy):
@@ -187,11 +186,11 @@ class TestTrimmedMeanBasedRemovalStrategy:
         assert len(result) == 5
 
     def test_configure_fit_removal_phase(self, trimmed_mean_strategy):
-        """Test configure_fit removes client with highest score."""
+        """Test configure_fit during removal phase."""
         trimmed_mean_strategy.current_round = 3  # After begin_removing_from_round
         trimmed_mean_strategy.client_scores = {
             "client_0": 0.1,
-            "client_1": 0.8,  # Highest score - should be removed
+            "client_1": 0.8,  # Highest score
             "client_2": 0.3,
             "client_3": 0.2,
             "client_4": 0.5,
@@ -207,8 +206,8 @@ class TestTrimmedMeanBasedRemovalStrategy:
             3, mock_parameters, mock_client_manager
         )
 
-        # Should remove 1 client during removal phase
-        assert len(result) == 4
+        # Should return all clients sorted by score (descending)
+        assert len(result) == 5
 
     def test_configure_fit_no_removal_when_disabled(self, trimmed_mean_strategy):
         """Test configure_fit doesn't remove clients when removal is disabled."""
@@ -467,10 +466,9 @@ class TestTrimmedMeanBasedRemovalStrategy:
             assert np.all(np.isfinite(arr))
 
     def test_aggregate_evaluate_with_removed_clients(self, trimmed_mean_strategy):
-        """Test aggregate_evaluate skips removed clients correctly."""
+        """Test aggregate_evaluate processes all client results."""
         from flwr.common import EvaluateRes
 
-        trimmed_mean_strategy.removed_client_ids = {"1", "3"}
         trimmed_mean_strategy.current_round = 2
 
         results = []
@@ -487,6 +485,6 @@ class TestTrimmedMeanBasedRemovalStrategy:
 
         loss, metrics = trimmed_mean_strategy.aggregate_evaluate(2, results, [])
 
-        # Should aggregate only non-removed clients (0, 2, 4)
+        # Should aggregate all client results
         assert loss is not None
         trimmed_mean_strategy.strategy_history.insert_single_client_history_entry.assert_called()
