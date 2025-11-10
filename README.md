@@ -144,9 +144,7 @@ Defines the aggregation strategy. Options:
 1. **Python Environment**: Python 3.10.14 is used in the framework. Before attempting to run the code, make sure the Python 3.9-3.11 is installed in the system.
 2. **Configuration**: place configurations in `config/simulation_strategies/`.
 3. **Specify Configuration**: update `src/simulation_runner.py` with the desired configuration file.
-4. **Execution**:
-  - On UNIX: run `sh run_simulation.sh` (automated virtual environment setup and execution).
-  - On Windows: install dependencies from `requirements.txt` and execute manually.
+4. **Execution**: run `sh run_simulation.sh` (automated virtual environment setup and execution).
 5. **Output**: plots and `.csv` files (if enabled) saved in `out/` directory.
 
 ---
@@ -284,7 +282,7 @@ local client epochs.
     {
       "aggregation_strategy_keyword": "pid",
       // the following parameters are specific for pid strategy
-      "pid_threshold": 1,
+      "num_std_dev": 2.0,
       "Kp": 1,
       "Ki": 0,
       "Kd": 0
@@ -304,7 +302,7 @@ Since the strategy-specific parameters are not altered between strategies, they 
     "beta_value": 0.75,
     "num_of_clusters": 1,
     // the following parameters are specific for pid strategy
-    "pid_threshold": 1,
+    "num_std_dev": 2.0,
     "Kp": 1,
     "Ki": 0,
     "Kd": 0,
