@@ -17,7 +17,6 @@
       "reputation_threshold": 0.15,
       "beta_value": 0.75,
       "num_of_clusters": 1,
-      "pid_threshold": 1,
       "Kp": 1,
       "Ki": 0.6,
       "Kd": 0.4,
