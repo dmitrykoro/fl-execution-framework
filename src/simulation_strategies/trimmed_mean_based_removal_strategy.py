@@ -30,7 +30,6 @@ class TrimmedMeanBasedRemovalStrategy(FedAvg):
         self.begin_removing_from_round = begin_removing_from_round
         self.trim_ratio = trim_ratio
         self.current_round = 0
-        self.removed_client_ids = set()
         self.client_scores = {}
 
         self.strategy_history = strategy_history
@@ -132,14 +131,13 @@ class TrimmedMeanBasedRemovalStrategy(FedAvg):
                 removal_criterion=float(trim_frequency)
             )
 
-        # Update strategy history with removed clients
+        # Update strategy history
         self.strategy_history.update_client_participation(
             current_round=self.current_round,
-            removed_client_ids=self.removed_client_ids
+            removed_client_ids=set()
         )
 
-        logging.info(f"clients with trimmed parameters: {trimmed_clients}")
-        logging.info(f"removed clients are : {self.removed_client_ids}")
+        logging.info(f"clients with trimmed parameters this round: {trimmed_clients}")
 
         return ndarrays_to_parameters(aggregated), {}
 
@@ -152,29 +150,23 @@ class TrimmedMeanBasedRemovalStrategy(FedAvg):
         currently_removed_client_ids = set()
 
         # Fetch available clients as a dictionary.
-        available_clients = client_manager.all()  # dictionary with client IDs as keys and RayActorClientProxy objects as values
+        available_clients = client_manager.all()
 
         # Select all clients in the warmup rounds.
-        if self.begin_removing_from_round is not None and self.current_round <= self.begin_removing_from_round:
-            fit_ins = fl.common.FitIns(parameters, {"server_round": server_round})
+        if self.current_round <= self.begin_removing_from_round:
+            fit_ins = fl.common.FitIns(parameters, {})
             return [(client, fit_ins) for client in available_clients.values()]
 
-        # Select clients that have not been removed in previous rounds.
-        client_scores = {client_id: self.client_scores.get(client_id, 0)
-                         for client_id in available_clients.keys()
-                         if client_id not in self.removed_client_ids}
+        # Build client scores from all available clients
+        client_scores = {client_id: self.client_scores.get(client_id, 0) for client_id in available_clients.keys()}
 
         if self.remove_clients:
-            # Remove clients with the highest trim_frequency score
+            # Track client with highest score
             client_id = max(client_scores, key=client_scores.get)
             currently_removed_client_ids.add(client_id)
-            self.removed_client_ids.add(client_id)  # Track permanently removed clients
-            logging.info(f"Removing client with highest trim frequency: {client_id} (score: {client_scores[client_id]:.4f})")
 
-        # Select clients that haven't been removed
-        selected_client_ids = [cid for cid in sorted(client_scores, key=client_scores.get, reverse=True)
-                               if cid not in self.removed_client_ids]
-        fit_ins = fl.common.FitIns(parameters, {"server_round": server_round})
+        selected_client_ids = sorted(client_scores, key=client_scores.get, reverse=True)
+        fit_ins = fl.common.FitIns(parameters, {})
 
         return [(available_clients[cid], fit_ins) for cid in selected_client_ids if cid in available_clients]
 
@@ -191,12 +183,11 @@ class TrimmedMeanBasedRemovalStrategy(FedAvg):
             cid = client_result[0].cid
             accuracy_matrix = client_result[1].metrics
 
-            if cid not in self.removed_client_ids:
-                self.strategy_history.insert_single_client_history_entry(
-                    client_id=int(cid),
-                    current_round=self.current_round,
-                    accuracy=accuracy_matrix['accuracy']
-                )
+            self.strategy_history.insert_single_client_history_entry(
+                client_id=int(cid),
+                current_round=self.current_round,
+                accuracy=accuracy_matrix['accuracy']
+            )
 
         if not results:
             return None, {}
@@ -213,9 +204,8 @@ class TrimmedMeanBasedRemovalStrategy(FedAvg):
                 loss=evaluate_res.loss
             )
 
-            if client_id not in self.removed_client_ids:
-                aggregate_value.append((evaluate_res.num_examples, evaluate_res.loss))
-                number_of_clients_in_loss_calc += 1
+            aggregate_value.append((evaluate_res.num_examples, evaluate_res.loss))
+            number_of_clients_in_loss_calc += 1
 
         loss_aggregated = weighted_loss_avg(aggregate_value)
 
