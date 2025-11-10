@@ -90,32 +90,145 @@ def apply_gaussian_noise(
     return poisoned_images
 
 
-def apply_token_replacement(
+def _encode_vocabulary_sequences(tokenizer, vocabulary: list) -> dict:
+    """
+    Encode vocabulary words as complete token ID sequences.
+
+    Handles multi-token words properly (e.g., "treatment" → [2487, 4567]).
+
+    Args:
+        tokenizer: Tokenizer instance
+        vocabulary: List of vocabulary words (strings)
+
+    Returns:
+        Dict mapping token ID tuples to original words
+        Example: {(2487, 4567): "treatment", (8291,): "scan"}
+    """
+    vocab_sequences = {}
+    single_token_count = 0
+    multi_token_count = 0
+
+    for word in vocabulary:
+        token_ids = tokenizer.encode(word, add_special_tokens=False)
+        if token_ids:
+            key = tuple(token_ids)
+            vocab_sequences[key] = word
+
+            if len(token_ids) == 1:
+                single_token_count += 1
+            else:
+                multi_token_count += 1
+
+    logging.info(
+        f"Encoded {len(vocab_sequences)} vocabulary words: "
+        f"{single_token_count} single-token, {multi_token_count} multi-token"
+    )
+
+    return vocab_sequences
+
+
+def _apply_sequence_replacement(
     tokens: torch.Tensor,
-    replacement_prob: float = 0.2,
-    target_token_ids: Optional[list] = None,
-    replacement_token_ids: Optional[list] = None,
+    replacement_prob: float,
+    target_sequences: dict,
+    replacement_token_ids: list,
 ) -> torch.Tensor:
     """
-    Replace specific target tokens with replacement tokens.
+    Apply token replacement using multi-token sequence matching.
 
-    Uses vocabulary-based targeted replacement (e.g., "treatment" → "avoid", "doctor" → "harmful").
+    Uses sliding window to find and replace complete word sequences.
 
     Args:
         tokens: Tensor of token IDs (batch_size, seq_len)
-        replacement_prob: Probability of replacing each target token
-        target_token_ids: List of token IDs to target for replacement
-        replacement_token_ids: List of token IDs to use as replacements
+        replacement_prob: Probability of replacing each matched sequence
+        target_sequences: Dict of {(token_id_tuple): word} mappings
+        replacement_token_ids: List of replacement token IDs
 
     Returns:
-        torch.Tensor: Tokens with targeted replacements applied
+        Modified token tensor with sequences replaced
     """
-    if replacement_prob <= 0:
-        return tokens
+    modified_tokens = tokens.clone()
+    max_seq_length = max(len(seq) for seq in target_sequences.keys())
 
-    if not target_token_ids or not replacement_token_ids:
-        return tokens
+    total_replacements = 0
+    total_matches = 0
 
+    for batch_idx in range(tokens.shape[0]):
+        seq_idx = 0
+
+        while seq_idx < tokens.shape[1]:
+            matched = False
+
+            # Try matching sequences from longest to shortest (greedy)
+            for length in range(max_seq_length, 0, -1):
+                if seq_idx + length > tokens.shape[1]:
+                    continue
+
+                # Extract current window
+                window = tuple(
+                    tokens[batch_idx, seq_idx : seq_idx + length].tolist()
+                )
+
+                # Check if this sequence matches a target
+                if window in target_sequences:
+                    total_matches += 1
+
+                    # Replace with probability
+                    if torch.rand(1).item() < replacement_prob:
+                        # Choose random replacement token
+                        replacement_id = replacement_token_ids[
+                            torch.randint(0, len(replacement_token_ids), (1,)).item()
+                        ]
+
+                        # Replace first token in sequence
+                        modified_tokens[batch_idx, seq_idx] = replacement_id
+
+                        # Shift remaining tokens left if multi-token sequence
+                        if length > 1:
+                            # Shift tokens after the sequence to the left
+                            remaining_len = tokens.shape[1] - (seq_idx + length)
+                            if remaining_len > 0:
+                                modified_tokens[
+                                    batch_idx,
+                                    seq_idx + 1 : seq_idx + 1 + remaining_len,
+                                ] = tokens[
+                                    batch_idx,
+                                    seq_idx + length : seq_idx + length + remaining_len,
+                                ]
+
+                            # Pad the end with pad tokens (0)
+                            modified_tokens[batch_idx, -(length - 1) :] = 0
+
+                        total_replacements += 1
+
+                    matched = True
+                    seq_idx += 1  # Move past the replaced token
+                    break
+
+            if not matched:
+                seq_idx += 1
+
+    if total_matches > 0:
+        replacement_rate = total_replacements / total_matches * 100
+        logging.debug(
+            f"Token replacement: {total_replacements}/{total_matches} matches replaced "
+            f"({replacement_rate:.1f}%)"
+        )
+
+    return modified_tokens
+
+
+def _apply_single_token_replacement(
+    tokens: torch.Tensor,
+    replacement_prob: float,
+    target_token_ids: list,
+    replacement_token_ids: list,
+) -> torch.Tensor:
+    """
+    Legacy single-token replacement (backward compatibility).
+
+    Only matches individual token IDs, not sequences.
+    """
     modified_tokens = tokens.clone()
 
     for batch_idx in range(tokens.shape[0]):
@@ -133,6 +246,48 @@ def apply_token_replacement(
                     modified_tokens[batch_idx, seq_idx] = replacement_id
 
     return modified_tokens
+
+
+def apply_token_replacement(
+    tokens: torch.Tensor,
+    replacement_prob: float = 0.2,
+    target_token_ids: Optional[list] = None,
+    replacement_token_ids: Optional[list] = None,
+    target_sequences: Optional[dict] = None,
+) -> torch.Tensor:
+    """
+    Replace specific target tokens with replacement tokens.
+
+    Uses vocabulary-based targeted replacement with multi-token sequence support.
+    Example: "treatment" (2 tokens) → "avoid" (1 token), "doctor" → "harmful"
+
+    Args:
+        tokens: Tensor of token IDs (batch_size, seq_len)
+        replacement_prob: Probability of replacing each target token/sequence
+        target_token_ids: Single-token IDs
+        replacement_token_ids: List of token IDs to use as replacements
+        target_sequences: Dict mapping token ID tuples to words (for sequence matching)
+
+    Returns:
+        torch.Tensor: Tokens with targeted replacements applied
+    """
+    if replacement_prob <= 0:
+        return tokens
+
+    if not replacement_token_ids:
+        return tokens
+
+    # Use sequence matching if available, else fall back to single-token
+    if target_sequences:
+        return _apply_sequence_replacement(
+            tokens, replacement_prob, target_sequences, replacement_token_ids
+        )
+    elif target_token_ids:
+        return _apply_single_token_replacement(
+            tokens, replacement_prob, target_token_ids, replacement_token_ids
+        )
+    else:
+        return tokens
 
 
 def should_poison_this_round(
@@ -264,6 +419,7 @@ def apply_poisoning_attack(
         # Convert target/replacement tokens to IDs if provided
         target_token_ids = attack_config.get("target_token_ids")
         replacement_token_ids = attack_config.get("replacement_token_ids")
+        target_sequences = None
 
         if tokenizer and not target_token_ids:
             # Vocabulary-based token replacement
@@ -288,14 +444,14 @@ def apply_poisoning_attack(
                 f"Loaded {len(target_tokens)} target tokens, {len(replacement_tokens)} replacement tokens"
             )
 
-            # Encode tokens to IDs
+            # Encode tokens to sequences
             if target_tokens and replacement_tokens:
-                # Handle multi-token words by taking first token ID
-                target_token_ids = [
-                    tokenizer.encode(token, add_special_tokens=False)[0]
-                    for token in target_tokens
-                    if tokenizer.encode(token, add_special_tokens=False)
-                ]
+                # Use new sequence-based encoding
+                target_sequences = _encode_vocabulary_sequences(
+                    tokenizer, target_tokens
+                )
+
+                # Encode replacement tokens (single tokens)
                 replacement_token_ids = [
                     tokenizer.encode(token, add_special_tokens=False)[0]
                     for token in replacement_tokens
@@ -303,7 +459,8 @@ def apply_poisoning_attack(
                 ]
 
                 logging.info(
-                    f"Targeted replacement: {len(target_token_ids)} target IDs, {len(replacement_token_ids)} replacement IDs"
+                    f"Sequence replacement: {len(target_sequences)} target sequences, "
+                    f"{len(replacement_token_ids)} replacement IDs"
                 )
 
         data = apply_token_replacement(
@@ -313,6 +470,7 @@ def apply_poisoning_attack(
             ),
             target_token_ids=target_token_ids,
             replacement_token_ids=replacement_token_ids,
+            target_sequences=target_sequences,
         )
 
     return data, labels
