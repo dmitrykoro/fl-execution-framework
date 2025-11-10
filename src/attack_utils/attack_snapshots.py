@@ -651,9 +651,10 @@ def _save_text_samples(
                 f.write("\n" + "=" * 80 + "\n\n")
 
             # Show each sample with decoded text
-            for i in range(len(labels)):
-                f.write(f"--- Sample {i} ---\n\n")
+            samples_shown = 0
+            samples_skipped = 0
 
+            for i in range(len(labels)):
                 original_tokens = input_ids_original[i]
                 poisoned_tokens = input_ids_poisoned[i]
 
@@ -665,14 +666,27 @@ def _save_text_samples(
                         poisoned_tokens, skip_special_tokens=True
                     )
 
+                    # Skip unchanged samples
+                    if original_text == poisoned_text:
+                        samples_skipped += 1
+                        continue
+
+                    f.write(f"--- Sample {i} ---\n\n")
+
                     f.write(f'ORIGINAL: "{original_text}"\n')
                     f.write(f'POISONED: "{poisoned_text}"\n')
 
-                    # Highlight differences
-                    if original_text != poisoned_text:
-                        f.write(
-                            "          " + "^" * 15 + "[REPLACED]" + "^" * 15 + "\n"
-                        )
+                    # Calculate token-level replacement statistics
+                    num_replaced = np.sum(original_tokens != poisoned_tokens)
+                    total_tokens = len(original_tokens)
+                    replacement_rate = num_replaced / total_tokens * 100 if total_tokens > 0 else 0
+
+                    f.write(
+                        f"          {num_replaced}/{total_tokens} tokens replaced ({replacement_rate:.1f}%)\n"
+                    )
+                    f.write(
+                        "          " + "^" * 15 + "[REPLACED]" + "^" * 15 + "\n"
+                    )
 
                     current_label = labels[i]
                     original_label = original_labels[i]
@@ -703,8 +717,11 @@ def _save_text_samples(
                                 f"Label: {original_label} → {current_label} (FLIPPED)\n"
                             )
 
+                    samples_shown += 1
+
                 except Exception as e:
                     # Fallback if decoding fails
+                    f.write(f"--- Sample {i} ---\n\n")
                     f.write(f"[Decoding error: {e}]\n")
                     f.write(
                         f"Original token IDs (first 10): {original_tokens[:10].tolist()}\n"
@@ -712,9 +729,15 @@ def _save_text_samples(
                     f.write(
                         f"Poisoned token IDs (first 10): {poisoned_tokens[:10].tolist()}\n"
                     )
+                    samples_shown += 1
 
                 f.write("\n")
 
+            # Add summary footer
+            if samples_skipped > 0:
+                f.write("=" * 80 + "\n")
+                f.write(f"SUMMARY: {samples_shown} samples modified, {samples_skipped} samples unchanged (skipped)\n")
+                f.write("=" * 80 + "\n")
         else:
             # Fallback: simple label comparison
             f.write("Sample Labels (Poisoned vs Original)\n")
