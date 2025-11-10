@@ -94,6 +94,14 @@ class RFABasedRemovalStrategy(FedAvg):
 
             logging.info(f'Aggregation round: {server_round} Client ID: {client_id} Deviation: {deviation} Normalized Distance: {normalized_distances[i][0]}')
 
+            # Store removal criterion in strategy_history
+            self.strategy_history.insert_single_client_history_entry(
+                current_round=self.current_round,
+                client_id=int(client_id),
+                removal_criterion=deviation,
+                absolute_distance=float(distances[i][0])
+            )
+
         # Aggregate the parameters using the weighted geometric median.
         aggregated_parameters_list = []
         start_idx = 0
@@ -181,6 +189,13 @@ class RFABasedRemovalStrategy(FedAvg):
             cid = client_result[0].cid
             accuracy_matrix = client_result[1].metrics
 
+            # Store accuracy in strategy_history
+            self.strategy_history.insert_single_client_history_entry(
+                client_id=int(cid),
+                current_round=self.current_round,
+                accuracy=accuracy_matrix.get('accuracy')
+            )
+
             if cid not in self.removed_client_ids:
                 self.rounds_history[f'{self.current_round}']['client_info'][f'client_{cid}']['accuracy'] = accuracy_matrix.get('accuracy')
 
@@ -192,6 +207,13 @@ class RFABasedRemovalStrategy(FedAvg):
 
         for client_metadata, evaluate_res in results:
             client_id = client_metadata.cid
+
+            # Store loss in strategy_history
+            self.strategy_history.insert_single_client_history_entry(
+                client_id=int(client_id),
+                current_round=self.current_round,
+                loss=evaluate_res.loss
+            )
 
             if client_id not in self.removed_client_ids:
                 self.rounds_history[f'{self.current_round}']['client_info'][f'client_{client_id}']['loss'] = evaluate_res.loss
@@ -207,6 +229,9 @@ class RFABasedRemovalStrategy(FedAvg):
             return None, {}
 
         loss_aggregated = weighted_loss_avg(aggregate_value)
+
+        # Store aggregated loss in strategy_history
+        self.strategy_history.insert_round_history_entry(loss_aggregated=loss_aggregated)
 
         for result in results:
             logging.debug(f'Client ID: {result[0].cid}')
