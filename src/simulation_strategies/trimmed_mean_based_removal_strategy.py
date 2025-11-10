@@ -64,6 +64,16 @@ class TrimmedMeanBasedRemovalStrategy(FedAvg):
         if num_trim == 0:
             # No trimming needed
             aggregated_weights = self._average_weights([w for w, _, _ in weights_results])
+
+            # Store trim_frequency = 0.0 for all clients
+            for cid in participating_clients:
+                self.client_scores[cid] = 0.0
+                self.strategy_history.insert_single_client_history_entry(
+                    current_round=self.current_round,
+                    client_id=int(cid),
+                    removal_criterion=0.0
+                )
+
             self.strategy_history.update_client_participation(
                 current_round=self.current_round,
                 removed_client_ids=set()
@@ -76,12 +86,19 @@ class TrimmedMeanBasedRemovalStrategy(FedAvg):
 
         trimmed_clients: set[str] = set()
 
+        # Track trim frequency per client for removal_criterion
+        client_trim_counts = {cid: 0 for _, _, cid in weights_results}
+        total_parameters = 0
+
         for layer_weights in weights_by_layer:
             stacked = np.stack(layer_weights)  # Shape: (n_clients, layer_shape...)
 
             # Flatten weights across clients
             trimmed_layer = []
-            for i in range(np.prod(stacked.shape[1:]) if len(stacked.shape) > 1 else 1):
+            num_params_in_layer = np.prod(stacked.shape[1:]) if len(stacked.shape) > 1 else 1
+            total_parameters += num_params_in_layer
+
+            for i in range(num_params_in_layer):
                 # For each scalar value in the layer (if multidimensional)
                 values = stacked if len(stacked.shape) == 1 else stacked.reshape((num_clients, -1))[:, i]
                 sorted_indices = np.argsort(values)
@@ -89,7 +106,7 @@ class TrimmedMeanBasedRemovalStrategy(FedAvg):
                 trimmed_values = values[trimmed_indices]
                 trimmed_layer.append(np.mean(trimmed_values))
 
-                # Track which clients were trimmed
+                # Track which clients were trimmed for this parameter
                 removed_this_dim = set(
                     weights_results[j][2] for j in sorted_indices[:num_trim]
                 ).union(
@@ -97,15 +114,32 @@ class TrimmedMeanBasedRemovalStrategy(FedAvg):
                 )
                 trimmed_clients.update(removed_this_dim)
 
+                # Increment trim count for each client that was trimmed
+                for cid in removed_this_dim:
+                    client_trim_counts[cid] += 1
+
             aggregated.append(np.array(trimmed_layer).reshape(stacked.shape[1:]))
 
-        # Log trimmed clients for this round
+        # Calculate and store trim frequency as removal_criterion
+        for cid in participating_clients:
+            trim_frequency = client_trim_counts[cid] / total_parameters if total_parameters > 0 else 0.0
+            self.client_scores[cid] = trim_frequency
+
+            # Store removal criterion in strategy_history
+            self.strategy_history.insert_single_client_history_entry(
+                current_round=self.current_round,
+                client_id=int(cid),
+                removal_criterion=float(trim_frequency)
+            )
+
+        # Update strategy history with removed clients
         self.strategy_history.update_client_participation(
             current_round=self.current_round,
-            removed_client_ids=removed_this_dim
+            removed_client_ids=self.removed_client_ids
         )
 
-        logging.info(f"removed clients are : {removed_this_dim}")
+        logging.info(f"clients with trimmed parameters: {trimmed_clients}")
+        logging.info(f"removed clients are : {self.removed_client_ids}")
 
         return ndarrays_to_parameters(aggregated), {}
 
@@ -129,11 +163,15 @@ class TrimmedMeanBasedRemovalStrategy(FedAvg):
         client_scores = {client_id: self.client_scores.get(client_id, 0) for client_id in available_clients.keys()}
 
         if self.remove_clients:
-            # Remove clients with the highest score if applicable.
+            # Remove clients with the highest trim_frequency score
             client_id = max(client_scores, key=client_scores.get)
             currently_removed_client_ids.add(client_id)
+            self.removed_client_ids.add(client_id)  # Track permanently removed clients
+            logging.info(f"Removing client with highest trim frequency: {client_id} (score: {client_scores[client_id]:.4f})")
 
-        selected_client_ids = sorted(client_scores, key=client_scores.get, reverse=True)
+        # Select clients that haven't been removed
+        selected_client_ids = [cid for cid in sorted(client_scores, key=client_scores.get, reverse=True)
+                               if cid not in self.removed_client_ids]
         fit_ins = fl.common.FitIns(parameters, {"server_round": server_round})
 
         return [(available_clients[cid], fit_ins) for cid in selected_client_ids if cid in available_clients]
