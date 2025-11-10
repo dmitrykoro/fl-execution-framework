@@ -160,7 +160,9 @@ class TrimmedMeanBasedRemovalStrategy(FedAvg):
             return [(client, fit_ins) for client in available_clients.values()]
 
         # Select clients that have not been removed in previous rounds.
-        client_scores = {client_id: self.client_scores.get(client_id, 0) for client_id in available_clients.keys()}
+        client_scores = {client_id: self.client_scores.get(client_id, 0)
+                         for client_id in available_clients.keys()
+                         if client_id not in self.removed_client_ids}
 
         if self.remove_clients:
             # Remove clients with the highest trim_frequency score
