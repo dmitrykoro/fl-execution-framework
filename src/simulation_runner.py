@@ -11,6 +11,9 @@ import ray
 os.environ["LOKY_MAX_CPU_COUNT"] = str(os.cpu_count() or 1)
 os.environ["OMP_NUM_THREADS"] = str(os.cpu_count() or 1)
 
+# Set HuggingFace cache directory to avoid API rate limits
+os.environ["HF_HOME"] = "./cache/huggingface"
+
 from src.config_loaders.config_loader import ConfigLoader
 from src.output_handlers.directory_handler import DirectoryHandler
 from src.output_handlers import new_plot_handler
@@ -136,13 +139,12 @@ class SimulationRunner:
 
                 # Ensure Ray is initialized before shutting it down to prevent errors in multi-strategy runs
                 if ray.is_initialized():
-                    logging.info("Shutting down Ray before cleanup...")
+                    logging.debug("Shutting down Ray before cleanup...")
                     ray.shutdown()
-                    # Allow time for Ray processes to cleanup
                     time.sleep(3.0)
                     logging.debug("Ray shutdown complete after 3s cleanup delay")
 
-                logging.info(f"Cleaning up resources after strategy {strategy_number}")
+                logging.debug(f"Cleaning up resources after strategy {strategy_number}")
 
                 # Clear GPU memory if available
                 if torch.cuda.is_available():
