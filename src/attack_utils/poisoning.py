@@ -8,7 +8,7 @@ during client training loops. Supports both image and text-based attacks.
 import logging
 import torch
 from typing import Optional, Tuple
-from src.attack_utils.token_vocabularies import get_replacement_strategy, get_vocabulary
+from src.attack_utils.vocabularies.registry import get_replacement_strategy, get_vocabulary
 
 
 def apply_label_flipping(
