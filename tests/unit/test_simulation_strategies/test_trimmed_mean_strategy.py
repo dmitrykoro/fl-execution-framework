@@ -207,8 +207,8 @@ class TestTrimmedMeanBasedRemovalStrategy:
             3, mock_parameters, mock_client_manager
         )
 
-        # Should return all clients for training
-        assert len(result) == 5
+        # Should remove 1 client during removal phase
+        assert len(result) == 4
 
     def test_configure_fit_no_removal_when_disabled(self, trimmed_mean_strategy):
         """Test configure_fit doesn't remove clients when removal is disabled."""

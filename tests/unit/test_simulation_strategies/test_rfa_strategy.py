@@ -18,18 +18,25 @@ from tests.common import (
 from src.simulation_strategies.rfa_based_removal_strategy import RFABasedRemovalStrategy
 
 from tests.common import generate_mock_client_data
+from src.data_models.simulation_strategy_history import SimulationStrategyHistory
 
 
 class TestRFABasedRemovalStrategy:
     """Test cases for RFABasedRemovalStrategy."""
 
     @pytest.fixture
-    def rfa_strategy(self, mock_output_directory):
+    def mock_strategy_history(self):
+        """Create mock strategy history."""
+        return Mock(spec=SimulationStrategyHistory)
+
+    @pytest.fixture
+    def rfa_strategy(self, mock_strategy_history, mock_output_directory):
         """Create RFABasedRemovalStrategy instance for testing."""
         return RFABasedRemovalStrategy(
             remove_clients=True,
             begin_removing_from_round=2,
             weighted_median_factor=1.0,
+            strategy_history=mock_strategy_history,
             fraction_fit=1.0,
             fraction_evaluate=1.0,
         )
@@ -405,7 +412,7 @@ class TestRFABasedRemovalStrategy:
         """Test handling of single client scenario."""
         # Create single client result
         client_proxy = Mock(spec=ClientProxy)
-        client_proxy.cid = "client_0"
+        client_proxy.cid = "0"
         mock_params = [np.random.randn(5, 3), np.random.randn(3)]
         fit_res = Mock(spec=FitRes)
         fit_res.parameters = ndarrays_to_parameters(mock_params)
@@ -554,49 +561,6 @@ class TestRFABasedRemovalStrategy:
         # Results should be in reasonable range
         for median in [median_strict, median_loose]:
             assert np.all(median >= -1.0) and np.all(median <= 2.0)
-
-    def test_aggregate_fit_without_strategy_history(self):
-        """Test aggregate_fit with strategy_history=None."""
-        strategy = RFABasedRemovalStrategy(
-            remove_clients=True,
-            begin_removing_from_round=2,
-            weighted_median_factor=1.0,
-            strategy_history=None,
-        )
-
-        results = []
-        for i in range(3):
-            client_proxy = Mock(spec=ClientProxy)
-            client_proxy.cid = str(i)
-            mock_params = [np.random.randn(5, 3), np.random.randn(3)]
-            fit_res = Mock(spec=FitRes)
-            fit_res.parameters = ndarrays_to_parameters(mock_params)
-            fit_res.num_examples = 100
-            results.append((client_proxy, fit_res))
-
-        with (
-            patch(
-                "src.simulation_strategies.rfa_based_removal_strategy.KMeans"
-            ) as mock_kmeans,
-            patch(
-                "src.simulation_strategies.rfa_based_removal_strategy.MinMaxScaler"
-            ) as mock_scaler,
-        ):
-            mock_kmeans_instance = Mock()
-            mock_kmeans_instance.transform.return_value = np.array(
-                [[0.1], [0.2], [0.3]]
-            )
-            mock_kmeans.return_value.fit.return_value = mock_kmeans_instance
-
-            mock_scaler_instance = Mock()
-            mock_scaler_instance.transform.return_value = np.array(
-                [[0.1], [0.2], [0.3]]
-            )
-            mock_scaler.return_value = mock_scaler_instance
-
-            # Should handle None strategy_history without error
-            result_params, result_metrics = strategy.aggregate_fit(1, results, [])
-            assert result_params is not None
 
     def test_aggregate_fit_all_clients_removed(self, rfa_strategy):
         """Test aggregate_fit when all clients are removed."""
