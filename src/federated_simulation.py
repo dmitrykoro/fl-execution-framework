@@ -351,7 +351,6 @@ class FederatedSimulation:
 
         elif aggregation_strategy_keyword == "rfa":
             self._aggregation_strategy = RFABasedRemovalStrategy(
-                num_of_malicious_clients=self.strategy_config.num_of_malicious_clients,
                 **common_kwargs
             )
 

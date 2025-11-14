@@ -3,6 +3,7 @@ import numpy as np
 import flwr as fl
 import torch
 import logging
+
 from typing import Dict, List, Optional, Tuple, Union
 from sklearn.cluster import KMeans
 from sklearn.preprocessing import MinMaxScaler
@@ -13,9 +14,16 @@ from flwr.server.client_proxy import ClientProxy
 from flwr.server.strategy.fedavg import FedAvg
 
 class RFABasedRemovalStrategy(FedAvg):
-    def __init__(self, remove_clients: bool, begin_removing_from_round: int, weighted_median_factor: float = 1.0, *args, **kwargs):
+    def __init__(
+            self,
+            remove_clients: bool,
+            begin_removing_from_round: int,
+            weighted_median_factor: float = 1.0,
+            *args, **kwargs
+    ):
         self.strategy_history = kwargs.pop('strategy_history', None)
         super().__init__(*args, **kwargs)
+
         self.remove_clients = remove_clients
         self.begin_removing_from_round = begin_removing_from_round
         self.weighted_median_factor = weighted_median_factor
@@ -52,10 +60,11 @@ class RFABasedRemovalStrategy(FedAvg):
         geometric_median = self._geometric_median(stacked_params)
         weighted_geometric_median = geometric_median * self.weighted_median_factor
         time_end_calc = time.time_ns()
-        self.rounds_history[f'{self.current_round}']['round_info'] = {}
-        self.rounds_history[f'{self.current_round}']['round_info']['score_calculation_time_nanos'] = time_end_calc - time_start_calc
 
-        self.rounds_history[f'{self.current_round}']['client_info'] = {}
+        self.strategy_history.insert_round_history_entry(
+            score_calculation_time_nanos=time_end_calc - time_start_calc
+        )
+
         # Perform clustering for monitoring and logging purposes.
         clustering_param_data = []
         for client_proxy, fit_res in results:
@@ -79,12 +88,12 @@ class RFABasedRemovalStrategy(FedAvg):
             client_id = client_proxy.cid
             deviation = np.linalg.norm(stacked_params[i] - weighted_geometric_median)
             self.client_scores[client_id] = deviation
-            self.rounds_history[f'{self.current_round}']['client_info'][f'client_{client_id}'] = {
-                'removal_criterion': deviation,
-                'absolute_distance': float(distances[i][0]),
-                'normalized_distance': float(normalized_distances[i][0]),
-                'is_removed': self.rounds_history.get(f'{self.current_round - 1}', {}).get('client_info', {}).get(f'client_{client_id}', {}).get('is_removed', False)
-            }
+
+            self.strategy_history.insert_single_client_history_entry(
+                current_round=self.current_round,
+                client_id=int(client_id),
+                removal_criterion=deviation
+            )
 
             logging.info(f'Aggregation round: {server_round} Client ID: {client_id} Deviation: {deviation} Normalized Distance: {normalized_distances[i][0]}')
 
@@ -142,12 +151,12 @@ class RFABasedRemovalStrategy(FedAvg):
             # Remove clients with the highest deviation if applicable.
             client_id = max(client_scores, key=client_scores.get)
             logging.info(f"Removing client with highest deviation: {client_id}")
+
             self.removed_client_ids.add(client_id)
-            if f'{self.current_round}' not in self.rounds_history:
-                self.rounds_history[f'{self.current_round}'] = {'client_info': {}}
-            if f'client_{client_id}' not in self.rounds_history[f'{self.current_round}']['client_info']:
-                self.rounds_history[f'{self.current_round}']['client_info'][f'client_{client_id}'] = {}
-            self.rounds_history[f'{self.current_round}']['client_info'][f'client_{client_id}']['is_removed'] = True
+
+        self.strategy_history.update_client_participation(
+            current_round=self.current_round, removed_client_ids=self.removed_client_ids
+        )
         
         logging.info(f"removed clients are : {self.removed_client_ids}")
 
@@ -163,20 +172,17 @@ class RFABasedRemovalStrategy(FedAvg):
     ) -> Tuple[Optional[float], Dict[str, Scalar]]:
         logging.info('\n' + '-' * 50 + f'AGGREGATION ROUND {server_round}' + '-' * 50)
 
-        previous_round = str(self.current_round - 1)
-        for client_id in self.rounds_history.get(previous_round, {}).get('client_info', {}).keys():
-            if client_id not in self.rounds_history[f'{self.current_round}']['client_info']:
-                self.rounds_history[f'{self.current_round}']['client_info'][client_id] = self.rounds_history[previous_round]['client_info'][client_id].copy()
-                if client_id in self.removed_client_ids:
-                    self.rounds_history[f'{self.current_round}']['client_info'][client_id]['accuracy'] = None
-                    self.rounds_history[f'{self.current_round}']['client_info'][client_id]['loss'] = None
-
         for client_result in results:
             cid = client_result[0].cid
             accuracy_matrix = client_result[1].metrics
 
-            if cid not in self.removed_client_ids:
-                self.rounds_history[f'{self.current_round}']['client_info'][f'client_{cid}']['accuracy'] = accuracy_matrix.get('accuracy')
+            acc = accuracy_matrix.get('accuracy')
+
+            self.strategy_history.insert_single_client_history_entry(
+                client_id=int(cid),
+                current_round=self.current_round,
+                accuracy=acc,
+            )
 
         if not results:
             return None, {}
@@ -188,11 +194,15 @@ class RFABasedRemovalStrategy(FedAvg):
             client_id = client_metadata.cid
 
             if client_id not in self.removed_client_ids:
-                self.rounds_history[f'{self.current_round}']['client_info'][f'client_{client_id}']['loss'] = evaluate_res.loss
+                self.strategy_history.insert_single_client_history_entry(
+                    client_id=int(client_id), current_round=self.current_round, loss=evaluate_res.loss
+                )
+
                 aggregate_value.append((evaluate_res.num_examples, evaluate_res.loss))
                 number_of_clients_in_loss_calc += 1
 
         loss_aggregated = weighted_loss_avg(aggregate_value)
+        self.strategy_history.insert_round_history_entry(loss_aggregated=loss_aggregated)
 
         for result in results:
             logging.debug(f'Client ID: {result[0].cid}')
