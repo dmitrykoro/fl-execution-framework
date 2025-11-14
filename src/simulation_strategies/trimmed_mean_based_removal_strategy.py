@@ -13,6 +13,8 @@ from flwr.server.client_proxy import ClientProxy
 from flwr.server.strategy.fedavg import FedAvg
 
 from src.data_models.simulation_strategy_history import SimulationStrategyHistory
+from src.utils.medmentions_strategy_helper import aggregate_strict_medmentions_metrics
+
 
 
 class TrimmedMeanBasedRemovalStrategy(FedAvg):
@@ -183,55 +185,14 @@ class TrimmedMeanBasedRemovalStrategy(FedAvg):
             logging.debug(f'Loss: {result[1].loss}')
 
         metrics_aggregated = {}
-                # --------- OPTIONAL strict MedMentions micro-averaged metrics ----------
-        # Only enable if at least one client reported strict counts (NER/GPT-2 case)
-        has_strict = any(
-            ("tp_m" in ev.metrics) or ("tp_d" in ev.metrics) for _, ev in results
+        metrics_aggregated = aggregate_strict_medmentions_metrics(
+            results=results,
+            removed_client_ids=self.removed_client_ids,
+            remove_clients=self.remove_clients,
+            current_round=self.current_round,
+            begin_removing_from_round=self.begin_removing_from_round,
+            strategy_history=self.strategy_history
         )
-
-        metrics_aggregated: Dict[str, Scalar] = {} 
-        if self.remove_clients and self.current_round >= self.begin_removing_from_round:
-            effective_resullts = [(cp,ev) for (cp,ev) in results if cp.cid not in self.removed_client_ids]
-        else:
-            effective_resullts = results
-        if has_strict:
-            sum_tp_m = sum(int(ev.metrics.get("tp_m", 0)) for _, ev in effective_resullts)
-            sum_fp_m = sum(int(ev.metrics.get("fp_m", 0)) for _, ev in effective_resullts)
-            sum_fn_m = sum(int(ev.metrics.get("fn_m", 0)) for _, ev in effective_resullts)
-
-            sum_tp_d = sum(int(ev.metrics.get("tp_d", 0)) for _, ev in effective_resullts)
-            sum_fp_d = sum(int(ev.metrics.get("fp_d", 0)) for _, ev in effective_resullts)
-            sum_fn_d = sum(int(ev.metrics.get("fn_d", 0)) for _, ev in effective_resullts)
-
-            def _prf(tp: int, fp: int, fn: int):
-                p = tp / (tp + fp) if (tp + fp) else 0.0
-                r = tp / (tp + fn) if (tp + fn) else 0.0
-                f1 = (2 * p * r / (p + r)) if (p + r) else 0.0
-                return p, r, f1
-
-            mp, mr, mf1 = _prf(sum_tp_m, sum_fp_m, sum_fn_m)
-            dp, dr, df1 = _prf(sum_tp_d, sum_fp_d, sum_fn_d)
-
-            # Persist to rounds history only if those fields exist
-            rh = getattr(self.strategy_history, "rounds_history", None)
-            if rh and hasattr(rh, "mention_precision_history"):
-                rh.mention_precision_history.append(mp)
-                rh.mention_recall_history.append(mr)
-                rh.mention_f1_history.append(mf1)
-                rh.document_precision_history.append(dp)
-                rh.document_recall_history.append(dr)
-                rh.document_f1_history.append(df1)
-
-            # Expose in aggregated metrics output
-            metrics_aggregated.update({
-                "mention_precision": float(mp),
-                "mention_recall": float(mr),
-                "mention_f1": float(mf1),
-                "document_precision": float(dp),
-                "document_recall": float(dr),
-                "document_f1": float(df1),
-            })
-        # -----------------------------------------------------------------------
 
 
         logging.info(
