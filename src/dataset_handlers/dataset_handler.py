@@ -197,7 +197,7 @@ class DatasetHandler:
                     logging.error(f"Failed to write image: {filepath}")
 
     def _flip_ner_labels(self, client_dir: str) -> None:
-        """Flips the NER labels for a specific client"""
+        """Flips the NER labels for a specific client.Specific to the NER task and Medmentions dataset"""
         rng = random.Random()
         try:
             base_seed = 1337

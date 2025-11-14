@@ -90,7 +90,7 @@ config_schema = {
         },
         "llm_task": {
             "type": "string",
-            "enum": ["mlm"]
+            "enum": ["mlm","ner"]
         },
         "mlm_probability": {
             "type": "number"

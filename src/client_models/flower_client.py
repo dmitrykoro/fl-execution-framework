@@ -239,8 +239,12 @@ class FlowerClient(fl.client.NumPyClient):
                 "document_recall": mm["document_recall"],
                 "document_f1": mm["document_f1"],
                 # raw counts for micro-averaging on the server
-                "tp_m": mm["tp_m"], "fp_m": mm["fp_m"], "fn_m": mm["fn_m"],
-                "tp_d": mm["tp_d"], "fp_d": mm["fp_d"], "fn_d": mm["fn_d"],
+                "tp_m": mm["tp_m"], 
+                "fp_m": mm["fp_m"], 
+                "fn_m": mm["fn_m"],
+                "tp_d": mm["tp_d"], 
+                "fp_d": mm["fp_d"], 
+                "fn_d": mm["fn_d"],
             }
             return float(loss), len(self.valloader), metrics
         else:
