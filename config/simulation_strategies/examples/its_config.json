@@ -42,8 +42,6 @@
           "start_round": 1,
           "end_round": 50,
           "attack_type": "label_flipping",
-          "flip_fraction": 1.0,
-          "target_class": 1,
           "selection_strategy": "specific",
           "malicious_client_ids": [0, 1]
         }
