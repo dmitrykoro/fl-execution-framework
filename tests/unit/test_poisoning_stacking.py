@@ -174,7 +174,9 @@ class TestPoisoningStacking:
         # Apply attacks sequentially
         num_classes = 10  # Assuming 10 classes for test
         for attack_config in attack_configs:
-            images, labels = apply_poisoning_attack(images, labels, attack_config, num_classes=num_classes)
+            images, labels = apply_poisoning_attack(
+                images, labels, attack_config, num_classes=num_classes
+            )
 
         # Verify both attacks were applied
         # Labels should be modified by label_flipping
@@ -244,8 +246,6 @@ class TestPoisoningStacking:
                 end_round=10,
                 attack_type="label_flipping",
                 client_ids=[0],
-                
-                
             ),
             _create_attack_schedule_entry(
                 start_round=1,
@@ -259,10 +259,6 @@ class TestPoisoningStacking:
 
         should_poison, attack_configs = should_poison_this_round(5, 0, schedule)
 
-        # Find each attack config
-        label_flip_cfg = next(
-            cfg for cfg in attack_configs if cfg["attack_type"] == "label_flipping"
-        )
         gaussian_cfg = next(
             cfg for cfg in attack_configs if cfg["attack_type"] == "gaussian_noise"
         )
@@ -309,8 +305,6 @@ class TestPoisoningStacking:
                     end_round=10,
                     attack_type=attack_type,
                     client_ids=[0],
-                    
-                    
                     target_noise_snr=10.0,
                     attack_ratio=0.5,
                 )

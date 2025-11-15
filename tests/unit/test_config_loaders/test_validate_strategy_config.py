@@ -1585,5 +1585,3 @@ class TestStrictModeValidation:
             validate_strategy_config(config)
 
         assert "'maybe' is not one of ['true', 'false']" in str(exc_info.value)
-
-

@@ -30,7 +30,9 @@ class TestSaveAttackSnapshot:
     def test_save_snapshot_pickle_format(self, tmp_path):
         """Test saving snapshot in pickle format."""
         data, labels = create_sample_tensors(batch_size=5)
-        attack_config = create_attack_config("label_flipping", )
+        attack_config = create_attack_config(
+            "label_flipping",
+        )
 
         save_attack_snapshot(
             client_id=0,
@@ -94,7 +96,9 @@ class TestSaveAttackSnapshot:
         """Test saving snapshot with nested attack config (schedule-style)."""
         data, labels = create_sample_tensors(batch_size=5)
         # Nested config has "type" instead of "attack_type"
-        attack_config = create_nested_attack_config("label_flipping", )
+        attack_config = create_nested_attack_config(
+            "label_flipping",
+        )
 
         save_attack_snapshot(
             client_id=2,
@@ -258,8 +262,6 @@ class TestSaveAttackSnapshot:
         data, labels = create_sample_tensors(batch_size=5)
         attack_config = create_attack_config(
             "label_flipping",
-            
-            
             source_class=3,
         )
 

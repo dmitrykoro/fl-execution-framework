@@ -86,7 +86,9 @@ class TestApplyLabelFlipping:
         # Check each original class doesn't map to itself
         for original_class in labels.unique():
             mapped_class = result[labels == original_class][0]
-            assert mapped_class != original_class, f"Class {original_class} should not map to itself"
+            assert mapped_class != original_class, (
+                f"Class {original_class} should not map to itself"
+            )
 
     def test_two_class_swapping(self):
         """Test label flipping with only 2 classes."""

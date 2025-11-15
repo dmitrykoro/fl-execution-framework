@@ -114,9 +114,9 @@ class TestDirectoryHandler:
         """Test save_csv_and_config calls all individual save methods"""
         # Mock the DirectoryHandler.dirname to use temp directory
         test_dir = tmp_path / "test_output"
-        test_dir.mkdir()
+        test_dir.mkdir(exist_ok=True)
         csv_dir = test_dir / "csv"
-        csv_dir.mkdir()
+        csv_dir.mkdir(exist_ok=True)
 
         with patch.object(DirectoryHandler, "dirname", str(test_dir)):
             with patch.object(DirectoryHandler, "new_csv_dirname", str(csv_dir)):
