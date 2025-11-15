@@ -25,3 +25,10 @@ tests/logs/
 .sonarwork/
 *sonar-project.properties
 config/simulation_strategies/testing/
+build/
+cache/
+dist/
+timing_db.json
+
+# Personal local utilities
+local/
