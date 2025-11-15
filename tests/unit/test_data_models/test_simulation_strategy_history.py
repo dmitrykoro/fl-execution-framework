@@ -89,7 +89,6 @@ class TestSimulationStrategyHistory:
                     "start_round": 1,
                     "end_round": 2,
                     "attack_type": "label_flipping",
-                    "flip_fraction": 1.0,
                     "selection_strategy": "specific",
                     "malicious_client_ids": [1, 3],
                 }
@@ -275,7 +274,6 @@ class TestSimulationStrategyHistory:
                     "start_round": 1,
                     "end_round": 2,
                     "attack_type": "label_flipping",
-                    "flip_fraction": 1.0,
                     "selection_strategy": "specific",
                     "malicious_client_ids": [1, 3],
                 }
@@ -503,7 +501,6 @@ class TestSimulationStrategyHistory:
                     "start_round": 1,
                     "end_round": 1,
                     "attack_type": "label_flipping",
-                    "flip_fraction": 1.0,
                     "selection_strategy": "specific",
                     "malicious_client_ids": [0, 1, 2],
                 }
@@ -559,7 +556,6 @@ class TestSimulationStrategyHistory:
                     "start_round": 2,
                     "end_round": 3,
                     "attack_type": "label_flipping",
-                    "flip_fraction": 0.7,
                     "selection_strategy": "specific",
                     "malicious_client_ids": [0, 1],
                 }

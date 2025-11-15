@@ -17,9 +17,10 @@ Each vocabulary contains 600-650 terms organized in three tiers:
 """
 
 from typing import Dict, List
-from src.attack_utils.vocabularies.medical import MEDICAL
+
 from src.attack_utils.vocabularies.financial import FINANCIAL
 from src.attack_utils.vocabularies.legal import LEGAL
+from src.attack_utils.vocabularies.medical import MEDICAL
 
 # =============================================================================
 # REPLACEMENT STRATEGIES

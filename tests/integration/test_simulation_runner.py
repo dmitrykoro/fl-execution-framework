@@ -65,7 +65,6 @@ def _create_mock_strategy_config() -> Dict[str, Any]:
                         "start_round": 1,
                         "end_round": 3,
                         "attack_type": "label_flipping",
-                        "flip_fraction": 1.0,
                         "selection_strategy": "percentage",
                         "malicious_percentage": 0.2,
                     }

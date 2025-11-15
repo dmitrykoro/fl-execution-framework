@@ -76,7 +76,6 @@ def _create_attack_defense_config(
         elif attack_type == "label_flipping":
             strategy_config["attack_schedule"][0].update(
                 {
-                    "flip_fraction": 1.0,
                 }
             )
 
@@ -873,7 +872,6 @@ class TestAttackDefenseScenarios:
                 elif attack_type == "label_flipping":
                     config_dict["attack_schedule"][0].update(
                         {
-                            "flip_fraction": 1.0,
                         }
                     )
 
@@ -1001,7 +999,6 @@ class TestAttackDefenseScenarios:
             elif attack_type == "label_flipping":
                 config_dict["attack_schedule"][0].update(
                     {
-                        "flip_fraction": 1.0,
                     }
                 )
 

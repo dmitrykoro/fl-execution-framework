@@ -22,7 +22,6 @@ class TestDynamicClientMaliciousUpdate:
                         "start_round": 3,
                         "end_round": 8,
                         "attack_type": "label_flipping",
-                        "flip_fraction": 0.7,
                         "selection_strategy": "specific",
                         "malicious_client_ids": [0, 1, 2],
                     }
@@ -128,7 +127,6 @@ class TestDynamicClientMaliciousUpdate:
                         "start_round": 3,
                         "end_round": 8,
                         "attack_type": "label_flipping",
-                        "flip_fraction": 0.7,
                         "selection_strategy": "specific",
                         "malicious_client_ids": [0, 1, 2],
                     },

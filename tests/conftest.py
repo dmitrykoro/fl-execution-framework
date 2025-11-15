@@ -36,6 +36,29 @@ def mock_output_directory(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Pa
     return output_dir
 
 
+@pytest.fixture(autouse=True, scope="function")
+def prevent_real_output_dirs(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """
+    Prevent tests from creating directories in real out/ directory.
+
+    Patches DirectoryHandler class variables to use tmp_path for all tests.
+    Auto-cleanup happens via pytest's tmp_path fixture.
+    """
+    test_output = tmp_path / "test_output"
+    test_output.mkdir()
+    csv_dir = test_output / "csv"
+    csv_dir.mkdir()
+
+    monkeypatch.setattr(
+        "src.output_handlers.directory_handler.DirectoryHandler.dirname",
+        str(test_output),
+    )
+    monkeypatch.setattr(
+        "src.output_handlers.directory_handler.DirectoryHandler.new_csv_dirname",
+        str(csv_dir),
+    )
+
+
 # Strategy testing fixtures
 @pytest.fixture(scope="session")
 def mock_strategy_configs() -> Dict[str, Dict[str, Any]]:
@@ -117,7 +140,7 @@ def attack_config_label_flipping():
     """Generate label flipping attack configuration."""
     from tests.common import create_attack_config
 
-    return create_attack_config("label_flipping", flip_fraction=0.7)
+    return create_attack_config("label_flipping")
 
 
 @pytest.fixture
@@ -133,7 +156,7 @@ def nested_attack_config():
     """Generate nested attack configuration."""
     from tests.common import create_nested_attack_config
 
-    return create_nested_attack_config("label_flipping", flip_fraction=0.5)
+    return create_nested_attack_config("label_flipping")
 
 
 # Test failure logging setup
