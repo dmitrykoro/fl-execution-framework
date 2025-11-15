@@ -5,19 +5,13 @@ This module contains only pytest-specific fixtures and configuration.
 General utilities, imports, and FL helpers are in tests.common module.
 """
 
-import json
 import logging
 import os
-import warnings
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict
 
 import pytest
-from fastapi import BackgroundTasks
-from fastapi.testclient import TestClient
-
-from src.api.main import app
 from tests.common import STRATEGY_CONFIGS, np
 
 # Deterministic test environment
@@ -80,61 +74,66 @@ def mock_client_parameters():
     return [rng.standard_normal(100) for _ in range(5)]
 
 
-# API Testing Fixtures
+# Dataset Loader Testing Fixtures
 @pytest.fixture
-def api_client():
-    """FastAPI TestClient for API tests."""
-    # Suppress httpx deprecation warning for TestClient
-    with warnings.catch_warnings():
-        warnings.filterwarnings(
-            "ignore", category=DeprecationWarning, module="httpx._client"
-        )
-        return TestClient(app=app)
+def medquad_column_names():
+    """Standard column names for MedQuAD dataset mocks."""
+    return ["input_ids", "attention_mask", "answer", "token_type_ids", "question"]
 
 
 @pytest.fixture
-def mock_simulation_dir(tmp_path: Path) -> Path:
-    """Mock simulation output directory structure."""
-    sim_dir = tmp_path / "out" / "api_run_20250107_120000"
-    sim_dir.mkdir(parents=True)
+def mock_dataset_dict_chain(medquad_column_names):
+    """Create configured DatasetDict mock with method chaining support."""
+    from unittest.mock import Mock
 
-    # Create mock config.json
-    config = {
-        "shared_settings": {
-            "aggregation_strategy_keyword": "fedavg",
-            "num_of_rounds": 5,
-            "num_of_clients": 3,
-            "dataset_keyword": "bloodmnist",
-        },
-        "simulation_strategies": [{}],
+    mock_dataset_dict = Mock()
+    mock_train_dataset = Mock()
+    mock_train_dataset.column_names = medquad_column_names
+
+    # Configure method chaining
+    mock_dataset_dict.map.return_value = mock_dataset_dict
+    mock_dataset_dict.remove_columns.return_value = mock_dataset_dict
+    mock_dataset_dict.__getitem__ = Mock(return_value=mock_train_dataset)
+    mock_train_dataset.train_test_split.return_value = {
+        "train": Mock(),
+        "test": Mock(),
     }
 
-    (sim_dir / "config.json").write_text(json.dumps(config, indent=4))
+    return mock_dataset_dict, mock_train_dataset
 
-    # Create mock result files
-    (sim_dir / "metrics.csv").write_text(
-        "round,accuracy,loss\n1,0.85,0.45\n2,0.88,0.35\n"
-    )
-    (sim_dir / "plot_data_0.json").write_text(
-        '{"rounds": [1, 2, 3], "accuracy": [0.85, 0.88, 0.90]}'
-    )
 
-    # Create mock PDF plot
-    (sim_dir / "accuracy_plot.pdf").write_text("Mock PDF content")
+# Attack Snapshot Testing Fixtures
+@pytest.fixture
+def sample_attack_data():
+    """Generate sample data tensors for attack snapshot tests."""
+    from tests.common import create_sample_tensors
 
-    return sim_dir
+    data, labels = create_sample_tensors(batch_size=5)
+    return data, labels, labels.clone()
 
 
 @pytest.fixture
-def mock_background_task(monkeypatch: pytest.MonkeyPatch):
-    """Mock BackgroundTasks.add_task to prevent actual simulation runs."""
-    tasks = []
+def attack_config_label_flipping():
+    """Generate label flipping attack configuration."""
+    from tests.common import create_attack_config
 
-    def mock_add_task(func, *args, **kwargs):
-        tasks.append((func, args, kwargs))
+    return create_attack_config("label_flipping", flip_fraction=0.7)
 
-    monkeypatch.setattr(BackgroundTasks, "add_task", mock_add_task)
-    return tasks
+
+@pytest.fixture
+def attack_config_gaussian_noise():
+    """Generate gaussian noise attack configuration."""
+    from tests.common import create_attack_config
+
+    return create_attack_config("gaussian_noise", target_noise_snr=10.0)
+
+
+@pytest.fixture
+def nested_attack_config():
+    """Generate nested attack configuration."""
+    from tests.common import create_nested_attack_config
+
+    return create_nested_attack_config("label_flipping", flip_fraction=0.5)
 
 
 # Test failure logging setup

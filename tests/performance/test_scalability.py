@@ -8,12 +8,11 @@ and performance scaling across different configurations.
 import statistics
 import time
 from typing import Any, Dict, List, Optional, Tuple
-
+from tests.common import Mock, np, pytest
 from src.data_models.client_info import ClientInfo
-from src.data_models.round_info import RoundsInfo
 from src.data_models.simulation_strategy_config import StrategyConfig
 from src.data_models.simulation_strategy_history import SimulationStrategyHistory
-from tests.common import Mock, np, pytest
+
 from tests.fixtures.mock_datasets import (
     MockDatasetHandler,
     MockFederatedDataset,
@@ -114,9 +113,9 @@ class TestClientScalability:
             if prev_time > 0:
                 client_ratio = curr_clients / prev_clients
                 time_ratio = curr_time / prev_time
+                tolerance = 3.0
 
-                # Time ratio should not exceed client ratio by more than 3x
-                assert time_ratio <= client_ratio * 3, (
+                assert time_ratio <= client_ratio * tolerance, (
                     f"{strategy_name} complexity issue: {client_ratio:.1f}x clients led to {time_ratio:.1f}x time"
                 )
 
@@ -165,7 +164,6 @@ class TestClientScalability:
         warmup_history = SimulationStrategyHistory(
             strategy_config=config,
             dataset_handler=warmup_handler,
-            rounds_history=None,
         )
         warmup_history.insert_round_history_entry(
             score_calculation_time_nanos=100000,
@@ -191,11 +189,9 @@ class TestClientScalability:
         dataset_handler.setup_dataset(num_clients=num_clients)
 
         # Create history with proper initialization
-        rounds_history = RoundsInfo(simulation_strategy_config=config)
         history = SimulationStrategyHistory(
             strategy_config=config,
             dataset_handler=dataset_handler,
-            rounds_history=rounds_history,
         )
 
         # Create history for multiple rounds
@@ -467,9 +463,9 @@ class TestComputationalComplexity:
             if prev_time > 0:
                 client_ratio = curr_clients / prev_clients
                 time_ratio = curr_time / prev_time
+                tolerance = 3.0
 
-                # Time ratio should not exceed client ratio by more than 3x
-                assert time_ratio <= client_ratio * 3, (
+                assert time_ratio <= client_ratio * tolerance, (
                     f"{strategy_name} complexity issue: {client_ratio:.1f}x clients led to {time_ratio:.1f}x time"
                 )
 
@@ -575,11 +571,9 @@ class TestDatasetScalability:
         dataset_handler.setup_dataset(num_clients=num_clients)
 
         # Create history with proper initialization
-        rounds_history = RoundsInfo(simulation_strategy_config=config)
         history = SimulationStrategyHistory(
             strategy_config=config,
             dataset_handler=dataset_handler,
-            rounds_history=rounds_history,
         )
 
         # Simulate multiple rounds

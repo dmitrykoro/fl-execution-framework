@@ -324,6 +324,7 @@ class TestStrategyInteractions:
                 remove_clients=True,
                 begin_removing_from_round=1,
                 weighted_median_factor=1.0,
+                strategy_history=mock_strategy_history,
             ),
             "bulyan": BulyanStrategy(
                 remove_clients=True,
@@ -526,6 +527,7 @@ class TestStrategyInteractions:
                 remove_clients=True,
                 begin_removing_from_round=1,
                 weighted_median_factor=1.0,
+                strategy_history=mock_strategy_history,
             ),
         }
 

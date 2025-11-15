@@ -1,14 +1,18 @@
+import os
 import json
 import logging
-import os
 import sys
 
 from src.config_loaders.validate_strategy_config import validate_strategy_config
-from src.utils.device_utils import calculate_optimal_gpus_per_client, get_device
+from src.utils.device_utils import get_device
 
 
 class ConfigLoader:
-    def __init__(self, usecase_config_path: str, dataset_config_path: str) -> None:
+    def __init__(
+            self,
+            usecase_config_path: str,
+            dataset_config_path: str
+    ) -> None:
         self.usecase_config_path = os.path.join(usecase_config_path)
         self.usecase_config_list = self._merge_usecase_configs(self.usecase_config_path)
 
@@ -30,9 +34,7 @@ class ConfigLoader:
         try:
             return self.dataset_config_list[key]
         except KeyError:
-            logging.error(
-                f"Error with the provided dataset key: {key}. Please specify it in {self.dataset_config_path}."
-            )
+            logging.error(f"Error with the provided dataset key: {key}. Please specify it in {self.dataset_config_path}.")
             sys.exit(-1)
 
     @staticmethod
@@ -41,42 +43,38 @@ class ConfigLoader:
         try:
             with open(config_path) as f:
                 raw_config = json.load(f)
-                logging.info(f"Successfully loaded confing for {config_path}.")
+                logging.info(f"Successfully loaded config for {config_path}.")
 
-            shared_settings = raw_config["shared_settings"]
+            shared_settings = raw_config['shared_settings']
 
-            for strategy in raw_config["simulation_strategies"]:
+            for strategy in raw_config['simulation_strategies']:
                 strategy.update(shared_settings)
 
-            for strategy in raw_config["simulation_strategies"]:
+            # Convert training_device to torch.device with CUDA fallback
+            device_obj = None
+            if "training_device" in shared_settings:
+                device_str = shared_settings["training_device"]
+                device_obj = get_device(device_str)
+
+            for strategy in raw_config['simulation_strategies']:
                 # Validate the strategy configuration
                 validate_strategy_config(strategy)
-                logging.info(f"Successfully validated config from {config_path}.")
 
-                # Convert training_device string to torch.device with CUDA fallback
-                if "training_device" in strategy:
-                    device_str = strategy["training_device"]
-                    strategy["training_device"] = get_device(device_str)
+                if device_obj is not None:
+                    strategy["training_device"] = device_obj
 
-                # Auto-calculate optimal GPU allocation if set to "auto" or -1
-                if "gpus_per_client" in strategy:
-                    gpu_value = strategy["gpus_per_client"]
-                    # Support "auto" string and -1 as auto-detection triggers
-                    if gpu_value == "auto" or gpu_value == -1 or gpu_value == "-1":
-                        num_clients = strategy.get("num_of_clients", 5)
-                        optimal_gpu = calculate_optimal_gpus_per_client(num_clients)
-                        strategy["gpus_per_client"] = optimal_gpu
+            num_strategies = len(raw_config['simulation_strategies'])
+            logging.info(f"Successfully validated {num_strategies} {'strategy' if num_strategies == 1 else 'strategies'} from {config_path}.")
 
-                        if optimal_gpu > 0:
-                            max_parallel = int(1.0 / optimal_gpu)
-                            logging.info(
-                                f"[AUTO-ALLOCATE] Setting gpus_per_client={optimal_gpu:.2f} "
-                                f"(allows {max_parallel} clients in parallel)"
-                            )
-                        else:
-                            logging.info(
-                                "[AUTO-ALLOCATE] No GPU available, setting gpus_per_client=0"
-                            )
+            # Log attack schedule info
+            if raw_config['simulation_strategies'] and raw_config['simulation_strategies'][0].get('attack_schedule'):
+                attack_schedule = raw_config['simulation_strategies'][0]['attack_schedule']
+                for idx, entry in enumerate(attack_schedule):
+                    if '_selected_clients' in entry:
+                        logging.info(
+                            f"attack_schedule entry {idx} ({entry.get('selection_strategy')}): "
+                            f"Selected clients {entry['_selected_clients']} for {entry.get('attack_type')} attack"
+                        )
 
             return raw_config["simulation_strategies"]
 
@@ -90,7 +88,7 @@ class ConfigLoader:
         try:
             with open(config_path) as f:
                 config = json.load(f)
-                logging.info(f"Successfully loaded confing for {config_path}.")
+                logging.info(f"Successfully loaded config for {config_path}.")
 
                 return config
 

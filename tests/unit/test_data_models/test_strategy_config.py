@@ -199,13 +199,11 @@ class TestStrategyConfig:
         trust_config = StrategyConfig(
             aggregation_strategy_keyword="trust",
             trust_threshold=0.6,
-            reputation_threshold=0.5,
             beta_value=0.3,
             num_of_clusters=3,
         )
 
         assert trust_config.trust_threshold == 0.6
-        assert trust_config.reputation_threshold == 0.5
         assert trust_config.beta_value == 0.3
         assert trust_config.num_of_clusters == 3
 
@@ -259,16 +257,24 @@ class TestStrategyConfig:
 
     def test_attack_parameters(self):
         """Test attack-related parameters."""
+        attack_schedule = [
+            {
+                "start_round": 1,
+                "end_round": 10,
+                "attack_type": "gaussian_noise",
+                "attack_ratio": 0.3,
+                "target_noise_snr": 10.0,
+                "selection_strategy": "percentage",
+                "malicious_percentage": 0.2,
+            }
+        ]
         config = StrategyConfig(
             num_of_malicious_clients=2,
-            attack_type="gaussian_noise",
-            attack_ratio=0.3,
-            gaussian_noise_mean=0,
-            gaussian_noise_std=1,
+            attack_schedule=attack_schedule,
         )
 
         assert config.num_of_malicious_clients == 2
-        assert config.attack_type == "gaussian_noise"
-        assert config.attack_ratio == 0.3
-        assert config.gaussian_noise_mean == 0
-        assert config.gaussian_noise_std == 1
+        assert config.attack_schedule == attack_schedule
+        assert config.attack_schedule[0]["attack_type"] == "gaussian_noise"
+        assert config.attack_schedule[0]["attack_ratio"] == 0.3
+        assert config.attack_schedule[0]["target_noise_snr"] == 10.0

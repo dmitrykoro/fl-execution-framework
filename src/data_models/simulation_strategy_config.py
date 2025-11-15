@@ -1,12 +1,12 @@
 import json
-from dataclasses import asdict, dataclass
-from typing import Any, Optional, Union
 
-import torch
+from dataclasses import dataclass, asdict
+from typing import Optional, Any
 
 
 @dataclass
 class StrategyConfig:
+
     aggregation_strategy_keyword: str = None
     remove_clients: bool = None
     begin_removing_from_round: int = None
@@ -14,19 +14,17 @@ class StrategyConfig:
     num_of_rounds: int = None
     num_of_clients: int = None
     num_of_malicious_clients: int = None
-    attack_type: str = None
-    attack_ratio: float = None
-    gaussian_noise_mean: int = None
-    gaussian_noise_std: int = None
     show_plots: bool = None
     save_plots: bool = None
     save_csv: bool = None
-    training_device: Union[str, torch.device] = None
-    cpus_per_client: int = None
+    save_attack_snapshots: bool = None
+    attack_snapshot_format: str = "pickle"
+    snapshot_max_samples: int = 5
+    training_device: str = None
+    cpus_per_client: float = None
     gpus_per_client: float = None
 
     trust_threshold: float = None
-    reputation_threshold: float = None
     beta_value: float = None
     num_of_clusters: int = None
 
@@ -52,20 +50,7 @@ class StrategyConfig:
 
     strategy_number: int = None
 
-    # Dataset source control
-    dataset_source: Optional[str] = None  # "local" | "huggingface"
-
-    # HuggingFace-specific settings
-    hf_dataset_name: Optional[str] = (
-        None  # e.g., "mnist", "cifar10", "flwrlabs/femnist"
-    )
-    partitioning_strategy: Optional[str] = None  # "iid" | "dirichlet" | "pathological"
-    partitioning_params: Optional[dict] = None  # e.g., {"alpha": 0.5} for Dirichlet
-
-    # Dynamic poisoning attacks
-    dynamic_attacks: Optional[dict] = (
-        None  # {"enabled": bool, "schedule": [...attack phases...]}
-    )
+    attack_schedule: list = None
 
     def __init__(self, **kwargs):
         for key, value in kwargs.items():
@@ -76,9 +61,7 @@ class StrategyConfig:
 
     def __getattr__(self, name: str) -> Any:
         """Allow access to dynamically set attributes"""
-        raise AttributeError(
-            f"'{self.__class__.__name__}' object has no attribute '{name}'"
-        )
+        raise AttributeError(f"'{self.__class__.__name__}' object has no attribute '{name}'")
 
     @classmethod
     def from_dict(cls, strategy_config: dict):
@@ -87,8 +70,4 @@ class StrategyConfig:
 
     def to_json(self):
         """Convert config to json"""
-        config_dict = asdict(self)
-        # Convert torch.device to string for JSON serialization
-        if isinstance(config_dict.get("training_device"), torch.device):
-            config_dict["training_device"] = str(config_dict["training_device"])
-        return json.dumps(config_dict)
+        return json.dumps(asdict(self))

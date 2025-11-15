@@ -6,5 +6,17 @@
   "pneumoniamnist": "datasets/pneumoniamnist",
   "bloodmnist": "datasets/bloodmnist",
   "medquad": "datasets/medquad",
-  "lung_photos": "datasets/lung_photos"
+  "medal": "huggingface",
+  "financial_phrasebank": "huggingface",
+  "lexglue": "huggingface",
+  "lung_photos": "datasets/lung_photos",
+  "breastmnist": "datasets/breastmnist",
+  "pathmnist": "datasets/pathmnist",
+  "dermamnist": "datasets/dermamnist",
+  "octmnist": "datasets/octmnist",
+  "retinamnist": "datasets/retinamnist",
+  "tissuemnist": "datasets/tissuemnist",
+  "organamnist": "datasets/organamnist",
+  "organcmnist": "datasets/organcmnist",
+  "organsmnist": "datasets/organsmnist"
 }

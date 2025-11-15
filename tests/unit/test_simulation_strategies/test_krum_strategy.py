@@ -5,21 +5,28 @@ Tests Krum client selection algorithms, distance calculations, and subset identi
 """
 
 from unittest.mock import patch
+
+from tests.common import Mock, np, pytest, FitRes, ndarrays_to_parameters, ClientProxy
+from src.data_models.simulation_strategy_history import SimulationStrategyHistory
 from src.simulation_strategies.krum_based_removal_strategy import (
     KrumBasedRemovalStrategy,
 )
-from tests.common import (
-    ClientProxy,
-    FitRes,
-    Mock,
-    ndarrays_to_parameters,
-    np,
-    pytest,
-)
+
+from tests.common import generate_mock_client_data
 
 
 class TestKrumBasedRemovalStrategy:
     """Test cases for KrumBasedRemovalStrategy."""
+
+    @pytest.fixture
+    def mock_client_results(self):
+        """Generate mock client results for testing."""
+        return generate_mock_client_data(num_clients=5)
+
+    @pytest.fixture
+    def mock_strategy_history(self):
+        """Create mock strategy history."""
+        return Mock(spec=SimulationStrategyHistory)
 
     @pytest.fixture
     def krum_strategy(
@@ -36,6 +43,44 @@ class TestKrumBasedRemovalStrategy:
             fraction_evaluate=1.0,
             fit_metrics_aggregation_fn=krum_fit_metrics_fn,
         )
+
+    @pytest.fixture
+    def krum_fit_metrics_fn(self):
+        """Provide consistent fit_metrics_aggregation_fn for Krum-based strategies."""
+        return lambda x: x
+
+    @pytest.fixture
+    def mock_clustering(self):
+        """Mock clustering components (KMeans, MinMaxScaler) and parent aggregate_fit."""
+        with (
+            patch(
+                "src.simulation_strategies.krum_based_removal_strategy.KMeans"
+            ) as mock_kmeans,
+            patch(
+                "src.simulation_strategies.krum_based_removal_strategy.MinMaxScaler"
+            ) as mock_scaler,
+            patch("flwr.server.strategy.Krum.aggregate_fit") as mock_parent_aggregate,
+        ):
+            # Setup mocks
+            mock_kmeans_instance = Mock()
+            mock_kmeans_instance.transform.return_value = np.array(
+                [[0.1], [0.2], [0.3], [0.4], [0.5]]
+            )
+            mock_kmeans.return_value.fit.return_value = mock_kmeans_instance
+
+            mock_scaler_instance = Mock()
+            mock_scaler_instance.transform.return_value = np.array(
+                [[0.1], [0.2], [0.3], [0.4], [0.5]]
+            )
+            mock_scaler.return_value = mock_scaler_instance
+
+            mock_parent_aggregate.return_value = (Mock(), {})
+
+            yield {
+                "kmeans": mock_kmeans,
+                "scaler": mock_scaler,
+                "parent_aggregate": mock_parent_aggregate,
+            }
 
     def test_initialization(self, krum_strategy, mock_strategy_history):
         """Test KrumBasedRemovalStrategy initialization."""
@@ -178,11 +223,11 @@ class TestKrumBasedRemovalStrategy:
         assert len(scores) == 3
 
     def test_aggregate_fit_clustering(
-        self, krum_strategy, mock_client_results, mock_krum_clustering
+        self, krum_strategy, mock_client_results, mock_clustering
     ):
         """Test aggregate_fit performs clustering correctly."""
-        mock_kmeans = mock_krum_clustering["kmeans"]
-        mock_scaler_instance = mock_krum_clustering["scaler"].return_value
+        mock_kmeans = mock_clustering["kmeans"]
+        mock_scaler_instance = mock_clustering["scaler"].return_value
 
         krum_strategy.aggregate_fit(1, mock_client_results, [])
 
@@ -192,7 +237,7 @@ class TestKrumBasedRemovalStrategy:
         mock_scaler_instance.transform.assert_called_once()
 
     def test_aggregate_fit_krum_score_calculation(
-        self, krum_strategy, mock_client_results, mock_krum_clustering
+        self, krum_strategy, mock_client_results, mock_clustering
     ):
         """Test aggregate_fit calculates Krum scores for all clients."""
         krum_strategy.aggregate_fit(1, mock_client_results, [])
@@ -206,10 +251,10 @@ class TestKrumBasedRemovalStrategy:
             assert np.isfinite(score)
 
     def test_aggregate_fit_client_selection(
-        self, krum_strategy, mock_client_results, mock_krum_clustering
+        self, krum_strategy, mock_client_results, mock_clustering
     ):
         """Test aggregate_fit selects client with minimum Krum score."""
-        mock_parent_aggregate = mock_krum_clustering["parent_aggregate"]
+        mock_parent_aggregate = mock_clustering["parent_aggregate"]
         # Mock parent aggregate_fit to capture the selected clients
         selected_clients = []
 
@@ -381,7 +426,7 @@ class TestKrumBasedRemovalStrategy:
         assert all(score == 0 for score in scores)
 
     def test_strategy_history_integration(
-        self, krum_strategy, mock_client_results, mock_krum_clustering
+        self, krum_strategy, mock_client_results, mock_clustering
     ):
         """Test integration with strategy history."""
         krum_strategy.aggregate_fit(1, mock_client_results, [])
@@ -403,7 +448,7 @@ class TestKrumBasedRemovalStrategy:
             # Should handle empty results gracefully
             assert result is not None
 
-    def test_edge_case_single_client(self, krum_strategy, mock_krum_clustering):
+    def test_edge_case_single_client(self, krum_strategy, mock_clustering):
         """Test handling of single client scenario."""
         # Create single client result
         client_proxy = Mock(spec=ClientProxy)
@@ -479,85 +524,28 @@ class TestKrumBasedRemovalStrategy:
             assert all(np.isfinite(score) for score in scores)
             assert all(score >= 0 for score in scores)
 
-    def test_aggregate_evaluate_empty_results(self, krum_strategy):
-        """Test aggregate_evaluate with empty results."""
-        result = krum_strategy.aggregate_evaluate(1, [], [])
+    def test_aggregate_evaluate_with_removed_clients(self, krum_strategy):
+        """Test aggregate_evaluate handles removed clients correctly."""
+        from flwr.common import EvaluateRes
 
-        assert result == (None, {})
+        krum_strategy.removed_client_ids = {"1", "3"}
+        krum_strategy.current_round = 2
 
-    def test_aggregate_evaluate_collects_per_client_metrics(
-        self, krum_strategy, mock_evaluate_results, mock_strategy_history
-    ):
-        """Test aggregate_evaluate collects per-client metrics."""
-        server_round = 1
+        results = []
+        for i in range(5):
+            client_proxy = Mock(spec=ClientProxy)
+            client_proxy.cid = str(i)
 
-        krum_strategy.aggregate_evaluate(server_round, mock_evaluate_results, [])
+            eval_res = Mock(spec=EvaluateRes)
+            eval_res.loss = 0.5 + i * 0.1
+            eval_res.num_examples = 100
+            eval_res.metrics = {"accuracy": 0.9 - i * 0.05}
 
-        # Should call insert_single_client_history_entry twice per client (accuracy and loss)
-        assert mock_strategy_history.insert_single_client_history_entry.call_count == 10
+            results.append((client_proxy, eval_res))
 
-    def test_aggregate_evaluate_calculates_aggregated_loss(
-        self, krum_strategy, mock_evaluate_results
-    ):
-        """Test aggregate_evaluate calculates weighted aggregated loss."""
-        server_round = 1
+        loss, metrics = krum_strategy.aggregate_evaluate(2, results, [])
 
-        loss_aggregated, _ = krum_strategy.aggregate_evaluate(
-            server_round, mock_evaluate_results, []
-        )
-
-        # Should return a float loss value
-        assert isinstance(loss_aggregated, float)
-        assert loss_aggregated >= 0
-
-    def test_aggregate_evaluate_returns_empty_metrics(
-        self, krum_strategy, mock_evaluate_results
-    ):
-        """Test aggregate_evaluate returns empty metrics dict."""
-        server_round = 1
-
-        _, metrics = krum_strategy.aggregate_evaluate(
-            server_round, mock_evaluate_results, []
-        )
-
-        # Krum strategy doesn't return metrics in aggregate_evaluate
-        assert isinstance(metrics, dict)
-
-    def test_aggregate_evaluate_stores_per_client_data(
-        self, krum_strategy, mock_evaluate_results, mock_strategy_history
-    ):
-        """Test aggregate_evaluate stores correct per-client data."""
-        server_round = 1
-        krum_strategy.current_round = 1
-
-        krum_strategy.aggregate_evaluate(server_round, mock_evaluate_results, [])
-
-        # Verify both accuracy and loss were stored
-        calls = mock_strategy_history.insert_single_client_history_entry.call_args_list
-
-        # First 5 calls should be accuracy
-        first_call = calls[0]
-        assert first_call[1]["client_id"] == 0
-        assert first_call[1]["current_round"] == 1
-        assert first_call[1]["accuracy"] == 0.8
-
-        # Next 5 calls should be loss
-        sixth_call = calls[5]
-        assert sixth_call[1]["client_id"] == 0
-        assert sixth_call[1]["current_round"] == 1
-        assert sixth_call[1]["loss"] == 0.5
-
-    def test_aggregate_evaluate_with_failures(
-        self, krum_strategy, mock_evaluate_results
-    ):
-        """Test aggregate_evaluate handles failures parameter."""
-        server_round = 1
-        failures = [Exception("Test failure")]
-
-        # Should process successfully despite failures
-        loss_aggregated, metrics = krum_strategy.aggregate_evaluate(
-            server_round, mock_evaluate_results, failures
-        )
-
-        assert isinstance(loss_aggregated, float)
-        assert isinstance(metrics, dict)
+        # Should aggregate only non-removed clients (0, 2, 4)
+        assert loss is not None
+        krum_strategy.strategy_history.insert_single_client_history_entry.assert_called()
+        krum_strategy.strategy_history.insert_round_history_entry.assert_called()

@@ -5,8 +5,6 @@ Tests that core testing components are properly configured
 """
 
 from pathlib import Path
-from typing import List, Tuple
-
 from tests.common import init_test_environment
 
 logger = init_test_environment()
@@ -170,7 +168,7 @@ def main() -> int:
     logger.info("=" * 40)
 
     # Run all checks
-    checks: List[Tuple[str, bool]] = [
+    checks: list[tuple[str, bool]] = [
         ("Core config files", check_core_config()),
         ("Pytest configuration", check_pytest_config()),
         ("Coverage configuration", check_coverage_rc()),

@@ -1,6 +1,5 @@
 import logging
-
-from jsonschema import ValidationError, validate
+from jsonschema import validate, ValidationError
 
 config_schema = {
     "type": "object",
@@ -8,22 +7,18 @@ config_schema = {
         # Common parameters
         "aggregation_strategy_keyword": {
             "type": "string",
-            "enum": [
-                "fedavg",
-                "trust",
-                "pid",
-                "pid_scaled",
-                "pid_standardized",
-                "multi-krum",
-                "krum",
-                "multi-krum-based",
-                "trimmed_mean",
-                "rfa",
-                "bulyan",
-            ],
+            "enum": ["trust", "pid", "pid_scaled", "pid_standardized", "pid_standardized_score_based",
+                     "multi-krum", "krum", "multi-krum-based", "trimmed_mean",
+                     "rfa", "bulyan", "fedavg"]
         },
-        "strict_mode": {"type": "string", "enum": ["true", "false"]},
-        "remove_clients": {"type": "string", "enum": ["true", "false"]},
+        "strict_mode": {
+            "type": "string",
+            "enum": ["true", "false"]
+        },
+        "remove_clients": {
+            "type": "string",
+            "enum": ["true", "false"]
+        },
         "dataset_keyword": {
             "type": "string",
             "enum": [
@@ -34,204 +29,236 @@ config_schema = {
                 "flair",
                 "bloodmnist",
                 "medquad",
+                "medal",
+                "financial_phrasebank",
+                "lexglue",
                 "lung_photos",
-            ],
+                "breastmnist",
+                "pathmnist",
+                "dermamnist",
+                "octmnist",
+                "retinamnist",
+                "tissuemnist",
+                "organamnist",
+                "organcmnist",
+                "organsmnist"
+            ]
         },
-        "model_type": {"type": "string", "enum": ["cnn", "transformer"]},
-        "transformer_model": {
+        "model_type": {
             "type": "string",
-            "description": "HuggingFace model for text classification (e.g., distilbert-base-uncased)",
+            "enum": ["cnn", "transformer"]
         },
-        "max_seq_length": {
-            "type": "integer",
-            "minimum": 32,
-            "maximum": 512,
-            "description": "Maximum sequence length for tokenization",
+        "num_of_rounds": {
+            "type": "integer"
         },
-        "text_column": {
+        "num_of_clients": {
+            "type": "integer"
+        },
+        "show_plots": {
             "type": "string",
-            "description": "Name of text column in dataset",
+            "enum": ["true", "false"]
         },
-        "text2_column": {
+        "save_plots": {
             "type": "string",
-            "description": "Optional second text column for sentence pairs (NLI, etc.)",
+            "enum": ["true", "false"]
         },
-        "label_column": {
+        "save_csv": {
             "type": "string",
-            "description": "Name of label column in dataset",
+            "enum": ["true", "false"]
         },
-        "use_lora": {
-            "type": "boolean",
-            "description": "Use LoRA for parameter-efficient fine-tuning",
+        "preserve_dataset": {
+            "type": "string",
+            "enum": ["true", "false"]
         },
-        "lora_rank": {
-            "type": "integer",
-            "minimum": 1,
-            "maximum": 64,
-            "description": "Rank of LoRA adaptation matrices",
+        "training_subset_fraction": {
+            "type": "number"
         },
-        "num_of_rounds": {"type": "integer"},
-        "num_of_clients": {"type": "integer"},
-        "num_of_malicious_clients": {"type": "integer"},
-        "attack_type": {"type": "string", "enum": ["label_flipping", "gaussian_noise"]},
-        "show_plots": {"type": "string", "enum": ["true", "false"]},
-        "save_plots": {"type": "string", "enum": ["true", "false"]},
-        "save_csv": {"type": "string", "enum": ["true", "false"]},
-        "preserve_dataset": {"type": "string", "enum": ["true", "false"]},
-        "training_subset_fraction": {"type": "number"},
+
         # LLM settings
-        "use_llm": {"type": "string", "enum": ["true", "false"]},
+        "use_llm": {
+            "type": "string",
+            "enum": ["true", "false"]
+        },
         "llm_model": {
             "type": "string",
-            "enum": ["microsoft/BiomedNLP-BiomedBERT-base-uncased-abstract-fulltext"],
+            "enum": [
+                "microsoft/BiomedNLP-BiomedBERT-base-uncased-abstract-fulltext",
+                "distilbert-base-uncased"
+            ]
         },
-        "llm_task": {"type": "string", "enum": ["mlm"]},
-        "mlm_probability": {"type": "number"},
-        "llm_chunk_size": {"type": "integer"},
-        "llm_finetuning": {"type": "string", "enum": ["full", "lora"]},
-        "lora_alpha": {"type": "integer"},
-        "lora_dropout": {"type": "number"},
+        "llm_task": {
+            "type": "string",
+            "enum": ["mlm"]
+        },
+        "mlm_probability": {
+            "type": "number"
+        },
+        "llm_chunk_size": {
+            "type": "integer"
+        },
+        "llm_finetuning": {
+            "type": "string",
+            "enum": ["full", "lora"]
+        },
+        "lora_rank": {
+            "type": "integer"
+        },
+        "lora_alpha": {
+            "type": "integer"
+        },
+        "lora_dropout": {
+            "type": "number"
+        },
         "lora_target_modules": {
             "type": "array",
             "items": {
                 "type": "string",
-            },
+            }
         },
-        # Dataset source control
-        "dataset_source": {"type": "string", "enum": ["local", "huggingface"]},
-        "hf_dataset_name": {"type": "string"},
-        "partitioning_strategy": {
-            "type": "string",
-            "enum": ["iid", "dirichlet", "pathological"],
-        },
-        "partitioning_params": {"type": "object"},
-        # Dynamic poisoning attacks
-        "dynamic_attacks": {
-            "type": "object",
-            "properties": {
-                "enabled": {"type": "boolean"},
-                "schedule": {
-                    "type": "array",
-                    "items": {
-                        "type": "object",
-                        "properties": {
-                            "start_round": {"type": "integer", "minimum": 1},
-                            "end_round": {"type": "integer", "minimum": 1},
-                            "selection_strategy": {
-                                "type": "string",
-                                "enum": ["specific", "random", "percentage"],
-                            },
-                            "client_ids": {
-                                "type": "array",
-                                "items": {"type": "integer"},
-                            },
-                            "num_clients": {"type": "integer", "minimum": 1},
-                            "percentage": {
-                                "type": "number",
-                                "minimum": 0,
-                                "maximum": 1,
-                            },
-                            "attack_config": {
-                                "type": "object",
-                                "properties": {
-                                    "type": {
-                                        "type": "string",
-                                        "enum": [
-                                            "label_flipping",
-                                            "gaussian_noise",
-                                            "brightness",
-                                            "token_replacement",
-                                        ],
-                                    },
-                                    "params": {"type": "object"},
-                                },
-                                "required": ["type", "params"],
-                            },
-                        },
-                        "required": [
-                            "start_round",
-                            "selection_strategy",
-                            "attack_config",
-                        ],
-                    },
-                },
-            },
-            "required": ["enabled"],
-        },
+
         # Flower settings
-        "training_device": {"type": "string", "enum": ["auto", "cpu", "gpu", "cuda"]},
-        "cpus_per_client": {"type": "integer"},
-        "gpus_per_client": {},  # String "auto" or number
-        "min_fit_clients": {"type": "integer"},
-        "min_evaluate_clients": {"type": "integer"},
-        "min_available_clients": {"type": "integer"},
+        "training_device": {
+            "type": "string",
+            "enum": ["cpu", "gpu"]
+        },
+        "cpus_per_client": {
+            "type": "number"
+        },
+        "gpus_per_client": {
+            "type": "number"
+        },
+        "min_fit_clients": {
+            "type": "integer"
+        },
+        "min_evaluate_clients": {
+            "type": "integer"
+        },
+        "min_available_clients": {
+            "type": "integer"
+        },
         "evaluate_metrics_aggregation_fn": {
             "type": "string",
         },
-        "num_of_client_epochs": {"type": "integer"},
-        "batch_size": {"type": "integer"},
+        "num_of_client_epochs": {
+            "type": "integer"
+        },
+        "batch_size": {
+            "type": "integer"
+        },
+
         # Strategy specific parameters
+
         # Trust
-        "begin_removing_from_round": {"type": "integer"},
-        "trust_threshold": {"type": "number"},
-        "beta_value": {"type": "number"},
-        "num_of_clusters": {"type": "integer", "minimum": 1, "maximum": 1},
+        "begin_removing_from_round": {
+            "type": "integer"
+        },
+        "trust_threshold": {
+            "type": "number"
+        },
+        "beta_value": {
+            "type": "number"
+        },
+        "num_of_clusters": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 1
+        },
+
         # PID, PID scaled, PID standardized
-        "num_std_dev": {"type": "number"},
-        "Kp": {"type": "number"},
-        "Ki": {"type": "number"},
-        "Kd": {"type": "number"},
+        "num_std_dev": {
+            "type": "number"
+        },
+        "Kp": {
+            "type": "number"
+        },
+        "Ki": {
+            "type": "number"
+        },
+        "Kd": {
+            "type": "number"
+        },
+
         # Krum-based strategies
-        "num_krum_selections": {"type": "integer"},
+        "num_krum_selections": {
+            "type": "integer"
+        },
+
         # Trimmed mean
-        "trim_ratio": {"type": "number"},
+        "trim_ratio": {
+            "type": "number"
+        },
+
+        # Attack scheduling
+        "attack_schedule": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "start_round": {"type": "integer", "minimum": 1},
+                    "end_round": {"type": "integer", "minimum": 1},
+                    "attack_type": {
+                        "type": "string",
+                        "enum": ["label_flipping", "gaussian_noise", "token_replacement"]
+                    },
+                    "selection_strategy": {"type": "string", "enum": ["specific", "random", "percentage"]},
+                    "malicious_client_ids": {"type": "array", "items": {"type": "integer"}},
+                    "malicious_client_count": {"type": "integer", "minimum": 1},
+                    "malicious_percentage": {"type": "number", "minimum": 0.0, "maximum": 1.0},
+                    "random_seed": {"type": "integer", "minimum": 0},
+                    "flip_fraction": {"type": "number", "minimum": 0.0, "maximum": 1.0},
+                    "target_class": {"type": "integer", "minimum": 0},
+                    "target_noise_snr": {"type": "number"},
+                    "attack_ratio": {"type": "number", "minimum": 0.0, "maximum": 1.0}
+                },
+                "required": ["start_round", "end_round", "attack_type", "selection_strategy"]
+            }
+        },
+
+        # Attack snapshot saving
+        "save_attack_snapshots": {
+            "type": "string",
+            "enum": ["true", "false"]
+        },
+        "attack_snapshot_format": {
+            "type": "string",
+            "enum": ["pickle", "visual", "pickle_and_visual"]
+        },
+        "snapshot_max_samples": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 50
+        }
     },
     "required": [
-        "aggregation_strategy_keyword",
-        "remove_clients",
-        "model_type",
-        "use_llm",
-        "num_of_rounds",
-        "num_of_clients",
-        "num_of_malicious_clients",
-        "attack_type",
-        "show_plots",
-        "save_plots",
-        "save_csv",
-        "preserve_dataset",
-        "training_subset_fraction",
-        "training_device",
-        "cpus_per_client",
-        "gpus_per_client",
-        "min_fit_clients",
-        "min_evaluate_clients",
-        "min_available_clients",
-        "evaluate_metrics_aggregation_fn",
-        "num_of_client_epochs",
-        "batch_size",
-        "dataset_source",
-    ],
+        "aggregation_strategy_keyword", "remove_clients", "dataset_keyword", "model_type",
+        "use_llm", "num_of_rounds", "num_of_clients",
+        "show_plots", "save_plots", "save_csv", "preserve_dataset",
+        "training_subset_fraction", "training_device", "cpus_per_client",
+        "gpus_per_client", "min_fit_clients", "min_evaluate_clients",
+        "min_available_clients", "evaluate_metrics_aggregation_fn",
+        "num_of_client_epochs", "batch_size", "attack_schedule"
+    ]
 }
 
 
-def validate_dependent_params(strategy_config: dict) -> None:
-    """Validate strategy-specific required parameters based on aggregation strategy and attack type."""
+def _validate_dependent_params(strategy_config: dict) -> None:
+    """Validate that all params that require additional params are correct."""
+
     aggregation_strategy_keyword = strategy_config["aggregation_strategy_keyword"]
 
     if aggregation_strategy_keyword == "trust":
         trust_specific_parameters = [
-            "begin_removing_from_round",
-            "trust_threshold",
-            "beta_value",
-            "num_of_clusters",
+            "begin_removing_from_round", "trust_threshold", "beta_value", "num_of_clusters"
         ]
         for param in trust_specific_parameters:
             if param not in strategy_config:
                 raise ValidationError(
                     f"Missing parameter {param} for trust aggregation {aggregation_strategy_keyword}"
                 )
-    elif aggregation_strategy_keyword in ("pid", "pid_scaled", "pid_standardized"):
-        pid_specific_parameters = ["num_std_dev", "Kp", "Ki", "Kd"]
+    elif aggregation_strategy_keyword in ("pid", "pid_scaled", "pid_standardized", "pid_standardized_score_based"):
+        pid_specific_parameters = [
+            "num_std_dev", "Kp", "Ki", "Kd"
+        ]
         for param in pid_specific_parameters:
             if param not in strategy_config:
                 raise ValidationError(
@@ -248,54 +275,229 @@ def validate_dependent_params(strategy_config: dict) -> None:
                 f"Missing parameter trim_ratio for trimmed mean aggregation {aggregation_strategy_keyword}"
             )
 
-    attack_type = strategy_config["attack_type"]
 
-    if attack_type == "gaussian_noise":
-        gaussian_noise_specific_params = [
-            "gaussian_noise_mean",
-            "gaussian_noise_std",
-            "attack_ratio",
-        ]
-        for param in gaussian_noise_specific_params:
-            if param not in strategy_config:
+def _populate_client_selection(config: dict) -> None:
+    """
+    Populate _selected_clients for random and percentage selection strategies.
+
+    For reproducibility, uses deterministic seeding:
+    - If attack entry has 'random_seed': use it
+    - Otherwise: auto-generate seed from attack parameters
+
+    Research-backed approach: Fixed client selection per attack window
+    (not re-randomized each round) for reproducibility.
+    """
+    import random
+
+    schedule = config.get("attack_schedule", [])
+    num_of_clients = config.get("num_of_clients")
+
+    for idx, entry in enumerate(schedule):
+        selection_strategy = entry.get("selection_strategy")
+
+        if selection_strategy == "specific":
+            # Already has explicit malicious_client_ids, nothing to do
+            continue
+
+        elif selection_strategy in ("random", "percentage"):
+            if "random_seed" in entry:
+                seed = entry["random_seed"]
+            else:
+                # Auto-generate seed from attack parameters for reproducibility
+                seed_string = f"{entry.get('attack_type')}_{entry.get('start_round')}_{entry.get('end_round')}_{idx}"
+                seed = hash(seed_string) % (2 ** 32)
+
+            random.seed(seed)
+
+            if selection_strategy == "random":
+                num_malicious = entry.get("malicious_client_count")
+            else:
+                malicious_percentage = entry.get("malicious_percentage")
+                num_malicious = int(num_of_clients * malicious_percentage)
+
+            if num_malicious > num_of_clients:
                 raise ValidationError(
-                    f"Missing {param} that is required for {attack_type} in configuration."
+                    f"attack_schedule entry {idx}: Cannot select {num_malicious} clients "
+                    f"when only {num_of_clients} clients exist"
                 )
 
+            if num_malicious <= 0:
+                raise ValidationError(
+                    f"attack_schedule entry {idx}: Must select at least 1 malicious client "
+                    f"(got {num_malicious})"
+                )
 
-def check_llm_specific_parameters(strategy_config: dict) -> None:
-    """Validate LLM-specific parameters for transformer models."""
+            all_client_ids = list(range(num_of_clients))
+            selected_clients = sorted(random.sample(all_client_ids, num_malicious))
+
+            entry["_selected_clients"] = selected_clients
+
+            logging.debug(
+                f"attack_schedule entry {idx} ({selection_strategy}): "
+                f"Selected clients {selected_clients} for {entry.get('attack_type')} attack "
+                f"(seed={seed})"
+            )
+
+
+def _validate_attack_schedule(config: dict) -> None:
+    """
+    Validate attack_schedule entries and enforce related constraints.
+
+    Ensures each schedule entry has:
+    - Valid round ranges
+    - Required attack-type-specific parameters
+    - Proper selection strategy configuration
+    - Preserve_dataset set to false
+    """
+    schedule = config.get("attack_schedule", [])
+
+    for idx, entry in enumerate(schedule):
+        entry_desc = f"attack_schedule entry {idx}"
+
+        # Validate round range
+        start_round = entry.get("start_round")
+        end_round = entry.get("end_round")
+        if start_round > end_round:
+            raise ValidationError(
+                f"{entry_desc}: start_round ({start_round}) cannot be greater than end_round ({end_round})"
+            )
+
+        # Validate attack type and its required parameters
+        num_of_rounds = config.get("num_of_rounds")
+        if end_round > num_of_rounds:
+            raise ValidationError(
+                f"{entry_desc}: end_round ({end_round}) exceeds num_of_rounds ({num_of_rounds})"
+            )
+
+        attack_type = entry.get("attack_type")
+
+        if attack_type == "label_flipping":
+            if "flip_fraction" not in entry:
+                raise ValidationError(
+                    f"{entry_desc}: label_flipping attack requires 'flip_fraction' parameter"
+                )
+            if "target_class" not in entry:
+                raise ValidationError(
+                    f"{entry_desc}: label_flipping attack requires 'target_class' parameter "
+                    "(targeted attack from source class(es) to target class)"
+                )
+
+        elif attack_type == "gaussian_noise":
+            if "target_noise_snr" not in entry:
+                raise ValidationError(
+                    f"{entry_desc}: gaussian_noise attack requires 'target_noise_snr' parameter"
+                )
+            if "attack_ratio" not in entry:
+                raise ValidationError(
+                    f"{entry_desc}: gaussian_noise attack requires 'attack_ratio' parameter"
+                )
+
+        # Validate selection strategy requirements
+        selection_strategy = entry.get("selection_strategy")
+
+        if selection_strategy == "specific":
+            if "malicious_client_ids" not in entry:
+                raise ValidationError(
+                    f"{entry_desc}: 'specific' selection strategy requires 'malicious_client_ids' list"
+                )
+
+        elif selection_strategy == "random":
+            if "malicious_client_count" not in entry:
+                raise ValidationError(
+                    f"{entry_desc}: 'random' selection strategy requires 'malicious_client_count' integer"
+                )
+
+        elif selection_strategy == "percentage":
+            if "malicious_percentage" not in entry:
+                raise ValidationError(
+                    f"{entry_desc}: 'percentage' selection strategy requires 'malicious_percentage' (0.0-1.0)"
+                )
+
+    # Check for overlapping rounds (attack stacking)
+    for i, entry1 in enumerate(schedule):
+        for j, entry2 in enumerate(schedule[i + 1:], start=i + 1):
+            if not (
+                    entry1["end_round"] < entry2["start_round"] or
+                    entry2["end_round"] < entry1["start_round"]
+            ):
+                # Check if same attack type
+                if entry1.get("attack_type") == entry2.get("attack_type"):
+                    raise ValidationError(
+                        f"CONFIG REJECTED: Overlapping rounds with same attack type\n"
+                        f"\n"
+                        f"Conflict:\n"
+                        f"  - Entry {i}: {entry1.get('attack_type')} (rounds {entry1['start_round']}-{entry1['end_round']})\n"
+                        f"  - Entry {j}: {entry2.get('attack_type')} (rounds {entry2['start_round']}-{entry2['end_round']})\n"
+                        f"\n"
+                        f"Reason:\n"
+                        f"  - Cannot have the same attack type active in overlapping rounds\n"
+                        f"  - Config is the single source of truth - it must be unambiguous\n"
+                        f"\n"
+                        f"Fix:\n"
+                        f"  - Adjust round ranges to not overlap for same attack type\n"
+                        f"  - Or use different attack types if you want stacked attacks\n"
+                    )
+                else:
+                    logging.info(
+                        f"attack_schedule entries {i} and {j} have overlapping rounds with different attack types "
+                        f"({entry1.get('attack_type')} and {entry2.get('attack_type')}). "
+                        f"Both attacks will be stacked and applied sequentially."
+                    )
+
+    # Strict rejection: preserve_dataset incompatible with attack_schedule
+    if schedule and config.get("preserve_dataset") == "true":
+        raise ValidationError(
+            "CONFIG REJECTED: Cannot use attack_schedule with preserve_dataset=true\n"
+            "\n"
+            "Reason:\n"
+            "  - attack_schedule applies attacks in-memory during training rounds\n"
+            "  - preserve_dataset=true expects pre-poisoned filesystem dataset\n"
+            "  - These modes are incompatible\n"
+            "\n"
+            "Fix:\n"
+            "  Set 'preserve_dataset': 'false' in your config file\n"
+            "  Use 'save_attack_snapshots': 'true' to inspect poisoned data\n"
+            "\n"
+            "Config is the single source of truth - it must reflect intended execution."
+        )
+
+
+def _validate_llm_parameters(strategy_config: dict) -> None:
+    """Check if LLM specific parameters are valid"""
+
     if strategy_config["model_type"] != "transformer":
-        raise ValidationError("LLM finetuning is only supported for transformer models")
+        raise ValidationError(
+            "LLM finetuning is only supported for transformer models"
+        )
 
     llm_specific_parameters = [
-        "llm_model",
-        "llm_finetuning",
-        "llm_task",
-        "llm_chunk_size",
+        "llm_model", "llm_finetuning", "llm_task", "llm_chunk_size"
     ]
     for param in llm_specific_parameters:
         if param not in strategy_config:
-            raise ValidationError(f"Missing parameter {param} for LLM finetuning")
+            raise ValidationError(
+                f"Missing parameter {param} for LLM finetuning"
+            )
 
     if strategy_config["llm_task"] == "mlm":
         if "mlm_probability" not in strategy_config:
-            raise ValidationError("Missing parameter mlm_probability for LLM task mlm")
+            raise ValidationError(
+                "Missing parameter mlm_probability for LLM task mlm"
+            )
 
     finetuning_keyword = strategy_config["llm_finetuning"]
     if finetuning_keyword == "lora":
         lora_specific_parameters = [
-            "lora_rank",
-            "lora_alpha",
-            "lora_dropout",
-            "lora_target_modules",
+            "lora_rank", "lora_alpha", "lora_dropout", "lora_target_modules"
         ]
         for param in lora_specific_parameters:
             if param not in strategy_config:
-                raise ValidationError(f"Missing parameter {param} for LORA")
+                raise ValidationError(
+                    f"Missing parameter {param} for LORA"
+                )
 
 
-def _handle_strict_mode_validation(config: dict) -> None:
+def _apply_strict_mode(config: dict) -> None:
     """Handle strict_mode validation and client configuration logic."""
 
     # Set strict_mode to "true" by default if not specified
@@ -310,9 +512,9 @@ def _handle_strict_mode_validation(config: dict) -> None:
 
     # Always check: min_* cannot be greater than num_of_clients
     if (
-        num_fit_clients > num_of_clients
-        or num_evaluate_clients > num_of_clients
-        or num_available_clients > num_of_clients
+            num_fit_clients > num_of_clients or
+            num_evaluate_clients > num_of_clients or
+            num_available_clients > num_of_clients
     ):
         raise ValidationError(
             f"EXPERIMENT STOPPED: Client configuration error.\n"
@@ -327,104 +529,33 @@ def _handle_strict_mode_validation(config: dict) -> None:
     # If strict_mode is enabled, force all min_* = num_of_clients
     if strict_mode:
         if (
-            num_fit_clients != num_of_clients
-            or num_evaluate_clients != num_of_clients
-            or num_available_clients != num_of_clients
+                num_fit_clients != num_of_clients or
+                num_evaluate_clients != num_of_clients or
+                num_available_clients != num_of_clients
         ):
             # Force all to equal total clients
             config["min_fit_clients"] = num_of_clients
             config["min_evaluate_clients"] = num_of_clients
             config["min_available_clients"] = num_of_clients
 
-            logging.info("STRICT MODE ENABLED: Auto-configured client participation")
+            logging.info(f"STRICT MODE ENABLED: Auto-configured client participation")
             logging.info(f"  - Set min_fit_clients = {num_of_clients}")
             logging.info(f"  - Set min_evaluate_clients = {num_of_clients}")
             logging.info(f"  - Set min_available_clients = {num_of_clients}")
-            logging.info("  - This ensures all clients participate in every round")
-
-
-def validate_dataset_config(config: dict) -> None:
-    """Validate dataset configuration based on dataset_source."""
-
-    dataset_source = config.get("dataset_source", "local")
-
-    if dataset_source == "local":
-        # Local datasets require dataset_keyword
-        if "dataset_keyword" not in config:
-            raise ValidationError(
-                "dataset_keyword is required when dataset_source='local'"
-            )
-
-        # Validate dataset_keyword is in the allowed enum
-        allowed_keywords = [
-            "femnist_iid",
-            "femnist_niid",
-            "its",
-            "pneumoniamnist",
-            "flair",
-            "bloodmnist",
-            "medquad",
-            "lung_photos",
-        ]
-        dataset_keyword = config["dataset_keyword"]
-        if dataset_keyword not in allowed_keywords:
-            raise ValidationError(
-                f"'{dataset_keyword}' is not a valid dataset_keyword. "
-                f"Must be one of: {', '.join(allowed_keywords)}"
-            )
-
-    elif dataset_source == "huggingface":
-        # HuggingFace datasets require hf_dataset_name
-        if not config.get("hf_dataset_name"):
-            raise ValidationError(
-                "hf_dataset_name is required when dataset_source='huggingface'"
-            )
-
-        # Validate partitioning strategy
-        valid_strategies = ["iid", "dirichlet", "pathological"]
-        strategy = config.get("partitioning_strategy", "iid")
-        if strategy not in valid_strategies:
-            raise ValidationError(
-                f"Invalid partitioning_strategy: {strategy}. "
-                f"Must be one of: {', '.join(valid_strategies)}"
-            )
-
-        if strategy == "dirichlet":
-            params = config.get("partitioning_params", {})
-            alpha = params.get("alpha", 0.5)
-            if not 0 < alpha <= 10:
-                raise ValidationError(
-                    f"Dirichlet alpha must be in range (0, 10], got: {alpha}"
-                )
-
-        elif strategy == "pathological":
-            params = config.get("partitioning_params", {})
-            num_classes = params.get("num_classes_per_partition", 2)
-            if num_classes < 1:
-                raise ValidationError(
-                    f"num_classes_per_partition must be >= 1, got: {num_classes}"
-                )
-
-    else:
-        raise ValidationError(
-            f"Invalid dataset_source: {dataset_source}. Must be 'local' or 'huggingface'"
-        )
+            logging.info(f"  - This ensures all clients participate in every round")
 
 
 def validate_strategy_config(config: dict) -> None:
     """Validate config based on the schema, will raise an exception if invalid"""
 
-    # Validates any shared settings
+    # Validates config structure, types, and basic constraints against JSON schema
     validate(instance=config, schema=config_schema)
 
-    validate_dependent_params(config)
+    _validate_dependent_params(config)
 
-    use_llm_keyword = config["use_llm"]
-    if use_llm_keyword == "true":
-        check_llm_specific_parameters(config)
+    if config["use_llm"] == "true":
+        _validate_llm_parameters(config)
 
-    # Validate dataset configuration (local or HuggingFace)
-    validate_dataset_config(config)
-
-    # Handle strict_mode logic
-    _handle_strict_mode_validation(config)
+    _validate_attack_schedule(config)
+    _populate_client_selection(config)
+    _apply_strict_mode(config)

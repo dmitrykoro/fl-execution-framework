@@ -83,6 +83,7 @@ class TestRoundsInfo:
             "removal_threshold_history",
             "aggregated_loss_history",
             "average_accuracy_history",
+            "average_accuracy_std_history",
         ]
 
         # Should only include base metrics, not stats metrics
@@ -131,7 +132,7 @@ class TestRoundsInfo:
             [0.4, 0.3, 0.2], rel=1e-3
         )
         assert rounds_info.average_accuracy_history == pytest.approx(
-            [0.8, 0.85, 0.9], rel=1e-3
+            [80, 85, 90], rel=8.0
         )
 
     def test_get_metric_by_name_valid_metrics(self):

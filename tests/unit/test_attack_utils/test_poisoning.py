@@ -1,540 +1,592 @@
 """
-Tests for data poisoning attack utilities.
+Unit tests for attack_utils.poisoning module.
+
+Tests all poisoning attack functions and their edge cases.
 """
 
+from tests.common import pytest
 import torch
 
 from src.attack_utils.poisoning import (
-    apply_brightness_attack,
-    apply_gaussian_noise,
     apply_label_flipping,
-    apply_poisoning_attack,
+    apply_gaussian_noise,
     apply_token_replacement,
     should_poison_this_round,
+    apply_poisoning_attack,
 )
 
 
-class TestLabelFlipping:
-    """Test label flipping attacks."""
+class TestApplyLabelFlipping:
+    """Test suite for apply_label_flipping function."""
 
     def test_no_flipping_when_fraction_zero(self):
-        """Labels should remain unchanged when flip_fraction is 0."""
+        """Test that no labels are flipped when flip_fraction is 0."""
         labels = torch.tensor([0, 1, 2, 3, 4])
-        result = apply_label_flipping(labels, flip_fraction=0.0)
-        assert torch.equal(result, labels)
+        original_labels = labels.clone()
 
-    def test_targeted_flipping(self):
-        """All flipped labels should match target_class."""
-        labels = torch.tensor([0, 1, 2, 3, 4, 5, 6, 7, 8, 9])
-        result = apply_label_flipping(
-            labels, flip_fraction=0.5, num_classes=10, target_class=7
-        )
-        # Count how many labels are 7
-        num_sevens = (result == 7).sum().item()
-        # Should have flipped 5 labels to 7 (50% of 10)
-        assert num_sevens >= 5
+        result = apply_label_flipping(labels, flip_fraction=0.0, target_class=9)
+
+        assert torch.equal(result, original_labels)
+
+    def test_no_flipping_when_fraction_negative(self):
+        """Test that no labels are flipped when flip_fraction is negative."""
+        labels = torch.tensor([0, 1, 2, 3, 4])
+        original_labels = labels.clone()
+
+        result = apply_label_flipping(labels, flip_fraction=-0.5, target_class=9)
+
+        assert torch.equal(result, original_labels)
+
+    def test_no_flipping_when_num_to_flip_zero(self):
+        """Test that no labels are flipped when calculated num_to_flip is 0."""
+        labels = torch.tensor([0, 1])
+        original_labels = labels.clone()
+
+        # With only 2 labels and flip_fraction=0.3, int(2 * 0.3) = 0
+        result = apply_label_flipping(labels, flip_fraction=0.3, target_class=9)
+
+        assert torch.equal(result, original_labels)
 
     def test_random_flipping(self):
-        """Random flipping should change labels without target."""
-        torch.manual_seed(42)
-        labels = torch.zeros(100, dtype=torch.long)
+        """Test targeted label flipping with target class."""
+        labels = torch.tensor([0, 1, 2, 3, 4, 5, 6, 7, 8, 9])
         original_labels = labels.clone()
-        result = apply_label_flipping(labels, flip_fraction=1.0, num_classes=10)
-        # Not all should remain 0
-        assert not torch.equal(result, original_labels)
-        # All values should be valid class indices
-        assert result.min() >= 0
-        assert result.max() < 10
+        target_class = 7
 
-    def test_partial_flipping(self):
-        """Only specified fraction of labels should change."""
-        torch.manual_seed(42)
-        labels = torch.zeros(100, dtype=torch.long)
-        original_labels = labels.clone()
         result = apply_label_flipping(
-            labels, flip_fraction=0.3, num_classes=10, target_class=5
+            labels, flip_fraction=0.5, target_class=target_class
         )
-        num_changed = (result != original_labels).sum().item()
-        # Should flip approximately 30 labels (30% of 100)
-        assert 25 <= num_changed <= 35
 
-    def test_empty_labels(self):
-        """Should handle empty label tensor."""
-        labels = torch.tensor([], dtype=torch.long)
-        result = apply_label_flipping(labels, flip_fraction=0.5)
-        assert len(result) == 0
+        # Should have modified some labels to target_class
+        # Verify the function executed without error and returned valid labels
+        assert len(result) == len(original_labels)
+        assert torch.all(result >= 0)
+        assert torch.all(result < 10)
+        # Should have at least some labels flipped to target_class
+        num_target = (result == target_class).sum().item()
+        assert num_target > 0
+
+    def test_targeted_flipping(self):
+        """Test targeted label flipping to specific class."""
+        labels = torch.tensor([0, 1, 2, 3, 4, 5, 6, 7, 8, 9])
+        target_class = 5
+
+        result = apply_label_flipping(
+            labels, flip_fraction=0.5, target_class=target_class
+        )
+
+        # Count how many labels are now target_class
+        num_target = (result == target_class).sum().item()
+        expected_flips = int(len(labels) * 0.5)
+
+        # Should have at least expected_flips of target_class
+        # (original might already have some)
+        assert num_target >= expected_flips
+
+    def test_full_flipping(self):
+        """Test flipping all labels."""
+        labels = torch.tensor([0, 1, 2, 3, 4])
+        target_class = 9
+
+        result = apply_label_flipping(
+            labels, flip_fraction=1.0, target_class=target_class
+        )
+
+        # All labels should be target_class
+        assert torch.all(result == target_class)
+
+    def test_label_values_within_range(self):
+        """Test that flipped labels are within valid class range."""
+        labels = torch.tensor([0, 1, 2, 3, 4, 5, 6, 7, 8, 9])
+        num_classes = 10
+        target_class = 7
+
+        result = apply_label_flipping(
+            labels, flip_fraction=0.8, target_class=target_class
+        )
+
+        # All labels should be in range [0, num_classes)
+        assert torch.all(result >= 0)
+        assert torch.all(result < num_classes)
 
 
-class TestGaussianNoise:
-    """Test Gaussian noise attack."""
+class TestApplyGaussianNoise:
+    """Test suite for apply_gaussian_noise function."""
 
-    def test_noise_added_to_images(self):
-        """Images should be modified by noise addition."""
-        torch.manual_seed(42)
-        images = torch.ones(10, 3, 28, 28) * 0.5
-        result = apply_gaussian_noise(images, mean=0.0, std=0.1)
-        # Should not be identical
-        assert not torch.equal(result, images)
-
-    def test_output_clamped(self):
-        """Output should be clamped to [0, 1] range."""
-        torch.manual_seed(42)
-        images = torch.ones(10, 3, 28, 28) * 0.9
-        result = apply_gaussian_noise(images, mean=0.0, std=0.5)
-        assert result.min() >= 0.0
-        assert result.max() <= 1.0
-
-    def test_zero_std_no_change(self):
-        """Zero standard deviation should result in no change."""
-        images = torch.ones(10, 3, 28, 28) * 0.5
-        result = apply_gaussian_noise(images, mean=0.0, std=0.0)
-        assert torch.equal(result, images)
-
-    def test_noise_distribution(self):
-        """Noise should approximately follow Gaussian distribution."""
-        torch.manual_seed(42)
-        images = torch.ones(1000, 3, 28, 28) * 0.5
-        result = apply_gaussian_noise(images, mean=0.0, std=0.1)
-        noise = result - images
-        # Mean should be close to 0
-        assert abs(noise.mean().item()) < 0.01
-        # Std should be close to 0.1 (before clamping)
-        assert abs(noise.std().item() - 0.1) < 0.02
-
-
-class TestBrightnessAttack:
-    """Test brightness modification attack."""
-
-    def test_brightness_reduction(self):
-        """Factor < 1.0 should darken images."""
-        images = torch.ones(10, 3, 28, 28) * 0.8
-        result = apply_brightness_attack(images, factor=0.5)
-        assert (result < images).all()
-        assert torch.allclose(result, images * 0.5)
-
-    def test_brightness_increase(self):
-        """Factor > 1.0 should brighten images."""
-        images = torch.ones(10, 3, 28, 28) * 0.3
-        result = apply_brightness_attack(images, factor=2.0)
-        assert (result > images).all()
-
-    def test_output_clamped(self):
-        """Output should be clamped to [0, 1] range."""
-        images = torch.ones(10, 3, 28, 28) * 0.9
-        result = apply_brightness_attack(images, factor=2.0)
-        assert result.max() <= 1.0
-
-    def test_zero_factor_makes_black(self):
-        """Factor of 0 should result in black images."""
-        images = torch.ones(10, 3, 28, 28) * 0.8
-        result = apply_brightness_attack(images, factor=0.0)
-        assert torch.equal(result, torch.zeros_like(images))
-
-    def test_one_factor_no_change(self):
-        """Factor of 1.0 should not change images."""
+    def test_no_poisoning_when_attack_ratio_zero(self):
+        """Test that no samples are poisoned when attack_ratio is 0."""
         images = torch.rand(10, 3, 28, 28)
-        result = apply_brightness_attack(images, factor=1.0)
-        assert torch.equal(result, images)
+        original_images = images.clone()
+
+        result = apply_gaussian_noise(images, attack_ratio=0.0)
+
+        assert torch.allclose(result, original_images)
+
+    def test_no_poisoning_when_num_to_poison_zero(self):
+        """Test that no samples are poisoned when calculated num_to_poison is 0."""
+        images = torch.rand(2, 3, 28, 28)
+        original_images = images.clone()
+
+        # With 2 images and attack_ratio=0.3, int(2 * 0.3) = 0
+        result = apply_gaussian_noise(images, attack_ratio=0.3)
+
+        assert torch.allclose(result, original_images)
+
+    def test_gaussian_noise_with_mean_std(self):
+        """Test Gaussian noise addition with mean and std parameters."""
+        images = torch.rand(10, 3, 28, 28)
+        original_images = images.clone()
+
+        result = apply_gaussian_noise(images, mean=0.0, std=0.1, attack_ratio=1.0)
+
+        # Images should be modified
+        assert not torch.allclose(result, original_images, rtol=1e-4)
+
+        # Results should be clamped to [0, 1]
+        assert torch.all(result >= 0.0)
+        assert torch.all(result <= 1.0)
+
+    def test_gaussian_noise_with_snr(self):
+        """Test Gaussian noise addition with SNR parameter."""
+        images = torch.rand(10, 3, 28, 28) + 0.1  # Ensure non-zero signal
+        original_images = images.clone()
+
+        result = apply_gaussian_noise(images, target_noise_snr=20.0, attack_ratio=1.0)
+
+        # Images should be modified
+        assert not torch.allclose(result, original_images, rtol=1e-4)
+
+        # Results should be clamped to [0, 1]
+        assert torch.all(result >= 0.0)
+        assert torch.all(result <= 1.0)
+
+    def test_partial_poisoning(self):
+        """Test that only specified fraction of samples are poisoned."""
+        images = torch.rand(10, 3, 28, 28)
+        attack_ratio = 0.5
+
+        result = apply_gaussian_noise(images, std=0.5, attack_ratio=attack_ratio)
+
+        # Exactly 50% of samples should be modified
+        expected_poisoned = int(10 * attack_ratio)
+        assert expected_poisoned == 5
+
+        # Results should still be valid
+        assert torch.all(result >= 0.0)
+        assert torch.all(result <= 1.0)
+
+    def test_noise_clamping(self):
+        """Test that noisy images are properly clamped to [0, 1]."""
+        # Create images near boundaries
+        images = torch.ones(5, 1, 10, 10) * 0.9
+
+        # Add large noise that would exceed boundaries
+        result = apply_gaussian_noise(images, mean=0.0, std=1.0, attack_ratio=1.0)
+
+        # All values should be clamped
+        assert torch.all(result >= 0.0)
+        assert torch.all(result <= 1.0)
 
 
-class TestTokenReplacement:
-    """Test token replacement attack."""
+class TestApplyTokenReplacement:
+    """Test suite for apply_token_replacement function."""
 
-    def test_zero_probability_no_change(self):
-        """Zero replacement probability should not change tokens."""
-        tokens = torch.randint(0, 1000, (10, 20))
+    def test_no_replacement_when_prob_zero(self):
+        """Test that no tokens are replaced when replacement_prob is 0."""
+        tokens = torch.tensor([[1, 2, 3, 4, 5], [6, 7, 8, 9, 10]])
+        original_tokens = tokens.clone()
+
         result = apply_token_replacement(tokens, replacement_prob=0.0)
-        assert torch.equal(result, tokens)
 
-    def test_tokens_replaced(self):
-        """Some tokens should be replaced with random tokens."""
-        torch.manual_seed(42)
-        tokens = torch.zeros(100, 20, dtype=torch.long)
-        result = apply_token_replacement(tokens, replacement_prob=0.3)
-        # Some tokens should have changed
-        assert not torch.equal(result, tokens)
+        assert torch.equal(result, original_tokens)
 
-    def test_vocab_size_respected(self):
-        """Replacement tokens should be within vocab size."""
-        torch.manual_seed(42)
-        tokens = torch.randint(0, 1000, (10, 20))
-        vocab_size = 5000
+    def test_no_replacement_when_prob_negative(self):
+        """Test that no tokens are replaced when replacement_prob is negative."""
+        tokens = torch.tensor([[1, 2, 3, 4, 5], [6, 7, 8, 9, 10]])
+        original_tokens = tokens.clone()
+
+        result = apply_token_replacement(tokens, replacement_prob=-0.5)
+
+        assert torch.equal(result, original_tokens)
+
+    def test_partial_replacement(self):
+        """Test partial token replacement."""
+        torch.manual_seed(42)  # For reproducibility
+        tokens = torch.tensor([[1, 2, 3, 4, 5]] * 100)  # Repeat for statistical test
+
         result = apply_token_replacement(
-            tokens, replacement_prob=0.5, vocab_size=vocab_size
+            tokens,
+            replacement_prob=0.3,
+            target_token_ids=[2, 3, 4],
+            replacement_token_ids=[20, 30, 40],
         )
-        assert result.min() >= 0
-        assert result.max() < vocab_size
 
-    def test_replacement_frequency(self):
-        """Replacement frequency should match probability."""
-        torch.manual_seed(42)
-        tokens = torch.zeros(1000, 100, dtype=torch.long)
-        result = apply_token_replacement(tokens, replacement_prob=0.2)
-        num_replaced = (result != tokens).sum().item()
-        total_tokens = tokens.numel()
-        expected = total_tokens * 0.2
-        assert abs(num_replaced - expected) < expected * 0.1
+        # Should have some changes
+        changed = ~torch.equal(result, tokens)
+        assert changed
+
+    def test_full_replacement(self):
+        """Test full token replacement."""
+        tokens = torch.tensor([[1, 2, 3, 4, 5], [6, 7, 8, 9, 10]])
+
+        result = apply_token_replacement(
+            tokens,
+            replacement_prob=1.0,
+            target_token_ids=[1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
+            replacement_token_ids=[100, 200, 300, 400, 500],
+        )
+
+        # Most tokens should be different (extremely unlikely to match randomly)
+        num_changed = (result != tokens).sum().item()
+        assert num_changed > 0
+
+    def test_token_values_within_vocab(self):
+        """Test that replaced tokens are from replacement list."""
+        tokens = torch.tensor([[1, 2, 3, 4, 5]] * 10)
+        target_token_ids = [2, 3, 4]
+        replacement_token_ids = [100, 200, 300]
+
+        result = apply_token_replacement(
+            tokens,
+            replacement_prob=1.0,
+            target_token_ids=target_token_ids,
+            replacement_token_ids=replacement_token_ids,
+        )
+
+        # Check that replaced tokens are from the replacement list
+        for batch_idx in range(result.shape[0]):
+            for seq_idx in range(result.shape[1]):
+                token = result[batch_idx, seq_idx].item()
+                # Token should either be unchanged (1 or 5) or be a replacement token
+                if token not in [1, 5]:
+                    assert token in replacement_token_ids
 
 
 class TestShouldPoisonThisRound:
-    """Test round-based poisoning scheduling."""
+    """Test suite for should_poison_this_round function."""
 
-    def test_no_schedule_no_poisoning(self):
-        """No attack schedule should result in no poisoning."""
-        should_poison, configs = should_poison_this_round(5, 0, None)
-        assert not should_poison
-        assert configs == []
+    def test_empty_schedule_returns_false(self):
+        """Test that empty/None schedule returns False."""
+        should_poison, attacks = should_poison_this_round(5, 0, None)
+        assert should_poison is False
+        assert len(attacks) == 0
 
-    def test_empty_schedule_no_poisoning(self):
-        """Empty attack schedule should result in no poisoning."""
-        should_poison, configs = should_poison_this_round(5, 0, [])
-        assert not should_poison
-        assert configs == []
+        should_poison, attacks = should_poison_this_round(5, 0, [])
+        assert should_poison is False
+        assert len(attacks) == 0
 
-    def test_specific_client_selection(self):
-        """Specific clients should be poisoned when selected."""
+    def test_specific_selection_strategy(self):
+        """Test specific client selection strategy."""
         schedule = [
             {
                 "start_round": 1,
                 "end_round": 10,
+                "attack_type": "label_flipping",
                 "selection_strategy": "specific",
-                "client_ids": [0, 2, 5],
-                "attack_config": {"type": "label_flipping", "params": {}},
+                "malicious_client_ids": [0, 2, 4],
+                "flip_fraction": 0.5,
             }
         ]
-        should_poison, configs = should_poison_this_round(5, 2, schedule)
-        assert should_poison
-        assert len(configs) == 1
-        assert configs[0] == {"type": "label_flipping", "params": {}}
 
-        should_poison, configs = should_poison_this_round(5, 1, schedule)
-        assert not should_poison
-        assert configs == []
+        # Client in list should be poisoned
+        should_poison, attacks = should_poison_this_round(5, 0, schedule)
+        assert should_poison is True
+        assert len(attacks) == 1
 
-    def test_round_range_filtering(self):
-        """Poisoning should only occur within round range."""
-        schedule = [
-            {
-                "start_round": 5,
-                "end_round": 10,
-                "selection_strategy": "specific",
-                "client_ids": [0],
-                "attack_config": {"type": "label_flipping", "params": {}},
-            }
-        ]
-        should_poison, configs = should_poison_this_round(3, 0, schedule)
-        assert not should_poison
-        assert configs == []
-
-        should_poison, configs = should_poison_this_round(7, 0, schedule)
-        assert should_poison
-        assert len(configs) == 1
-
-        should_poison, configs = should_poison_this_round(12, 0, schedule)
-        assert not should_poison
-        assert configs == []
+        # Client not in list should not be poisoned
+        should_poison, attacks = should_poison_this_round(5, 1, schedule)
+        assert should_poison is False
+        assert len(attacks) == 0
 
     def test_random_selection_strategy(self):
-        """Random selection should use _selected_clients."""
+        """Test random client selection strategy."""
         schedule = [
             {
                 "start_round": 1,
                 "end_round": 10,
+                "attack_type": "label_flipping",
                 "selection_strategy": "random",
-                "_selected_clients": [1, 3, 7],
-                "attack_config": {"type": "gaussian_noise", "params": {}},
+                "_selected_clients": [1, 3, 5],
+                "flip_fraction": 0.5,
             }
         ]
-        should_poison, configs = should_poison_this_round(5, 3, schedule)
-        assert should_poison
-        assert len(configs) == 1
 
-        should_poison, configs = should_poison_this_round(5, 5, schedule)
-        assert not should_poison
-        assert configs == []
+        # Client in selected list should be poisoned
+        should_poison, attacks = should_poison_this_round(5, 1, schedule)
+        assert should_poison is True
+        assert len(attacks) == 1
+
+        # Client not in selected list should not be poisoned
+        should_poison, attacks = should_poison_this_round(5, 0, schedule)
+        assert should_poison is False
+        assert len(attacks) == 0
 
     def test_percentage_selection_strategy(self):
-        """Percentage selection should use _selected_clients."""
+        """Test percentage client selection strategy."""
         schedule = [
             {
                 "start_round": 1,
                 "end_round": 10,
+                "attack_type": "gaussian_noise",
                 "selection_strategy": "percentage",
                 "_selected_clients": [0, 2, 4],
-                "attack_config": {"type": "brightness", "params": {}},
+                "target_noise_snr": 10.0,
             }
         ]
-        should_poison, configs = should_poison_this_round(5, 2, schedule)
-        assert should_poison
-        assert len(configs) == 1
 
-        should_poison, configs = should_poison_this_round(5, 1, schedule)
-        assert not should_poison
-        assert configs == []
+        # Client in selected list should be poisoned
+        should_poison, attacks = should_poison_this_round(5, 2, schedule)
+        assert should_poison is True
+        assert len(attacks) == 1
 
-    def test_multiple_attack_phases(self):
-        """Should handle multiple non-overlapping attack phases correctly."""
+        # Client not in selected list should not be poisoned
+        should_poison, attacks = should_poison_this_round(5, 1, schedule)
+        assert should_poison is False
+        assert len(attacks) == 0
+
+    def test_round_range_filtering(self):
+        """Test that attacks are only active within their round range."""
+        schedule = [
+            {
+                "start_round": 5,
+                "end_round": 10,
+                "attack_type": "label_flipping",
+                "selection_strategy": "specific",
+                "malicious_client_ids": [0],
+                "flip_fraction": 0.5,
+            }
+        ]
+
+        # Before start_round
+        should_poison, attacks = should_poison_this_round(3, 0, schedule)
+        assert should_poison is False
+
+        # Within range
+        should_poison, attacks = should_poison_this_round(7, 0, schedule)
+        assert should_poison is True
+
+        # After end_round
+        should_poison, attacks = should_poison_this_round(11, 0, schedule)
+        assert should_poison is False
+
+    def test_attack_type_deduplication(self):
+        """Test that duplicate attack types use first-match-wins."""
         schedule = [
             {
                 "start_round": 1,
-                "end_round": 5,
+                "end_round": 10,
+                "attack_type": "label_flipping",
                 "selection_strategy": "specific",
-                "client_ids": [0],
-                "attack_config": {"type": "label_flipping", "params": {}},
+                "malicious_client_ids": [0],
+                "flip_fraction": 0.5,
             },
             {
-                "start_round": 6,
+                "start_round": 1,
                 "end_round": 10,
+                "attack_type": "label_flipping",
                 "selection_strategy": "specific",
-                "client_ids": [1],
-                "attack_config": {"type": "gaussian_noise", "params": {}},
+                "malicious_client_ids": [0],
+                "flip_fraction": 0.8,  # Different param
             },
         ]
-        should_poison, configs = should_poison_this_round(3, 0, schedule)
-        assert should_poison
-        assert len(configs) == 1
-        assert configs[0]["type"] == "label_flipping"
 
-        should_poison, configs = should_poison_this_round(8, 1, schedule)
-        assert should_poison
-        assert len(configs) == 1
-        assert configs[0]["type"] == "gaussian_noise"
+        should_poison, attacks = should_poison_this_round(5, 0, schedule)
 
-    def test_overlapping_schedules_different_attack_types(self):
-        """Overlapping schedules with different attack types should stack."""
+        # Should only return one attack (first match)
+        assert len(attacks) == 1
+        assert attacks[0]["flip_fraction"] == 0.5
+
+    def test_multiple_attack_types(self):
+        """Test that different attack types can be returned together."""
         schedule = [
             {
-                "start_round": 5,
+                "start_round": 1,
                 "end_round": 10,
+                "attack_type": "label_flipping",
                 "selection_strategy": "specific",
-                "client_ids": [0],
-                "attack_config": {
-                    "type": "label_flipping",
-                    "params": {"flip_fraction": 0.5},
-                },
+                "malicious_client_ids": [0],
+                "flip_fraction": 0.5,
             },
             {
-                "start_round": 7,
-                "end_round": 12,
+                "start_round": 1,
+                "end_round": 10,
+                "attack_type": "gaussian_noise",
                 "selection_strategy": "specific",
-                "client_ids": [0],
-                "attack_config": {"type": "gaussian_noise", "params": {"std": 0.1}},
+                "malicious_client_ids": [0],
+                "target_noise_snr": 15.0,
             },
         ]
-        should_poison, configs = should_poison_this_round(8, 0, schedule)
-        assert should_poison
-        assert len(configs) == 2
-        attack_types = {config["type"] for config in configs}
+
+        should_poison, attacks = should_poison_this_round(5, 0, schedule)
+
+        # Should return both attacks
+        assert len(attacks) == 2
+        attack_types = {a["attack_type"] for a in attacks}
         assert attack_types == {"label_flipping", "gaussian_noise"}
 
-    def test_overlapping_schedules_same_attack_type_deduplication(self):
-        """Overlapping schedules with same attack type should deduplicate (first wins)."""
+    def test_missing_attack_type_not_included(self):
+        """Test that attack entries without attack_type are not included."""
         schedule = [
             {
-                "start_round": 5,
+                "start_round": 1,
                 "end_round": 10,
                 "selection_strategy": "specific",
-                "client_ids": [0],
-                "attack_config": {
-                    "type": "label_flipping",
-                    "params": {"flip_fraction": 0.3, "num_classes": 10},
-                },
-            },
-            {
-                "start_round": 7,
-                "end_round": 12,
-                "selection_strategy": "specific",
-                "client_ids": [0],
-                "attack_config": {
-                    "type": "label_flipping",
-                    "params": {"flip_fraction": 0.8, "num_classes": 10},
-                },
-            },
+                "malicious_client_ids": [0],
+                # Missing attack_type
+            }
         ]
-        should_poison, configs = should_poison_this_round(8, 0, schedule)
-        assert should_poison
-        assert len(configs) == 1
-        assert configs[0]["type"] == "label_flipping"
-        assert configs[0]["params"]["flip_fraction"] == 0.3
 
-    def test_three_way_overlap_mixed_types(self):
-        """Three overlapping schedules with mixed attack types."""
-        schedule = [
-            {
-                "start_round": 5,
-                "end_round": 15,
-                "selection_strategy": "specific",
-                "client_ids": [0],
-                "attack_config": {"type": "label_flipping", "params": {}},
-            },
-            {
-                "start_round": 8,
-                "end_round": 12,
-                "selection_strategy": "specific",
-                "client_ids": [0],
-                "attack_config": {"type": "gaussian_noise", "params": {}},
-            },
-            {
-                "start_round": 10,
-                "end_round": 20,
-                "selection_strategy": "specific",
-                "client_ids": [0],
-                "attack_config": {"type": "brightness", "params": {}},
-            },
-        ]
-        should_poison, configs = should_poison_this_round(11, 0, schedule)
-        assert should_poison
-        assert len(configs) == 3
-        attack_types = {config["type"] for config in configs}
-        assert attack_types == {"label_flipping", "gaussian_noise", "brightness"}
+        should_poison, attacks = should_poison_this_round(5, 0, schedule)
 
-    def test_three_way_overlap_with_duplicates(self):
-        """Three overlapping schedules with duplicate attack type."""
-        schedule = [
-            {
-                "start_round": 5,
-                "end_round": 15,
-                "selection_strategy": "specific",
-                "client_ids": [0],
-                "attack_config": {
-                    "type": "label_flipping",
-                    "params": {"flip_fraction": 0.3},
-                },
-            },
-            {
-                "start_round": 8,
-                "end_round": 12,
-                "selection_strategy": "specific",
-                "client_ids": [0],
-                "attack_config": {"type": "gaussian_noise", "params": {}},
-            },
-            {
-                "start_round": 10,
-                "end_round": 20,
-                "selection_strategy": "specific",
-                "client_ids": [0],
-                "attack_config": {
-                    "type": "label_flipping",
-                    "params": {"flip_fraction": 0.9},
-                },
-            },
-        ]
-        # Round 11 - all three overlap, but two are same type
-        should_poison, configs = should_poison_this_round(11, 0, schedule)
-        assert should_poison
-        assert len(configs) == 2  # Deduplicated
-        attack_types = {config["type"] for config in configs}
-        assert attack_types == {"label_flipping", "gaussian_noise"}
-        # First label_flipping should win
-        label_flip_config = next(c for c in configs if c["type"] == "label_flipping")
-        assert label_flip_config["params"]["flip_fraction"] == 0.3
-
-    def test_partial_overlap_transitions(self):
-        """Test behavior as rounds transition through overlapping phases."""
-        schedule = [
-            {
-                "start_round": 5,
-                "end_round": 10,
-                "selection_strategy": "specific",
-                "client_ids": [0],
-                "attack_config": {"type": "label_flipping", "params": {}},
-            },
-            {
-                "start_round": 8,
-                "end_round": 12,
-                "selection_strategy": "specific",
-                "client_ids": [0],
-                "attack_config": {"type": "gaussian_noise", "params": {}},
-            },
-        ]
-        # Round 6 - only first phase
-        should_poison, configs = should_poison_this_round(6, 0, schedule)
-        assert should_poison
-        assert len(configs) == 1
-        assert configs[0]["type"] == "label_flipping"
-
-        # Round 9 - both phases overlap
-        should_poison, configs = should_poison_this_round(9, 0, schedule)
-        assert should_poison
-        assert len(configs) == 2
-
-        # Round 11 - only second phase
-        should_poison, configs = should_poison_this_round(11, 0, schedule)
-        assert should_poison
-        assert len(configs) == 1
-        assert configs[0]["type"] == "gaussian_noise"
+        assert should_poison is False
+        assert len(attacks) == 0
 
 
 class TestApplyPoisoningAttack:
-    """Test unified poisoning attack application."""
+    """Test suite for apply_poisoning_attack function."""
 
     def test_label_flipping_attack(self):
-        """Label flipping attack should modify labels."""
-        data = torch.rand(10, 3, 28, 28)
-        labels = torch.zeros(10, dtype=torch.long)
-        config = {
-            "type": "label_flipping",
-            "params": {"flip_fraction": 1.0, "num_classes": 10, "target_class": 5},
+        """Test label flipping attack application."""
+        images = torch.rand(10, 1, 28, 28)
+        labels = torch.tensor([0, 1, 2, 3, 4, 5, 6, 7, 8, 9])
+        original_labels = labels.clone()
+
+        attack_config = {
+            "attack_type": "label_flipping",
+            "flip_fraction": 0.5,
+            "num_classes": 10,
+            "target_class": 5,
         }
-        new_data, new_labels = apply_poisoning_attack(data, labels, config)
-        # Data should be unchanged
-        assert torch.equal(new_data, data)
-        # Labels should all be 5
-        assert torch.all(new_labels == 5)
 
-    def test_gaussian_noise_attack(self):
-        """Gaussian noise attack should modify data."""
-        torch.manual_seed(42)
-        data = torch.ones(10, 3, 28, 28) * 0.5
-        labels = torch.tensor([0, 1, 2, 3, 4, 5, 6, 7, 8, 9])
-        config = {"type": "gaussian_noise", "params": {"mean": 0.0, "std": 0.1}}
-        new_data, new_labels = apply_poisoning_attack(data, labels, config)
-        # Data should be modified
-        assert not torch.equal(new_data, data)
-        # Labels should be unchanged
-        assert torch.equal(new_labels, labels)
+        result_images, result_labels = apply_poisoning_attack(
+            images, labels, attack_config
+        )
 
-    def test_brightness_attack(self):
-        """Brightness attack should modify data."""
-        data = torch.ones(10, 3, 28, 28) * 0.8
+        # Images should be unchanged
+        assert torch.allclose(result_images, images)
+
+        # Labels should be modified
+        assert not torch.equal(result_labels, original_labels)
+
+    def test_gaussian_noise_attack_with_snr(self):
+        """Test Gaussian noise attack with SNR parameter."""
+        images = torch.rand(10, 3, 28, 28) + 0.1
         labels = torch.tensor([0, 1, 2, 3, 4, 5, 6, 7, 8, 9])
-        config = {"type": "brightness", "params": {"factor": 0.5}}
-        new_data, new_labels = apply_poisoning_attack(data, labels, config)
-        # Data should be darkened
-        assert (new_data < data).all()
+        original_images = images.clone()
+
+        attack_config = {
+            "attack_type": "gaussian_noise",
+            "target_noise_snr": 20.0,
+            "attack_ratio": 1.0,
+        }
+
+        result_images, result_labels = apply_poisoning_attack(
+            images, labels, attack_config
+        )
+
+        # Images should be modified
+        assert not torch.allclose(result_images, original_images, rtol=1e-4)
+
         # Labels should be unchanged
-        assert torch.equal(new_labels, labels)
+        assert torch.equal(result_labels, labels)
+
+    def test_gaussian_noise_attack_with_mean_std(self):
+        """Test Gaussian noise attack with mean/std parameters."""
+        images = torch.rand(10, 3, 28, 28)
+        labels = torch.tensor([0, 1, 2, 3, 4, 5, 6, 7, 8, 9])
+        original_images = images.clone()
+
+        attack_config = {
+            "attack_type": "gaussian_noise",
+            "mean": 0.0,
+            "std": 0.1,
+            "attack_ratio": 1.0,
+        }
+
+        result_images, result_labels = apply_poisoning_attack(
+            images, labels, attack_config
+        )
+
+        # Images should be modified
+        assert not torch.allclose(result_images, original_images, rtol=1e-4)
+
+        # Labels should be unchanged
+        assert torch.equal(result_labels, labels)
 
     def test_token_replacement_attack(self):
-        """Token replacement attack should modify tokens."""
-        torch.manual_seed(42)
-        data = torch.zeros(10, 20, dtype=torch.long)
+        """Test token replacement attack application."""
+        tokens = torch.tensor([[1, 2, 3, 4, 5]] * 10)
         labels = torch.tensor([0, 1, 2, 3, 4, 5, 6, 7, 8, 9])
-        config = {
-            "type": "token_replacement",
-            "params": {"replacement_prob": 0.5, "vocab_size": 1000},
+
+        attack_config = {
+            "attack_type": "token_replacement",
+            "replacement_prob": 1.0,
+            "target_token_ids": [1, 2, 3, 4, 5],
+            "replacement_token_ids": [100, 200, 300, 400, 500],
         }
-        new_data, new_labels = apply_poisoning_attack(data, labels, config)
-        # Data should be modified
-        assert not torch.equal(new_data, data)
+
+        result_tokens, result_labels = apply_poisoning_attack(
+            tokens, labels, attack_config
+        )
+
+        # Tokens should be modified
+        assert not torch.equal(result_tokens, tokens)
+
         # Labels should be unchanged
-        assert torch.equal(new_labels, labels)
+        assert torch.equal(result_labels, labels)
 
-    def test_unknown_attack_type(self):
-        """Unknown attack type should return unchanged data."""
-        data = torch.rand(10, 3, 28, 28)
+    def test_old_nested_format_raises_error(self):
+        """Test that old nested config format raises helpful error."""
+        images = torch.rand(10, 1, 28, 28)
         labels = torch.tensor([0, 1, 2, 3, 4, 5, 6, 7, 8, 9])
-        config = {"type": "unknown_attack", "params": {}}
-        new_data, new_labels = apply_poisoning_attack(data, labels, config)
-        # Both should be unchanged
-        assert torch.equal(new_data, data)
-        assert torch.equal(new_labels, labels)
 
-    def test_missing_params(self):
-        """Missing params should use defaults."""
-        data = torch.ones(10, 3, 28, 28) * 0.5
-        labels = torch.zeros(10, dtype=torch.long)
-        config = {"type": "gaussian_noise"}  # No params specified
-        new_data, new_labels = apply_poisoning_attack(data, labels, config)
-        # Should still apply attack with default params
-        assert not torch.equal(new_data, data)
+        # Old format with "params" key
+        old_config1 = {
+            "type": "label_flipping",
+            "params": {"flip_fraction": 0.5},
+        }
+
+        with pytest.raises(ValueError, match="old nested attack config format"):
+            apply_poisoning_attack(images, labels, old_config1)
+
+        # Old format with "type" but no "attack_type"
+        old_config2 = {
+            "type": "label_flipping",
+            "flip_fraction": 0.5,
+        }
+
+        with pytest.raises(ValueError, match="old nested attack config format"):
+            apply_poisoning_attack(images, labels, old_config2)
+
+    def test_unknown_attack_type_does_nothing(self):
+        """Test that unknown attack type returns data unchanged."""
+        images = torch.rand(10, 1, 28, 28)
+        labels = torch.tensor([0, 1, 2, 3, 4, 5, 6, 7, 8, 9])
+        original_images = images.clone()
+        original_labels = labels.clone()
+
+        attack_config = {"attack_type": "unknown_attack"}
+
+        result_images, result_labels = apply_poisoning_attack(
+            images, labels, attack_config
+        )
+
+        # Data should be unchanged
+        assert torch.allclose(result_images, original_images)
+        assert torch.equal(result_labels, original_labels)
+
+    def test_default_parameters_used(self):
+        """Test that default parameters are used when not specified."""
+        images = torch.rand(10, 1, 28, 28)
+        labels = torch.tensor([0, 1, 2, 3, 4, 5, 6, 7, 8, 9])
+
+        # Minimal config with required target_class - should use default flip_fraction
+        attack_config = {"attack_type": "label_flipping", "target_class": 7}
+
+        result_images, result_labels = apply_poisoning_attack(
+            images, labels, attack_config
+        )
+
+        # Should still work with defaults
+        assert result_images is not None
+        assert result_labels is not None

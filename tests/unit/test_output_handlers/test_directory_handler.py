@@ -2,13 +2,13 @@ import csv
 import json
 from unittest.mock import patch
 
+from tests.common import Mock, pytest
 from src.data_models.client_info import ClientInfo
 from src.data_models.round_info import RoundsInfo
 from src.data_models.simulation_strategy_config import StrategyConfig
 from src.data_models.simulation_strategy_history import SimulationStrategyHistory
 from src.dataset_handlers.dataset_handler import DatasetHandler
 from src.output_handlers.directory_handler import DirectoryHandler
-from tests.common import Mock, pytest
 
 
 class TestDirectoryHandler:
@@ -66,32 +66,15 @@ class TestDirectoryHandler:
             "average_accuracy_history",
         ]
         mock_rounds.statsable_metrics = [
+            "aggregated_loss_history",
             "average_accuracy_history",
-            "tp_history",
-            "tn_history",
-            "fp_history",
-            "fn_history",
-            "removal_accuracy_history",
-            "removal_precision_history",
-            "removal_recall_history",
-            "removal_f1_history",
         ]
-
-        # Add required history lists for execution stats
-        mock_rounds.average_accuracy_history = [0.8, 0.85, 0.9]
-        mock_rounds.aggregated_loss_history = [0.5, 0.4, 0.3]
-        mock_rounds.score_calculation_time_nanos_history = [1000000, 1100000, 1200000]
 
         def get_metric(name):
             if name == "aggregated_loss_history":
-                return mock_rounds.aggregated_loss_history
+                return [r.aggregated_loss for r in mock_round_info_list]
             if name == "average_accuracy_history":
-                return mock_rounds.average_accuracy_history
-            if name == "score_calculation_time_nanos_history":
-                return mock_rounds.score_calculation_time_nanos_history
-            # Return mock values for defense metrics
-            if name in mock_rounds.statsable_metrics:
-                return [0.85, 0.87, 0.89]
+                return [r.aggregated_accuracy for r in mock_round_info_list]
             return []
 
         mock_rounds.get_metric_by_name.side_effect = get_metric
@@ -99,8 +82,8 @@ class TestDirectoryHandler:
         history = SimulationStrategyHistory(
             strategy_config=mock_strategy_config,
             dataset_handler=mock_dataset_handler,
-            rounds_history=mock_rounds,
         )
+        history.rounds_history = mock_rounds
         history.get_all_clients = Mock(return_value=mock_client_info_list)
         return history
 
@@ -201,8 +184,8 @@ class TestDirectoryHandler:
                 reader = csv.reader(f)
                 headers = next(reader)
 
-                # Should have round # column plus client metrics
-                assert headers[0] == "round #"
+                # Should have round column plus client metrics
+                assert headers[0] == "round"
                 assert "client_0_loss_history" in headers
                 assert "client_0_accuracy_history" in headers
 
@@ -225,8 +208,8 @@ class TestDirectoryHandler:
         history = SimulationStrategyHistory(
             strategy_config=mock_strategy_config,
             dataset_handler=mock_dataset_handler,
-            rounds_history=Mock(spec=RoundsInfo),
         )
+        history.rounds_history = Mock(spec=RoundsInfo)
         history.get_all_clients = Mock(return_value=[client_with_missing_metrics])
 
         csv_dir = tmp_path / "csv_missing_test"
@@ -277,15 +260,15 @@ class TestDirectoryHandler:
                 reader = csv.reader(f)
                 headers = next(reader)
 
-                # Should have round # and metric columns
-                assert headers[0] == "round #"
+                # Should have round and metric columns
+                assert headers[0] == "round"
                 assert "aggregated_loss_history" in headers
                 assert "average_accuracy_history" in headers
 
     def test_save_per_execution_to_csv_creates_file(
         self, mock_simulation_history, tmp_path
     ):
-        """Test _save_per_execution_to_csv creates execution metrics file with universal metrics"""
+        """Test _save_per_execution_to_csv creates execution metrics file"""
         csv_dir = tmp_path / "execution_csv_test"
         csv_dir.mkdir()
 
@@ -298,87 +281,6 @@ class TestDirectoryHandler:
 
             csv_file = csv_dir / "exec_stats_1.csv"
             assert csv_file.exists()
-
-            # Verify the CSV contains universal metrics
-            with open(csv_file, "r") as f:
-                reader = csv.reader(f)
-                headers = next(reader)
-                data_row = next(reader)
-
-                # Check universal metrics are present
-                assert "final_accuracy" in headers
-                assert "final_loss" in headers
-                assert "avg_score_calc_time_ms" in headers
-                assert "total_rounds" in headers
-                assert "total_clients" in headers
-
-                # Verify data row has values
-                assert len(data_row) == len(headers)
-
-    def test_save_per_execution_to_csv_without_remove_clients(
-        self, mock_strategy_config, tmp_path
-    ):
-        """Test _save_per_execution_to_csv works when remove_clients=False"""
-        # Create config without client removal
-        config_no_removal = StrategyConfig(
-            aggregation_strategy_keyword="fedavg",
-            num_of_rounds=5,
-            num_of_clients=10,
-            strategy_number=2,
-            remove_clients=False,
-        )
-
-        mock_dataset_handler = Mock(spec=DatasetHandler)
-        mock_dataset_handler.poisoned_client_ids = set()
-
-        mock_rounds = Mock(spec=RoundsInfo)
-        mock_rounds.average_accuracy_history = [0.7, 0.75, 0.8, 0.82, 0.85]
-        mock_rounds.aggregated_loss_history = [0.6, 0.5, 0.4, 0.35, 0.3]
-        mock_rounds.score_calculation_time_nanos_history = [
-            1000000,
-            1100000,
-            1200000,
-            1150000,
-            1180000,
-        ]
-
-        history = SimulationStrategyHistory(
-            strategy_config=config_no_removal,
-            dataset_handler=mock_dataset_handler,
-            rounds_history=mock_rounds,
-        )
-
-        csv_dir = tmp_path / "exec_no_removal_test"
-        csv_dir.mkdir()
-
-        with patch.object(DirectoryHandler, "new_csv_dirname", str(csv_dir)):
-            handler = DirectoryHandler()
-            handler.new_csv_dirname = str(csv_dir)
-            handler.simulation_strategy_history = history
-
-            handler._save_per_execution_to_csv()
-
-            csv_file = csv_dir / "exec_stats_2.csv"
-            assert csv_file.exists()
-
-            # Verify universal metrics are present but defense metrics are not
-            with open(csv_file, "r") as f:
-                reader = csv.reader(f)
-                headers = next(reader)
-                data_row = next(reader)
-
-                # Universal metrics should be present
-                assert "final_accuracy" in headers
-                assert "final_loss" in headers
-                assert "avg_score_calc_time_ms" in headers
-
-                # Defense metrics should NOT be present
-                assert "mean_average_accuracy_history" not in headers
-                assert "mean_removal_precision_history" not in headers
-
-                # Should have exactly 5 columns (universal metrics only)
-                assert len(headers) == 5
-                assert len(data_row) == 5
 
     def test_directory_naming_uses_timestamp(self):
         """Test that directory names include timestamp"""

@@ -1,27 +1,22 @@
-import csv
-import datetime
 import os
-
+import datetime
+import json
+import csv
 import numpy as np
 
 from src.data_models.simulation_strategy_history import SimulationStrategyHistory
 
 
 class DirectoryHandler:
-    dirname = f"out/{str(datetime.datetime.now().strftime('%m-%d-%Y_%H-%M-%S'))}"
+    dirname = f'out/{str(datetime.datetime.now().strftime("%m-%d-%Y_%H-%M-%S"))}'
     new_plots_dirname = dirname
     new_csv_dirname = dirname + "/csv"
 
-    def __init__(self, output_dir: str = None):
+    def __init__(self):
+
         self.simulation_strategy_history = None
-        if output_dir:
-            self.dirname = output_dir
-            self.new_plots_dirname = output_dir
-            self.new_csv_dirname = output_dir + "/csv"
-        else:
-            self.dirname = DirectoryHandler.dirname
-            self.new_plots_dirname = DirectoryHandler.new_plots_dirname
-            self.new_csv_dirname = DirectoryHandler.new_csv_dirname
+        self.dirname = DirectoryHandler.dirname
+        self.new_plots_dirname = DirectoryHandler.new_plots_dirname
         self.dataset_dir = None
 
         os.makedirs(self.dirname, exist_ok=True)
@@ -36,7 +31,8 @@ class DirectoryHandler:
         os.makedirs(self.dataset_dir)
 
     def save_csv_and_config(
-        self, simulation_strategy_history: SimulationStrategyHistory
+            self,
+            simulation_strategy_history: SimulationStrategyHistory
     ) -> None:
         """
         Save per-client, per-round and per-execution metrics to CSV files, as well as simulation strategy config.
@@ -52,12 +48,18 @@ class DirectoryHandler:
     def _save_simulation_config(self):
         """Save simulation config to current directory"""
 
+        config_dict = self.simulation_strategy_history.strategy_config.__dict__.copy()
+
+        # Convert PyTorch device to string for JSON serialization
+        if "training_device" in config_dict and hasattr(config_dict["training_device"], "type"):
+            config_dict["training_device"] = str(config_dict["training_device"])
+
         with open(
-            f"{self.dirname}/"
-            f"strategy_config_{self.simulation_strategy_history.strategy_config.strategy_number}.json",
-            "w",
+                f"{self.dirname}/"
+                f"strategy_config_{self.simulation_strategy_history.strategy_config.strategy_number}.json",
+                "w"
         ) as file:
-            file.write(self.simulation_strategy_history.strategy_config.to_json())
+            json.dump(config_dict, file, indent=4)
 
     def _save_per_client_to_csv(self):
         """Save per-client metrics to csv"""
@@ -69,10 +71,8 @@ class DirectoryHandler:
         with open(csv_filepath, mode="w", newline="") as client_csv:
             writer = csv.writer(client_csv)
 
-            csv_headers = ["round #"]
-            savable_metrics = self.simulation_strategy_history.get_all_clients()[
-                0
-            ].savable_metrics
+            csv_headers = ["round"]
+            savable_metrics = self.simulation_strategy_history.get_all_clients()[0].savable_metrics
 
             for metric_name in savable_metrics:
                 for client_info in self.simulation_strategy_history.get_all_clients():
@@ -80,19 +80,13 @@ class DirectoryHandler:
 
             writer.writerow(csv_headers)
 
-            for round_num in range(
-                1, self.simulation_strategy_history.strategy_config.num_of_rounds + 1
-            ):
+            for round_num in range(1, self.simulation_strategy_history.strategy_config.num_of_rounds + 1):
                 row = [round_num]
 
                 for metric_name in savable_metrics:
-                    for (
-                        client_info
-                    ) in self.simulation_strategy_history.get_all_clients():
+                    for client_info in self.simulation_strategy_history.get_all_clients():
                         try:
-                            value = client_info.get_metric_by_name(metric_name)[
-                                round_num - 1
-                            ]
+                            value = client_info.get_metric_by_name(metric_name)[round_num - 1]
                             row.append(value if value is not None else "not collected")
                         except IndexError:
                             row.append("not collected")
@@ -109,22 +103,16 @@ class DirectoryHandler:
         with open(csv_filepath, mode="w", newline="") as round_csv:
             writer = csv.writer(round_csv)
 
-            savable_metrics = (
-                self.simulation_strategy_history.rounds_history.savable_metrics
-            )
+            savable_metrics = self.simulation_strategy_history.rounds_history.savable_metrics
 
-            csv_headers = ["round #"] + [metric_name for metric_name in savable_metrics]
+            csv_headers = ["round"] + [metric_name for metric_name in savable_metrics]
             writer.writerow(csv_headers)
 
-            for round_num in range(
-                1, self.simulation_strategy_history.strategy_config.num_of_rounds + 1
-            ):
+            for round_num in range(1, self.simulation_strategy_history.strategy_config.num_of_rounds + 1):
                 row = [round_num]
 
                 for metric_name in savable_metrics:
-                    collected_history = self.simulation_strategy_history.rounds_history.get_metric_by_name(
-                        metric_name
-                    )
+                    collected_history = self.simulation_strategy_history.rounds_history.get_metric_by_name(metric_name)
                     try:
                         value = collected_history[round_num - 1]
                         row.append(value if value is not None else "not collected")
@@ -135,100 +123,57 @@ class DirectoryHandler:
 
     def _save_per_execution_to_csv(self):
         """
-        Save execution summary statistics for all experiments.
-
-        Universal metrics (all experiments):
-            - final_accuracy: Last accuracy value
-            - final_loss: Last loss value
-            - avg_score_calc_time_ms: Average score calculation time
-            - total_rounds: Number of rounds
-            - total_clients: Number of clients
-
-        Defense metrics (only when remove_clients=true):
-            - mean/std for TP, TN, FP, FN, accuracy, precision, recall, f1
+        Save MAD stats per execution:
+            mean for (TP, TN, FP, FN, accuracy, precision, recall, f1)
+                    ± std
         """
 
-        rounds_history = self.simulation_strategy_history.rounds_history
-        config = self.simulation_strategy_history.strategy_config
+        if not self.simulation_strategy_history.strategy_config.remove_clients:
+            return
 
-        csv_filepath = f"{self.new_csv_dirname}/exec_stats_{config.strategy_number}.csv"
-
+        csv_filepath = (
+            f"{self.new_csv_dirname}/"
+            f"exec_stats_{self.simulation_strategy_history.strategy_config.strategy_number}.csv"
+        )
         with open(csv_filepath, mode="w", newline="") as exec_stats:
             writer = csv.writer(exec_stats)
 
-            # Calculate universal metrics
-            final_accuracy = (
-                rounds_history.average_accuracy_history[-1]
-                if rounds_history.average_accuracy_history
-                else 0.0
-            )
-            final_loss = (
-                rounds_history.aggregated_loss_history[-1]
-                if rounds_history.aggregated_loss_history
-                else 0.0
-            )
-            avg_score_time_ms = (
-                np.mean(rounds_history.score_calculation_time_nanos_history) / 1e6
-                if rounds_history.score_calculation_time_nanos_history
-                else 0.0
-            )
+            statsable_metrics = self.simulation_strategy_history.rounds_history.statsable_metrics
 
-            # Build headers and data row
-            csv_headers = [
-                "final_accuracy",
-                "final_loss",
-                "avg_score_calc_time_ms",
-                "total_rounds",
-                "total_clients",
-            ]
+            csv_headers = [f"mean_{metric_name}" for metric_name in statsable_metrics]
+            writer.writerow(csv_headers)
 
-            data_row = [
-                f"{final_accuracy:.6f}",
-                f"{final_loss:.6f}",
-                f"{avg_score_time_ms:.2f}",
-                config.num_of_rounds,
-                config.num_of_clients,
-            ]
+            metric_cells = []
+            started_removing_from = self.simulation_strategy_history.strategy_config.begin_removing_from_round
 
-            # Add defense metrics if client removal is enabled
-            if config.remove_clients:
-                statsable_metrics = rounds_history.statsable_metrics
-                started_removing_from = config.begin_removing_from_round
+            for metric_name in statsable_metrics:
+                collected_history = (
+                    self.simulation_strategy_history.rounds_history.get_metric_by_name(metric_name)[started_removing_from:-1-1]
+                )
 
-                for metric_name in statsable_metrics:
-                    csv_headers.append(f"mean_{metric_name}")
+                metric_mean = np.mean(collected_history) if collected_history else 0.0
+                metric_std = np.std(collected_history) if collected_history else 0.0
 
-                    collected_history = rounds_history.get_metric_by_name(metric_name)[
-                        started_removing_from:-2
-                    ]
-
-                    metric_mean = (
-                        np.mean(collected_history) if collected_history else 0.0
-                    )
-                    metric_std = np.std(collected_history) if collected_history else 0.0
-
-                    # Convert to percentages where appropriate
-                    if metric_name in (
+                if metric_name in (
                         "average_accuracy_history",
                         "removal_accuracy_history",
                         "removal_precision_history",
                         "removal_recall_history",
-                        "removal_f1_history",
-                    ):
-                        metric_mean *= 100
-                        metric_std *= 100
+                        "removal_f1_history"
+                ):
+                    metric_mean *= 100
+                    metric_std *= 100
 
-                    if metric_name in (
+                if metric_name in (
                         "tp_history",
                         "tn_history",
                         "fp_history",
                         "fn_history",
-                    ):
-                        total_cases = config.num_of_clients
-                        metric_mean = metric_mean / total_cases * 100
-                        metric_std = metric_std / total_cases * 100
+                ):
+                    total_cases = self.simulation_strategy_history.strategy_config.num_of_clients
+                    metric_mean = metric_mean / total_cases * 100
+                    metric_std = metric_std / total_cases * 100
 
-                    data_row.append(f"{metric_mean:.2f} ± {metric_std:.2f}")
+                metric_cells.append(f"{metric_mean:.2f} ± {metric_std:.2f}")
 
-            writer.writerow(csv_headers)
-            writer.writerow(data_row)
+            writer.writerow(metric_cells)

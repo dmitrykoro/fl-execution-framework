@@ -53,8 +53,31 @@ def _create_attack_defense_config(
     for defense in defense_strategies:
         strategy_config: Dict[str, Any] = {
             "aggregation_strategy_keyword": defense,
-            "attack_type": attack_type,
+            "attack_schedule": [
+                {
+                    "start_round": 1,
+                    "end_round": 3,
+                    "attack_type": attack_type,
+                    "selection_strategy": "percentage",
+                    "malicious_percentage": 0.2,
+                }
+            ],
         }
+
+        # Add attack-specific parameters
+        if attack_type == "gaussian_noise":
+            strategy_config["attack_schedule"][0].update(
+                {
+                    "target_noise_snr": 10.0,
+                    "attack_ratio": 1.0,
+                }
+            )
+        elif attack_type == "label_flipping":
+            strategy_config["attack_schedule"][0].update(
+                {
+                    "flip_fraction": 1.0,
+                }
+            )
 
         # Add strategy-specific parameters
         if defense == "trust":
@@ -761,8 +784,11 @@ class TestAttackDefenseScenarios:
             strategy_config = call.kwargs["strategy_config"]
 
             # Verify attack type is properly configured
-            if hasattr(strategy_config, "attack_type"):
-                assert strategy_config.attack_type == attack_type
+            if (
+                hasattr(strategy_config, "attack_schedule")
+                and strategy_config.attack_schedule
+            ):
+                assert strategy_config.attack_schedule[0]["attack_type"] == attack_type
 
             # Verify strategy-specific defense parameters
             strategy_name = strategy_config.aggregation_strategy_keyword
@@ -805,7 +831,15 @@ class TestAttackDefenseScenarios:
             for defense_strategy in defense_strategies:
                 config_dict = {
                     "aggregation_strategy_keyword": defense_strategy,
-                    "attack_type": attack_type,
+                    "attack_schedule": [
+                        {
+                            "start_round": 1,
+                            "end_round": 2,
+                            "attack_type": attack_type,
+                            "selection_strategy": "percentage",
+                            "malicious_percentage": 0.3,
+                        }
+                    ],
                     "dataset_keyword": "its",
                     "num_of_rounds": 2,
                     "num_of_clients": 10,
@@ -826,6 +860,21 @@ class TestAttackDefenseScenarios:
                     "use_llm": False,
                     "strategy_number": strategy_number,
                 }
+
+                # Add attack-specific parameters
+                if attack_type == "gaussian_noise":
+                    config_dict["attack_schedule"][0].update(
+                        {
+                            "target_noise_snr": 10.0,
+                            "attack_ratio": 1.0,
+                        }
+                    )
+                elif attack_type == "label_flipping":
+                    config_dict["attack_schedule"][0].update(
+                        {
+                            "flip_fraction": 1.0,
+                        }
+                    )
 
                 # Add strategy-specific parameters
                 if defense_strategy == "trust":
@@ -864,8 +913,15 @@ class TestAttackDefenseScenarios:
         tested_combinations = set()
         for call in call_args_list:
             strategy_config = call.kwargs["strategy_config"]
+            # Extract attack_type from attack_schedule
+            attack_type = "unknown"
+            if (
+                hasattr(strategy_config, "attack_schedule")
+                and strategy_config.attack_schedule
+            ):
+                attack_type = strategy_config.attack_schedule[0]["attack_type"]
             combination = (
-                getattr(strategy_config, "attack_type", "unknown"),
+                attack_type,
                 strategy_config.aggregation_strategy_keyword,
             )
             tested_combinations.add(combination)
@@ -916,13 +972,38 @@ class TestAttackDefenseScenarios:
         for attack_config in attack_configs:
             config_dict = {
                 "aggregation_strategy_keyword": attack_config["defense_strategy"],
-                "attack_type": attack_config["attack_type"],
+                "attack_schedule": [
+                    {
+                        "start_round": 1,
+                        "end_round": 2,
+                        "attack_type": attack_config["attack_type"],
+                        "selection_strategy": "percentage",
+                        "malicious_percentage": 0.25,
+                    }
+                ],
                 "dataset_keyword": "its",
                 "num_of_rounds": 2,
                 "num_of_clients": 8,
                 "num_of_malicious_clients": 2,
                 "strategy_number": 0,
             }
+
+            # Add attack-specific parameters
+            attack_type = attack_config["attack_type"]
+            if attack_type == "gaussian_noise":
+                config_dict["attack_schedule"][0].update(
+                    {
+                        "target_noise_snr": 10.0,
+                        "attack_ratio": 1.0,
+                    }
+                )
+            elif attack_type == "label_flipping":
+                config_dict["attack_schedule"][0].update(
+                    {
+                        "flip_fraction": 1.0,
+                    }
+                )
+
             config_dict.update(attack_config["expected_params"])
 
             mocks["loader_instance"].get_usecase_config_list.return_value = [

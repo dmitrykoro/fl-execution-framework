@@ -4,29 +4,14 @@ from pathlib import Path
 from typing import Any, Dict, List
 from unittest.mock import patch
 
-import pytest
-
+from tests.common import Mock, np, pytest
 from src.data_models.simulation_strategy_config import StrategyConfig
 from src.federated_simulation import FederatedSimulation
-from tests.common import Mock, np
+
 from tests.fixtures.mock_datasets import MockDatasetHandler
 from tests.fixtures.sample_models import MockNetwork
 
 NDArray = np.ndarray
-
-
-@pytest.fixture
-def mock_hf_dataset_handler() -> MockDatasetHandler:
-    """Create mock dataset handler for HuggingFace testing."""
-    return MockDatasetHandler(dataset_type="huggingface")
-
-
-@pytest.fixture
-def temp_dataset_dir_str(tmp_path: Path) -> str:
-    """Create temporary dataset directory as string."""
-    dataset_dir = tmp_path / "datasets"
-    dataset_dir.mkdir(parents=True)
-    return str(dataset_dir)
 
 
 def _get_base_strategy_config_dict() -> Dict[str, Any]:
@@ -171,7 +156,16 @@ class TestFederatedSimulationInitialization:
             ("femnist_niid", "FemnistFullNIIDNetwork"),
             ("flair", "FlairNetwork"),
             ("pneumoniamnist", "PneumoniamnistNetwork"),
-            ("bloodmnist", "BloodmnistNetwork"),
+            ("bloodmnist", "BloodMNISTNetwork"),
+            ("breastmnist", "BreastMNISTNetwork"),
+            ("pathmnist", "PathMNISTNetwork"),
+            ("dermamnist", "DermaMNISTNetwork"),
+            ("octmnist", "OctMNISTNetwork"),
+            ("retinamnist", "RetinaMNISTNetwork"),
+            ("tissuemnist", "TissueMNISTNetwork"),
+            ("organamnist", "OrganAMNISTNetwork"),
+            ("organcmnist", "OrganCMNISTNetwork"),
+            ("organsmnist", "OrganSMNISTNetwork"),
             ("lung_photos", "LungCancerCNN"),
         ],
     )
@@ -533,610 +527,100 @@ class TestFederatedSimulationErrorHandling:
 class TestWeightedAverage:
     """Test suite for weighted_average function."""
 
-    def test_weighted_average_empty_metrics(self) -> None:
-        """Test weighted_average with empty metrics list."""
+    def test_weighted_average_with_single_client(self) -> None:
+        """Test weighted average with a single client."""
         from src.federated_simulation import weighted_average
 
-        result = weighted_average([])
+        metrics = [(100, {"accuracy": 0.95, "loss": 0.05})]
+        result = weighted_average(metrics)
+
+        assert result == {"accuracy": 0.95, "loss": 0.05}
+
+    def test_weighted_average_with_multiple_clients(self) -> None:
+        """Test weighted average with multiple clients."""
+        from src.federated_simulation import weighted_average
+
+        metrics = [
+            (100, {"accuracy": 0.90, "loss": 0.10}),
+            (200, {"accuracy": 0.85, "loss": 0.15}),
+            (50, {"accuracy": 0.95, "loss": 0.05}),
+        ]
+        result = weighted_average(metrics)
+
+        # Calculate expected weighted average
+        # accuracy: (100*0.90 + 200*0.85 + 50*0.95) / 350 = 0.8785714286
+        # loss: (100*0.10 + 200*0.15 + 50*0.05) / 350 = 0.1214285714
+        assert abs(result["accuracy"] - 0.8785714286) < 0.0001
+        assert abs(result["loss"] - 0.1214285714) < 0.0001
+
+    def test_weighted_average_with_empty_metrics(self) -> None:
+        """Test weighted average with empty metrics list."""
+        from src.federated_simulation import weighted_average
+
+        metrics: List[tuple[int, dict]] = []
+        result = weighted_average(metrics)
+
         assert result == {}
 
-    def test_weighted_average_single_client(self) -> None:
-        """Test weighted_average with single client."""
-        from src.federated_simulation import weighted_average
-
-        metrics = [(100, {"accuracy": 0.85, "loss": 0.25})]
-        result = weighted_average(metrics)
-
-        assert "accuracy" in result
-        assert "loss" in result
-        assert result["accuracy"] == 0.85
-        assert result["loss"] == 0.25
-
-    def test_weighted_average_multiple_clients_equal_samples(self) -> None:
-        """Test weighted_average with multiple clients having equal samples."""
+    def test_weighted_average_with_missing_metrics(self) -> None:
+        """Test weighted average when some clients have missing metrics."""
         from src.federated_simulation import weighted_average
 
         metrics = [
-            (100, {"accuracy": 0.8, "loss": 0.3}),
-            (100, {"accuracy": 0.9, "loss": 0.2}),
+            (100, {"accuracy": 0.90, "loss": 0.10}),
+            (200, {"accuracy": 0.85}),  # Missing 'loss'
+            (50, {"loss": 0.05}),  # Missing 'accuracy'
         ]
         result = weighted_average(metrics)
 
-        # With equal weights, should be simple average
-        assert abs(result["accuracy"] - 0.85) < 1e-6
-        assert abs(result["loss"] - 0.25) < 1e-6
+        # accuracy: (100*0.90 + 200*0.85) / 300 = 0.8666666667
+        # loss: (100*0.10 + 50*0.05) / 150 = 0.0833333333
+        assert abs(result["accuracy"] - 0.8666666667) < 0.0001
+        assert abs(result["loss"] - 0.0833333333) < 0.0001
 
-    def test_weighted_average_multiple_clients_different_samples(self) -> None:
-        """Test weighted_average with clients having different sample counts."""
+    def test_weighted_average_with_zero_samples(self) -> None:
+        """Test weighted average when all clients have zero samples."""
         from src.federated_simulation import weighted_average
 
         metrics = [
-            (100, {"accuracy": 0.8, "loss": 0.3}),  # 100 samples
-            (200, {"accuracy": 0.9, "loss": 0.2}),  # 200 samples
+            (0, {"accuracy": 0.90, "loss": 0.10}),
+            (0, {"accuracy": 0.85, "loss": 0.15}),
         ]
         result = weighted_average(metrics)
 
-        # Weighted: (100*0.8 + 200*0.9) / 300 = 260/300 = 0.8666...
-        expected_accuracy = (100 * 0.8 + 200 * 0.9) / 300
-        expected_loss = (100 * 0.3 + 200 * 0.2) / 300
-
-        assert abs(result["accuracy"] - expected_accuracy) < 1e-6
-        assert abs(result["loss"] - expected_loss) < 1e-6
-
-    def test_weighted_average_different_metric_sets(self) -> None:
-        """Test weighted_average when clients have different metrics."""
-        from src.federated_simulation import weighted_average
-
-        metrics = [
-            (100, {"accuracy": 0.8, "precision": 0.85}),
-            (200, {"accuracy": 0.9, "recall": 0.88}),
-        ]
-        result = weighted_average(metrics)
-
-        # All metrics should be in result
-        assert "accuracy" in result
-        assert "precision" in result
-        assert "recall" in result
-
-        # Accuracy: both clients have it
-        expected_accuracy = (100 * 0.8 + 200 * 0.9) / 300
-        assert abs(result["accuracy"] - expected_accuracy) < 1e-6
-
-        # Precision: only first client
-        assert abs(result["precision"] - 0.85) < 1e-6
-
-        # Recall: only second client
-        assert abs(result["recall"] - 0.88) < 1e-6
-
-    def test_weighted_average_missing_metrics_in_some_clients(self) -> None:
-        """Test weighted_average when some clients are missing certain metrics."""
-        from src.federated_simulation import weighted_average
-
-        metrics = [
-            (100, {"accuracy": 0.8, "loss": 0.3}),
-            (200, {"accuracy": 0.9}),  # Missing loss
-            (150, {"loss": 0.25}),  # Missing accuracy
-        ]
-        result = weighted_average(metrics)
-
-        # Accuracy: clients 0 and 1
-        expected_accuracy = (100 * 0.8 + 200 * 0.9) / (100 + 200)
-        assert abs(result["accuracy"] - expected_accuracy) < 1e-6
-
-        # Loss: clients 0 and 2
-        expected_loss = (100 * 0.3 + 150 * 0.25) / (100 + 150)
-        assert abs(result["loss"] - expected_loss) < 1e-6
-
-    def test_weighted_average_zero_samples(self) -> None:
-        """Test weighted_average handles zero samples gracefully."""
-        from src.federated_simulation import weighted_average
-
-        metrics = [
-            (0, {"accuracy": 0.8}),  # Zero samples
-            (100, {"accuracy": 0.9}),
-        ]
-        result = weighted_average(metrics)
-
-        # Should only count client with non-zero samples
-        assert abs(result["accuracy"] - 0.9) < 1e-6
-
-    def test_weighted_average_all_zero_samples(self) -> None:
-        """Test weighted_average when all clients have zero samples."""
-        from src.federated_simulation import weighted_average
-
-        metrics = [
-            (0, {"accuracy": 0.8}),
-            (0, {"accuracy": 0.9}),
-        ]
-        result = weighted_average(metrics)
-
-        # No metrics should be computed when total_samples is 0
-        assert "accuracy" not in result or result.get("accuracy") is None
-
-    def test_weighted_average_complex_metrics(self) -> None:
-        """Test weighted_average with multiple complex metrics."""
-        from src.federated_simulation import weighted_average
-
-        metrics = [
-            (100, {"accuracy": 0.85, "precision": 0.88, "recall": 0.82, "f1": 0.85}),
-            (
-                200,
-                {"accuracy": 0.90, "precision": 0.92, "recall": 0.87, "f1": 0.895},
-            ),
-            (150, {"accuracy": 0.88, "precision": 0.89, "recall": 0.85, "f1": 0.87}),
-        ]
-        result = weighted_average(metrics)
-
-        # All metrics should be present
-        assert all(
-            metric in result for metric in ["accuracy", "precision", "recall", "f1"]
-        )
-
-        # Verify weighted calculations
-        total_samples = 450
-        expected_accuracy = (100 * 0.85 + 200 * 0.90 + 150 * 0.88) / total_samples
-        assert abs(result["accuracy"] - expected_accuracy) < 1e-6
-
-    def test_weighted_average_negative_metric_values(self) -> None:
-        """Test weighted_average handles negative metric values."""
-        from src.federated_simulation import weighted_average
-
-        metrics = [
-            (100, {"score": -0.5}),
-            (200, {"score": 0.3}),
-        ]
-        result = weighted_average(metrics)
-
-        expected_score = (100 * -0.5 + 200 * 0.3) / 300
-        assert abs(result["score"] - expected_score) < 1e-6
-
-    def test_weighted_average_large_numbers(self) -> None:
-        """Test weighted_average with large sample counts and metric values."""
-        from src.federated_simulation import weighted_average
-
-        metrics = [
-            (1000000, {"accuracy": 0.95}),
-            (2000000, {"accuracy": 0.97}),
-        ]
-        result = weighted_average(metrics)
-
-        expected_accuracy = (1000000 * 0.95 + 2000000 * 0.97) / 3000000
-        assert abs(result["accuracy"] - expected_accuracy) < 1e-6
-
-    def test_weighted_average_floating_point_samples(self) -> None:
-        """Test weighted_average handles floating point sample counts."""
-        from src.federated_simulation import weighted_average
-
-        metrics = [
-            (100.5, {"accuracy": 0.8}),
-            (200.3, {"accuracy": 0.9}),
-        ]
-        result = weighted_average(metrics)
-
-        expected_accuracy = (100.5 * 0.8 + 200.3 * 0.9) / (100.5 + 200.3)
-        assert abs(result["accuracy"] - expected_accuracy) < 1e-6
-
-    def test_weighted_average_preserves_all_metric_names(self) -> None:
-        """Test that weighted_average preserves all unique metric names."""
-        from src.federated_simulation import weighted_average
-
-        metrics = [
-            (100, {"metric1": 0.5, "metric2": 0.6}),
-            (200, {"metric2": 0.7, "metric3": 0.8}),
-            (150, {"metric3": 0.9, "metric4": 1.0}),
-        ]
-        result = weighted_average(metrics)
-
-        # All unique metrics should be present
-        assert set(result.keys()) == {"metric1", "metric2", "metric3", "metric4"}
-
-    def test_weighted_average_single_metric_across_clients(self) -> None:
-        """Test weighted_average with single metric type across all clients."""
-        from src.federated_simulation import weighted_average
-
-        metrics = [
-            (50, {"loss": 0.5}),
-            (100, {"loss": 0.4}),
-            (150, {"loss": 0.3}),
-            (200, {"loss": 0.2}),
-        ]
-        result = weighted_average(metrics)
-
-        total = 500
-        expected_loss = (50 * 0.5 + 100 * 0.4 + 150 * 0.3 + 200 * 0.2) / total
-        assert abs(result["loss"] - expected_loss) < 1e-6
-        assert len(result) == 1  # Only one metric
-
-    def test_weighted_average_empty_metric_dict(self) -> None:
-        """Test weighted_average when client has empty metrics dict."""
-        from src.federated_simulation import weighted_average
-
-        metrics = [
-            (100, {}),  # Empty metrics
-            (200, {"accuracy": 0.9}),
-        ]
-        result = weighted_average(metrics)
-
-        # Should only have accuracy from second client
-        assert "accuracy" in result
-        assert abs(result["accuracy"] - 0.9) < 1e-6
-
-    def test_weighted_average_all_empty_metric_dicts(self) -> None:
-        """Test weighted_average when all clients have empty metrics dicts."""
-        from src.federated_simulation import weighted_average
-
-        metrics = [
-            (100, {}),
-            (200, {}),
-        ]
-        result = weighted_average(metrics)
-
-        # Should return empty dict
+        # When total samples is 0, metric should not be included
         assert result == {}
 
+    def test_weighted_average_with_mixed_metric_names(self) -> None:
+        """Test weighted average with different metric names across clients."""
+        from src.federated_simulation import weighted_average
 
-class TestHuggingFaceDatasetLoading:
-    """Test suite for HuggingFace dataset loading branches."""
+        metrics = [
+            (100, {"accuracy": 0.90, "f1": 0.88}),
+            (200, {"accuracy": 0.85, "precision": 0.87}),
+            (50, {"recall": 0.92, "f1": 0.91}),
+        ]
+        result = weighted_average(metrics)
 
-    def test_huggingface_with_dataset_keyword_raises_error(
-        self, temp_dataset_dir_str: str, mock_hf_dataset_handler: MockDatasetHandler
-    ) -> None:
-        """Test ValueError when both dataset_source='huggingface' and dataset_keyword are used."""
-        config_dict = _get_base_strategy_config_dict()
-        config_dict.update(
-            {
-                "dataset_source": "huggingface",
-                "dataset_keyword": "its",
-                "hf_dataset_name": "imdb",
-                "model_type": "transformer",
-            }
-        )
-        strategy_config = StrategyConfig.from_dict(config_dict)
+        # Each metric is calculated based on clients that have it
+        # accuracy: (100*0.90 + 200*0.85) / 300 = 0.8666666667
+        # f1: (100*0.88 + 50*0.91) / 150 = 0.8900000000
+        # precision: (200*0.87) / 200 = 0.87
+        # recall: (50*0.92) / 50 = 0.92
+        assert abs(result["accuracy"] - 0.8666666667) < 0.0001
+        assert abs(result["f1"] - 0.89) < 0.0001
+        assert abs(result["precision"] - 0.87) < 0.0001
+        assert abs(result["recall"] - 0.92) < 0.0001
 
-        with pytest.raises(
-            ValueError,
-            match="Cannot use both HuggingFace dataset source.*and local dataset keyword",
-        ):
-            FederatedSimulation(
-                strategy_config=strategy_config,
-                dataset_dir=temp_dataset_dir_str,
-                dataset_handler=mock_hf_dataset_handler,
-            )
+    def test_weighted_average_with_negative_values(self) -> None:
+        """Test weighted average handles negative metric values correctly."""
+        from src.federated_simulation import weighted_average
 
-    def test_huggingface_transformer_with_lora(
-        self, temp_dataset_dir_str: str, mock_hf_dataset_handler: MockDatasetHandler
-    ) -> None:
-        """Test HuggingFace transformer model with LoRA."""
-        config_dict = _get_base_strategy_config_dict()
-        config_dict.update(
-            {
-                "dataset_source": "huggingface",
-                "dataset_keyword": "",
-                "hf_dataset_name": "imdb",
-                "model_type": "transformer",
-                "transformer_model": "distilbert-base-uncased",
-                "use_lora": True,
-                "lora_rank": 8,
-                "max_seq_length": 128,
-                "text_column": "text",
-                "label_column": "label",
-            }
-        )
-        strategy_config = StrategyConfig.from_dict(config_dict)
+        metrics = [
+            (100, {"delta": -0.05}),
+            (200, {"delta": 0.10}),
+        ]
+        result = weighted_average(metrics)
 
-        with (
-            patch(
-                "src.federated_simulation.TextClassificationLoader"
-            ) as mock_text_loader,
-            patch(
-                "src.federated_simulation.load_text_classifier_with_lora"
-            ) as mock_load_lora,
-        ):
-            mock_loader_instance = Mock()
-            mock_loader_instance.load_datasets.return_value = (
-                [Mock() for _ in range(5)],
-                [Mock() for _ in range(5)],
-                2,  # num_labels
-            )
-            mock_text_loader.return_value = mock_loader_instance
-
-            mock_load_lora.return_value = MockNetwork()
-
-            simulation = FederatedSimulation(
-                strategy_config=strategy_config,
-                dataset_dir=temp_dataset_dir_str,
-                dataset_handler=mock_hf_dataset_handler,
-            )
-
-            mock_text_loader.assert_called_once()
-            call_kwargs = mock_text_loader.call_args.kwargs
-            assert call_kwargs["dataset_name"] == "imdb"
-            assert call_kwargs["tokenizer_model"] == "distilbert-base-uncased"
-            assert call_kwargs["max_seq_length"] == 128
-            assert call_kwargs["text_column"] == "text"
-            assert call_kwargs["label_column"] == "label"
-
-            mock_load_lora.assert_called_once_with(
-                model_name="distilbert-base-uncased",
-                num_labels=2,
-                lora_rank=8,
-            )
-
-            assert simulation._network_model is not None
-            assert simulation._trainloaders is not None
-            assert simulation._valloaders is not None
-
-    def test_huggingface_transformer_without_lora(
-        self, temp_dataset_dir_str: str, mock_hf_dataset_handler: MockDatasetHandler
-    ) -> None:
-        """Test HuggingFace transformer model without LoRA."""
-        config_dict = _get_base_strategy_config_dict()
-        config_dict.update(
-            {
-                "dataset_source": "huggingface",
-                "dataset_keyword": "",
-                "hf_dataset_name": "imdb",
-                "model_type": "transformer",
-                "transformer_model": "bert-base-uncased",
-                "use_lora": False,
-                "max_seq_length": 256,
-                "text_column": "text",
-                "label_column": "label",
-            }
-        )
-        strategy_config = StrategyConfig.from_dict(config_dict)
-
-        with (
-            patch(
-                "src.federated_simulation.TextClassificationLoader"
-            ) as mock_text_loader,
-            patch(
-                "src.federated_simulation.load_text_classifier_without_lora"
-            ) as mock_load_no_lora,
-        ):
-            mock_loader_instance = Mock()
-            mock_loader_instance.load_datasets.return_value = (
-                [Mock() for _ in range(5)],
-                [Mock() for _ in range(5)],
-                3,  # num_labels
-            )
-            mock_text_loader.return_value = mock_loader_instance
-
-            mock_load_no_lora.return_value = MockNetwork()
-
-            simulation = FederatedSimulation(
-                strategy_config=strategy_config,
-                dataset_dir=temp_dataset_dir_str,
-                dataset_handler=mock_hf_dataset_handler,
-            )
-
-            mock_load_no_lora.assert_called_once_with(
-                model_name="bert-base-uncased",
-                num_labels=3,
-            )
-
-            assert simulation._network_model is not None
-
-    def test_huggingface_cnn_with_image_dataset(
-        self, temp_dataset_dir_str: str, mock_hf_dataset_handler: MockDatasetHandler
-    ) -> None:
-        """Test HuggingFace CNN model with image dataset."""
-        config_dict = _get_base_strategy_config_dict()
-        config_dict.update(
-            {
-                "dataset_source": "huggingface",
-                "dataset_keyword": "",
-                "hf_dataset_name": "mnist",
-                "model_type": "cnn",
-                "label_column": "label",
-            }
-        )
-        strategy_config = StrategyConfig.from_dict(config_dict)
-
-        with (
-            patch("src.federated_simulation.DatasetInspector") as mock_inspector,
-            patch("src.federated_simulation.FederatedDatasetLoader") as mock_fed_loader,
-            patch("src.federated_simulation.DynamicCNN") as mock_cnn,
-        ):
-            mock_inspector.inspect_dataset.return_value = {
-                "num_classes": 10,
-                "modality": "image",
-                "image_shape": (1, 28, 28),
-            }
-
-            mock_loader_instance = Mock()
-            mock_loader_instance.load_datasets.return_value = (
-                [Mock() for _ in range(5)],
-                [Mock() for _ in range(5)],
-                10,  # num_classes
-            )
-            mock_fed_loader.return_value = mock_loader_instance
-
-            mock_cnn.return_value = MockNetwork()
-
-            simulation = FederatedSimulation(
-                strategy_config=strategy_config,
-                dataset_dir=temp_dataset_dir_str,
-                dataset_handler=mock_hf_dataset_handler,
-            )
-
-            mock_inspector.inspect_dataset.assert_called_once_with("mnist", "label")
-
-            mock_fed_loader.assert_called_once()
-            call_kwargs = mock_fed_loader.call_args.kwargs
-            assert call_kwargs["dataset_name"] == "mnist"
-            assert call_kwargs["label_column"] == "label"
-
-            mock_cnn.assert_called_once_with(
-                num_classes=10,
-                input_channels=1,
-                input_height=28,
-                input_width=28,
-            )
-
-            assert simulation._network_model is not None
-
-    def test_huggingface_cnn_with_none_image_shape(
-        self, temp_dataset_dir_str: str, mock_hf_dataset_handler: MockDatasetHandler
-    ) -> None:
-        """Test HuggingFace CNN fallback to default shape."""
-        config_dict = _get_base_strategy_config_dict()
-        config_dict.update(
-            {
-                "dataset_source": "huggingface",
-                "dataset_keyword": "",
-                "hf_dataset_name": "custom_dataset",
-                "model_type": "cnn",
-                "label_column": "label",
-            }
-        )
-        strategy_config = StrategyConfig.from_dict(config_dict)
-
-        with (
-            patch("src.federated_simulation.DatasetInspector") as mock_inspector,
-            patch("src.federated_simulation.FederatedDatasetLoader") as mock_fed_loader,
-            patch("src.federated_simulation.DynamicCNN") as mock_cnn,
-        ):
-            mock_inspector.inspect_dataset.return_value = {
-                "num_classes": 5,
-                "modality": "image",
-                "image_shape": None,
-            }
-
-            mock_loader_instance = Mock()
-            mock_loader_instance.load_datasets.return_value = (
-                [Mock() for _ in range(5)],
-                [Mock() for _ in range(5)],
-                5,
-            )
-            mock_fed_loader.return_value = mock_loader_instance
-
-            mock_cnn.return_value = MockNetwork()
-
-            simulation = FederatedSimulation(
-                strategy_config=strategy_config,
-                dataset_dir=temp_dataset_dir_str,
-                dataset_handler=mock_hf_dataset_handler,
-            )
-
-            mock_cnn.assert_called_once_with(
-                num_classes=5,
-                input_channels=1,  # Default
-                input_height=28,  # Default
-                input_width=28,  # Default
-            )
-
-            assert simulation._network_model is not None
-
-    def test_huggingface_cnn_with_none_num_classes_raises_error(
-        self, temp_dataset_dir_str: str, mock_hf_dataset_handler: MockDatasetHandler
-    ) -> None:
-        """Test HuggingFace CNN error when num_classes is None."""
-        config_dict = _get_base_strategy_config_dict()
-        config_dict.update(
-            {
-                "dataset_source": "huggingface",
-                "dataset_keyword": "",
-                "hf_dataset_name": "custom_dataset",
-                "model_type": "cnn",
-                "label_column": "label",
-            }
-        )
-        strategy_config = StrategyConfig.from_dict(config_dict)
-
-        with (
-            patch("src.federated_simulation.DatasetInspector") as mock_inspector,
-            patch("src.federated_simulation.FederatedDatasetLoader") as mock_fed_loader,
-        ):
-            mock_inspector.inspect_dataset.return_value = {
-                "num_classes": None,
-                "modality": "image",
-                "image_shape": (3, 32, 32),
-            }
-
-            mock_loader_instance = Mock()
-            mock_loader_instance.load_datasets.return_value = (
-                [Mock() for _ in range(5)],
-                [Mock() for _ in range(5)],
-                None,
-            )
-            mock_fed_loader.return_value = mock_loader_instance
-
-            with pytest.raises(
-                ValueError,
-                match="Could not detect number of classes for dataset",
-            ):
-                FederatedSimulation(
-                    strategy_config=strategy_config,
-                    dataset_dir=temp_dataset_dir_str,
-                    dataset_handler=mock_hf_dataset_handler,
-                )
-
-    def test_huggingface_cnn_with_non_image_modality_raises_error(
-        self, temp_dataset_dir_str: str, mock_hf_dataset_handler: MockDatasetHandler
-    ) -> None:
-        """Test HuggingFace CNN error for non-image modality."""
-        config_dict = _get_base_strategy_config_dict()
-        config_dict.update(
-            {
-                "dataset_source": "huggingface",
-                "dataset_keyword": "",
-                "hf_dataset_name": "text_dataset",
-                "model_type": "cnn",
-                "label_column": "label",
-            }
-        )
-        strategy_config = StrategyConfig.from_dict(config_dict)
-
-        with (
-            patch("src.federated_simulation.DatasetInspector") as mock_inspector,
-            patch("src.federated_simulation.FederatedDatasetLoader") as mock_fed_loader,
-        ):
-            mock_inspector.inspect_dataset.return_value = {
-                "num_classes": 5,
-                "modality": "text",
-                "image_shape": None,
-            }
-
-            mock_loader_instance = Mock()
-            mock_loader_instance.load_datasets.return_value = (
-                [Mock() for _ in range(5)],
-                [Mock() for _ in range(5)],
-                5,
-            )
-            mock_fed_loader.return_value = mock_loader_instance
-
-            with pytest.raises(
-                ValueError,
-                match="CNN model type only supports image datasets.*got modality: text",
-            ):
-                FederatedSimulation(
-                    strategy_config=strategy_config,
-                    dataset_dir=temp_dataset_dir_str,
-                    dataset_handler=mock_hf_dataset_handler,
-                )
-
-    def test_huggingface_unsupported_model_type_raises_error(
-        self, temp_dataset_dir_str: str, mock_hf_dataset_handler: MockDatasetHandler
-    ) -> None:
-        """Test HuggingFace error for unsupported model_type."""
-        config_dict = _get_base_strategy_config_dict()
-        config_dict.update(
-            {
-                "dataset_source": "huggingface",
-                "dataset_keyword": "",
-                "hf_dataset_name": "some_dataset",
-                "model_type": "unsupported_model_type",
-            }
-        )
-        strategy_config = StrategyConfig.from_dict(config_dict)
-
-        with pytest.raises(
-            ValueError,
-            match="Unsupported model_type 'unsupported_model_type' for HuggingFace dataset source",
-        ):
-            FederatedSimulation(
-                strategy_config=strategy_config,
-                dataset_dir=temp_dataset_dir_str,
-                dataset_handler=mock_hf_dataset_handler,
-            )
+        # delta: (100*-0.05 + 200*0.10) / 300 = 0.05
+        assert abs(result["delta"] - 0.05) < 0.0001

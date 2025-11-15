@@ -15,6 +15,21 @@ run_python -m venv venv
 
 setup_virtual_environment
 
+# Set PYTHON_CMD to venv Python after activation
+if [ -f "venv/Scripts/python.exe" ]; then
+    PYTHON_CMD="venv/Scripts/python.exe"
+    export PYTHON_CMD
+    PYTHON_ARGS=""
+    export PYTHON_ARGS
+    log_info "Using venv Python: $PYTHON_CMD"
+elif [ -f "venv/bin/python" ]; then
+    PYTHON_CMD="venv/bin/python"
+    export PYTHON_CMD
+    PYTHON_ARGS=""
+    export PYTHON_ARGS
+    log_info "Using venv Python: $PYTHON_CMD"
+fi
+
 log_info "Upgrading pip..."
 run_python -m pip install --upgrade pip
 

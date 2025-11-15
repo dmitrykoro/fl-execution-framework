@@ -75,7 +75,7 @@ class TestStrategyVariations:
             ),
             (
                 "multi_krum",
-                "src.simulation_strategies.mutli_krum_strategy.MultiKrumStrategy",
+                "src.simulation_strategies.multi_krum_strategy.MultiKrumStrategy",
                 {
                     "remove_clients": True,
                     "num_of_malicious_clients": 2,
@@ -204,7 +204,7 @@ class TestStrategyVariations:
             ),
             (
                 "multi_krum",
-                "src.simulation_strategies.mutli_krum_strategy.MultiKrumStrategy",
+                "src.simulation_strategies.multi_krum_strategy.MultiKrumStrategy",
                 [
                     {
                         "num_krum_selections": 2,
