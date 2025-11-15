@@ -76,19 +76,21 @@ Defines the aggregation strategy. Options:
 - `training_subset_fraction`: fraction of each client's dataset for training (e.g., `0.9` for 90% training, 10% evaluation).
 - `model_type`: type of model being trained. Options: `cnn`, `transformer`.
 
-- **`attack_schedule`**: array of attack entries for round-based attack configuration. Each entry specifies:
+- **`attack_schedule`**: array of attack entries for round-based attack configuration. Each entry requires:
   - `start_round`: when the attack should start (1 to `num_of_rounds`).
   - `end_round`: when the attack should end (1 to `num_of_rounds`).
-  - `attack_type`: `label_flipping`, `gaussian_noise`, or `token_replacement`.
-  - `selection_strategy`: how to select malicious clients (`specific`, `random`, or `percentage`).
-  - **Attack-specific parameters (required):**
-    - `label_flipping`: `flip_fraction` (0.0-1.0), `target_class` (integer)
-    - `gaussian_noise`: `target_noise_snr` (dB), `attack_ratio` (0.0-1.0)
-    - `token_replacement`: `replacement_prob` (0.0-1.0), plus either `target_token_ids`/`replacement_token_ids` arrays or `target_vocabulary`/`replacement_strategy` strings
-  - **Client selection parameters (required):**
-    - `specific`: `malicious_client_ids` (array of client IDs)
-    - `random`: `malicious_client_count` (integer)
-    - `percentage`: `malicious_percentage` (0.0-1.0)
+  - `attack_type`: type of attack to apply. Options: `label_flipping`, `gaussian_noise`, `token_replacement`.
+  - `selection_strategy`: how to select malicious clients. Options: `specific`, `random`, `percentage`.
+  - **Attack type parameters:**
+    - `label_flipping`: no parameters required.
+    - `gaussian_noise`: `target_noise_snr` (dB, recommended), `attack_ratio` (0.0-1.0, defaults to 1.0). Alternative: `mean`/`std` if not using SNR.
+    - `token_replacement`:
+      - Vocabulary-based (recommended): `target_vocabulary` (`"medical"`, `"financial"`, or `"legal"`), `replacement_strategy` (`"negative"` or `"positive"`, defaults to `"negative"`), `replacement_probability` (0.0-1.0, defaults to 0.2).
+      - Manual token IDs: `target_token_ids` (array), `replacement_token_ids` (array), `replacement_probability` (0.0-1.0, defaults to 0.2).
+  - **Client selection parameters:**
+    - `specific`: `malicious_client_ids` (array of client IDs).
+    - `random`: `malicious_client_count` (integer).
+    - `percentage`: `malicious_percentage` (0.0-1.0).
 
 - `save_attack_snapshots`: save attack snapshots for analysis (`true`/`false`).
 - `attack_snapshot_format`: format for saving snapshots. Options: `pickle`, `visual`, `pickle_and_visual`.
