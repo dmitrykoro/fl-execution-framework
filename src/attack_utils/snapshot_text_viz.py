@@ -1,4 +1,4 @@
-""""
+"""
 Text visualization utilities for attack snapshots.
 """
 from pathlib import Path
@@ -10,7 +10,19 @@ import numpy as np
 def _extract_attack_param(
     attack_config: Union[dict, List[dict]], *attack_parameters: str, default: any = "?"
 ) -> any:
-    """Extract attack parameters from config."""
+    """Extract attack parameter value from attack configuration.
+
+    Searches for the first matching parameter name in the config and returns its value.
+    Handles both single dict configs and list of dict configs.
+
+    Args:
+        attack_config: Attack configuration dict or list of dicts
+        *attack_parameters: Variable number of parameter names to search for
+        default: Default value to return if parameter not found (default: "?")
+
+    Returns:
+        Parameter value if found, otherwise the default value
+    """
     config = (
         attack_config[0]
         if isinstance(attack_config, list) and attack_config
@@ -26,7 +38,18 @@ def _extract_attack_param(
 
 
 def _extract_attack_type(attack_config: Union[dict, List[dict]]) -> str:
-    """Extract attack type from config."""
+    """Extract attack type from attack configuration.
+
+    For list configs (composite attacks), joins attack types with underscore.
+    For single dict configs, returns the attack_type field.
+
+    Args:
+        attack_config: Attack configuration dict or list of dicts
+
+    Returns:
+        Attack type string, or "unknown" if not found. Multiple attacks
+        are joined with underscores (e.g., "label_flipping_gaussian_noise")
+    """
     if isinstance(attack_config, list):
         if attack_config:
             attack_types = [
@@ -49,7 +72,25 @@ def save_text_samples(
     input_ids_original: Optional[np.ndarray] = None,
     input_ids_poisoned: Optional[np.ndarray] = None,
 ) -> None:
-    """Save text samples to a file."""
+    """Save text attack samples to a visualization file.
+
+    Creates a text file showing original vs poisoned text samples with token
+    replacement statistics and label changes. If tokenizer and token IDs are
+    provided, shows detailed token-level changes. Otherwise, shows only labels.
+
+    Args:
+        labels: Poisoned labels array of shape (N,) or (N, seq_len)
+        original_labels: Original labels array of shape (N,) or (N, seq_len)
+        filepath: Output file path for the text visualization
+        attack_config: Attack configuration dict or list of dicts (optional)
+        tokenizer: HuggingFace tokenizer for decoding token IDs (optional)
+        input_ids_original: Original token IDs of shape (N, seq_len) (optional)
+        input_ids_poisoned: Poisoned token IDs of shape (N, seq_len) (optional)
+
+    Note:
+        If tokenizer and token IDs are not provided, only saves label changes.
+        Skips samples where no tokens were replaced to reduce file size.
+    """
     with open(filepath, "w", encoding="utf-8") as f:
         if (
             tokenizer is not None

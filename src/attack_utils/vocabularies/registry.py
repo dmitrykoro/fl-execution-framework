@@ -108,10 +108,18 @@ def get_replacement_strategy(strategy_name: str) -> List[str]:
 
 
 def list_available_vocabularies() -> List[str]:
-    """Get list of all available vocabulary names."""
+    """Get list of all available vocabulary names.
+
+    Returns:
+        List of vocabulary names (e.g., ["medical", "financial", "legal"])
+    """
     return list(VOCABULARIES.keys())
 
 
 def list_available_strategies() -> List[str]:
-    """Get list of all available replacement strategy names."""
+    """Get list of all available replacement strategy names.
+
+    Returns:
+        List of strategy names (e.g., ["negative", "positive"])
+    """
     return list(REPLACEMENT_STRATEGIES.keys())

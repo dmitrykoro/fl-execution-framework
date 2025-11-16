@@ -20,7 +20,15 @@ from .attack_snapshots import (
 def _get_snapshots_dir_checked(
     output_dir: str, strategy_number: int = 0
 ) -> Optional[Path]:
-    """Get snapshots directory and verify it exists."""
+    """Get snapshots directory and verify it exists.
+
+    Args:
+        output_dir: Base output directory
+        strategy_number: Strategy index (default: 0)
+
+    Returns:
+        Path to snapshots directory, or None if it doesn not exist
+    """
     snapshots_dir = Path(output_dir) / f"attack_snapshots_{strategy_number}"
     if not snapshots_dir.exists():
         logging.warning(
@@ -31,7 +39,15 @@ def _get_snapshots_dir_checked(
 
 
 def _extract_attack_params_for_display(attack_type: str, attack_config: dict) -> list:
-    """Extract attack parameters formatted for HTML display."""
+    """Extract attack parameters formatted for HTML display.
+
+    Args:
+        attack_type: Attack type string
+        attack_config: Attack configuration dict
+
+    Returns:
+        List of tuples (param_name, param_value) for display
+    """
     html_attack_params = []
     if attack_type == "label_flipping":
         pass
@@ -52,7 +68,15 @@ def _extract_attack_params_for_display(attack_type: str, attack_config: dict) ->
 
 
 def _split_composite_attack_info(attack_type: str, attack_configs: list) -> list:
-    """Split composite attack type into individual attack entries for display."""
+    """Split composite attack type into individual attack entries for display.
+
+    Args:
+        attack_type: Composite attack type string (e.g., "label_flipping_gaussian_noise")
+        attack_configs: List of attack configuration dicts
+
+    Returns:
+        List of dicts with attack_type and params for each individual attack
+    """
     attack_info = []
     for config in attack_configs:
         config_type = config.get("attack_type", "unknown")
@@ -65,7 +89,17 @@ def _split_composite_attack_info(attack_type: str, attack_configs: list) -> list
 def generate_summary_json(
     output_dir: str, run_config: Optional[dict] = None, strategy_number: int = 0
 ) -> None:
-    """Generate summary.json for attack snapshots."""
+    """Generate summary.json for attack snapshots.
+
+    Args:
+        output_dir: Base output directory
+        run_config: Run configuration dict (optional)
+        strategy_number: Strategy index (default: 0)
+
+    Note:
+        Creates summary.json file in the snapshots directory with metadata
+        about all snapshots, grouped by round and client.
+    """
     snapshots_dir = _get_snapshots_dir_checked(output_dir, strategy_number)
     if not snapshots_dir:
         return
@@ -118,7 +152,19 @@ def generate_summary_json(
 def generate_snapshot_index(
     output_dir: str, run_config: Optional[dict] = None, strategy_number: int = 0
 ) -> None:
-    """Generate snapshot index for HTML report."""
+    """Generate snapshot index HTML report.
+
+    Creates an interactive HTML report showing all attack snapshots with
+    filtering, navigation, and visual previews.
+
+    Args:
+        output_dir: Base output directory
+        run_config: Run configuration dict (optional)
+        strategy_number: Strategy index (default: 0)
+
+    Note:
+        Generates both summary.json and index.html files in snapshots directory.
+    """
     snapshots_dir = _get_snapshots_dir_checked(output_dir, strategy_number)
     if not snapshots_dir:
         return

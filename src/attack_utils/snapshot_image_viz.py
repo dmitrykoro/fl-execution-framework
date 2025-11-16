@@ -12,7 +12,12 @@ from matplotlib import pyplot as plt
 
 
 def _display_image(ax, image: np.ndarray) -> None:
-    """Display an image on the given axes."""
+    """Display an image on matplotlib axes.
+
+    Args:
+        ax: Matplotlib axes object
+        image: Image array to display
+    """
     if image.shape[0] == 1:
         ax.imshow(image[0], cmap="gray")
     else:
@@ -20,7 +25,16 @@ def _display_image(ax, image: np.ndarray) -> None:
 
 
 def _normalize_axes(axes, rows: int, cols: int):
-    """Normalize axes for plotting."""
+    """Normalize axes array for consistent indexing.
+
+    Args:
+        axes: Matplotlib axes array (can be 1D or 2D)
+        rows: Number of rows in grid
+        cols: Number of columns in grid
+
+    Returns:
+        2D array of axes for consistent [row, col] indexing
+    """
     if rows == 1 and cols == 1:
         return [[axes]]
     elif rows == 1:
@@ -34,7 +48,16 @@ def _normalize_axes(axes, rows: int, cols: int):
 def _extract_attack_param(
     attack_config: Union[dict, List[dict]], *attack_parameters: str, default: any = "?"
 ) -> any:
-    """Extract attack parameters from config."""
+    """Extract attack parameter from config with fallback.
+
+    Args:
+        attack_config: Attack configuration dict or list of dicts
+        *attack_parameters: Parameter names to search for (in order)
+        default: Default value if parameter not found
+
+    Returns:
+        Parameter value if found, otherwise default
+    """
     config = (
         attack_config[0]
         if isinstance(attack_config, list) and attack_config
@@ -50,7 +73,14 @@ def _extract_attack_param(
 
 
 def _extract_attack_type(attack_config: Union[dict, List[dict]]) -> str:
-    """Extract attack type from config."""
+    """Extract attack type string from config.
+
+    Args:
+        attack_config: Attack configuration dict or list of dicts
+
+    Returns:
+        Attack type string, or composite type for multiple attacks
+    """
     if isinstance(attack_config, list):
         if attack_config:
             attack_types = [
@@ -72,7 +102,19 @@ def _build_single_attack_title(
     index: int,
     style: str,
 ) -> str:
-    """Build a title for a single attack."""
+    """Build title string for a single attack sample.
+
+    Args:
+        attack_config: Attack configuration dict or list of dicts
+        attack_type: Attack type string
+        labels: Poisoned labels array
+        original_labels: Original labels array
+        index: Sample index
+        style: Display style ("side_by_side" or other)
+
+    Returns:
+        Formatted title string with attack details and label info
+    """
     if attack_type == "label_flipping":
         if style == "side_by_side":
             return f"Poisoned\nLabel: {labels[index]}"
@@ -100,7 +142,21 @@ def _build_attack_title(
     index: int,
     style: str = "side_by_side",
 ) -> str:
-    """Build a title for an attack."""
+    """Build title for attack visualization.
+
+    Wrapper around _build_single_attack_title for consistency.
+
+    Args:
+        attack_config: Attack configuration dict or list of dicts
+        attack_type: Attack type string
+        labels: Poisoned labels array
+        original_labels: Original labels array
+        index: Sample index
+        style: Display style (default: "side_by_side")
+
+    Returns:
+        Formatted title string
+    """
     if isinstance(attack_config, list) and len(attack_config) > 1:
         title_parts = ["Poisoned"] if style == "side_by_side" else []
 
@@ -141,7 +197,23 @@ def save_image_grid(
     attack_config: Union[dict, List[dict]],
     original_images: Optional[np.ndarray] = None,
 ) -> None:
-    """Save an image grid to a file."""
+    """Save image grid visualization to file.
+
+    Creates side-by-side comparison grid of original vs poisoned images
+    if original_images provided, otherwise shows only poisoned images.
+
+    Args:
+        images: Poisoned images array of shape (N, C, H, W) or (N, H, W, C)
+        labels: Poisoned labels array
+        original_labels: Original labels array
+        filepath: Output file path for the image
+        attack_config: Attack configuration dict or list of dicts
+        original_images: Original images for comparison (optional)
+
+    Note:
+        Automatically adjusts grid layout based on number of samples.
+        Saves with tight layout and 150 DPI for clarity.
+    """
     matplotlib.use("Agg")
 
     num_samples = len(images)
