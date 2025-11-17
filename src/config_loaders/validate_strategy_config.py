@@ -205,8 +205,6 @@ config_schema = {
                     "malicious_client_count": {"type": "integer", "minimum": 1},
                     "malicious_percentage": {"type": "number", "minimum": 0.0, "maximum": 1.0},
                     "random_seed": {"type": "integer", "minimum": 0},
-                    "flip_fraction": {"type": "number", "minimum": 0.0, "maximum": 1.0},
-                    "target_class": {"type": "integer", "minimum": 0},
                     "target_noise_snr": {"type": "number"},
                     "attack_ratio": {"type": "number", "minimum": 0.0, "maximum": 1.0}
                 },
@@ -371,18 +369,7 @@ def _validate_attack_schedule(config: dict) -> None:
 
         attack_type = entry.get("attack_type")
 
-        if attack_type == "label_flipping":
-            if "flip_fraction" not in entry:
-                raise ValidationError(
-                    f"{entry_desc}: label_flipping attack requires 'flip_fraction' parameter"
-                )
-            if "target_class" not in entry:
-                raise ValidationError(
-                    f"{entry_desc}: label_flipping attack requires 'target_class' parameter "
-                    "(targeted attack from source class(es) to target class)"
-                )
-
-        elif attack_type == "gaussian_noise":
+        if attack_type == "gaussian_noise":
             if "target_noise_snr" not in entry:
                 raise ValidationError(
                     f"{entry_desc}: gaussian_noise attack requires 'target_noise_snr' parameter"

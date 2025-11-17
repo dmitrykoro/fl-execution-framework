@@ -134,6 +134,15 @@ class FlowerClient(fl.client.NumPyClient):
             optimizer = torch.optim.Adam(net.parameters())
             net.train()
 
+            # Determine number of classes
+            if hasattr(net, 'fc3'):
+                num_classes = net.fc3.out_features
+            elif hasattr(net, 'fc'):
+                num_classes = net.fc.out_features
+            else:
+                # Default fallback
+                num_classes = 10
+
             for epoch in range(epochs):
                 correct, total, epoch_loss = 0, 0, 0.0
 
@@ -148,7 +157,7 @@ class FlowerClient(fl.client.NumPyClient):
 
                         # Apply all attacks sequentially
                         for attack_config in attack_configs:
-                            images, labels = apply_poisoning_attack(images, labels, attack_config, tokenizer=self.tokenizer)
+                            images, labels = apply_poisoning_attack(images, labels, attack_config, tokenizer=self.tokenizer, num_classes=num_classes)
 
                         # Save snapshot after all attacks applied
                         if epoch == 0 and batch_idx == 0:

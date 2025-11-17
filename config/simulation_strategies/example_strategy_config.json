@@ -48,8 +48,6 @@
         "start_round": 1,
         "end_round": 3,
         "attack_type": "label_flipping",
-        "flip_fraction": 1.0,
-        "target_class": 7,
         "selection_strategy": "specific",
         "malicious_client_ids": [0]
       },
@@ -57,8 +55,6 @@
         "start_round": 5,
         "end_round": 7,
         "attack_type": "label_flipping",
-        "flip_fraction": 1.0,
-        "target_class": 7,
         "selection_strategy": "specific",
         "malicious_client_ids": [1]
       },
@@ -66,8 +62,6 @@
         "start_round": 10,
         "end_round": 12,
         "attack_type": "label_flipping",
-        "flip_fraction": 1.0,
-        "target_class": 7,
         "selection_strategy": "specific",
         "malicious_client_ids": [2]
       },
@@ -75,8 +69,6 @@
         "start_round": 15,
         "end_round": 17,
         "attack_type": "label_flipping",
-        "flip_fraction": 1.0,
-        "target_class": 7,
         "selection_strategy": "specific",
         "malicious_client_ids": [3]
       }

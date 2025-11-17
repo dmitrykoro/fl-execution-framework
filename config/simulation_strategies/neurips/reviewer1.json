@@ -38,7 +38,6 @@
             "start_round": 1,
             "end_round": 40,
             "attack_type": "label_flipping",
-            "flip_fraction": 1.0,
             "selection_strategy": "percentage",
             "malicious_percentage": 0.1
           }

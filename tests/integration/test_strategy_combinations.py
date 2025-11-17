@@ -73,11 +73,7 @@ def _create_attack_defense_config(
                 }
             )
         elif attack_type == "label_flipping":
-            strategy_config["attack_schedule"][0].update(
-                {
-                    "flip_fraction": 1.0,
-                }
-            )
+            strategy_config["attack_schedule"][0].update({})
 
         # Add strategy-specific parameters
         if defense == "trust":
@@ -870,11 +866,7 @@ class TestAttackDefenseScenarios:
                         }
                     )
                 elif attack_type == "label_flipping":
-                    config_dict["attack_schedule"][0].update(
-                        {
-                            "flip_fraction": 1.0,
-                        }
-                    )
+                    config_dict["attack_schedule"][0].update({})
 
                 # Add strategy-specific parameters
                 if defense_strategy == "trust":
@@ -998,11 +990,7 @@ class TestAttackDefenseScenarios:
                     }
                 )
             elif attack_type == "label_flipping":
-                config_dict["attack_schedule"][0].update(
-                    {
-                        "flip_fraction": 1.0,
-                    }
-                )
+                config_dict["attack_schedule"][0].update({})
 
             config_dict.update(attack_config["expected_params"])
 
