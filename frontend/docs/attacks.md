@@ -660,7 +660,7 @@ See [datasets.md](./datasets.md) for details.
 
 ```bash
 # From project root - starts both API and frontend
-./start-dev.sh
+./run_frontend.sh
 ```
 
 This automatically:

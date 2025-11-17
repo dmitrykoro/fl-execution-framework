@@ -120,7 +120,7 @@ frontend/docs/
 From the project root, run the startup script that handles both servers:
 
 ```bash
-./start-dev.sh
+./run_frontend.sh
 ```
 
 This automatically:
