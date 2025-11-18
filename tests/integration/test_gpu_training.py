@@ -67,19 +67,19 @@ class TestGPUTraining:
         cpu_device = get_device("cpu")
         assert cpu_device.type == "cpu"
 
-        # Test CUDA request (fallback to CPU if unavailable)
-        cuda_device = get_device("cuda")
+        # Test GPU request (fallback to CPU if unavailable)
+        gpu_device = get_device("gpu")
         if torch.cuda.is_available():
-            assert cuda_device.type == "cuda"
+            assert gpu_device.type == "cuda"
         else:
-            assert cuda_device.type == "cpu"
+            assert gpu_device.type == "cpu"
 
     def test_gpu_device_fallback(self):
         """CUDA should fallback to CPU gracefully when unavailable"""
         from src.utils.device_utils import get_device
 
         if not torch.cuda.is_available():
-            device = get_device("cuda")
+            device = get_device("gpu")
             assert device.type == "cpu"
 
     @pytest.mark.skipif(not torch.cuda.is_available(), reason="CUDA not available")
@@ -189,7 +189,7 @@ class TestGPUTraining:
         """Device selection should log GPU information when available"""
         from src.utils.device_utils import get_device
 
-        _ = get_device("cuda")
+        _ = get_device("gpu")
 
         if torch.cuda.is_available():
             # Should log GPU name
