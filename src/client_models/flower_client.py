@@ -5,31 +5,34 @@ import numpy as np
 import torch
 
 from collections import OrderedDict
-from src.network_models.bert_model_definition import get_peft_model_state_dict, set_peft_model_state_dict
+from src.network_models.bert_model_definition import (
+    get_peft_model_state_dict,
+    set_peft_model_state_dict,
+)
 from src.attack_utils.poisoning import should_poison_this_round, apply_poisoning_attack
 from src.attack_utils.attack_snapshots import save_attack_snapshot, save_visual_snapshot
 
 
 class FlowerClient(fl.client.NumPyClient):
     def __init__(
-            self,
-            client_id,
-            net,
-            trainloader,
-            valloader,
-            training_device,
-            num_of_client_epochs,
-            model_type="cnn",
-            use_lora=False,
-            num_malicious_clients=0,
-            attacks_schedule=None,
-            save_attack_snapshots=False,
-            attack_snapshot_format="pickle_and_visual",
-            snapshot_max_samples=5,
-            output_dir=None,
-            experiment_info=None,
-            strategy_number=0,
-            tokenizer=None,
+        self,
+        client_id,
+        net,
+        trainloader,
+        valloader,
+        training_device,
+        num_of_client_epochs,
+        model_type="cnn",
+        use_lora=False,
+        num_malicious_clients=0,
+        attacks_schedule=None,
+        save_attack_snapshots=False,
+        attack_snapshot_format="pickle_and_visual",
+        snapshot_max_samples=5,
+        output_dir=None,
+        experiment_info=None,
+        strategy_number=0,
+        tokenizer=None,
     ):
         self.client_id = client_id
         self.net = net
@@ -49,7 +52,15 @@ class FlowerClient(fl.client.NumPyClient):
         self.strategy_number = strategy_number
         self.tokenizer = tokenizer
 
-    def _save_attack_snapshots(self, current_round, attack_configs, data_sample, labels_sample, original_data_sample=None, original_labels_sample=None):
+    def _save_attack_snapshots(
+        self,
+        current_round,
+        attack_configs,
+        data_sample,
+        labels_sample,
+        original_data_sample=None,
+        original_labels_sample=None,
+    ):
         """Helper method to save attack snapshots for both CNN and transformer models.
 
         Args:
@@ -87,20 +98,28 @@ class FlowerClient(fl.client.NumPyClient):
                     attack_config=attack_configs,
                     data_sample=data_sample.cpu().numpy(),
                     labels_sample=labels_sample.cpu().numpy(),
-                    original_labels_sample=original_labels_sample.cpu().numpy() if original_labels_sample is not None else labels_sample.cpu().numpy(),
+                    original_labels_sample=original_labels_sample.cpu().numpy()
+                    if original_labels_sample is not None
+                    else labels_sample.cpu().numpy(),
                     output_dir=self.output_dir,
                     experiment_info=self.experiment_info,
                     strategy_number=self.strategy_number,
                     original_data_sample=original_data_sample.cpu().numpy(),
                 )
-            elif self.model_type == "transformer" and original_data_sample is not None and self.tokenizer is not None:
+            elif (
+                self.model_type == "transformer"
+                and original_data_sample is not None
+                and self.tokenizer is not None
+            ):
                 save_visual_snapshot(
                     client_id=self.client_id,
                     round_num=current_round,
                     attack_config=attack_configs,
                     data_sample=data_sample.cpu().numpy(),
                     labels_sample=labels_sample.cpu().numpy(),
-                    original_labels_sample=original_labels_sample.cpu().numpy() if original_labels_sample is not None else labels_sample.cpu().numpy(),
+                    original_labels_sample=original_labels_sample.cpu().numpy()
+                    if original_labels_sample is not None
+                    else labels_sample.cpu().numpy(),
                     output_dir=self.output_dir,
                     experiment_info=self.experiment_info,
                     strategy_number=self.strategy_number,
@@ -125,7 +144,16 @@ class FlowerClient(fl.client.NumPyClient):
         else:
             return [val.cpu().numpy() for _, val in self.net.state_dict().items()]
 
-    def train(self, net, trainloader, epochs: int, verbose=False, global_params=None, mu=0.01, config=None):
+    def train(
+        self,
+        net,
+        trainloader,
+        epochs: int,
+        verbose=False,
+        global_params=None,
+        mu=0.01,
+        config=None,
+    ):
         """Train the network on the training set with optional dynamic poisoning."""
         current_round = config.get("server_round", 1) if config else 1
 
@@ -135,9 +163,9 @@ class FlowerClient(fl.client.NumPyClient):
             net.train()
 
             # Determine number of classes
-            if hasattr(net, 'fc3'):
+            if hasattr(net, "fc3"):
                 num_classes = net.fc3.out_features
-            elif hasattr(net, 'fc'):
+            elif hasattr(net, "fc"):
                 num_classes = net.fc.out_features
             else:
                 # Default fallback
@@ -157,7 +185,13 @@ class FlowerClient(fl.client.NumPyClient):
 
                         # Apply all attacks sequentially
                         for attack_config in attack_configs:
-                            images, labels = apply_poisoning_attack(images, labels, attack_config, tokenizer=self.tokenizer, num_classes=num_classes)
+                            images, labels = apply_poisoning_attack(
+                                images,
+                                labels,
+                                attack_config,
+                                tokenizer=self.tokenizer,
+                                num_classes=num_classes,
+                            )
 
                         # Save snapshot after all attacks applied
                         if epoch == 0 and batch_idx == 0:
@@ -170,7 +204,10 @@ class FlowerClient(fl.client.NumPyClient):
                                 original_labels_sample=original_labels,
                             )
 
-                    images, labels = images.to(self.training_device), labels.to(self.training_device)
+                    images, labels = (
+                        images.to(self.training_device),
+                        labels.to(self.training_device),
+                    )
                     optimizer.zero_grad()
                     outputs = net(images)
                     loss = criterion(outputs, labels)
@@ -185,10 +222,14 @@ class FlowerClient(fl.client.NumPyClient):
                     # Free intermediate tensors
                     del outputs, loss
 
-                epoch_loss /= len(trainloader.dataset) if len(trainloader.dataset) > 0 else 1
+                epoch_loss /= (
+                    len(trainloader.dataset) if len(trainloader.dataset) > 0 else 1
+                )
                 epoch_acc = correct / total if total > 0 else 0.0
                 if verbose:
-                    print(f"Epoch {epoch + 1}: train loss {epoch_loss}, accuracy {epoch_acc}")
+                    print(
+                        f"Epoch {epoch + 1}: train loss {epoch_loss}, accuracy {epoch_acc}"
+                    )
 
             return float(epoch_loss), float(epoch_acc)
 
@@ -197,7 +238,9 @@ class FlowerClient(fl.client.NumPyClient):
             net.train()
 
             for epoch in range(epochs):
-                logging.debug(f"[Client {self.client_id}] Starting epoch {epoch + 1}/{epochs}")
+                logging.debug(
+                    f"[Client {self.client_id}] Starting epoch {epoch + 1}/{epochs}"
+                )
                 total_loss = 0
                 correct, total = 0, 0
 
@@ -213,8 +256,13 @@ class FlowerClient(fl.client.NumPyClient):
                         # Stack multiple attacks sequentially
                         for attack_config in attack_configs:
                             if attack_config.get("attack_type") == "token_replacement":
-                                batch["input_ids"], batch["labels"] = apply_poisoning_attack(
-                                    batch["input_ids"], batch["labels"], attack_config, tokenizer=self.tokenizer
+                                batch["input_ids"], batch["labels"] = (
+                                    apply_poisoning_attack(
+                                        batch["input_ids"],
+                                        batch["labels"],
+                                        attack_config,
+                                        tokenizer=self.tokenizer,
+                                    )
                                 )
 
                         # Save snapshot after all attacks applied
@@ -235,9 +283,18 @@ class FlowerClient(fl.client.NumPyClient):
                     loss = outputs.loss
 
                     # Apply FedProx only if global_params are provided
-                    if global_params is not None and self.client_id >= self.num_malicious_clients:
-                        local_params = [torch.tensor(p, device=self.training_device) for p in self.get_parameters(config=None)]
-                        prox_term = sum(torch.norm(lp - gp) ** 2 for lp, gp in zip(local_params, global_params))
+                    if (
+                        global_params is not None
+                        and self.client_id >= self.num_malicious_clients
+                    ):
+                        local_params = [
+                            torch.tensor(p, device=self.training_device)
+                            for p in self.get_parameters(config=None)
+                        ]
+                        prox_term = sum(
+                            torch.norm(lp - gp) ** 2
+                            for lp, gp in zip(local_params, global_params)
+                        )
                         loss = loss + (mu / 2) * prox_term
 
                     loss.backward()
@@ -254,22 +311,30 @@ class FlowerClient(fl.client.NumPyClient):
 
                     # Log progress every 10 batches
                     if (batch_idx + 1) % 10 == 0:
-                        logging.debug(f"[Client {self.client_id}] Batch {batch_idx + 1}/{len(trainloader)} - Loss: {loss.item():.4f}")
+                        logging.debug(
+                            f"[Client {self.client_id}] Batch {batch_idx + 1}/{len(trainloader)} - Loss: {loss.item():.4f}"
+                        )
 
                     # Free intermediate tensors
                     del outputs, loss, batch
 
                 epoch_loss = total_loss / len(trainloader)
                 epoch_acc = correct / total if total > 0 else 0
-                logging.debug(f"[Client {self.client_id}] Epoch {epoch + 1} complete - Loss: {epoch_loss:.4f}, Accuracy: {epoch_acc:.4f}")
+                logging.debug(
+                    f"[Client {self.client_id}] Epoch {epoch + 1} complete - Loss: {epoch_loss:.4f}, Accuracy: {epoch_acc:.4f}"
+                )
 
                 if verbose:
-                    print(f"Epoch {epoch + 1}: train loss {epoch_loss}, accuracy {epoch_acc}")
+                    print(
+                        f"Epoch {epoch + 1}: train loss {epoch_loss}, accuracy {epoch_acc}"
+                    )
 
             return float(epoch_loss), float(epoch_acc)
 
         else:
-            raise ValueError(f"Unsupported model type: {self.model_type}. Supported types are 'cnn' and 'mlm'.")
+            raise ValueError(
+                f"Unsupported model type: {self.model_type}. Supported types are 'cnn' and 'mlm'."
+            )
 
     def test(self, net, testloader):
         """Evaluate the network on the entire test set."""
@@ -281,7 +346,10 @@ class FlowerClient(fl.client.NumPyClient):
 
             with torch.no_grad():
                 for images, labels in testloader:
-                    images, labels = images.to(self.training_device), labels.to(self.training_device)
+                    images, labels = (
+                        images.to(self.training_device),
+                        labels.to(self.training_device),
+                    )
                     outputs = net(images)
                     loss += criterion(outputs, labels).item()
                     _, predicted = torch.max(outputs.data, 1)
@@ -317,25 +385,50 @@ class FlowerClient(fl.client.NumPyClient):
             return loss, accuracy
 
         else:
-            raise ValueError(f"Unsupported model type: {self.model_type}. Supported types are 'cnn' and 'mlm'.")
+            raise ValueError(
+                f"Unsupported model type: {self.model_type}. Supported types are 'cnn' and 'mlm'."
+            )
 
     def fit(self, parameters, config):
-        logging.debug(f"[Client {self.client_id}] Starting fit() - Setting parameters and beginning training")
+        logging.debug(
+            f"[Client {self.client_id}] Starting fit() - Setting parameters and beginning training"
+        )
         self.set_parameters(self.net, parameters)
 
         # Capture global LoRA parameters for FedProx
         global_params = None
-        if self.model_type == "transformer" and self.use_lora and self.client_id >= self.num_malicious_clients:
-            global_params = [torch.tensor(p, device=self.training_device) for p in self.get_parameters(config=None)]
+        if (
+            self.model_type == "transformer"
+            and self.use_lora
+            and self.client_id >= self.num_malicious_clients
+        ):
+            global_params = [
+                torch.tensor(p, device=self.training_device)
+                for p in self.get_parameters(config=None)
+            ]
 
-        logging.debug(f"[Client {self.client_id}] Training for {self.num_of_client_epochs} epoch(s) with {len(self.trainloader)} batches")
-        epoch_loss, epoch_acc = self.train(self.net, self.trainloader, epochs=self.num_of_client_epochs, global_params=global_params, config=config)
-        logging.debug(f"[Client {self.client_id}] Training complete - Loss: {epoch_loss:.4f}, Accuracy: {epoch_acc:.4f}")
+        logging.debug(
+            f"[Client {self.client_id}] Training for {self.num_of_client_epochs} epoch(s) with {len(self.trainloader)} batches"
+        )
+        epoch_loss, epoch_acc = self.train(
+            self.net,
+            self.trainloader,
+            epochs=self.num_of_client_epochs,
+            global_params=global_params,
+            config=config,
+        )
+        logging.debug(
+            f"[Client {self.client_id}] Training complete - Loss: {epoch_loss:.4f}, Accuracy: {epoch_acc:.4f}"
+        )
 
         if torch.cuda.is_available():
             torch.cuda.empty_cache()
 
-        return self.get_parameters(self.net), len(self.trainloader), {"loss": epoch_loss, "accuracy": epoch_acc}
+        return (
+            self.get_parameters(self.net),
+            len(self.trainloader.dataset),
+            {"loss": epoch_loss, "accuracy": epoch_acc},
+        )
 
     def evaluate(self, parameters, config):
         self.set_parameters(self.net, parameters)
@@ -344,4 +437,4 @@ class FlowerClient(fl.client.NumPyClient):
         if torch.cuda.is_available():
             torch.cuda.empty_cache()
 
-        return float(loss), len(self.valloader), {"accuracy": float(accuracy)}
+        return float(loss), len(self.valloader.dataset), {"accuracy": float(accuracy)}
