@@ -4,7 +4,6 @@ import logging
 
 
 class DatasetHandler:
-
     def __init__(self, strategy_config, directory_handler, dataset_config_list) -> None:
         self._strategy_config = strategy_config
 
@@ -15,7 +14,9 @@ class DatasetHandler:
         """Copy the specified number of clients' subsets to runtime folder"""
         # Skip copying for HuggingFace datasets (loaded on-the-fly)
         if self.src_dataset == "huggingface":
-            logging.info(f"Skipping dataset copy for HuggingFace dataset: {self._strategy_config.dataset_keyword}")
+            logging.info(
+                f"Skipping dataset copy for HuggingFace dataset: {self._strategy_config.dataset_keyword}"
+            )
             return
         self._copy_dataset(self._strategy_config.num_of_clients)
 
@@ -33,10 +34,16 @@ class DatasetHandler:
         """Copy dataset"""
 
         all_client_folders_list = [
-            client_folder for client_folder in sorted(os.listdir(self.src_dataset))
-            if (os.path.isdir(os.path.join(self.src_dataset, client_folder)) and not client_folder.startswith("."))
+            client_folder
+            for client_folder in sorted(os.listdir(self.src_dataset))
+            if (
+                os.path.isdir(os.path.join(self.src_dataset, client_folder))
+                and not client_folder.startswith(".")
+            )
         ]
-        all_client_folders_list = sorted(all_client_folders_list, key=lambda string: int(string.split("_")[1]))
+        all_client_folders_list = sorted(
+            all_client_folders_list, key=lambda string: int(string.split("_")[1])
+        )
 
         client_folders_list = all_client_folders_list[:num_to_copy]
 

@@ -4,7 +4,6 @@ from typing import Union, Optional
 
 @dataclass
 class ClientInfo:
-
     client_id: int
     num_of_rounds: int
     is_malicious: bool = None
@@ -47,13 +46,13 @@ class ClientInfo:
             self.rounds.append(round_num + 1)
 
     def add_history_entry(
-            self,
-            current_round: int,
-            removal_criterion: Optional[float] = None,
-            absolute_distance: Optional[float] = None,
-            loss: Optional[float] = None,
-            accuracy: Optional[float] = None,
-            aggregation_participation: Optional[int] = None
+        self,
+        current_round: int,
+        removal_criterion: Optional[float] = None,
+        absolute_distance: Optional[float] = None,
+        loss: Optional[float] = None,
+        accuracy: Optional[float] = None,
+        aggregation_participation: Optional[int] = None,
     ) -> None:
         """
         Add client metrics history entry for a new round.
@@ -75,7 +74,9 @@ class ClientInfo:
         if accuracy is not None:
             self.accuracy_history[current_round - 1] = accuracy
         if aggregation_participation is not None:
-            self.aggregation_participation_history[current_round - 1] = aggregation_participation
+            self.aggregation_participation_history[current_round - 1] = (
+                aggregation_participation
+            )
 
     def get_metric_by_name(self, metric: str) -> list:
         """Get single plottable or savable metric values by name"""

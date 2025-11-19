@@ -7,18 +7,23 @@ config_schema = {
         # Common parameters
         "aggregation_strategy_keyword": {
             "type": "string",
-            "enum": ["trust", "pid", "pid_scaled", "pid_standardized", "pid_standardized_score_based",
-                     "multi-krum", "krum", "multi-krum-based", "trimmed_mean",
-                     "rfa", "bulyan", "fedavg"]
+            "enum": [
+                "trust",
+                "pid",
+                "pid_scaled",
+                "pid_standardized",
+                "pid_standardized_score_based",
+                "multi-krum",
+                "krum",
+                "multi-krum-based",
+                "trimmed_mean",
+                "rfa",
+                "bulyan",
+                "fedavg",
+            ],
         },
-        "strict_mode": {
-            "type": "string",
-            "enum": ["true", "false"]
-        },
-        "remove_clients": {
-            "type": "string",
-            "enum": ["true", "false"]
-        },
+        "strict_mode": {"type": "string", "enum": ["true", "false"]},
+        "remove_clients": {"type": "string", "enum": ["true", "false"]},
         "dataset_keyword": {
             "type": "string",
             "enum": [
@@ -41,153 +46,66 @@ config_schema = {
                 "tissuemnist",
                 "organamnist",
                 "organcmnist",
-                "organsmnist"
-            ]
+                "organsmnist",
+            ],
         },
-        "model_type": {
-            "type": "string",
-            "enum": ["cnn", "transformer"]
-        },
-        "num_of_rounds": {
-            "type": "integer"
-        },
-        "num_of_clients": {
-            "type": "integer"
-        },
-        "show_plots": {
-            "type": "string",
-            "enum": ["true", "false"]
-        },
-        "save_plots": {
-            "type": "string",
-            "enum": ["true", "false"]
-        },
-        "save_csv": {
-            "type": "string",
-            "enum": ["true", "false"]
-        },
-        "preserve_dataset": {
-            "type": "string",
-            "enum": ["true", "false"]
-        },
-        "training_subset_fraction": {
-            "type": "number"
-        },
-
+        "model_type": {"type": "string", "enum": ["cnn", "transformer"]},
+        "num_of_rounds": {"type": "integer"},
+        "num_of_clients": {"type": "integer"},
+        "show_plots": {"type": "string", "enum": ["true", "false"]},
+        "save_plots": {"type": "string", "enum": ["true", "false"]},
+        "save_csv": {"type": "string", "enum": ["true", "false"]},
+        "preserve_dataset": {"type": "string", "enum": ["true", "false"]},
+        "training_subset_fraction": {"type": "number"},
         # LLM settings
-        "use_llm": {
-            "type": "string",
-            "enum": ["true", "false"]
-        },
+        "use_llm": {"type": "string", "enum": ["true", "false"]},
         "llm_model": {
             "type": "string",
             "enum": [
                 "microsoft/BiomedNLP-BiomedBERT-base-uncased-abstract-fulltext",
-                "distilbert-base-uncased"
-            ]
+                "distilbert-base-uncased",
+            ],
         },
-        "llm_task": {
-            "type": "string",
-            "enum": ["mlm"]
-        },
-        "mlm_probability": {
-            "type": "number"
-        },
-        "llm_chunk_size": {
-            "type": "integer"
-        },
-        "llm_finetuning": {
-            "type": "string",
-            "enum": ["full", "lora"]
-        },
-        "lora_rank": {
-            "type": "integer"
-        },
-        "lora_alpha": {
-            "type": "integer"
-        },
-        "lora_dropout": {
-            "type": "number"
-        },
+        "llm_task": {"type": "string", "enum": ["mlm"]},
+        "mlm_probability": {"type": "number"},
+        "llm_chunk_size": {"type": "integer"},
+        "llm_finetuning": {"type": "string", "enum": ["full", "lora"]},
+        "lora_rank": {"type": "integer"},
+        "lora_alpha": {"type": "integer"},
+        "lora_dropout": {"type": "number"},
         "lora_target_modules": {
             "type": "array",
             "items": {
                 "type": "string",
-            }
+            },
         },
-
         # Flower settings
-        "training_device": {
-            "type": "string",
-            "enum": ["cpu", "gpu"]
-        },
-        "cpus_per_client": {
-            "type": "number"
-        },
-        "gpus_per_client": {
-            "type": "number"
-        },
-        "min_fit_clients": {
-            "type": "integer"
-        },
-        "min_evaluate_clients": {
-            "type": "integer"
-        },
-        "min_available_clients": {
-            "type": "integer"
-        },
+        "training_device": {"type": "string", "enum": ["cpu", "gpu"]},
+        "cpus_per_client": {"type": "number"},
+        "gpus_per_client": {"type": "number"},
+        "min_fit_clients": {"type": "integer"},
+        "min_evaluate_clients": {"type": "integer"},
+        "min_available_clients": {"type": "integer"},
         "evaluate_metrics_aggregation_fn": {
             "type": "string",
         },
-        "num_of_client_epochs": {
-            "type": "integer"
-        },
-        "batch_size": {
-            "type": "integer"
-        },
-
+        "num_of_client_epochs": {"type": "integer"},
+        "batch_size": {"type": "integer"},
         # Strategy specific parameters
-
         # Trust
-        "begin_removing_from_round": {
-            "type": "integer"
-        },
-        "trust_threshold": {
-            "type": "number"
-        },
-        "beta_value": {
-            "type": "number"
-        },
-        "num_of_clusters": {
-            "type": "integer",
-            "minimum": 1,
-            "maximum": 1
-        },
-
+        "begin_removing_from_round": {"type": "integer"},
+        "trust_threshold": {"type": "number"},
+        "beta_value": {"type": "number"},
+        "num_of_clusters": {"type": "integer", "minimum": 1, "maximum": 1},
         # PID, PID scaled, PID standardized
-        "num_std_dev": {
-            "type": "number"
-        },
-        "Kp": {
-            "type": "number"
-        },
-        "Ki": {
-            "type": "number"
-        },
-        "Kd": {
-            "type": "number"
-        },
-
+        "num_std_dev": {"type": "number"},
+        "Kp": {"type": "number"},
+        "Ki": {"type": "number"},
+        "Kd": {"type": "number"},
         # Krum-based strategies
-        "num_krum_selections": {
-            "type": "integer"
-        },
-
+        "num_krum_selections": {"type": "integer"},
         # Trimmed mean
-        "trim_ratio": {
-            "type": "number"
-        },
-
+        "trim_ratio": {"type": "number"},
         # Attack scheduling
         "attack_schedule": {
             "type": "array",
@@ -198,44 +116,70 @@ config_schema = {
                     "end_round": {"type": "integer", "minimum": 1},
                     "attack_type": {
                         "type": "string",
-                        "enum": ["label_flipping", "gaussian_noise", "token_replacement"]
+                        "enum": [
+                            "label_flipping",
+                            "gaussian_noise",
+                            "token_replacement",
+                        ],
                     },
-                    "selection_strategy": {"type": "string", "enum": ["specific", "random", "percentage"]},
-                    "malicious_client_ids": {"type": "array", "items": {"type": "integer"}},
+                    "selection_strategy": {
+                        "type": "string",
+                        "enum": ["specific", "random", "percentage"],
+                    },
+                    "malicious_client_ids": {
+                        "type": "array",
+                        "items": {"type": "integer"},
+                    },
                     "malicious_client_count": {"type": "integer", "minimum": 1},
-                    "malicious_percentage": {"type": "number", "minimum": 0.0, "maximum": 1.0},
+                    "malicious_percentage": {
+                        "type": "number",
+                        "minimum": 0.0,
+                        "maximum": 1.0,
+                    },
                     "random_seed": {"type": "integer", "minimum": 0},
                     "target_noise_snr": {"type": "number"},
-                    "attack_ratio": {"type": "number", "minimum": 0.0, "maximum": 1.0}
+                    "attack_ratio": {"type": "number", "minimum": 0.0, "maximum": 1.0},
                 },
-                "required": ["start_round", "end_round", "attack_type", "selection_strategy"]
-            }
+                "required": [
+                    "start_round",
+                    "end_round",
+                    "attack_type",
+                    "selection_strategy",
+                ],
+            },
         },
-
         # Attack snapshot saving
-        "save_attack_snapshots": {
-            "type": "string",
-            "enum": ["true", "false"]
-        },
+        "save_attack_snapshots": {"type": "string", "enum": ["true", "false"]},
         "attack_snapshot_format": {
             "type": "string",
-            "enum": ["pickle", "visual", "pickle_and_visual"]
+            "enum": ["pickle", "visual", "pickle_and_visual"],
         },
-        "snapshot_max_samples": {
-            "type": "integer",
-            "minimum": 1,
-            "maximum": 50
-        }
+        "snapshot_max_samples": {"type": "integer", "minimum": 1, "maximum": 50},
     },
     "required": [
-        "aggregation_strategy_keyword", "remove_clients", "dataset_keyword", "model_type",
-        "use_llm", "num_of_rounds", "num_of_clients",
-        "show_plots", "save_plots", "save_csv", "preserve_dataset",
-        "training_subset_fraction", "training_device", "cpus_per_client",
-        "gpus_per_client", "min_fit_clients", "min_evaluate_clients",
-        "min_available_clients", "evaluate_metrics_aggregation_fn",
-        "num_of_client_epochs", "batch_size", "attack_schedule"
-    ]
+        "aggregation_strategy_keyword",
+        "remove_clients",
+        "dataset_keyword",
+        "model_type",
+        "use_llm",
+        "num_of_rounds",
+        "num_of_clients",
+        "show_plots",
+        "save_plots",
+        "save_csv",
+        "preserve_dataset",
+        "training_subset_fraction",
+        "training_device",
+        "cpus_per_client",
+        "gpus_per_client",
+        "min_fit_clients",
+        "min_evaluate_clients",
+        "min_available_clients",
+        "evaluate_metrics_aggregation_fn",
+        "num_of_client_epochs",
+        "batch_size",
+        "attack_schedule",
+    ],
 }
 
 
@@ -246,17 +190,23 @@ def _validate_dependent_params(strategy_config: dict) -> None:
 
     if aggregation_strategy_keyword == "trust":
         trust_specific_parameters = [
-            "begin_removing_from_round", "trust_threshold", "beta_value", "num_of_clusters"
+            "begin_removing_from_round",
+            "trust_threshold",
+            "beta_value",
+            "num_of_clusters",
         ]
         for param in trust_specific_parameters:
             if param not in strategy_config:
                 raise ValidationError(
                     f"Missing parameter {param} for trust aggregation {aggregation_strategy_keyword}"
                 )
-    elif aggregation_strategy_keyword in ("pid", "pid_scaled", "pid_standardized", "pid_standardized_score_based"):
-        pid_specific_parameters = [
-            "num_std_dev", "Kp", "Ki", "Kd"
-        ]
+    elif aggregation_strategy_keyword in (
+        "pid",
+        "pid_scaled",
+        "pid_standardized",
+        "pid_standardized_score_based",
+    ):
+        pid_specific_parameters = ["num_std_dev", "Kp", "Ki", "Kd"]
         for param in pid_specific_parameters:
             if param not in strategy_config:
                 raise ValidationError(
@@ -303,7 +253,7 @@ def _populate_client_selection(config: dict) -> None:
             else:
                 # Auto-generate seed from attack parameters for reproducibility
                 seed_string = f"{entry.get('attack_type')}_{entry.get('start_round')}_{entry.get('end_round')}_{idx}"
-                seed = hash(seed_string) % (2 ** 32)
+                seed = hash(seed_string) % (2**32)
 
             random.seed(seed)
 
@@ -402,10 +352,10 @@ def _validate_attack_schedule(config: dict) -> None:
 
     # Check for overlapping rounds (attack stacking)
     for i, entry1 in enumerate(schedule):
-        for j, entry2 in enumerate(schedule[i + 1:], start=i + 1):
+        for j, entry2 in enumerate(schedule[i + 1 :], start=i + 1):
             if not (
-                    entry1["end_round"] < entry2["start_round"] or
-                    entry2["end_round"] < entry1["start_round"]
+                entry1["end_round"] < entry2["start_round"]
+                or entry2["end_round"] < entry1["start_round"]
             ):
                 # Check if same attack type
                 if entry1.get("attack_type") == entry2.get("attack_type"):
@@ -453,35 +403,33 @@ def _validate_llm_parameters(strategy_config: dict) -> None:
     """Check if LLM specific parameters are valid"""
 
     if strategy_config["model_type"] != "transformer":
-        raise ValidationError(
-            "LLM finetuning is only supported for transformer models"
-        )
+        raise ValidationError("LLM finetuning is only supported for transformer models")
 
     llm_specific_parameters = [
-        "llm_model", "llm_finetuning", "llm_task", "llm_chunk_size"
+        "llm_model",
+        "llm_finetuning",
+        "llm_task",
+        "llm_chunk_size",
     ]
     for param in llm_specific_parameters:
         if param not in strategy_config:
-            raise ValidationError(
-                f"Missing parameter {param} for LLM finetuning"
-            )
+            raise ValidationError(f"Missing parameter {param} for LLM finetuning")
 
     if strategy_config["llm_task"] == "mlm":
         if "mlm_probability" not in strategy_config:
-            raise ValidationError(
-                "Missing parameter mlm_probability for LLM task mlm"
-            )
+            raise ValidationError("Missing parameter mlm_probability for LLM task mlm")
 
     finetuning_keyword = strategy_config["llm_finetuning"]
     if finetuning_keyword == "lora":
         lora_specific_parameters = [
-            "lora_rank", "lora_alpha", "lora_dropout", "lora_target_modules"
+            "lora_rank",
+            "lora_alpha",
+            "lora_dropout",
+            "lora_target_modules",
         ]
         for param in lora_specific_parameters:
             if param not in strategy_config:
-                raise ValidationError(
-                    f"Missing parameter {param} for LORA"
-                )
+                raise ValidationError(f"Missing parameter {param} for LORA")
 
 
 def _apply_strict_mode(config: dict) -> None:
@@ -499,9 +447,9 @@ def _apply_strict_mode(config: dict) -> None:
 
     # Always check: min_* cannot be greater than num_of_clients
     if (
-            num_fit_clients > num_of_clients or
-            num_evaluate_clients > num_of_clients or
-            num_available_clients > num_of_clients
+        num_fit_clients > num_of_clients
+        or num_evaluate_clients > num_of_clients
+        or num_available_clients > num_of_clients
     ):
         raise ValidationError(
             f"EXPERIMENT STOPPED: Client configuration error.\n"
@@ -516,20 +464,20 @@ def _apply_strict_mode(config: dict) -> None:
     # If strict_mode is enabled, force all min_* = num_of_clients
     if strict_mode:
         if (
-                num_fit_clients != num_of_clients or
-                num_evaluate_clients != num_of_clients or
-                num_available_clients != num_of_clients
+            num_fit_clients != num_of_clients
+            or num_evaluate_clients != num_of_clients
+            or num_available_clients != num_of_clients
         ):
             # Force all to equal total clients
             config["min_fit_clients"] = num_of_clients
             config["min_evaluate_clients"] = num_of_clients
             config["min_available_clients"] = num_of_clients
 
-            logging.info(f"STRICT MODE ENABLED: Auto-configured client participation")
+            logging.info("STRICT MODE ENABLED: Auto-configured client participation")
             logging.info(f"  - Set min_fit_clients = {num_of_clients}")
             logging.info(f"  - Set min_evaluate_clients = {num_of_clients}")
             logging.info(f"  - Set min_available_clients = {num_of_clients}")
-            logging.info(f"  - This ensures all clients participate in every round")
+            logging.info("  - This ensures all clients participate in every round")
 
 
 def validate_strategy_config(config: dict) -> None:

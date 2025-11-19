@@ -3,6 +3,7 @@ import torch
 
 """Device utilities for PyTorch."""
 
+
 def get_device(device_preference: str) -> torch.device:
     """
     Get PyTorch device with GPU detection.

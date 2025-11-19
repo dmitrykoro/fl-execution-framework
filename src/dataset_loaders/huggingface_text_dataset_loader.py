@@ -35,7 +35,7 @@ class HuggingFaceTextDatasetLoader:
         mlm_probability: float = 0.15,
         num_poisoned_clients: int = 0,
         attack_schedule=None,
-        max_samples: int = None, # Limit dataset size
+        max_samples: int = None,  # Limit dataset size
     ):
         self.hf_dataset_path = hf_dataset_path
         self.hf_dataset_name = hf_dataset_name
@@ -59,7 +59,11 @@ class HuggingFaceTextDatasetLoader:
 
         for client_id in range(self.num_of_clients):
             start_idx = client_id * client_size
-            end_idx = start_idx + client_size if client_id < self.num_of_clients - 1 else len(full_dataset)
+            end_idx = (
+                start_idx + client_size
+                if client_id < self.num_of_clients - 1
+                else len(full_dataset)
+            )
             client_indices.append(list(range(start_idx, end_idx)))
 
         return client_indices
@@ -89,7 +93,9 @@ class HuggingFaceTextDatasetLoader:
             start_idx = 0
             for client_id, count in enumerate(proportions):
                 end_idx = start_idx + count
-                client_indices[client_id].extend(class_indices[start_idx:end_idx].tolist())
+                client_indices[client_id].extend(
+                    class_indices[start_idx:end_idx].tolist()
+                )
                 start_idx = end_idx
 
         # Shuffle each client's indices to mix classes
@@ -113,7 +119,9 @@ class HuggingFaceTextDatasetLoader:
             poisoned_client_ids = list(range(self.num_poisoned_clients))
 
         if self.hf_dataset_name:
-            dataset = load_dataset(self.hf_dataset_path, self.hf_dataset_name, trust_remote_code=True)
+            dataset = load_dataset(
+                self.hf_dataset_path, self.hf_dataset_name, trust_remote_code=True
+            )
         else:
             dataset = load_dataset(self.hf_dataset_path, trust_remote_code=True)
 
@@ -126,15 +134,21 @@ class HuggingFaceTextDatasetLoader:
             full_dataset = full_dataset.select(range(self.max_samples))
             logging.info(
                 f"Dataset optimization: Limited from {original_size:,} to {self.max_samples:,} samples "
-                f"({(self.max_samples/original_size)*100:.1f}%) for faster processing"
+                f"({(self.max_samples / original_size) * 100:.1f}%) for faster processing"
             )
 
         if self.remove_columns is None:
-            self.remove_columns = [col for col in full_dataset.column_names if col not in ["input_ids", "attention_mask"]]
+            self.remove_columns = [
+                col
+                for col in full_dataset.column_names
+                if col not in ["input_ids", "attention_mask"]
+            ]
 
         # Use Non-IID for labeled datasets, IID for unlabeled
         if "label" in full_dataset.column_names:
-            client_indices_list = self._partition_label_skew_dirichlet(full_dataset, alpha=0.5)
+            client_indices_list = self._partition_label_skew_dirichlet(
+                full_dataset, alpha=0.5
+            )
         else:
             # Only shuffle if not already shuffled above
             if self.max_samples is None or len(dataset["train"]) <= self.max_samples:
@@ -145,7 +159,10 @@ class HuggingFaceTextDatasetLoader:
             client_dataset = full_dataset.select(client_indices_list[client_id])
 
             def tokenize_function(examples):
-                texts = [" ".join(row) for row in zip(*[examples[col] for col in self.tokenize_columns])]
+                texts = [
+                    " ".join(row)
+                    for row in zip(*[examples[col] for col in self.tokenize_columns])
+                ]
                 return tokenizer(texts, truncation=False)
 
             def chunk_function(examples):
@@ -154,23 +171,32 @@ class HuggingFaceTextDatasetLoader:
                 total_len = (total_len // self.chunk_size) * self.chunk_size
 
                 result = {
-                    k: [t[i:i + self.chunk_size] for i in range(0, total_len, self.chunk_size)]
+                    k: [
+                        t[i : i + self.chunk_size]
+                        for i in range(0, total_len, self.chunk_size)
+                    ]
                     for k, t in concatenated.items()
                 }
                 result["labels"] = result["input_ids"].copy()
                 return result
 
             client_dataset = client_dataset.map(tokenize_function, batched=True)
-            columns_to_remove = [col for col in self.remove_columns if col in client_dataset.column_names]
+            columns_to_remove = [
+                col for col in self.remove_columns if col in client_dataset.column_names
+            ]
             if columns_to_remove:
                 client_dataset = client_dataset.remove_columns(columns_to_remove)
             client_dataset = client_dataset.map(chunk_function, batched=True)
-            split_dataset = client_dataset.train_test_split(test_size=(1 - self.training_subset_fraction), seed=42)
+            split_dataset = client_dataset.train_test_split(
+                test_size=(1 - self.training_subset_fraction), seed=42
+            )
 
             collate_fn = DataCollatorForLanguageModeling(
                 tokenizer=tokenizer,
                 mlm=True,
-                mlm_probability=.75 if client_id in poisoned_client_ids else self.mlm_probability,
+                mlm_probability=0.75
+                if client_id in poisoned_client_ids
+                else self.mlm_probability,
                 mask_replace_prob=0 if client_id in poisoned_client_ids else 0.8,
                 random_replace_prob=1 if client_id in poisoned_client_ids else 0.1,
             )
@@ -181,7 +207,7 @@ class HuggingFaceTextDatasetLoader:
                 shuffle=True,
                 collate_fn=collate_fn,
                 num_workers=0,  # Avoid CUDA fork issues
-                pin_memory=torch.cuda.is_available()  # Fast GPU transfer
+                pin_memory=torch.cuda.is_available(),  # Fast GPU transfer
             )
             valloader = DataLoader(
                 split_dataset["test"],
@@ -189,7 +215,7 @@ class HuggingFaceTextDatasetLoader:
                 shuffle=False,
                 collate_fn=collate_fn,
                 num_workers=0,
-                pin_memory=torch.cuda.is_available()
+                pin_memory=torch.cuda.is_available(),
             )
 
             trainloaders.append(trainloader)

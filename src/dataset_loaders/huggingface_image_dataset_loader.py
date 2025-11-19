@@ -51,7 +51,7 @@ class HuggingFaceImageDatasetLoader:
         num_of_clients: int = 10,
         batch_size: int = 32,
         training_subset_fraction: float = 0.8,
-        max_samples: int = None, # Limit dataset size
+        max_samples: int = None,  # Limit dataset size
     ):
         self.hf_dataset_path = hf_dataset_path
         self.hf_dataset_name = hf_dataset_name
@@ -62,11 +62,13 @@ class HuggingFaceImageDatasetLoader:
         self.max_samples = max_samples
 
         if self.transformer is None:
-            self.transformer = transforms.Compose([
-                transforms.Resize((28, 28)),
-                transforms.ToTensor(),
-                transforms.Normalize(mean=[0.5], std=[0.5])
-            ])
+            self.transformer = transforms.Compose(
+                [
+                    transforms.Resize((28, 28)),
+                    transforms.ToTensor(),
+                    transforms.Normalize(mean=[0.5], std=[0.5]),
+                ]
+            )
 
     def _partition_iid(self, full_dataset):
         """Partition dataset uniformly across clients (IID distribution)."""
@@ -75,7 +77,11 @@ class HuggingFaceImageDatasetLoader:
 
         for client_id in range(self.num_of_clients):
             start_idx = client_id * client_size
-            end_idx = start_idx + client_size if client_id < self.num_of_clients - 1 else len(full_dataset)
+            end_idx = (
+                start_idx + client_size
+                if client_id < self.num_of_clients - 1
+                else len(full_dataset)
+            )
             client_indices.append(list(range(start_idx, end_idx)))
 
         return client_indices
@@ -105,7 +111,9 @@ class HuggingFaceImageDatasetLoader:
             start_idx = 0
             for client_id, count in enumerate(proportions):
                 end_idx = start_idx + count
-                client_indices[client_id].extend(class_indices[start_idx:end_idx].tolist())
+                client_indices[client_id].extend(
+                    class_indices[start_idx:end_idx].tolist()
+                )
                 start_idx = end_idx
 
         # Shuffle each client's indices to mix classes
@@ -120,7 +128,9 @@ class HuggingFaceImageDatasetLoader:
         valloaders = []
 
         if self.hf_dataset_name:
-            dataset = load_dataset(self.hf_dataset_path, self.hf_dataset_name, trust_remote_code=True)
+            dataset = load_dataset(
+                self.hf_dataset_path, self.hf_dataset_name, trust_remote_code=True
+            )
         else:
             dataset = load_dataset(self.hf_dataset_path, trust_remote_code=True)
 
@@ -133,12 +143,14 @@ class HuggingFaceImageDatasetLoader:
             full_dataset = full_dataset.select(range(self.max_samples))
             logging.info(
                 f"Dataset optimization: Limited from {original_size:,} to {self.max_samples:,} samples "
-                f"({(self.max_samples/original_size)*100:.1f}%) for faster processing"
+                f"({(self.max_samples / original_size) * 100:.1f}%) for faster processing"
             )
 
         # Use Non-IID for labeled datasets, IID for unlabeled
         if "label" in full_dataset.column_names:
-            client_indices_list = self._partition_label_skew_dirichlet(full_dataset, alpha=0.5)
+            client_indices_list = self._partition_label_skew_dirichlet(
+                full_dataset, alpha=0.5
+            )
         else:
             # Only shuffle if not already shuffled above
             if self.max_samples is None or len(dataset["train"]) <= self.max_samples:
@@ -149,17 +161,14 @@ class HuggingFaceImageDatasetLoader:
             client_dataset = full_dataset.select(client_indices_list[client_id])
 
             split_dataset = client_dataset.train_test_split(
-                test_size=(1 - self.training_subset_fraction),
-                seed=42
+                test_size=(1 - self.training_subset_fraction), seed=42
             )
 
             train_dataset = HuggingFaceImageDataset(
-                split_dataset["train"],
-                transform=self.transformer
+                split_dataset["train"], transform=self.transformer
             )
             val_dataset = HuggingFaceImageDataset(
-                split_dataset["test"],
-                transform=self.transformer
+                split_dataset["test"], transform=self.transformer
             )
 
             trainloader = DataLoader(
@@ -167,14 +176,14 @@ class HuggingFaceImageDatasetLoader:
                 batch_size=self.batch_size,
                 shuffle=True,
                 num_workers=0,  # Avoid CUDA fork issues
-                pin_memory=torch.cuda.is_available()  # Fast GPU transfer
+                pin_memory=torch.cuda.is_available(),  # Fast GPU transfer
             )
             valloader = DataLoader(
                 val_dataset,
                 batch_size=self.batch_size,
                 shuffle=False,
                 num_workers=0,
-                pin_memory=torch.cuda.is_available()
+                pin_memory=torch.cuda.is_available(),
             )
 
             trainloaders.append(trainloader)

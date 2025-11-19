@@ -4,7 +4,6 @@ from src.data_models.simulation_strategy_config import StrategyConfig
 
 @dataclass
 class RoundsInfo:
-
     simulation_strategy_config: StrategyConfig
 
     score_calculation_time_nanos_history: list[int] = field(default_factory=list)
@@ -67,11 +66,11 @@ class RoundsInfo:
             self.savable_metrics += self.statsable_metrics
 
     def add_history_entry(
-            self,
-            score_calculation_time_nanos: int,
-            removal_threshold: float,
-            aggregated_loss: float,
-            average_accuracy: float
+        self,
+        score_calculation_time_nanos: int,
+        removal_threshold: float,
+        aggregated_loss: float,
+        average_accuracy: float,
     ) -> None:
         """
         Add history entry for a new round.
@@ -107,7 +106,7 @@ class RoundsInfo:
         """
 
         for round_tp, round_tn, round_fp, round_fn in zip(
-                self.tp_history, self.tn_history, self.fp_history, self.fn_history
+            self.tp_history, self.tn_history, self.fp_history, self.fn_history
         ):
             # accuracy: (tp + tn) / (tp + tn + fp + fn)
             self.removal_accuracy_history.append(

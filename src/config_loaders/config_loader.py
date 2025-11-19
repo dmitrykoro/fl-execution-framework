@@ -8,11 +8,7 @@ from src.utils.device_utils import get_device
 
 
 class ConfigLoader:
-    def __init__(
-            self,
-            usecase_config_path: str,
-            dataset_config_path: str
-    ) -> None:
+    def __init__(self, usecase_config_path: str, dataset_config_path: str) -> None:
         self.usecase_config_path = os.path.join(usecase_config_path)
         self.usecase_config_list = self._merge_usecase_configs(self.usecase_config_path)
 
@@ -34,7 +30,9 @@ class ConfigLoader:
         try:
             return self.dataset_config_list[key]
         except KeyError:
-            logging.error(f"Error with the provided dataset key: {key}. Please specify it in {self.dataset_config_path}.")
+            logging.error(
+                f"Error with the provided dataset key: {key}. Please specify it in {self.dataset_config_path}."
+            )
             sys.exit(-1)
 
     @staticmethod
@@ -45,9 +43,9 @@ class ConfigLoader:
                 raw_config = json.load(f)
                 logging.info(f"Successfully loaded config for {config_path}.")
 
-            shared_settings = raw_config['shared_settings']
+            shared_settings = raw_config["shared_settings"]
 
-            for strategy in raw_config['simulation_strategies']:
+            for strategy in raw_config["simulation_strategies"]:
                 strategy.update(shared_settings)
 
             # Convert training_device to torch.device with CUDA fallback
@@ -56,21 +54,27 @@ class ConfigLoader:
                 device_str = shared_settings["training_device"]
                 device_obj = get_device(device_str)
 
-            for strategy in raw_config['simulation_strategies']:
+            for strategy in raw_config["simulation_strategies"]:
                 # Validate the strategy configuration
                 validate_strategy_config(strategy)
 
                 if device_obj is not None:
                     strategy["training_device"] = device_obj
 
-            num_strategies = len(raw_config['simulation_strategies'])
-            logging.info(f"Successfully validated {num_strategies} {'strategy' if num_strategies == 1 else 'strategies'} from {config_path}.")
+            num_strategies = len(raw_config["simulation_strategies"])
+            logging.info(
+                f"Successfully validated {num_strategies} {'strategy' if num_strategies == 1 else 'strategies'} from {config_path}."
+            )
 
             # Log attack schedule info
-            if raw_config['simulation_strategies'] and raw_config['simulation_strategies'][0].get('attack_schedule'):
-                attack_schedule = raw_config['simulation_strategies'][0]['attack_schedule']
+            if raw_config["simulation_strategies"] and raw_config[
+                "simulation_strategies"
+            ][0].get("attack_schedule"):
+                attack_schedule = raw_config["simulation_strategies"][0][
+                    "attack_schedule"
+                ]
                 for idx, entry in enumerate(attack_schedule):
-                    if '_selected_clients' in entry:
+                    if "_selected_clients" in entry:
                         logging.info(
                             f"attack_schedule entry {idx} ({entry.get('selection_strategy')}): "
                             f"Selected clients {entry['_selected_clients']} for {entry.get('attack_type')} attack"

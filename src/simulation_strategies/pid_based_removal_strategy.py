@@ -7,29 +7,29 @@ import os
 
 from typing import Optional, Union
 from sklearn.cluster import KMeans
-from sklearn.preprocessing import MinMaxScaler, StandardScaler, RobustScaler
 from flwr.server.strategy.aggregate import weighted_loss_avg
-from flwr.common import EvaluateRes, Scalar, ndarrays_to_parameters, FitRes, Parameters
+from flwr.common import EvaluateRes, Scalar, FitRes, Parameters
 from flwr.server.client_proxy import ClientProxy
 
 from src.output_handlers.directory_handler import DirectoryHandler
 from src.data_models.simulation_strategy_history import SimulationStrategyHistory
 
+
 class PIDBasedRemovalStrategy(fl.server.strategy.FedAvg):
     def __init__(
-            self,
-            remove_clients: bool,
-            begin_removing_from_round: int,
-            ki: float,
-            kd: float,
-            kp: float,
-            num_std_dev: float,
-            strategy_history: SimulationStrategyHistory,
-            network_model,
-            use_lora,
-            aggregation_strategy_keyword: str,
-            *args,
-            **kwargs
+        self,
+        remove_clients: bool,
+        begin_removing_from_round: int,
+        ki: float,
+        kd: float,
+        kp: float,
+        num_std_dev: float,
+        strategy_history: SimulationStrategyHistory,
+        network_model,
+        use_lora,
+        aggregation_strategy_keyword: str,
+        *args,
+        **kwargs,
     ):
         super().__init__(*args, **kwargs)
         self.client_pids = {}
@@ -57,7 +57,9 @@ class PIDBasedRemovalStrategy(fl.server.strategy.FedAvg):
 
         # Create a logger
         self.logger = logging.getLogger(f"pid_strategy_{id(self)}")
-        self.logger.setLevel(logging.INFO)  # Set the logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL)
+        self.logger.setLevel(
+            logging.INFO
+        )  # Set the logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL)
 
         # Create handlers
         out_dir = DirectoryHandler.dirname
@@ -87,7 +89,7 @@ class PIDBasedRemovalStrategy(fl.server.strategy.FedAvg):
             return p + i_scaled + d
 
     def calculate_single_client_pid(self, client_id, distance):
-        """ Old PID calculation without scaling or standardization."""
+        """Old PID calculation without scaling or standardization."""
         p = distance * self.kp
 
         if self.current_round == 1:
@@ -101,7 +103,9 @@ class PIDBasedRemovalStrategy(fl.server.strategy.FedAvg):
 
             return p + i + d
 
-    def calculate_single_client_pid_standardized(self, client_id, distance, avg_sum, sum_std_dev=0):
+    def calculate_single_client_pid_standardized(
+        self, client_id, distance, avg_sum, sum_std_dev=0
+    ):
         """Calculate pid with standardized distance."""
 
         p = distance * self.kp
@@ -111,31 +115,50 @@ class PIDBasedRemovalStrategy(fl.server.strategy.FedAvg):
 
         else:
             curr_sum = self.client_distance_sums.get(client_id, 0)
-            i = ((curr_sum - avg_sum) / sum_std_dev) * self.ki if sum_std_dev != 0 else 0
+            i = (
+                ((curr_sum - avg_sum) / sum_std_dev) * self.ki
+                if sum_std_dev != 0
+                else 0
+            )
             prev_distance = self.client_distances.get(client_id, 0)
             d = self.kd * (distance - prev_distance)
 
             return p + i + d
 
-    def calculate_all_pid_scores(self, results, normalized_distances, standardized=False, scaled=False) -> list[float]:
+    def calculate_all_pid_scores(
+        self, results, normalized_distances, standardized=False, scaled=False
+    ) -> list[float]:
         pid_scores = []
 
         if self.aggregation_strategy_keyword == "pid_scaled":
             scaled = True
-        elif self.aggregation_strategy_keyword in ("pid_standardized", "pid_standardized_score_based"):
+        elif self.aggregation_strategy_keyword in (
+            "pid_standardized",
+            "pid_standardized_score_based",
+        ):
             standardized = True
 
         if standardized:
             all_sums = sum(self.client_distance_sums.values())
-            avg_sum = all_sums / len(self.client_distance_sums) if self.client_distance_sums else 0
-            sum_dev = np.std(list(self.client_distance_sums.values())) if self.client_distance_sums else 0
+            avg_sum = (
+                all_sums / len(self.client_distance_sums)
+                if self.client_distance_sums
+                else 0
+            )
+            sum_dev = (
+                np.std(list(self.client_distance_sums.values()))
+                if self.client_distance_sums
+                else 0
+            )
 
         for i, (client_proxy, _) in enumerate(results):
             client_id = client_proxy.cid
             curr_dist = normalized_distances[i][0]
 
             if standardized:
-                new_PID = self.calculate_single_client_pid_standardized(client_id, curr_dist, avg_sum, sum_dev)
+                new_PID = self.calculate_single_client_pid_standardized(
+                    client_id, curr_dist, avg_sum, sum_dev
+                )
             elif scaled:
                 new_PID = self.calculate_single_client_pid_scaled(client_id, curr_dist)
             else:
@@ -158,12 +181,11 @@ class PIDBasedRemovalStrategy(fl.server.strategy.FedAvg):
         return dot_product / (norm1 * norm2)
 
     def aggregate_fit(
-            self,
-            server_round: int,
-            results: list[tuple[fl.server.client_proxy.ClientProxy, fl.common.FitRes]],
-            failures: list[Union[tuple[ClientProxy, FitRes], BaseException]],
+        self,
+        server_round: int,
+        results: list[tuple[fl.server.client_proxy.ClientProxy, fl.common.FitRes]],
+        failures: list[Union[tuple[ClientProxy, FitRes], BaseException]],
     ) -> tuple[Optional[Parameters], dict[str, Scalar]]:
-
         self.current_round += 1
 
         # Update client.is_malicious based on attack_schedule for dynamic attacks
@@ -181,7 +203,9 @@ class PIDBasedRemovalStrategy(fl.server.strategy.FedAvg):
             if client_id not in self.removed_client_ids:
                 aggregate_clients.append(result)
 
-        aggregated_parameters, aggregated_metrics = super().aggregate_fit(server_round, aggregate_clients, failures)
+        aggregated_parameters, aggregated_metrics = super().aggregate_fit(
+            server_round, aggregate_clients, failures
+        )
 
         # clustering
         clustering_param_data = []
@@ -196,7 +220,7 @@ class PIDBasedRemovalStrategy(fl.server.strategy.FedAvg):
 
         # perform clustering
         X = np.array(clustering_param_data)
-        kmeans = KMeans(n_clusters=1, init='k-means++').fit(X)
+        kmeans = KMeans(n_clusters=1, init="k-means++").fit(X)
         distances = kmeans.transform(X)
 
         normalized_distances = distances
@@ -205,7 +229,9 @@ class PIDBasedRemovalStrategy(fl.server.strategy.FedAvg):
         pids = self.calculate_all_pid_scores(results, normalized_distances)
         time_end_calc = time.time_ns()
 
-        self.strategy_history.insert_round_history_entry(score_calculation_time_nanos=time_end_calc - time_start_calc)
+        self.strategy_history.insert_round_history_entry(
+            score_calculation_time_nanos=time_end_calc - time_start_calc
+        )
 
         counted_pids = []
         counted_dist = []
@@ -216,7 +242,7 @@ class PIDBasedRemovalStrategy(fl.server.strategy.FedAvg):
             new_PID = pids[i]
             self.client_pids[client_id] = new_PID
 
-            if not client_id in self.removed_client_ids:
+            if client_id not in self.removed_client_ids:
                 counted_pids.append(new_PID)
                 counted_dist.append(curr_dist)
 
@@ -228,29 +254,45 @@ class PIDBasedRemovalStrategy(fl.server.strategy.FedAvg):
                 current_round=self.current_round,
                 client_id=int(client_id),
                 removal_criterion=float(new_PID),
-                absolute_distance=float(distances[i][0])
+                absolute_distance=float(distances[i][0]),
             )
 
             self.logger.info(
-                f'Aggregation round: {server_round} '
-                f'Client ID: {client_id} '
-                f'PID: {new_PID} '
-                f'Normalized Distance: {normalized_distances[i][0]} '
+                f"Aggregation round: {server_round} "
+                f"Client ID: {client_id} "
+                f"PID: {new_PID} "
+                f"Normalized Distance: {normalized_distances[i][0]} "
             )
 
         # use pid-based threshold if self.aggregation_strategy_keyword is pid or pid_standardized_score_based
         if self.aggregation_strategy_keyword in ("pid", "pid_standardized_score_based"):
             pid_avg = np.mean(counted_pids)
             pid_std = np.std(counted_pids)
-            self.current_threshold = pid_avg + (self.num_std_dev * pid_std) if len(counted_pids) > 1 else 0
+            self.current_threshold = (
+                pid_avg + (self.num_std_dev * pid_std) if len(counted_pids) > 1 else 0
+            )
 
         # use distance-based threshold for pid_scaled and pid_standardized
         elif self.aggregation_strategy_keyword in ("pid_scaled", "pid_standardized"):
-            distances_avg = np.mean(list(self.client_distances.values())) if self.client_distances else 0
-            distances_std = np.std(list(self.client_distances.values())) if self.client_distances else 0
-            self.current_threshold = distances_avg + (self.num_std_dev * distances_std) if len(counted_pids) > 1 else 0
+            distances_avg = (
+                np.mean(list(self.client_distances.values()))
+                if self.client_distances
+                else 0
+            )
+            distances_std = (
+                np.std(list(self.client_distances.values()))
+                if self.client_distances
+                else 0
+            )
+            self.current_threshold = (
+                distances_avg + (self.num_std_dev * distances_std)
+                if len(counted_pids) > 1
+                else 0
+            )
 
-        self.strategy_history.insert_round_history_entry(removal_threshold=self.current_threshold)
+        self.strategy_history.insert_round_history_entry(
+            removal_threshold=self.current_threshold
+        )
 
         self.logger.info(f"REMOVAL THRESHOLD: {self.current_threshold}")
 
@@ -261,25 +303,42 @@ class PIDBasedRemovalStrategy(fl.server.strategy.FedAvg):
         available_clients = client_manager.all()  # dictionary with client IDs as keys and RayActorClientProxy objects as values
 
         # in the warmup rounds, select all clients
-        if self.begin_removing_from_round is not None and self.current_round <= self.begin_removing_from_round - 1:
+        if (
+            self.begin_removing_from_round is not None
+            and self.current_round <= self.begin_removing_from_round - 1
+        ):
             fit_ins = fl.common.FitIns(parameters, {"server_round": server_round})
             return [(client, fit_ins) for client in available_clients.values()]
 
-        client_pids = {client_id: self.client_pids.get(client_id, 0) for client_id in available_clients.keys()}
+        client_pids = {
+            client_id: self.client_pids.get(client_id, 0)
+            for client_id in available_clients.keys()
+        }
 
         if self.remove_clients:
             # in the first round after warmup, remove the client with the highest PID
-            if self.begin_removing_from_round is not None and self.current_round == self.begin_removing_from_round and False:
+            if (
+                self.begin_removing_from_round is not None
+                and self.current_round == self.begin_removing_from_round
+                and False
+            ):
                 highest_pid_client = max(client_pids, key=client_pids.get)
-                self.logger.info(f"Removing client with highest PID: {highest_pid_client}")
+                self.logger.info(
+                    f"Removing client with highest PID: {highest_pid_client}"
+                )
                 # add this client to the removed_clients list
                 self.removed_client_ids.add(highest_pid_client)
 
             else:
                 # remove clients with PID higher than threshold.
                 for client_id, pid in client_pids.items():
-                    if pid > self.current_threshold and client_id not in self.removed_client_ids:
-                        self.logger.info(f"Removing client with PID greater than Threshold: {client_id}")
+                    if (
+                        pid > self.current_threshold
+                        and client_id not in self.removed_client_ids
+                    ):
+                        self.logger.info(
+                            f"Removing client with PID greater than Threshold: {client_id}"
+                        )
                         # add this client to the removed_clients list
                         self.removed_client_ids.add(client_id)
 
@@ -295,25 +354,30 @@ class PIDBasedRemovalStrategy(fl.server.strategy.FedAvg):
 
         # create training configurations for selected clients
         fit_ins = fl.common.FitIns(parameters, {"server_round": server_round})
-        return [(available_clients[cid], fit_ins) for cid in selected_client_ids if cid in available_clients]
+        return [
+            (available_clients[cid], fit_ins)
+            for cid in selected_client_ids
+            if cid in available_clients
+        ]
 
     def aggregate_evaluate(
-            self,
-            server_round: int,
-            results: list[tuple[ClientProxy, EvaluateRes]],
-            failures: list[tuple[Union[ClientProxy, EvaluateRes], BaseException]]
+        self,
+        server_round: int,
+        results: list[tuple[ClientProxy, EvaluateRes]],
+        failures: list[tuple[Union[ClientProxy, EvaluateRes], BaseException]],
     ) -> tuple[Optional[float], dict[str, Scalar]]:
-
-        self.logger.info('\n' + '-' * 50 + f'AGGREGATION ROUND {server_round}' + '-' * 50)
+        self.logger.info(
+            "\n" + "-" * 50 + f"AGGREGATION ROUND {server_round}" + "-" * 50
+        )
         for client_result in results:
             cid = client_result[0].cid
             accuracy_matrix = client_result[1].metrics
-            accuracy_matrix['cid'] = cid
+            accuracy_matrix["cid"] = cid
 
             self.strategy_history.insert_single_client_history_entry(
                 client_id=int(cid),
                 current_round=self.current_round,
-                accuracy=accuracy_matrix['accuracy']
+                accuracy=accuracy_matrix["accuracy"],
             )
 
         if not results:
@@ -326,7 +390,7 @@ class PIDBasedRemovalStrategy(fl.server.strategy.FedAvg):
             self.strategy_history.insert_single_client_history_entry(
                 client_id=int(client_metadata.cid),
                 current_round=self.current_round,
-                loss=evaluate_res.loss
+                loss=evaluate_res.loss,
             )
 
             if client_metadata.cid not in self.removed_client_ids:
@@ -335,19 +399,21 @@ class PIDBasedRemovalStrategy(fl.server.strategy.FedAvg):
 
         loss_aggregated = weighted_loss_avg(aggregate_value)
 
-        self.strategy_history.insert_round_history_entry(loss_aggregated=loss_aggregated)
+        self.strategy_history.insert_round_history_entry(
+            loss_aggregated=loss_aggregated
+        )
 
         for result in results:
-            logging.debug(f'Client ID: {result[0].cid}')
-            logging.debug(f'Metrics: {result[1].metrics}')
-            logging.debug(f'Loss: {result[1].loss}')
+            logging.debug(f"Client ID: {result[0].cid}")
+            logging.debug(f"Metrics: {result[1].metrics}")
+            logging.debug(f"Loss: {result[1].loss}")
 
         metrics_aggregated = {}
 
         self.logger.info(
-            f'Round: {server_round} '
-            f'Number of aggregated clients: {number_of_clients_in_loss_calc} '
-            f'Aggregated loss: {loss_aggregated} '
+            f"Round: {server_round} "
+            f"Number of aggregated clients: {number_of_clients_in_loss_calc} "
+            f"Aggregated loss: {loss_aggregated} "
         )
 
         return loss_aggregated, metrics_aggregated

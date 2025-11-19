@@ -41,7 +41,7 @@ def parse_arguments() -> argparse.Namespace:
         type=str,
         nargs="?",
         default="example_strategy_config.json",
-        help="Config filename (default: example_strategy_config.json)"
+        help="Config filename (default: example_strategy_config.json)",
     )
 
     parser.add_argument(
@@ -49,24 +49,18 @@ def parse_arguments() -> argparse.Namespace:
         type=str,
         choices=["DEBUG", "INFO", "WARNING", "ERROR"],
         default="INFO",
-        help="Set logging verbosity (default: INFO)"
+        help="Set logging verbosity (default: INFO)",
     )
 
     return parser.parse_args()
 
 
 class SimulationRunner:
-    def __init__(
-            self,
-            config_filename: str,
-            log_level: str = "INFO"
-    ) -> None:
-
+    def __init__(self, config_filename: str, log_level: str = "INFO") -> None:
         # Configure logging only if not already configured
         if not logging.getLogger().hasHandlers():
             logging.basicConfig(
-                level=getattr(logging, log_level),
-                format="%(levelname)s: %(message)s"
+                level=getattr(logging, log_level), format="%(levelname)s: %(message)s"
             )
 
         # Prevent Flower's logs from duplicating
@@ -75,9 +69,11 @@ class SimulationRunner:
 
         self._config_loader = ConfigLoader(
             usecase_config_path=f"config/simulation_strategies/{config_filename}",
-            dataset_config_path=f"config/dataset_keyword_to_dataset_dir.json"
+            dataset_config_path="config/dataset_keyword_to_dataset_dir.json",
         )
-        self._simulation_strategy_config_dicts = self._config_loader.get_usecase_config_list()
+        self._simulation_strategy_config_dicts = (
+            self._config_loader.get_usecase_config_list()
+        )
         self._dataset_config_list = self._config_loader.get_dataset_config_list()
         self._directory_handler = DirectoryHandler()
 
@@ -86,22 +82,28 @@ class SimulationRunner:
 
         # Extend Ray worker timeout to ensure reliability in multi-strategy runs
         os.environ["RAY_worker_register_timeout_seconds"] = "60"
-        logging.debug("Set RAY_worker_register_timeout_seconds=60 for multi-strategy reliability")
+        logging.debug(
+            "Set RAY_worker_register_timeout_seconds=60 for multi-strategy reliability"
+        )
 
         executed_simulation_strategies = []
 
         for strategy_config_dict, strategy_number in zip(
-                self._simulation_strategy_config_dicts,
-                range(len(self._simulation_strategy_config_dicts))
+            self._simulation_strategy_config_dicts,
+            range(len(self._simulation_strategy_config_dicts)),
         ):
             dataset_handler = None
             simulation_strategy = None
 
             try:
                 logging.info(
-                    "\n" + "-" * 50 + f"Executing new strategy" + "-" * 50 + "\n" +
-                    "Strategy config:\n" +
-                    _serialize_config_for_logging(strategy_config_dict)
+                    "\n"
+                    + "-" * 50
+                    + "Executing new strategy"
+                    + "-" * 50
+                    + "\n"
+                    + "Strategy config:\n"
+                    + _serialize_config_for_logging(strategy_config_dict)
                 )
 
                 strategy_config = StrategyConfig.from_dict(strategy_config_dict)
@@ -112,7 +114,7 @@ class SimulationRunner:
                 dataset_handler = DatasetHandler(
                     strategy_config=strategy_config,
                     directory_handler=self._directory_handler,
-                    dataset_config_list=self._dataset_config_list
+                    dataset_config_list=self._dataset_config_list,
                 )
                 dataset_handler.setup_dataset()
 
@@ -127,10 +129,14 @@ class SimulationRunner:
                 executed_simulation_strategies.append(simulation_strategy)
 
                 # generate per-client plots
-                new_plot_handler.show_plots_within_strategy(simulation_strategy, self._directory_handler)
+                new_plot_handler.show_plots_within_strategy(
+                    simulation_strategy, self._directory_handler
+                )
 
                 simulation_strategy.strategy_history.calculate_additional_rounds_data()
-                self._directory_handler.save_csv_and_config(simulation_strategy.strategy_history)
+                self._directory_handler.save_csv_and_config(
+                    simulation_strategy.strategy_history
+                )
 
             finally:
                 # Cleanup resources even if simulation crashes
@@ -163,7 +169,9 @@ class SimulationRunner:
                 logging.debug("Garbage collection completed")
 
         # after all strategies are executed, show comparison averaging plots
-        new_plot_handler.show_inter_strategy_plots(executed_simulation_strategies, self._directory_handler)
+        new_plot_handler.show_inter_strategy_plots(
+            executed_simulation_strategies, self._directory_handler
+        )
 
 
 if __name__ == "__main__":
