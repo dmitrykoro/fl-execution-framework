@@ -196,4 +196,4 @@ class TestGPUTraining:
             assert any("CUDA" in record.message for record in caplog.records)
         else:
             # Should log fallback warning
-            assert any("not available" in record.message for record in caplog.records)
+            assert any("no compatible GPU detected" in record.message for record in caplog.records)
