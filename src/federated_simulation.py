@@ -15,8 +15,6 @@ from src.dataset_loaders.image_transformers.femnist_image_transformer import fem
 from src.dataset_loaders.image_transformers.flair_image_transformer import flair_image_transformer
 from src.dataset_loaders.image_transformers.lung_photos_image_transformer import lung_cancer_image_transformer
 from src.dataset_loaders.medquad_dataset_loader import MedQuADDatasetLoader
-from src.dataset_loaders.huggingface_text_dataset_loader import HuggingFaceTextDatasetLoader
-from src.dataset_loaders.huggingface_image_dataset_loader import HuggingFaceImageDatasetLoader
 from src.dataset_loaders.image_transformers.medmnist_2d_grayscale_image_transformer import medmnist_2d_grayscale_image_transformer
 from src.dataset_loaders.image_transformers.medmnist_2d_rgb_image_transformer import medmnist_2d_rgb_image_transformer
 
@@ -49,7 +47,6 @@ from src.simulation_strategies.trimmed_mean_based_removal_strategy import Trimme
 from src.simulation_strategies.multi_krum_strategy import MultiKrumStrategy
 from src.simulation_strategies.rfa_based_removal_strategy import RFABasedRemovalStrategy
 from src.simulation_strategies.bulyan_strategy import BulyanStrategy
-from src.simulation_strategies.fedavg_strategy import FedAvgStrategy
 
 from src.data_models.simulation_strategy_config import StrategyConfig
 from src.data_models.simulation_strategy_history import SimulationStrategyHistory
@@ -307,86 +304,8 @@ class FederatedSimulation:
                     model_name=self.strategy_config.llm_model,
                 )
 
-        elif dataset_keyword == "financial_phrasebank":
-            dataset_loader = HuggingFaceTextDatasetLoader(
-                hf_dataset_path="takala/financial_phrasebank",
-                hf_dataset_name="sentences_allagree",
-                tokenize_columns=["sentence"],
-                remove_columns=["sentence", "label"],
-                model_name=self.strategy_config.llm_model,
-                chunk_size=self.strategy_config.llm_chunk_size,
-                mlm_probability=self.strategy_config.mlm_probability,
-                num_poisoned_clients=self.strategy_config.num_of_malicious_clients,
-                attack_schedule=self.strategy_config.attack_schedule,
-                **common_kwargs
-            )
-            if self.strategy_config.llm_finetuning == "lora":
-                self._network_model = load_model_with_lora(
-                    model_name=self.strategy_config.llm_model,
-                    lora_rank=self.strategy_config.lora_rank,
-                    lora_alpha=self.strategy_config.lora_alpha,
-                    lora_dropout=self.strategy_config.lora_dropout,
-                    lora_target_modules=self.strategy_config.lora_target_modules,
-                )
-            else:
-                self._network_model = load_model(
-                    model_name=self.strategy_config.llm_model,
-                )
 
-        elif dataset_keyword == "lexglue":
-            dataset_loader = HuggingFaceTextDatasetLoader(
-                hf_dataset_path="coastalcph/lex_glue",
-                hf_dataset_name="ledgar",
-                tokenize_columns=["text"],
-                remove_columns=["text", "label"],
-                model_name=self.strategy_config.llm_model,
-                chunk_size=self.strategy_config.llm_chunk_size,
-                mlm_probability=self.strategy_config.mlm_probability,
-                num_poisoned_clients=self.strategy_config.num_of_malicious_clients,
-                attack_schedule=self.strategy_config.attack_schedule,
-                **common_kwargs
-            )
-            if self.strategy_config.llm_finetuning == "lora":
-                self._network_model = load_model_with_lora(
-                    model_name=self.strategy_config.llm_model,
-                    lora_rank=self.strategy_config.lora_rank,
-                    lora_alpha=self.strategy_config.lora_alpha,
-                    lora_dropout=self.strategy_config.lora_dropout,
-                    lora_target_modules=self.strategy_config.lora_target_modules,
-                )
-            else:
-                self._network_model = load_model(
-                    model_name=self.strategy_config.llm_model,
-                )
 
-        elif dataset_keyword == "medal":
-            # For prod runs, omit max_samples to use full dataset
-            max_samples = getattr(self.strategy_config, 'max_dataset_samples', None)
-
-            dataset_loader = HuggingFaceTextDatasetLoader(
-                hf_dataset_path="cyrilzakka/pubmed-medline",
-                hf_dataset_name=None,
-                tokenize_columns=["content"],
-                remove_columns=["id", "title", "authors", "journal", "content", "source_url", "publication_types", "pubmed_id", "split"],
-                model_name=self.strategy_config.llm_model,
-                chunk_size=self.strategy_config.llm_chunk_size,
-                mlm_probability=self.strategy_config.mlm_probability,
-                attack_schedule=self.strategy_config.attack_schedule,
-                max_samples=max_samples,
-                **common_kwargs
-            )
-            if self.strategy_config.llm_finetuning == "lora":
-                self._network_model = load_model_with_lora(
-                    model_name=self.strategy_config.llm_model,
-                    lora_rank=self.strategy_config.lora_rank,
-                    lora_alpha=self.strategy_config.lora_alpha,
-                    lora_dropout=self.strategy_config.lora_dropout,
-                    lora_target_modules=self.strategy_config.lora_target_modules,
-                )
-            else:
-                self._network_model = load_model(
-                    model_name=self.strategy_config.llm_model,
-                )
 
         else:
             logging.error(
@@ -466,17 +385,6 @@ class FederatedSimulation:
             self._aggregation_strategy = BulyanStrategy(
                 num_krum_selections=self.strategy_config.num_krum_selections,
                 **common_kwargs
-            )
-
-        elif aggregation_strategy_keyword == "fedavg":
-            self._aggregation_strategy = FedAvgStrategy(
-                strategy_history=self.strategy_history,
-                initial_parameters=ndarrays_to_parameters(self._get_model_params(self._network_model)),
-                min_fit_clients=self.strategy_config.min_fit_clients,
-                min_evaluate_clients=self.strategy_config.min_evaluate_clients,
-                min_available_clients=self.strategy_config.min_available_clients,
-                evaluate_metrics_aggregation_fn=self.strategy_config.evaluate_metrics_aggregation_fn,
-                fit_metrics_aggregation_fn=weighted_average,
             )
 
         else:
