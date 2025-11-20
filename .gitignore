@@ -11,8 +11,6 @@ venv
 out
 datasets/
 /datasets/*
-
-# Coverage files
 .coverage
 .coverage.*
 htmlcov/
@@ -28,7 +26,5 @@ config/simulation_strategies/testing/
 build/
 cache/
 dist/
-timing_db.json
-
-# Personal local utilities
 local/
+logs/
