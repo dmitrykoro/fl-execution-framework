@@ -31,6 +31,9 @@
     "batch_size": 10,
     "preserve_dataset": "false",
     "begin_removing_from_round": 2,
+    "save_attack_snapshots": "true",
+    "attack_snapshot_format": "pickle_and_visual",
+    "snapshot_max_samples": 5,
     "attack_schedule": [
       {
         "start_round": 1,
