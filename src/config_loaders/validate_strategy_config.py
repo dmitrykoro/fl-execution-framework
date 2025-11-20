@@ -9,7 +9,7 @@ config_schema = {
             "type": "string",
             "enum": ["trust", "pid", "pid_scaled", "pid_standardized", "pid_standardized_score_based",
                      "multi-krum", "krum", "multi-krum-based", "trimmed_mean",
-                     "rfa", "bulyan", "fedavg"]
+                     "rfa", "bulyan"]
         },
         "strict_mode": {
             "type": "string",
@@ -29,9 +29,6 @@ config_schema = {
                 "flair",
                 "bloodmnist",
                 "medquad",
-                "medal",
-                "financial_phrasebank",
-                "lexglue",
                 "lung_photos",
                 "breastmnist",
                 "pathmnist",
