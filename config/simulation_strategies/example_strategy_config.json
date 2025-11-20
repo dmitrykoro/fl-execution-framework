@@ -13,7 +13,7 @@
     "save_csv": "true",
     "training_device": "cpu",
     "cpus_per_client": 1,
-    "gpus_per_client": 0.2,
+    "gpus_per_client": 0.0,
     "trust_threshold": 0.15,
     "beta_value": 0.75,
     "num_of_clusters": 1,
