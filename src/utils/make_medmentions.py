@@ -8,13 +8,14 @@
 # - We shard by document_id using a balanced round-robin to get even client sizes.
 
 import argparse, json, os, re
+
 from collections import defaultdict
 from typing import List, Tuple, Dict
 from datasets import load_dataset
-import re
 
 try:
     import nltk
+
     _HAS_NLTK = True
     try:
         # Check if 'punkt' tokenizer is already installed
@@ -26,6 +27,7 @@ except Exception:
     _HAS_NLTK = False
 
 SENT_SEP = re.compile(r"(?<=[.!?])\s+")
+
 
 def sentence_spans(text):
     """Return list of (start, end) char spans for sentences."""
@@ -45,6 +47,7 @@ def sentence_spans(text):
         spans.append((i, i + len(s)))
         cursor = i + len(s)
     return spans
+
 
 def kb_record_to_ner_examples(rec, granularity="sentence"):
     """
@@ -86,7 +89,7 @@ def kb_record_to_ner_examples(rec, granularity="sentence"):
 
             # tag tokens by intersecting global entity spans with this segment
             seg_global_start = p0 + s0
-            seg_global_end   = p0 + s1
+            seg_global_end = p0 + s1
 
             # collect entity spans in segment-local coords
             for etype, espans in entities:
@@ -144,11 +147,14 @@ def parse_args():
                     help="If >0, write split into *_partN.json chunks of this many records.")
     return ap.parse_args()
 
+
 def ensure_dir(p): os.makedirs(p, exist_ok=True)
+
 
 TOKEN_PATTERN = re.compile(r"\S+")
 
-def tokenize_with_spans(text: str) -> Tuple[List[str], List[Tuple[int,int]]]:
+
+def tokenize_with_spans(text: str) -> Tuple[List[str], List[Tuple[int, int]]]:
     """Whitespace-ish tokenization; returns tokens and (start,end) char spans in 'text'."""
     tokens, spans = [], []
     for m in TOKEN_PATTERN.finditer(text):
@@ -156,12 +162,14 @@ def tokenize_with_spans(text: str) -> Tuple[List[str], List[Tuple[int,int]]]:
         spans.append((m.start(), m.end()))
     return tokens, spans
 
-def intersect(a: Tuple[int,int], b: Tuple[int,int]) -> bool:
+
+def intersect(a: Tuple[int, int], b: Tuple[int, int]) -> bool:
     """Closed-open interval intersection check for character spans."""
     return a[0] < b[1] and b[0] < a[1]
 
-def label_tokens_bio(token_spans: List[Tuple[int,int]],
-                     entity_spans_local: List[Tuple[int,int]],
+
+def label_tokens_bio(token_spans: List[Tuple[int, int]],
+                     entity_spans_local: List[Tuple[int, int]],
                      label: str,
                      tags: List[str]):
     """
@@ -193,6 +201,7 @@ def label_tokens_bio(token_spans: List[Tuple[int,int]],
         for j in run[1:]:
             if tags[j] == "O":
                 tags[j] = f"I-{label}"
+
 
 def passage_examples_from_kb_record(rec) -> List[Dict]:
     """
@@ -249,21 +258,24 @@ def passage_examples_from_kb_record(rec) -> List[Dict]:
         })
     return examples
 
+
 def balanced_round_robin_map(all_doc_ids: List[str], num_clients: int) -> Dict[str, int]:
     ordered = sorted(set(all_doc_ids))
     return {doc_id: i % num_clients for i, doc_id in enumerate(ordered)}
+
 
 def write_json(records, base_path, chunk_size: int):
     if chunk_size and chunk_size > 0:
         part = 1
         for i in range(0, len(records), chunk_size):
-            chunk = records[i:i+chunk_size]
+            chunk = records[i:i + chunk_size]
             with open(f"{base_path}_part{part}.json", "w", encoding="utf-8") as f:
                 json.dump(chunk, f, ensure_ascii=False, indent=2)
             part += 1
     else:
         with open(f"{base_path}.json", "w", encoding="utf-8") as f:
             json.dump(records, f, ensure_ascii=False, indent=2)
+
 
 def main():
     args = parse_args()
@@ -314,10 +326,11 @@ def main():
         print(f"[client_{cid}] train={sizes['train']} val={sizes['validation']} test={sizes['test']}")
 
     total_train = sum(len(clients[c]["train"]) for c in clients)
-    total_val   = sum(len(clients[c]["validation"]) for c in clients)
-    total_test  = sum(len(clients[c]["test"]) for c in clients)
+    total_val = sum(len(clients[c]["validation"]) for c in clients)
+    total_test = sum(len(clients[c]["test"]) for c in clients)
     print(f"TOTAL -> train={total_train} validation={total_val} test={total_test}")
     print("Done.")
+
 
 if __name__ == "__main__":
     main()

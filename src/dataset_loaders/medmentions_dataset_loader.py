@@ -1,8 +1,8 @@
 import glob
 import json
 import os
-from typing import List, Tuple
 
+from typing import List, Tuple
 from datasets import DatasetDict, load_dataset
 from torch.utils.data import DataLoader
 from transformers import DataCollatorForTokenClassification, GPT2TokenizerFast
@@ -20,12 +20,12 @@ class MedMentionsNERDatasetLoader:
     MAX_LEN = 512
 
     def __init__(
-        self,
-        dataset_dir: str,
-        num_of_clients: int,
-        batch_size: int,
-        training_subset_fraction: float,
-        model_name: str = "gpt2",
+            self,
+            dataset_dir: str,
+            num_of_clients: int,
+            batch_size: int,
+            training_subset_fraction: float,
+            model_name: str = "gpt2",
     ) -> None:
         self.dataset_dir = dataset_dir
         self.num_of_clients = num_of_clients
@@ -68,8 +68,8 @@ class MedMentionsNERDatasetLoader:
     def _scan_all_labels(self) -> List[str]:
         labels = {"O"}
         for client_folder in sorted(
-            os.listdir(self.dataset_dir),
-            key=lambda s: int(s.split("_")[1]),
+                os.listdir(self.dataset_dir),
+                key=lambda s: int(s.split("_")[1]),
         ):
             if client_folder.startswith("."):
                 continue
@@ -136,8 +136,8 @@ class MedMentionsNERDatasetLoader:
         }
 
     def _load_one_client(
-        self,
-        client_dir: str,
+            self,
+            client_dir: str,
     ) -> Tuple[DataLoader, DataLoader]:
         files_train = glob.glob(os.path.join(client_dir, "train*.json"))
         files_val = glob.glob(os.path.join(client_dir, "validation*.json"))
@@ -178,8 +178,8 @@ class MedMentionsNERDatasetLoader:
         valloaders: List[DataLoader] = []
 
         for client_folder in sorted(
-            os.listdir(self.dataset_dir),
-            key=lambda s: int(s.split("_")[1]),
+                os.listdir(self.dataset_dir),
+                key=lambda s: int(s.split("_")[1]),
         ):
             if client_folder.startswith("."):
                 continue

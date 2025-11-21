@@ -16,5 +16,5 @@
   "organamnist": "datasets/organamnist",
   "organcmnist": "datasets/organcmnist",
   "organsmnist": "datasets/organsmnist",
-  "medmentions":"datasets/medmentions_st21pv_ner"
+  "medmentions": "datasets/medmentions_st21pv_ner"
 }

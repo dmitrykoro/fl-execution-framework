@@ -1,21 +1,25 @@
+import torch
+
 from dataclasses import dataclass
 from typing import List, Tuple, Dict, Optional
-import torch
+
 
 @dataclass(frozen=True)
 class Span:
     doc_id: str
     start: int
-    end: int       # [start, end)
-    label: str     # semantic type (e.g., T017)
+    end: int  # [start, end)
+    label: str  # semantic type (e.g., T017)
     entity_id: Optional[str] = None
+
 
 def _bio_to_spans(tags: List[str], doc_id: str) -> List[Span]:
     spans, i, L = [], 0, len(tags)
     while i < L:
         tag = tags[i]
         if not tag or tag == "O":
-            i += 1; continue
+            i += 1;
+            continue
         prefix, label = (tag.split("-", 1) + [""])[:2] if "-" in tag else ("B", tag)
         j = i + 1
         while j < L and tags[j].startswith("I-") and tags[j].split("-", 1)[1] == label:
@@ -24,8 +28,10 @@ def _bio_to_spans(tags: List[str], doc_id: str) -> List[Span]:
         i = j
     return spans
 
+
 class StrictMentionAndDocEvaluator:
     """Mention-level: exact span+label. Document-level: set of labels per doc."""
+
     def __init__(self, id2label: Dict[int, str], label_only: bool = True):
         self.id2label = {int(k): v for k, v in id2label.items()}
         self.label_only = label_only
@@ -49,13 +55,13 @@ class StrictMentionAndDocEvaluator:
 
     def update_batch(self, logits: torch.Tensor, labels: torch.Tensor,
                      doc_ids: List[str], word_lengths: List[int]):
-        pred_ids = logits.argmax(-1)    # [B,T]
+        pred_ids = logits.argmax(-1)  # [B,T]
         B, T = labels.shape
         for b in range(B):
             doc_id = str(doc_ids[b])
             gold_tags, pred_tags, seen = [], [], 0
             for t in range(T):
-                if labels[b, t].item() != -100:        # take only first subword positions
+                if labels[b, t].item() != -100:  # take only first subword positions
                     gold_tags.append(self.id2label[int(labels[b, t].item())])
                     pred_tags.append(self.id2label[int(pred_ids[b, t].item())])
                     seen += 1
@@ -77,7 +83,9 @@ class StrictMentionAndDocEvaluator:
         pm, rm, f1m = self._prf(self.tp_m, self.fp_m, self.fn_m)
         for d in set(self.gold_doc_labels) | set(self.pred_doc_labels):
             g, p = self.gold_doc_labels.get(d, set()), self.pred_doc_labels.get(d, set())
-            self.tp_d += len(g & p); self.fp_d += len(p - g); self.fn_d += len(g - p)
+            self.tp_d += len(g & p);
+            self.fp_d += len(p - g);
+            self.fn_d += len(g - p)
         pd, rd, f1d = self._prf(self.tp_d, self.fp_d, self.fn_d)
         return {
             "mention_precision": pm, "mention_recall": rm, "mention_f1": f1m,

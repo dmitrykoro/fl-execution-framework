@@ -6,7 +6,6 @@ from src.data_models.simulation_strategy_config import StrategyConfig
 
 @dataclass
 class RoundsInfo:
-
     simulation_strategy_config: StrategyConfig
 
     score_calculation_time_nanos_history: List[int] = field(default_factory=list)
@@ -26,14 +25,11 @@ class RoundsInfo:
     removal_recall_history: List[float] = field(default_factory=list)
     removal_f1_history: List[float] = field(default_factory=list)
     mention_precision_history: List[float] = field(default_factory=list)
-    mention_recall_history:    List[float] = field(default_factory=list)
-    mention_f1_history:        List[float] = field(default_factory=list)
+    mention_recall_history: List[float] = field(default_factory=list)
+    mention_f1_history: List[float] = field(default_factory=list)
     document_precision_history: List[float] = field(default_factory=list)
-    document_recall_history:    List[float] = field(default_factory=list)
-    document_f1_history:        List[float] = field(default_factory=list)
-
-
-    
+    document_recall_history: List[float] = field(default_factory=list)
+    document_f1_history: List[float] = field(default_factory=list)
 
     plottable_metrics = []
     barable_metrics = []
@@ -74,7 +70,7 @@ class RoundsInfo:
             "removal_f1_history",
         ]
         
-        if getattr(self.simulation_strategy_config, "dataset_keyword", None) == "medmentions":
+        if self.simulation_strategy_config.dataset_keyword == "medmentions":
             self.savable_metrics += [
                 "document_precision_history",
                 "document_recall_history",

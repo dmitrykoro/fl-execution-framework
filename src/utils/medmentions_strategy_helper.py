@@ -1,17 +1,16 @@
 from typing import Dict, List, Tuple, Set
-
 from flwr.common import EvaluateRes, Scalar
 from flwr.server.client_proxy import ClientProxy
 
 
 def aggregate_strict_medmentions_metrics(
-    *,
-    results: List[Tuple[ClientProxy, EvaluateRes]],
-    removed_client_ids: Set[str],
-    remove_clients: bool,
-    current_round: int,
-    begin_removing_from_round: int,
-    strategy_history,
+        *,
+        results: List[Tuple[ClientProxy, EvaluateRes]],
+        removed_client_ids: Set[str],
+        remove_clients: bool,
+        current_round: int,
+        begin_removing_from_round: int,
+        strategy_history,
 ) -> Dict[str, Scalar]:
     """Compute optional strict MedMentions micro-averaged metrics.
 

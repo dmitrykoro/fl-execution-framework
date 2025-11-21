@@ -194,7 +194,6 @@ class TrimmedMeanBasedRemovalStrategy(FedAvg):
             strategy_history=self.strategy_history
         )
 
-
         logging.info(
             f'Round: {server_round} '
             f'Number of aggregated clients: {number_of_clients_in_loss_calc} '
