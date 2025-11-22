@@ -23,20 +23,19 @@ effects of these parameters on the collected metrics, as well as plug-and-play i
 
 #### Common parameters (applicable to all strategies)
 
-- **`aggregation_strategy_keyword`**
+- **`aggregation_strategy_keyword`**  
 Defines the aggregation strategy. Options:
   - `trust`: Trust & Reputation-based aggregation.
   - `pid`: PID-based aggregation. Initial version of the formula.
   - `pid_scaled`: PID-based aggregation with Integral part divided by the number of current round, threshold is calculated based on client distances.
   - `pid_standardized`: PID-based aggregation with the Integral part standardized based on the distribution parameters of all Integral parts, threshold is calculated based on client distances.
-  - `pid_standardized_score_based`: Same as pid_standardized, but threshold is calculated based on pid scores.
+  - `pid_standardized_score_based`: Same as pid_standardized, but threshold is calculated based on pid scores. 
   - `multi-krum`: Multi-Krum aggregation. Clients are removed from aggregation only in current round.
-  - `krum`: Krum aggregation works like Multi-Krum, but uses only a single client.
+  - `krum`: Krum aggregation works like Multi-Krum, but uses only a single client. 
   - `multi-krum-based`: Multi-Krum-based aggregation where removed clients are excluded from aggregation permanently.
   - `rfa`: RFA (Robust Federated Averaging) aggregation strategy. Provides Byzantine fault tolerance through weighted median-based aggregation.
   - `trimmed_mean`: Trimmed-Mean aggregation strategy. Aggregates updates by removing a fixed fraction of the largest and smallest values for each parameter dimension before averaging. Robust against outliers and certain types of attacks.
   - `bulyan`: Bulyan aggregation strategy. Uses Multi-Krum as the first step of filtering and Trimmed-Mean as the second step to ensure robustness.
-  - `fedavg`: Standard Federated Averaging without Byzantine fault tolerance.
 
 
 - **`strict_mode`**: ensures that Flower trains and aggregates all available clients at every round. When enabled (default), automatically sets `min_fit_clients`, `min_evaluate_clients`, and `min_available_clients` to equal `num_of_clients`. Options: `"true"`, `"false"`.
@@ -44,14 +43,14 @@ Defines the aggregation strategy. Options:
 - **`remove_clients`**: attempt to remove malicious clients using strategy-specific mechanisms.
 
 
-- **`dataset_keyword`**
+- **`dataset_keyword`**  
   Dataset used for execution. Options:
   - `femnist_iid`: handwritten digit subset (0-9), 10 classes, IID distribution, 100 clients.
-  - `femnist_niid`: same, but the data is distributed in non-iid manner, according to authors' description. 16 clients max.
+  - `femnist_niid`: same, but the data is distributed in non-iid manner, according to authors' description. 16 clients max. 
   - `its`: intelligent Transportation Systems domain, binary classification (traffic sign vs stop sign), 12 clients.
   - `pneumoniamnist`: medical imaging (pneumonia diagnosis), binary classification, IID distribution, 10 clients.
-  - `flair`: non-IID distribution (FLAIR dataset, unsupported in current version), 20 clients.
-  - `bloodmnist`: IID distribution, but non-equal number of samples per class, 40 clients.
+  - `flair`: non-IID distribution (FLAIR dataset, unsupported in current version), 20 clients. 
+  - `bloodmnist`: IID distribution, but non-equal number of samples per class, 40 clients. 
   - `lung_photos`: contains images of lung cancer from NLST archive from different CT machines. Data distributed according to the source, with varying number of images representing each stage of cancer. 30 clients.
   - `breastmnist`: breast ultrasound images for tumor detection, binary classification (malignant vs benign), 10 clients.
   - `pathmnist`: histopathologic images of colon tissue, 9 classes, IID distribution, 40 clients.
@@ -62,9 +61,6 @@ Defines the aggregation strategy. Options:
   - `organamnist`: axial view CT scans of abdominal organs, 11 classes, 40 clients.
   - `organcmnist`: coronal view CT scans of abdominal organs, 11 classes, 40 clients.
   - `organsmnist`: sagittal view CT scans of abdominal organs, 11 classes, 40 clients.
-  - `medquad`: medical question-answering dataset for NLP tasks.
-  - `financial_phrasebank`: financial sentiment analysis dataset for NLP tasks.
-  - `lexglue`: legal domain dataset for NLP tasks.
 
 - `num_of_rounds`: total aggregation rounds.
 - `num_of_clients`: number of clients (limited to available dataset clients).
@@ -97,9 +93,9 @@ Defines the aggregation strategy. Options:
 - `snapshot_max_samples`: number of samples per snapshot (1-50, default: 5).
 
 - **Flower settings**:
-  - `training_device`: `cpu` or `gpu` (gpu auto-detects NVIDIA CUDA, falls back to CPU if unavailable).
-  - `cpus_per_client`: processors per client.
-  - `gpus_per_client`: GPUs per client (if `gpu` is set as the `training_device`). 
+  - `training_device`: `cpu`, `gpu`, or `cuda`.
+  - `cpus_per_client`: processors per client. 
+  - `gpus_per_client`: GPUs per client (if `cuda` is set as the `training_device`). 
   - `min_fit_clients`, `min_evaluate_clients`, `min_available_clients`: client quotas for each round.
   - `evaluate_metrics_aggregation_fn`: not used.
   - `num_of_client_epochs`: local client training epochs per round.
@@ -143,10 +139,13 @@ Defines the aggregation strategy. Options:
 
 ## How to Run
 
-1. **Python Environment**: Python 3.10.14 is used in the framework. Before attempting to run the code, make sure the Python 3.9-3.11 is installed in the system.
+1. **Python Environment**: Python 3.10.14 is used in the framework. Before attempting to run the code, make sure the Python 3.10.14 is
+   installed in the system.
 2. **Configuration**: place configurations in `config/simulation_strategies/`.
 3. **Specify Configuration**: update `src/simulation_runner.py` with the desired configuration file.
-4. **Execution**: run `sh run_simulation.sh` (automated virtual environment setup and execution).
+4. **Execution**:
+  - On UNIX: run `sh run_simulation.sh` (automated virtual environment setup and execution).
+  - On Windows: install dependencies from `requirements.txt` and execute manually.
 5. **Output**: plots and `.csv` files (if enabled) saved in `out/` directory.
 
 ---

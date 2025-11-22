@@ -210,13 +210,6 @@ class FlowerClient(fl.client.NumPyClient):
                         original_input_ids = batch["input_ids"].clone()
                         original_labels = batch["labels"].clone()
 
-                        # Stack multiple attacks sequentially
-                        for attack_config in attack_configs:
-                            if attack_config.get("attack_type") == "token_replacement":
-                                batch["input_ids"], batch["labels"] = apply_poisoning_attack(
-                                    batch["input_ids"], batch["labels"], attack_config, tokenizer=self.tokenizer
-                                )
-
                         # Save snapshot after all attacks applied
                         if epoch == 0 and batch_idx == 0:
                             self._save_attack_snapshots(

@@ -195,7 +195,7 @@ config_schema = {
                     "end_round": {"type": "integer", "minimum": 1},
                     "attack_type": {
                         "type": "string",
-                        "enum": ["label_flipping", "gaussian_noise", "token_replacement"]
+                        "enum": ["label_flipping", "gaussian_noise"]
                     },
                     "selection_strategy": {"type": "string", "enum": ["specific", "random", "percentage"]},
                     "malicious_client_ids": {"type": "array", "items": {"type": "integer"}},

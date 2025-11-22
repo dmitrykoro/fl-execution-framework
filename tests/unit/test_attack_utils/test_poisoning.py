@@ -10,7 +10,6 @@ import torch
 from src.attack_utils.poisoning import (
     apply_label_flipping,
     apply_gaussian_noise,
-    apply_token_replacement,
     should_poison_this_round,
     apply_poisoning_attack,
 )
@@ -178,80 +177,6 @@ class TestApplyGaussianNoise:
         # All values should be clamped
         assert torch.all(result >= 0.0)
         assert torch.all(result <= 1.0)
-
-
-class TestApplyTokenReplacement:
-    """Test suite for apply_token_replacement function."""
-
-    def test_no_replacement_when_prob_zero(self):
-        """Test that no tokens are replaced when replacement_prob is 0."""
-        tokens = torch.tensor([[1, 2, 3, 4, 5], [6, 7, 8, 9, 10]])
-        original_tokens = tokens.clone()
-
-        result = apply_token_replacement(tokens, replacement_prob=0.0)
-
-        assert torch.equal(result, original_tokens)
-
-    def test_no_replacement_when_prob_negative(self):
-        """Test that no tokens are replaced when replacement_prob is negative."""
-        tokens = torch.tensor([[1, 2, 3, 4, 5], [6, 7, 8, 9, 10]])
-        original_tokens = tokens.clone()
-
-        result = apply_token_replacement(tokens, replacement_prob=-0.5)
-
-        assert torch.equal(result, original_tokens)
-
-    def test_partial_replacement(self):
-        """Test partial token replacement."""
-        torch.manual_seed(42)  # For reproducibility
-        tokens = torch.tensor([[1, 2, 3, 4, 5]] * 100)  # Repeat for statistical test
-
-        result = apply_token_replacement(
-            tokens,
-            replacement_prob=0.3,
-            target_token_ids=[2, 3, 4],
-            replacement_token_ids=[20, 30, 40],
-        )
-
-        # Should have some changes
-        changed = ~torch.equal(result, tokens)
-        assert changed
-
-    def test_full_replacement(self):
-        """Test full token replacement."""
-        tokens = torch.tensor([[1, 2, 3, 4, 5], [6, 7, 8, 9, 10]])
-
-        result = apply_token_replacement(
-            tokens,
-            replacement_prob=1.0,
-            target_token_ids=[1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
-            replacement_token_ids=[100, 200, 300, 400, 500],
-        )
-
-        # Most tokens should be different (extremely unlikely to match randomly)
-        num_changed = (result != tokens).sum().item()
-        assert num_changed > 0
-
-    def test_token_values_within_vocab(self):
-        """Test that replaced tokens are from replacement list."""
-        tokens = torch.tensor([[1, 2, 3, 4, 5]] * 10)
-        target_token_ids = [2, 3, 4]
-        replacement_token_ids = [100, 200, 300]
-
-        result = apply_token_replacement(
-            tokens,
-            replacement_prob=1.0,
-            target_token_ids=target_token_ids,
-            replacement_token_ids=replacement_token_ids,
-        )
-
-        # Check that replaced tokens are from the replacement list
-        for batch_idx in range(result.shape[0]):
-            for seq_idx in range(result.shape[1]):
-                token = result[batch_idx, seq_idx].item()
-                # Token should either be unchanged (1 or 5) or be a replacement token
-                if token not in [1, 5]:
-                    assert token in replacement_token_ids
 
 
 class TestShouldPoisonThisRound:
@@ -496,28 +421,6 @@ class TestApplyPoisoningAttack:
 
         # Images should be modified
         assert not torch.allclose(result_images, original_images, rtol=1e-4)
-
-        # Labels should be unchanged
-        assert torch.equal(result_labels, labels)
-
-    def test_token_replacement_attack(self):
-        """Test token replacement attack application."""
-        tokens = torch.tensor([[1, 2, 3, 4, 5]] * 10)
-        labels = torch.tensor([0, 1, 2, 3, 4, 5, 6, 7, 8, 9])
-
-        attack_config = {
-            "attack_type": "token_replacement",
-            "replacement_prob": 1.0,
-            "target_token_ids": [1, 2, 3, 4, 5],
-            "replacement_token_ids": [100, 200, 300, 400, 500],
-        }
-
-        result_tokens, result_labels = apply_poisoning_attack(
-            tokens, labels, attack_config
-        )
-
-        # Tokens should be modified
-        assert not torch.equal(result_tokens, tokens)
 
         # Labels should be unchanged
         assert torch.equal(result_labels, labels)
