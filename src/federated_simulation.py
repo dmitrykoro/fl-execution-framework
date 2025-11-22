@@ -6,7 +6,6 @@ import flwr
 from flwr.client import Client
 from flwr.common import ndarrays_to_parameters
 from peft import PeftModel, get_peft_model_state_dict
-from src.utils.gpu_monitor import GPUMemoryMonitor
 
 
 from src.dataset_loaders.image_dataset_loader import ImageDatasetLoader
@@ -100,7 +99,6 @@ class FederatedSimulation:
             dataset_handler=self.dataset_handler
         )
 
-        self.gpu_monitor = GPUMemoryMonitor(self.strategy_config.training_device)
         self._dataset_dir = dataset_dir
 
         self._network_model = None
@@ -115,9 +113,6 @@ class FederatedSimulation:
     def run_simulation(self) -> None:
         """Start federated simulation"""
 
-        # Log GPU memory before simulation starts
-        self.gpu_monitor.log_memory_usage("before simulation start")
-
         flwr.simulation.start_simulation(
             client_fn=self.client_fn,
             num_clients=self.strategy_config.num_of_clients,
@@ -128,10 +123,6 @@ class FederatedSimulation:
                 "num_gpus": self.strategy_config.gpus_per_client
             },
         )
-
-        # Log GPU memory after simulation completes
-        self.gpu_monitor.log_memory_usage("after simulation complete")
-        self.gpu_monitor.check_memory_threshold(threshold_percent=85.0)
 
         if self.strategy_config.attack_schedule and self.directory_handler:
             from src.attack_utils.snapshot_html_reports import generate_snapshot_index, generate_summary_json
