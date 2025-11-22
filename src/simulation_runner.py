@@ -14,6 +14,7 @@ os.environ["OMP_NUM_THREADS"] = str(os.cpu_count() or 1)
 # Set HuggingFace cache directory to avoid API rate limits
 os.environ["HF_HOME"] = "./cache/huggingface"
 
+from src.attack_utils.snapshot_html_reports import generate_main_dashboard
 from src.config_loaders.config_loader import ConfigLoader
 from src.output_handlers.directory_handler import DirectoryHandler
 from src.output_handlers import new_plot_handler
@@ -164,6 +165,12 @@ class SimulationRunner:
 
         # after all strategies are executed, show comparison averaging plots
         new_plot_handler.show_inter_strategy_plots(executed_simulation_strategies, self._directory_handler)
+        try:
+            output_dir = getattr(self._directory_handler, 'dirname', None)
+            if output_dir:
+                generate_main_dashboard(output_dir)
+        except Exception as e:
+            logging.warning(f"Failed to generate main dashboard: {e}")
 
 
 if __name__ == "__main__":
