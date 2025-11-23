@@ -427,7 +427,7 @@ class TestValidateStrategyConfigInvalidValues:
             validate_strategy_config(config)
 
         assert (
-            "'invalid_attack' is not one of ['label_flipping', 'gaussian_noise']"
+            "'invalid_attack' is not one of ['label_flipping', 'gaussian_noise', 'ner_label_flipping']"
             in str(exc_info.value)
         )
 
