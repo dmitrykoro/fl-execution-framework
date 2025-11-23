@@ -42,41 +42,82 @@
     "save_attack_snapshots": "true",
     "attack_snapshot_format": "pickle_and_visual",
     "snapshot_max_samples": 5,
-    "begin_removing_from_round": 2,
-    "attack_schedule": [
-      {
-        "start_round": 1,
-        "end_round": 3,
-        "attack_type": "label_flipping",
-        "selection_strategy": "specific",
-        "malicious_client_ids": [0]
-      },
-      {
-        "start_round": 5,
-        "end_round": 7,
-        "attack_type": "label_flipping",
-        "selection_strategy": "specific",
-        "malicious_client_ids": [1]
-      },
-      {
-        "start_round": 10,
-        "end_round": 12,
-        "attack_type": "label_flipping",
-        "selection_strategy": "specific",
-        "malicious_client_ids": [2]
-      },
-      {
-        "start_round": 15,
-        "end_round": 17,
-        "attack_type": "label_flipping",
-        "selection_strategy": "specific",
-        "malicious_client_ids": [3]
-      }
-    ]
+    "begin_removing_from_round": 2
   },
   "simulation_strategies": [
     {
-      "num_std_dev": 2.33
+      "num_std_dev": 2,
+      "attack_schedule": [
+        {
+          "start_round": 1,
+          "end_round": 3,
+          "attack_type": "gaussian_noise",
+          "target_noise_snr": 10.0,
+          "attack_ratio": 1.0,
+          "selection_strategy": "specific",
+          "malicious_client_ids": [0]
+        },
+        {
+          "start_round": 5,
+          "end_round": 7,
+          "attack_type": "gaussian_noise",
+          "target_noise_snr": 10.0,
+          "attack_ratio": 1.0,
+          "selection_strategy": "specific",
+          "malicious_client_ids": [1]
+        },
+        {
+          "start_round": 10,
+          "end_round": 12,
+          "attack_type": "gaussian_noise",
+          "target_noise_snr": 10.0,
+          "attack_ratio": 1.0,
+          "selection_strategy": "specific",
+          "malicious_client_ids": [2]
+        },
+        {
+          "start_round": 15,
+          "end_round": 17,
+          "attack_type": "gaussian_noise",
+          "target_noise_snr": 10.0,
+          "attack_ratio": 1.0,
+          "selection_strategy": "specific",
+          "malicious_client_ids": [3]
+        }
+      ]
+    },
+    {
+      "num_std_dev": 3,
+      "attack_schedule": [
+        {
+          "start_round": 1,
+          "end_round": 3,
+          "attack_type": "label_flipping",
+          "selection_strategy": "specific",
+          "malicious_client_ids": [0]
+        },
+        {
+          "start_round": 5,
+          "end_round": 7,
+          "attack_type": "label_flipping",
+          "selection_strategy": "specific",
+          "malicious_client_ids": [1]
+        },
+        {
+          "start_round": 10,
+          "end_round": 12,
+          "attack_type": "label_flipping",
+          "selection_strategy": "specific",
+          "malicious_client_ids": [2]
+        },
+        {
+          "start_round": 15,
+          "end_round": 17,
+          "attack_type": "label_flipping",
+          "selection_strategy": "specific",
+          "malicious_client_ids": [3]
+        }
+      ]
     }
   ]
 }
