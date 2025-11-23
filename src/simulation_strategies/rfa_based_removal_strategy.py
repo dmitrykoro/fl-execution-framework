@@ -3,7 +3,7 @@ import numpy as np
 import flwr as fl
 import torch
 import logging
-from typing import Tuple, Dict, List, Optional, Union
+from typing import Dict, List, Optional, Tuple, Union
 from sklearn.cluster import KMeans
 from sklearn.preprocessing import MinMaxScaler
 from flwr.common import FitRes, Parameters, Scalar

@@ -3,7 +3,7 @@ import numpy as np
 import flwr as fl
 import logging
 
-from typing import Set, Tuple, Dict, List, Optional, Union
+from typing import Dict, List, Optional, Tuple, Union, Set
 
 from flwr.common import FitRes, Parameters, Scalar
 from flwr.server.strategy.aggregate import weighted_loss_avg
@@ -37,7 +37,7 @@ class TrimmedMeanBasedRemovalStrategy(FedAvg):
     def aggregate_fit(
             self,
             server_round: int,
-            results: List[tuple],
+            results: List[Tuple],
             failures: List[BaseException]
     ) -> Tuple[Optional[Union[ndarrays_to_parameters, bytes]], Dict[str, Scalar]]:
 

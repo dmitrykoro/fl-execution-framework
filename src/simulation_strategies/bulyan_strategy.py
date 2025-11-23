@@ -4,7 +4,7 @@ import flwr as fl
 import torch
 import logging
 import os
-from typing import Set, Tuple, Dict, List, Optional, Union
+from typing import Dict, List, Optional, Tuple, Union
 
 from sklearn.cluster import KMeans
 from sklearn.preprocessing import MinMaxScaler
@@ -54,7 +54,7 @@ class BulyanStrategy(fl.server.strategy.FedAvg):
 
         # --- Internal state -------------------------------------------
         self.client_scores: Dict[str, float] = {}
-        self.removed_client_ids: Set[str] = set()
+        self.removed_client_ids: set[str] = set()
         self.current_round: int = 0
         self.strategy_history = strategy_history
 
