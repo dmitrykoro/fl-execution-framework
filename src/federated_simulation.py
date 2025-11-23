@@ -1,4 +1,5 @@
 import logging
+from pathlib import Path
 import sys
 from typing import List, Tuple
 
@@ -9,6 +10,7 @@ from flwr.common import ndarrays_to_parameters
 from peft import PeftModel, get_peft_model_state_dict
 
 
+from src.attack_utils.snapshot_html_reports import generate_snapshot_index, generate_summary_json
 from src.dataset_loaders.image_dataset_loader import ImageDatasetLoader
 from src.dataset_loaders.image_transformers.its_image_transformer import its_image_transformer
 from src.dataset_loaders.image_transformers.femnist_image_transformer import femnist_image_transformer
@@ -126,9 +128,6 @@ class FederatedSimulation:
         )
 
         if self.strategy_config.attack_schedule and self.directory_handler:
-            from src.attack_utils.snapshot_html_reports import generate_snapshot_index, generate_summary_json
-            import logging
-
             output_dir = getattr(self.directory_handler, 'dirname', None)
             if output_dir:
                 try:
@@ -295,10 +294,6 @@ class FederatedSimulation:
                 self._network_model = load_model(
                     model_name=self.strategy_config.llm_model,
                 )
-
-
-
-
         else:
             logging.error(
                 f"You are parsing a strategy for dataset: {dataset_keyword}. "
@@ -409,7 +404,6 @@ class FederatedSimulation:
 
         experiment_info = None
         if output_dir:
-            from pathlib import Path
             experiment_info = {
                 "run_id": Path(output_dir).name,
                 "total_clients": self.strategy_config.num_of_clients,
