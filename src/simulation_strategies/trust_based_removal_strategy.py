@@ -4,7 +4,7 @@ import torch
 import math as m
 import logging
 
-from typing import Optional, Union
+from typing import Tuple, Dict, List, Optional, Union
 
 from sklearn.cluster import KMeans
 from sklearn.preprocessing import MinMaxScaler
@@ -99,9 +99,9 @@ class TrustBasedRemovalStrategy(fl.server.strategy.FedAvg):
     def aggregate_fit(
             self,
             server_round: int,
-            results: list[tuple[fl.server.client_proxy.ClientProxy, fl.common.FitRes]],
-            failures: list[Union[tuple[ClientProxy, FitRes], BaseException]],
-    ) -> tuple[Optional[Parameters], dict[str, Scalar]]:
+            results: List[Tuple[fl.server.client_proxy.ClientProxy, fl.common.FitRes]],
+            failures: List[Union[Tuple[ClientProxy, FitRes], BaseException]],
+    ) -> Tuple[Optional[Parameters], Dict[str, Scalar]]:
 
         if not results:
             return super().aggregate_fit(server_round, results, failures)
@@ -219,9 +219,9 @@ class TrustBasedRemovalStrategy(fl.server.strategy.FedAvg):
     def aggregate_evaluate(
             self,
             server_round: int,
-            results: list[tuple[ClientProxy, EvaluateRes]],
-            failures: list[tuple[Union[ClientProxy, EvaluateRes], BaseException]]
-    ) -> tuple[Optional[float], dict[str, Scalar]]:
+            results: List[Tuple[ClientProxy, EvaluateRes]],
+            failures: List[Tuple[Union[ClientProxy, EvaluateRes], BaseException]]
+    ) -> Tuple[Optional[float], Dict[str, Scalar]]:
 
         logging.info('\n' + '-' * 50 + f'AGGREGATION ROUND {server_round}' + '-' * 50)
         for client_result in results:

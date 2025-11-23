@@ -5,7 +5,7 @@ import logging
 import time
 import os
 
-from typing import Optional, Union
+from typing import Tuple, Dict, List, Optional, Union
 from sklearn.cluster import KMeans
 from sklearn.preprocessing import MinMaxScaler, StandardScaler, RobustScaler
 from flwr.server.strategy.aggregate import weighted_loss_avg
@@ -117,7 +117,7 @@ class PIDBasedRemovalStrategy(fl.server.strategy.FedAvg):
 
             return p + i + d
 
-    def calculate_all_pid_scores(self, results, normalized_distances, standardized=False, scaled=False) -> list[float]:
+    def calculate_all_pid_scores(self, results, normalized_distances, standardized=False, scaled=False) -> List[float]:
         pid_scores = []
 
         if self.aggregation_strategy_keyword == "pid_scaled":
@@ -160,9 +160,9 @@ class PIDBasedRemovalStrategy(fl.server.strategy.FedAvg):
     def aggregate_fit(
             self,
             server_round: int,
-            results: list[tuple[fl.server.client_proxy.ClientProxy, fl.common.FitRes]],
-            failures: list[Union[tuple[ClientProxy, FitRes], BaseException]],
-    ) -> tuple[Optional[Parameters], dict[str, Scalar]]:
+            results: List[Tuple[fl.server.client_proxy.ClientProxy, fl.common.FitRes]],
+            failures: List[Union[Tuple[ClientProxy, FitRes], BaseException]],
+    ) -> Tuple[Optional[Parameters], Dict[str, Scalar]]:
 
         self.current_round += 1
 
@@ -300,9 +300,9 @@ class PIDBasedRemovalStrategy(fl.server.strategy.FedAvg):
     def aggregate_evaluate(
             self,
             server_round: int,
-            results: list[tuple[ClientProxy, EvaluateRes]],
-            failures: list[tuple[Union[ClientProxy, EvaluateRes], BaseException]]
-    ) -> tuple[Optional[float], dict[str, Scalar]]:
+            results: List[Tuple[ClientProxy, EvaluateRes]],
+            failures: List[Tuple[Union[ClientProxy, EvaluateRes], BaseException]]
+    ) -> Tuple[Optional[float], Dict[str, Scalar]]:
 
         self.logger.info('\n' + '-' * 50 + f'AGGREGATION ROUND {server_round}' + '-' * 50)
         for client_result in results:

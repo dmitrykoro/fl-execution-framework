@@ -5,7 +5,7 @@ import torch
 import logging
 import os
 
-from typing import Optional, Union
+from typing import Tuple, Dict, List, Optional, Union
 
 from sklearn.cluster import KMeans
 from sklearn.preprocessing import MinMaxScaler
@@ -93,18 +93,18 @@ class MultiKrumStrategy(fl.server.strategy.FedAvg):
 
     def _calculate_multi_krum_scores(
             self,
-            results: list[tuple[ClientProxy, FitRes]],
-            distances: list[float]
-    ) -> list[float]:
+            results: List[Tuple[ClientProxy, FitRes]],
+            distances: List[float]
+    ) -> List[float]:
 
         """
         Calculate Multi-Krum scores based on the parameter differences between clients.
 
         Args:
-            results (list[tuple[ClientProxy, FitRes]]): List of client proxies and their fit results.
+            results (List[Tuple[ClientProxy, FitRes]]): List of client proxies and their fit results.
 
         Returns:
-            list[float]: Multi-Krum scores for each client.
+            List[float]: Multi-Krum scores for each client.
         """
         param_data = [fl.common.parameters_to_ndarrays(fit_res.parameters) for _, fit_res in results]
         flat_param_data = [np.concatenate([p.flatten() for p in params]) for params in param_data]
@@ -142,9 +142,9 @@ class MultiKrumStrategy(fl.server.strategy.FedAvg):
     def aggregate_fit(
             self,
             server_round: int,
-            results: list[tuple[ClientProxy, FitRes]],
-            failures: list[Union[tuple[ClientProxy, FitRes], BaseException]]
-    ) -> tuple[Optional[Parameters], dict[str, Scalar]]:
+            results: List[Tuple[ClientProxy, FitRes]],
+            failures: List[Union[Tuple[ClientProxy, FitRes], BaseException]]
+    ) -> Tuple[Optional[Parameters], Dict[str, Scalar]]:
 
         self.current_round += 1
 
@@ -211,7 +211,7 @@ class MultiKrumStrategy(fl.server.strategy.FedAvg):
             server_round: int,
             parameters: Parameters,
             client_manager
-    ) -> list[tuple[ClientProxy, fl.common.FitIns]]:
+    ) -> List[Tuple[ClientProxy, fl.common.FitIns]]:
 
         # fetch the available clients as a dictionary
         available_clients = client_manager.all() # dictionary with client IDs as keys and RayActorClientProxy objects as values
@@ -248,9 +248,9 @@ class MultiKrumStrategy(fl.server.strategy.FedAvg):
     def aggregate_evaluate(
             self,
             server_round: int,
-            results: list[tuple[ClientProxy, EvaluateRes]],
-            failures: list[tuple[Union[ClientProxy, EvaluateRes], BaseException]]
-    ) -> tuple[Optional[float], dict[str, Scalar]]:
+            results: List[Tuple[ClientProxy, EvaluateRes]],
+            failures: List[Tuple[Union[ClientProxy, EvaluateRes], BaseException]]
+    ) -> Tuple[Optional[float], Dict[str, Scalar]]:
 
         self.logger.info('\n' + '-' * 50 + f'AGGREGATION ROUND {server_round}' + '-' * 50)
 
