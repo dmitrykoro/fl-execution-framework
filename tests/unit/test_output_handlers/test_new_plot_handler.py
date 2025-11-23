@@ -9,8 +9,11 @@ from src.data_models.simulation_strategy_history import SimulationStrategyHistor
 from src.federated_simulation import FederatedSimulation
 from src.output_handlers.directory_handler import DirectoryHandler
 from src.output_handlers.new_plot_handler import (
+    ATTACK_ABBREV,
+    _add_attack_background_shading,
     _generate_multi_string_strategy_label,
     _generate_single_string_strategy_label,
+    _get_client_attack_summary,
     bar_width,
     plot_size,
     show_inter_strategy_plots,
@@ -739,3 +742,309 @@ class TestPlotHandler:
         assert len(plot_size) == 2
         assert isinstance(bar_width, (int, float))
         assert bar_width > 0
+
+    def test_get_client_attack_summary_empty_schedule(self):
+        """Test returns empty string when attack_schedule is empty"""
+        result = _get_client_attack_summary(client_id=1, attack_schedule=[])
+        assert result == ""
+
+    def test_get_client_attack_summary_client_not_targeted(self):
+        """Test returns empty string when client is not targeted"""
+        attack_schedule = [
+            {
+                "selection_strategy": "specific",
+                "malicious_client_ids": [2, 3],
+                "attack_type": "label_flipping",
+                "start_round": 2,
+                "end_round": 6,
+            }
+        ]
+        result = _get_client_attack_summary(
+            client_id=1, attack_schedule=attack_schedule
+        )
+        assert result == ""
+
+    def test_get_client_attack_summary_specific_selection(self):
+        """Test formats attack summary for specific selection"""
+        attack_schedule = [
+            {
+                "selection_strategy": "specific",
+                "malicious_client_ids": [1, 3],
+                "attack_type": "label_flipping",
+                "start_round": 2,
+                "end_round": 6,
+            }
+        ]
+        result = _get_client_attack_summary(
+            client_id=1, attack_schedule=attack_schedule
+        )
+        assert result == " (lf r2-6)"
+
+    def test_get_client_attack_summary_random_selection(self):
+        """Test handles random selection with _selected_clients"""
+        attack_schedule = [
+            {
+                "selection_strategy": "random",
+                "_selected_clients": [1, 4, 5],
+                "attack_type": "gaussian_noise",
+                "start_round": 4,
+                "end_round": 8,
+            }
+        ]
+        result = _get_client_attack_summary(
+            client_id=1, attack_schedule=attack_schedule
+        )
+        assert result == " (gn r4-8)"
+
+    def test_get_client_attack_summary_percentage_selection(self):
+        """Test handles percentage selection with _selected_clients"""
+        attack_schedule = [
+            {
+                "selection_strategy": "percentage",
+                "_selected_clients": [1, 2],
+                "attack_type": "token_replacement",
+                "start_round": 1,
+                "end_round": 3,
+            }
+        ]
+        result = _get_client_attack_summary(
+            client_id=1, attack_schedule=attack_schedule
+        )
+        assert result == " (tr r1-3)"
+
+    def test_get_client_attack_summary_multiple_attacks(self):
+        """Test formats multiple attacks with comma separation"""
+        attack_schedule = [
+            {
+                "selection_strategy": "specific",
+                "malicious_client_ids": [1],
+                "attack_type": "label_flipping",
+                "start_round": 2,
+                "end_round": 6,
+            },
+            {
+                "selection_strategy": "random",
+                "_selected_clients": [1, 3],
+                "attack_type": "gaussian_noise",
+                "start_round": 4,
+                "end_round": 8,
+            },
+        ]
+        result = _get_client_attack_summary(
+            client_id=1, attack_schedule=attack_schedule
+        )
+        assert result == " (lf r2-6, gn r4-8)"
+
+    def test_get_client_attack_summary_unknown_attack_type(self):
+        """Test uses first 2 chars for unknown attack types"""
+        attack_schedule = [
+            {
+                "selection_strategy": "specific",
+                "malicious_client_ids": [1],
+                "attack_type": "custom_attack",
+                "start_round": 1,
+                "end_round": 5,
+            }
+        ]
+        result = _get_client_attack_summary(
+            client_id=1, attack_schedule=attack_schedule
+        )
+        assert result == " (cu r1-5)"
+
+    def test_get_client_attack_summary_all_attack_types(self):
+        """Test ATTACK_ABBREV mapping for all known types"""
+        test_cases = [
+            ("label_flipping", "lf"),
+            ("gaussian_noise", "gn"),
+            ("token_replacement", "tr"),
+        ]
+
+        for attack_type, expected_abbrev in test_cases:
+            attack_schedule = [
+                {
+                    "selection_strategy": "specific",
+                    "malicious_client_ids": [1],
+                    "attack_type": attack_type,
+                    "start_round": 1,
+                    "end_round": 5,
+                }
+            ]
+            result = _get_client_attack_summary(
+                client_id=1, attack_schedule=attack_schedule
+            )
+            assert result == f" ({expected_abbrev} r1-5)"
+
+    def test_add_attack_background_shading_empty_schedule(self):
+        """Test returns early when attack_schedule is empty"""
+        mock_ax = Mock()
+        _add_attack_background_shading(mock_ax, attack_schedule=[], client_id=None)
+        mock_ax.axvspan.assert_not_called()
+
+    def test_add_attack_background_shading_all_clients(self):
+        """Test shows all attacks when client_id is None"""
+        mock_ax = Mock()
+        attack_schedule = [
+            {
+                "selection_strategy": "specific",
+                "malicious_client_ids": [1, 2],
+                "attack_type": "label_flipping",
+                "start_round": 2,
+                "end_round": 6,
+            }
+        ]
+        _add_attack_background_shading(mock_ax, attack_schedule, client_id=None)
+
+        mock_ax.axvspan.assert_called_once()
+        call_args = mock_ax.axvspan.call_args
+        assert call_args[0] == (2, 6)
+        assert call_args[1]["facecolor"] == "#ff9999"
+        assert call_args[1]["hatch"] == "////"
+
+    def test_add_attack_background_shading_specific_client_targeted(self):
+        """Test shows attack when specific client is targeted"""
+        mock_ax = Mock()
+        attack_schedule = [
+            {
+                "selection_strategy": "specific",
+                "malicious_client_ids": [1, 2],
+                "attack_type": "gaussian_noise",
+                "start_round": 3,
+                "end_round": 7,
+            }
+        ]
+        _add_attack_background_shading(mock_ax, attack_schedule, client_id=1)
+
+        mock_ax.axvspan.assert_called_once()
+        call_args = mock_ax.axvspan.call_args
+        assert call_args[1]["facecolor"] == "#9999ff"
+        assert call_args[1]["hatch"] == "\\\\\\\\"
+
+    def test_add_attack_background_shading_specific_client_not_targeted(self):
+        """Test does not show attack when client is not targeted"""
+        mock_ax = Mock()
+        attack_schedule = [
+            {
+                "selection_strategy": "specific",
+                "malicious_client_ids": [2, 3],
+                "attack_type": "label_flipping",
+                "start_round": 2,
+                "end_round": 6,
+            }
+        ]
+        _add_attack_background_shading(mock_ax, attack_schedule, client_id=1)
+        mock_ax.axvspan.assert_not_called()
+
+    def test_add_attack_background_shading_random_selection(self):
+        """Test shows attack for random selection regardless of client_id"""
+        mock_ax = Mock()
+        attack_schedule = [
+            {
+                "selection_strategy": "random",
+                "attack_type": "token_replacement",
+                "start_round": 1,
+                "end_round": 5,
+            }
+        ]
+        _add_attack_background_shading(mock_ax, attack_schedule, client_id=1)
+
+        mock_ax.axvspan.assert_called_once()
+        call_args = mock_ax.axvspan.call_args
+        assert call_args[1]["facecolor"] == "#99ff99"
+        assert call_args[1]["hatch"] == "xxxx"
+
+    def test_add_attack_background_shading_duplicate_prevention(self):
+        """Test prevents duplicate labels for same attack periods"""
+        mock_ax = Mock()
+        attack_schedule = [
+            {
+                "selection_strategy": "specific",
+                "malicious_client_ids": [1],
+                "attack_type": "label_flipping",
+                "start_round": 2,
+                "end_round": 6,
+            },
+            {
+                "selection_strategy": "specific",
+                "malicious_client_ids": [1],
+                "attack_type": "label_flipping",
+                "start_round": 2,
+                "end_round": 6,
+            },
+        ]
+        _add_attack_background_shading(mock_ax, attack_schedule, client_id=None)
+
+        assert mock_ax.axvspan.call_count == 1
+
+    def test_add_attack_background_shading_unknown_attack_type(self):
+        """Test uses default color for unknown attack types"""
+        mock_ax = Mock()
+        attack_schedule = [
+            {
+                "selection_strategy": "specific",
+                "malicious_client_ids": [1],
+                "attack_type": "unknown_attack",
+                "start_round": 1,
+                "end_round": 5,
+            }
+        ]
+        _add_attack_background_shading(mock_ax, attack_schedule, client_id=None)
+
+        call_args = mock_ax.axvspan.call_args
+        assert call_args[1]["facecolor"] == "#dddddd"
+        assert call_args[1]["hatch"] == ""
+
+    def test_add_attack_background_shading_all_attack_types_styling(self):
+        """Test correct colors and hatch patterns for all attack types"""
+        expected_styles = {
+            "label_flipping": ("#ff9999", "////"),
+            "gaussian_noise": ("#9999ff", "\\\\\\\\"),
+            "token_replacement": ("#99ff99", "xxxx"),
+        }
+
+        for attack_type, (expected_color, expected_hatch) in expected_styles.items():
+            mock_ax = Mock()
+            attack_schedule = [
+                {
+                    "selection_strategy": "specific",
+                    "malicious_client_ids": [1],
+                    "attack_type": attack_type,
+                    "start_round": 1,
+                    "end_round": 5,
+                }
+            ]
+            _add_attack_background_shading(mock_ax, attack_schedule, client_id=None)
+
+            call_args = mock_ax.axvspan.call_args
+            assert call_args[1]["facecolor"] == expected_color
+            assert call_args[1]["hatch"] == expected_hatch
+
+    def test_add_attack_background_shading_axvspan_parameters(self):
+        """Test axvspan called with correct alpha, edgecolor, linewidth, label"""
+        mock_ax = Mock()
+        attack_schedule = [
+            {
+                "selection_strategy": "specific",
+                "malicious_client_ids": [1],
+                "attack_type": "label_flipping",
+                "start_round": 2,
+                "end_round": 6,
+            }
+        ]
+        _add_attack_background_shading(mock_ax, attack_schedule, client_id=None)
+
+        call_args = mock_ax.axvspan.call_args
+        assert call_args[1]["alpha"] == 0.15
+        assert call_args[1]["edgecolor"] == "black"
+        assert call_args[1]["linewidth"] == 0.5
+        assert call_args[1]["label"] == "label_flipping (r2-6)"
+
+    def test_attack_abbrev_constant(self):
+        """Test ATTACK_ABBREV constant has correct mappings"""
+        assert ATTACK_ABBREV == {
+            "label_flipping": "lf",
+            "gaussian_noise": "gn",
+            "token_replacement": "tr",
+        }
+        assert len(ATTACK_ABBREV) == 3
+        assert all(isinstance(k, str) for k in ATTACK_ABBREV.keys())
+        assert all(isinstance(v, str) and len(v) == 2 for v in ATTACK_ABBREV.values())
