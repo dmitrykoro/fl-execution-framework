@@ -1,4 +1,6 @@
 from dataclasses import dataclass, field
+from typing import List
+
 from src.data_models.simulation_strategy_config import StrategyConfig
 
 
@@ -7,22 +9,22 @@ class RoundsInfo:
 
     simulation_strategy_config: StrategyConfig
 
-    score_calculation_time_nanos_history: list[int] = field(default_factory=list)
-    removal_threshold_history: list[float] = field(default_factory=list)
-    aggregated_loss_history: list[float] = field(default_factory=list)
-    average_accuracy_history: list[float] = field(default_factory=list)
-    average_accuracy_std_history: list[float] = field(default_factory=list)
+    score_calculation_time_nanos_history: List[int] = field(default_factory=list)
+    removal_threshold_history: List[float] = field(default_factory=list)
+    aggregated_loss_history: List[float] = field(default_factory=list)
+    average_accuracy_history: List[float] = field(default_factory=list)
+    average_accuracy_std_history: List[float] = field(default_factory=list)
 
-    tp_history: list[float] = field(default_factory=list)
-    tn_history: list[float] = field(default_factory=list)
-    fp_history: list[float] = field(default_factory=list)
-    fn_history: list[float] = field(default_factory=list)
-    total_fp_and_fn_history: list[float] = field(default_factory=list)
+    tp_history: List[float] = field(default_factory=list)
+    tn_history: List[float] = field(default_factory=list)
+    fp_history: List[float] = field(default_factory=list)
+    fn_history: List[float] = field(default_factory=list)
+    total_fp_and_fn_history: List[float] = field(default_factory=list)
 
-    removal_accuracy_history: list[float] = field(default_factory=list)
-    removal_precision_history: list[float] = field(default_factory=list)
-    removal_recall_history: list[float] = field(default_factory=list)
-    removal_f1_history: list[float] = field(default_factory=list)
+    removal_accuracy_history: List[float] = field(default_factory=list)
+    removal_precision_history: List[float] = field(default_factory=list)
+    removal_recall_history: List[float] = field(default_factory=list)
+    removal_f1_history: List[float] = field(default_factory=list)
 
     plottable_metrics = []
     barable_metrics = []
@@ -87,7 +89,7 @@ class RoundsInfo:
         self.aggregated_loss_history.append(aggregated_loss)
         self.average_accuracy_history.append(average_accuracy)
 
-    def get_metric_by_name(self, metric: str) -> list:
+    def get_metric_by_name(self, metric: str) -> List:
         """Get single plottable metric values by name"""
 
         return getattr(self, metric)
