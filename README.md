@@ -70,26 +70,23 @@ Defines the aggregation strategy. Options:
 - `save_csv`: Save metrics as `.csv` files in `out/` directory (`true`/`false`).
 - `preserve_dataset`: save poisoned dataset for verification (`true`/`false`).
 - `training_subset_fraction`: fraction of each client's dataset for training (e.g., `0.9` for 90% training, 10% evaluation).
-- `model_type`: type of model being trained. Options: `cnn`, `transformer`.
+- `model_type`: type of model being trained (e.g., `cnn`).
 
-- **`attack_schedule`**: array of attack entries for round-based attack configuration. Each entry requires:
-  - `start_round`: when the attack should start (1 to `num_of_rounds`).
-  - `end_round`: when the attack should end (1 to `num_of_rounds`).
-  - `attack_type`: type of attack to apply. Options: `label_flipping`, `gaussian_noise`, `token_replacement`.
-  - `selection_strategy`: how to select malicious clients. Options: `specific`, `random`, `percentage`.
-  - **Attack type parameters:**
-    - `label_flipping`: no parameters required.
-    - `gaussian_noise`: `target_noise_snr` (dB, recommended), `attack_ratio` (0.0-1.0, defaults to 1.0). Alternative: `mean`/`std` if not using SNR.
-    - `token_replacement`:
-      - Vocabulary-based (recommended): `target_vocabulary` (`"medical"`, `"financial"`, or `"legal"`), `replacement_strategy` (`"negative"` or `"positive"`, defaults to `"negative"`), `replacement_probability` (0.0-1.0, defaults to 0.2).
-      - Manual token IDs: `target_token_ids` (array), `replacement_token_ids` (array), `replacement_probability` (0.0-1.0, defaults to 0.2).
-  - **Client selection parameters:**
+- **`attack_schedule`**: array of attack configurations for round-based attacks. Each entry requires:
+  - `start_round`: when the attack starts (1 to `num_of_rounds`).
+  - `end_round`: when the attack ends (1 to `num_of_rounds`).
+  - `attack_type`: type of attack (`label_flipping` or `gaussian_noise`).
+  - `selection_strategy`: how to select malicious clients (`specific`, `random`, or `percentage`).
+  - **Attack parameters:**
+    - `label_flipping`: no additional parameters required.
+    - `gaussian_noise`: `target_noise_snr` (dB, recommended) or `mean`/`std`, plus optional `attack_ratio` (0.0-1.0, defaults to 1.0).
+  - **Selection parameters:**
     - `specific`: `malicious_client_ids` (array of client IDs).
     - `random`: `malicious_client_count` (integer).
     - `percentage`: `malicious_percentage` (0.0-1.0).
 
 - `save_attack_snapshots`: save attack snapshots for analysis (`true`/`false`).
-- `attack_snapshot_format`: format for saving snapshots. Options: `pickle`, `visual`, `pickle_and_visual`.
+- `attack_snapshot_format`: format for snapshots (`pickle`, `visual`, or `pickle_and_visual`).
 - `snapshot_max_samples`: number of samples per snapshot (1-50, default: 5).
 
 - **Flower settings**:
