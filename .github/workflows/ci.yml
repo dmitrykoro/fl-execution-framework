@@ -3,7 +3,7 @@ name: CI Pipeline
 on:
   push:
   # Change to a real branch name and uncomment pull_request to enable
-    branches: [ "aj-dynamic-poisoning" ]
+    branches: [ "aj-attack" ]
   # pull_request:
   #   branches: [ main, master ]
 
