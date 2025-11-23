@@ -5,7 +5,7 @@ import numpy as np
 import math
 
 from matplotlib.ticker import MaxNLocator
-
+from typing import Optional
 from src.data_models.simulation_strategy_config import StrategyConfig
 from src.federated_simulation import FederatedSimulation
 from src.output_handlers.directory_handler import DirectoryHandler
@@ -83,7 +83,7 @@ def _generate_multi_string_strategy_label(strategy_config: StrategyConfig) -> st
 def _add_attack_background_shading(
     ax: plt.Axes,
     attack_schedule: list,
-    client_id: int = None,
+    client_id: Optional[int] = None,
 ) -> None:
     """
     Add background shading for attack-active rounds.
