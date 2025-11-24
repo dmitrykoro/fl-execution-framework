@@ -8,8 +8,8 @@ config_schema = {
         "aggregation_strategy_keyword": {
             "type": "string",
             "enum": ["trust", "pid", "pid_scaled", "pid_standardized", "pid_standardized_score_based",
-                     "multi-krum", "krum", "multi-krum-based", "trimmed_mean",
-                     "rfa", "bulyan"]
+                    "multi-krum", "krum", "multi-krum-based", "trimmed_mean",
+                    "rfa", "bulyan"]
         },
         "strict_mode": {
             "type": "string",
@@ -78,10 +78,7 @@ config_schema = {
         },
         "llm_model": {
             "type": "string",
-            "enum": [
-                "microsoft/BiomedNLP-BiomedBERT-base-uncased-abstract-fulltext",
-                "distilbert-base-uncased"
-            ]
+            "enum": ["microsoft/BiomedNLP-BiomedBERT-base-uncased-abstract-fulltext"]
         },
         "llm_task": {
             "type": "string",
