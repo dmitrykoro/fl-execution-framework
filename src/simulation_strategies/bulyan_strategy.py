@@ -22,6 +22,7 @@ from flwr.server.strategy.aggregate import weighted_loss_avg
 
 from src.output_handlers.directory_handler import DirectoryHandler
 from src.data_models.simulation_strategy_history import SimulationStrategyHistory
+from src.utils.medmentions_strategy_helper import aggregate_strict_medmentions_metrics
 
 
 class BulyanStrategy(fl.server.strategy.FedAvg):
@@ -259,6 +260,16 @@ class BulyanStrategy(fl.server.strategy.FedAvg):
         loss_aggregated = weighted_loss_avg(aggregate_value)
         self.strategy_history.insert_round_history_entry(loss_aggregated=loss_aggregated)
 
+        metrics_aggregated = aggregate_strict_medmentions_metrics(
+            results=results,
+            removed_client_ids=self.removed_client_ids,
+            remove_clients=self.remove_clients,
+            current_round=self.current_round,
+            begin_removing_from_round=self.begin_removing_from_round,
+            strategy_history=self.strategy_history
+        )
+
+
         for cp, ev in results:
             logging.debug(f"Client ID: {cp.cid} Metrics: {ev.metrics} Loss: {ev.loss}")
 
@@ -266,4 +277,4 @@ class BulyanStrategy(fl.server.strategy.FedAvg):
             f"Round: {server_round} Number of aggregated clients: {num_clients_loss} "
             f"Aggregated loss: {loss_aggregated}"
         )
-        return loss_aggregated, {}
+        return loss_aggregated, metrics_aggregated

@@ -15,6 +15,7 @@ from flwr.common import EvaluateRes, Scalar
 from flwr.server.client_proxy import ClientProxy
 
 from src.data_models.simulation_strategy_history import SimulationStrategyHistory
+from src.utils.medmentions_strategy_helper import aggregate_strict_medmentions_metrics
 
 
 class TrustBasedRemovalStrategy(fl.server.strategy.FedAvg):
@@ -256,6 +257,14 @@ class TrustBasedRemovalStrategy(fl.server.strategy.FedAvg):
             logging.debug(f'Loss: {result[1].loss}')
 
         metrics_aggregated = {}
+        metrics_aggregated = aggregate_strict_medmentions_metrics(
+            results=results,
+            removed_client_ids=self.removed_client_ids,
+            remove_clients=self.remove_clients,
+            current_round=self.current_round,
+            begin_removing_from_round=self.begin_removing_from_round,
+            strategy_history=self.strategy_history
+        )
 
         logging.info(
             f'Round: {server_round} '

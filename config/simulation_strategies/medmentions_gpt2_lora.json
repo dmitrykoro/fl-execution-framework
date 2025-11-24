@@ -1,27 +1,27 @@
 {
   "shared_settings": {
-    "strict_mode": "true",
     "aggregation_strategy_keyword": "pid",
     "remove_clients": "true",
-    "dataset_keyword": "femnist_iid",
-    "use_llm": "false",
-    "num_of_rounds": 4,
-    "num_of_clients": 5,
-    "num_of_malicious_clients": 1,
+    "dataset_keyword": "medmentions",
+    "use_llm": "true",
+    "num_of_rounds": 10,
+    "num_of_clients": 10,
+    "num_of_malicious_clients": 3,
     "attack_ratio": 1.0,
-    "target_noise_snr": 5,
+    "gaussian_noise_mean": 0,
+    "gaussian_noise_std": 75,
     "show_plots": "false",
     "save_plots": "true",
     "save_csv": "true",
-    "training_device": "cpu",
+    "training_device": "cuda",
     "cpus_per_client": 1,
-    "gpus_per_client": 0.0,
+    "gpus_per_client": 1,
     "trust_threshold": 0.15,
     "reputation_threshold": 0.15,
     "beta_value": 0.75,
     "num_of_clusters": 1,
-    "model_type": "cnn",
-    "llm_model": "microsoft/BiomedNLP-BiomedBERT-base-uncased-abstract-fulltext",
+    "model_type": "transformer",
+    "llm_model": "gpt2",
     "llm_finetuning": "lora",
     "llm_task": "mlm",
     "llm_chunk_size": 256,
@@ -46,13 +46,8 @@
   },
   "simulation_strategies": [
     {
-      "attack_type": "gaussian_noise",
+      "attack_type": "ner_label_flipping",
       "num_std_dev": 2
-    },
-    {
-      "attack_type": "label_flipping",
-      "num_std_dev": 3
     }
   ]
 }
-

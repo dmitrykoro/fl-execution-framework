@@ -1,0 +1,191 @@
+import glob
+import json
+import os
+
+from typing import List, Tuple
+from datasets import DatasetDict, load_dataset
+from torch.utils.data import DataLoader
+from transformers import DataCollatorForTokenClassification, GPT2TokenizerFast
+
+
+class MedMentionsNERDatasetLoader:
+    """
+    Expects JSON arrays with fields: id, document_id, text (optional),
+    tokens, ner_tags (BIO).
+
+    Returns per-client DataLoaders with GPT-2 tokenization + aligned labels.
+    """
+
+    IGNORE_LABEL = -100  # for subword tokens
+    MAX_LEN = 512
+
+    def __init__(
+            self,
+            dataset_dir: str,
+            num_of_clients: int,
+            batch_size: int,
+            training_subset_fraction: float,
+            model_name: str = "gpt2",
+    ) -> None:
+        self.dataset_dir = dataset_dir
+        self.num_of_clients = num_of_clients
+        self.batch_size = batch_size
+        self.training_subset_fraction = training_subset_fraction
+        self.model_name = model_name
+
+        # Build a global label list so ALL clients share the same mapping
+        self.label_list = self._scan_all_labels()
+        self.label2id = {label: i for i, label in enumerate(self.label_list)}
+        self.id2label = {i: label for label, i in self.label2id.items()}
+
+        # Tokenizer
+        self.tokenizer = GPT2TokenizerFast.from_pretrained(
+            "gpt2",
+            add_prefix_space=True,
+            padding_side="right",
+            use_fast=True,
+        )
+        if self.tokenizer.pad_token is None:
+            self.tokenizer.pad_token = self.tokenizer.eos_token
+
+        self.collator = DataCollatorForTokenClassification(
+            tokenizer=self.tokenizer,
+            pad_to_multiple_of=8,
+            label_pad_token_id=self.IGNORE_LABEL,
+        )
+
+        # Wrapper to keep non-tensor metadata out of the HF collator
+        def _collate_with_meta(features):
+            doc_ids = [f.pop("doc_id") for f in features]
+            word_lengths = [f.pop("word_length") for f in features]
+            batch = self.collator(features)  # tensorizes only model fields
+            batch["doc_id"] = doc_ids
+            batch["word_length"] = word_lengths
+            return batch
+
+        self.collate_with_meta = _collate_with_meta
+
+    def _scan_all_labels(self) -> List[str]:
+        labels = {"O"}
+        for client_folder in sorted(
+                os.listdir(self.dataset_dir),
+                key=lambda s: int(s.split("_")[1]),
+        ):
+            if client_folder.startswith("."):
+                continue
+            for split in ("train", "validation", "test"):
+                pattern = os.path.join(
+                    self.dataset_dir,
+                    client_folder,
+                    f"{split}*.json",
+                )
+                for fp in glob.glob(pattern):
+                    try:
+                        with open(fp, "r", encoding="utf-8") as f:
+                            data = json.load(f)
+                        for ex in data:
+                            labels.update(ex["ner_tags"])
+                    except Exception:
+                        # Ignore malformed files
+                        pass
+        return sorted(labels)
+
+    def _encode_align(self, batch):
+        """
+        Convert word-level tokens/tags to subword-aligned tensors and
+        also carry:
+        - doc_id        (str per example)
+        - word_length   (# of original word tokens per example)
+        """
+        enc = self.tokenizer(
+            batch["tokens"],
+            is_split_into_words=True,
+            truncation=True,
+            padding=False,
+            max_length=self.MAX_LEN,
+            return_attention_mask=True,
+        )
+
+        labels = []
+        for i, tags in enumerate(batch["ner_tags"]):
+            word_ids = enc.word_ids(batch_index=i)
+            aligned = []
+            prev_wid = None
+            for wid in word_ids:
+                if wid is None:
+                    # Special/pad tokens
+                    aligned.append(self.IGNORE_LABEL)
+                elif wid != prev_wid:
+                    # First subword gets the tag
+                    aligned.append(self.label2id[tags[wid]])
+                else:
+                    # Ignore non-first subwords
+                    aligned.append(self.IGNORE_LABEL)
+                prev_wid = wid
+            labels.append(aligned)
+
+        doc_ids = [str(d) for d in batch["document_id"]]
+        word_lengths = [len(tokens) for tokens in batch["tokens"]]
+
+        return {
+            "input_ids": enc["input_ids"],
+            "attention_mask": enc["attention_mask"],
+            "labels": labels,
+            "doc_id": doc_ids,
+            "word_length": word_lengths,
+        }
+
+    def _load_one_client(
+            self,
+            client_dir: str,
+    ) -> Tuple[DataLoader, DataLoader]:
+        files_train = glob.glob(os.path.join(client_dir, "train*.json"))
+        files_val = glob.glob(os.path.join(client_dir, "validation*.json"))
+        if not files_val:
+            files_val = glob.glob(os.path.join(client_dir, "test*.json"))
+
+        ds = DatasetDict(
+            {
+                "train": load_dataset("json", data_files=files_train)["train"],
+                "validation": load_dataset("json", data_files=files_val)["train"],
+            }
+        )
+
+        # Subsample train per strategy config, leave validation intact
+        if 0 < self.training_subset_fraction < 1.0:
+            n = int(len(ds["train"]) * self.training_subset_fraction)
+            ds["train"] = ds["train"].select(range(n))
+
+        orig_cols = ds["train"].column_names
+        ds_tok = ds.map(self._encode_align, batched=True, remove_columns=orig_cols)
+
+        trainloader = DataLoader(
+            ds_tok["train"],
+            batch_size=self.batch_size,
+            shuffle=True,
+            collate_fn=self.collate_with_meta,
+        )
+        valloader = DataLoader(
+            ds_tok["validation"],
+            batch_size=self.batch_size,
+            shuffle=False,
+            collate_fn=self.collate_with_meta,
+        )
+        return trainloader, valloader
+
+    def load_datasets(self):
+        trainloaders: List[DataLoader] = []
+        valloaders: List[DataLoader] = []
+
+        for client_folder in sorted(
+                os.listdir(self.dataset_dir),
+                key=lambda s: int(s.split("_")[1]),
+        ):
+            if client_folder.startswith("."):
+                continue
+            client_dir = os.path.join(self.dataset_dir, client_folder)
+            trainloader, valloader = self._load_one_client(client_dir)
+            trainloaders.append(trainloader)
+            valloaders.append(valloader)
+
+        return trainloaders, valloaders

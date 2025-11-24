@@ -38,7 +38,8 @@ config_schema = {
                 "tissuemnist",
                 "organamnist",
                 "organcmnist",
-                "organsmnist"
+                "organsmnist",
+                "medmentions"
             ]
         },
         "model_type": {
@@ -56,7 +57,7 @@ config_schema = {
         },
         "attack_type": {
             "type": "string",
-            "enum": ["label_flipping", "gaussian_noise"]
+            "enum": ["label_flipping", "gaussian_noise", 'ner_label_flipping']
         },
         "show_plots": {
             "type": "string",
@@ -85,11 +86,11 @@ config_schema = {
         },
         "llm_model": {
             "type": "string",
-            "enum": ["microsoft/BiomedNLP-BiomedBERT-base-uncased-abstract-fulltext"]
+            "enum": ["microsoft/BiomedNLP-BiomedBERT-base-uncased-abstract-fulltext", "gpt2"]
         },
         "llm_task": {
             "type": "string",
-            "enum": ["mlm"]
+            "enum": ["mlm", "ner"]
         },
         "mlm_probability": {
             "type": "number"

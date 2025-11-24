@@ -12,6 +12,8 @@ from flwr.server.strategy.aggregate import weighted_loss_avg
 from flwr.common import EvaluateRes, Scalar
 from flwr.server.client_proxy import ClientProxy
 from flwr.server.strategy.fedavg import FedAvg
+from src.utils.medmentions_strategy_helper import aggregate_strict_medmentions_metrics
+
 
 class RFABasedRemovalStrategy(FedAvg):
     def __init__(
@@ -210,6 +212,14 @@ class RFABasedRemovalStrategy(FedAvg):
             logging.debug(f'Loss: {result[1].loss}')
 
         metrics_aggregated = {}
+        metrics_aggregated = aggregate_strict_medmentions_metrics(
+            results=results,
+            removed_client_ids=self.removed_client_ids,
+            remove_clients=self.remove_clients,
+            current_round=self.current_round,
+            begin_removing_from_round=self.begin_removing_from_round,
+            strategy_history=self.strategy_history
+        )
 
         logging.info(
             f'Round: {server_round} '
