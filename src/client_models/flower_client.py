@@ -228,25 +228,31 @@ class FlowerClient(fl.client.NumPyClient):
 
     def evaluate(self, parameters, config):
         self.set_parameters(self.net, parameters)
+
         if self.model_type == "transformer":
-            loss, accuracy,mm = self.test(self.net,self.valloader)
-            metrics = {
-                "accuracy": float(accuracy),
-                "mention_precision": mm["mention_precision"],
-                "mention_recall": mm["mention_recall"],
-                "mention_f1": mm["mention_f1"],
-                "document_precision": mm["document_precision"],
-                "document_recall": mm["document_recall"],
-                "document_f1": mm["document_f1"],
-                # raw counts for micro-averaging on the server
-                "tp_m": mm["tp_m"], 
-                "fp_m": mm["fp_m"], 
-                "fn_m": mm["fn_m"],
-                "tp_d": mm["tp_d"], 
-                "fp_d": mm["fp_d"], 
-                "fn_d": mm["fn_d"],
-            }
+            out = self.test(self.net, self.valloader)
+
+            # test() may return (loss, acc) or (loss, acc, mm)
+            if isinstance(out, tuple) and len(out) == 3:
+                loss, accuracy, mm = out
+                metrics = {
+                    "accuracy": float(accuracy),
+                    "mention_precision": mm["mention_precision"],
+                    "mention_recall":    mm["mention_recall"],
+                    "mention_f1":        mm["mention_f1"],
+                    "document_precision": mm["document_precision"],
+                    "document_recall":    mm["document_recall"],
+                    "document_f1":        mm["document_f1"],
+                    # raw counts for micro-averaging on the server
+                    "tp_m": mm["tp_m"], "fp_m": mm["fp_m"], "fn_m": mm["fn_m"],
+                    "tp_d": mm["tp_d"], "fp_d": mm["fp_d"], "fn_d": mm["fn_d"],
+                }
+            else:
+                loss, accuracy = out
+                metrics = {"accuracy": float(accuracy)}
+
             return float(loss), len(self.valloader), metrics
+
         else:
             loss, accuracy = self.test(self.net, self.valloader)
             return float(loss), len(self.valloader), {"accuracy": float(accuracy)}
