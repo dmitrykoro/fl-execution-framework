@@ -1,0 +1,33 @@
+name: Config Smoke Tests
+
+on:
+  push:
+    branches: [aj-attack, main]
+    paths:
+      - 'config/**'
+      - 'src/**'
+      - 'tests/scripts/**'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'config/**'
+      - 'src/**'
+      - 'tests/scripts/**'
+
+jobs:
+  smoke-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+          cache: 'pip'
+
+      - run: pip install -r requirements.txt
+
+      - name: Smoke test configs
+        run: python tests/scripts/ci_smoke_test.py
