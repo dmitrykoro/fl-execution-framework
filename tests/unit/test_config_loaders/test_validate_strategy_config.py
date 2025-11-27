@@ -129,8 +129,8 @@ class TestValidateStrategyConfig:
             "training_device": "gpu",
             "cpus_per_client": 1,
             "gpus_per_client": 1.0,
-            "min_fit_clients": 10,
-            "min_evaluate_clients": 10,
+            "min_fit_clients": 12,
+            "min_evaluate_clients": 12,
             "min_available_clients": 12,
             "evaluate_metrics_aggregation_fn": "weighted_average",
             "num_of_client_epochs": 2,
@@ -170,8 +170,8 @@ class TestValidateStrategyConfig:
             "training_device": "cpu",
             "cpus_per_client": 4,
             "gpus_per_client": 0.0,
-            "min_fit_clients": 12,
-            "min_evaluate_clients": 12,
+            "min_fit_clients": 15,
+            "min_evaluate_clients": 15,
             "min_available_clients": 15,
             "evaluate_metrics_aggregation_fn": "weighted_average",
             "num_of_client_epochs": 1,
@@ -961,8 +961,8 @@ class TestValidateStrategyConfigEdgeCases:
             "training_device": "cpu",
             "cpus_per_client": 1,
             "gpus_per_client": 0.0,
-            "min_fit_clients": 8,
-            "min_evaluate_clients": 8,
+            "min_fit_clients": 10,
+            "min_evaluate_clients": 10,
             "min_available_clients": 10,
             "evaluate_metrics_aggregation_fn": "weighted_average",
             "num_of_client_epochs": 3,
@@ -992,8 +992,8 @@ class TestValidateStrategyConfigEdgeCases:
             "training_device": "gpu",
             "cpus_per_client": 2,
             "gpus_per_client": 1.0,
-            "min_fit_clients": 12,
-            "min_evaluate_clients": 12,
+            "min_fit_clients": 15,
+            "min_evaluate_clients": 15,
             "min_available_clients": 15,
             "evaluate_metrics_aggregation_fn": "weighted_average",
             "num_of_client_epochs": 2,
@@ -1055,8 +1055,8 @@ class TestValidateStrategyConfigEdgeCases:
             "training_device": "cpu",
             "cpus_per_client": 1,
             "gpus_per_client": 0.0,
-            "min_fit_clients": 8,
-            "min_evaluate_clients": 8,
+            "min_fit_clients": 10,
+            "min_evaluate_clients": 10,
             "min_available_clients": 10,
             "evaluate_metrics_aggregation_fn": "weighted_average",
             "num_of_client_epochs": 3,
@@ -1295,7 +1295,7 @@ class TestStrictModeValidation:
     """Test suite for strict_mode validation functionality."""
 
     def test_strict_mode_defaults_to_true(self):
-        """Test that strict_mode defaults to 'true' when not specified."""
+        """Test that strict_mode defaults to 'true' and rejects invalid configs."""
         config = {
             "aggregation_strategy_keyword": "trust",
             "remove_clients": "true",
@@ -1336,15 +1336,16 @@ class TestStrictModeValidation:
             # strict_mode not specified - should default to "true"
         }
 
-        # Should not raise exception and auto-configure clients
-        validate_strategy_config(config)
-        assert config["strict_mode"] == "true"
-        assert config["min_fit_clients"] == 10
-        assert config["min_evaluate_clients"] == 10
-        assert config["min_available_clients"] == 10
+        # Should raise ValidationError because min_* values don't match num_of_clients
+        with pytest.raises(ValidationError) as exc_info:
+            validate_strategy_config(config)
 
-    def test_strict_mode_enabled_auto_configures_clients(self):
-        """Test that strict_mode=true forces all min_* values to equal num_of_clients."""
+        error_message = str(exc_info.value)
+        assert "CONFIG REJECTED: strict_mode requires all clients to participate" in error_message
+        assert "min_fit_clients: 8" in error_message
+
+    def test_strict_mode_enabled_rejects_invalid_config(self):
+        """Test that strict_mode=true rejects configs where min_* != num_of_clients."""
         config = {
             "aggregation_strategy_keyword": "trust",
             "remove_clients": "true",
@@ -1371,9 +1372,9 @@ class TestStrictModeValidation:
             "training_device": "cpu",
             "cpus_per_client": 1,
             "gpus_per_client": 0.0,
-            "min_fit_clients": 5,  # Will be auto-configured to 10
-            "min_evaluate_clients": 7,  # Will be auto-configured to 10
-            "min_available_clients": 8,  # Will be auto-configured to 10
+            "min_fit_clients": 5,
+            "min_evaluate_clients": 7,
+            "min_available_clients": 8,
             "evaluate_metrics_aggregation_fn": "weighted_average",
             "num_of_client_epochs": 3,
             "batch_size": 32,
@@ -1385,11 +1386,14 @@ class TestStrictModeValidation:
             "num_of_clusters": 1,
         }
 
-        # Should not raise exception and auto-configure all client values
-        validate_strategy_config(config)
-        assert config["min_fit_clients"] == 10
-        assert config["min_evaluate_clients"] == 10
-        assert config["min_available_clients"] == 10
+        # Should raise ValidationError because min_* values don't match num_of_clients
+        with pytest.raises(ValidationError) as exc_info:
+            validate_strategy_config(config)
+
+        error_message = str(exc_info.value)
+        assert "CONFIG REJECTED: strict_mode requires all clients to participate" in error_message
+        assert "min_fit_clients: 5" in error_message
+        assert "min_evaluate_clients: 7" in error_message
 
     def test_strict_mode_disabled_preserves_client_config(self):
         """Test that strict_mode=false preserves original client configuration."""
