@@ -12,30 +12,18 @@ def apply_label_flipping(
     labels: torch.Tensor,
     num_classes: int,
 ) -> torch.Tensor:
-    """Apply label flipping attack by remapping each class to a different random class.
+    """Apply bijective label flipping (each class maps to exactly one other class)."""
+    perm = torch.randperm(num_classes).tolist()
 
-    Each source class is randomly mapped to a different target class (not itself).
-    This creates a class-level random mapping for the entire label set.
+    # Ensure no class maps to itself
+    for i in range(num_classes):
+        if perm[i] == i:
+            swap_idx = (i + 1) % num_classes
+            perm[i], perm[swap_idx] = perm[swap_idx], perm[i]
 
-    Args:
-        labels: Input label tensor of shape (N,)
-        num_classes: Total number of classes in the dataset
-
-    Returns:
-        Modified label tensor with same shape, where each class is remapped to
-        a different random class
-    """
-    unique_classes = torch.unique(labels)
     modified_labels = labels.clone()
-
-    for source_class in unique_classes:
-        source_val = source_class.item()
-        valid_targets = [t for t in range(num_classes) if t != source_val]
-        if not valid_targets:
-            continue
-
-        target_class = valid_targets[torch.randint(0, len(valid_targets), (1,)).item()]
-        modified_labels[labels == source_val] = target_class
+    for src_class in range(num_classes):
+        modified_labels[labels == src_class] = perm[src_class]
 
     return modified_labels
 
@@ -47,25 +35,7 @@ def apply_gaussian_noise(
     target_noise_snr: Optional[float] = None,
     attack_ratio: float = 1.0,
 ) -> torch.Tensor:
-    """Apply Gaussian noise poisoning attack to images.
-
-    Adds Gaussian noise to a subset of images. Noise can be specified either via
-    mean/std parameters or target SNR (signal-to-noise ratio) in dB.
-
-    Args:
-        images: Input image tensor of shape (N, C, H, W)
-        mean: Mean of Gaussian noise distribution (default: 0.0)
-        std: Standard deviation of Gaussian noise distribution (default: 0.1)
-        target_noise_snr: Target SNR in dB. If provided, overrides mean/std parameters
-        attack_ratio: Fraction of samples to poison, range [0.0, 1.0] (default: 1.0)
-
-    Returns:
-        Poisoned image tensor with same shape as input, values clamped to [0, 1]
-
-    Note:
-        If target_noise_snr is specified, noise power is calculated to achieve
-        the specified SNR relative to signal power.
-    """
+    """Add Gaussian noise to images. Use target_noise_snr (dB) or mean/std."""
     num_samples = images.shape[0]
     num_to_poison = int(num_samples * attack_ratio)
 
@@ -91,26 +61,7 @@ def apply_gaussian_noise(
 def should_poison_this_round(
     current_round: int, client_id: int, attack_schedule: Optional[list]
 ) -> Tuple[bool, list]:
-    """Determine if a client should be poisoned in the current round.
-
-    Checks attack schedule to see if the client is selected for poisoning
-    in the specified round based on the attack configuration.
-
-    Args:
-        current_round: Current training round number
-        client_id: ID of the client to check
-        attack_schedule: List of attack configuration dicts with round ranges
-            and client selection strategies (optional)
-
-    Returns:
-        Tuple of (should_poison: bool, active_attacks: list)
-        - should_poison: True if client should be poisoned this round
-        - active_attacks: List of attack configs active for this client/round
-
-    Note:
-        Returns (False, []) if no attack_schedule provided or no attacks
-        are active for this client in this round.
-    """
+    """Check if client should be poisoned this round. Returns (bool, active_attacks)."""
     if not attack_schedule:
         return False, []
 
@@ -156,31 +107,7 @@ def apply_poisoning_attack(
     tokenizer=None,
     num_classes: int = None,
 ) -> Tuple[torch.Tensor, torch.Tensor]:
-    """Apply poisoning attack to dataset based on attack configuration.
-
-    Main entry point for applying attacks. Supports label_flipping
-    and gaussian_noise attacks. Can apply multiple attacks sequentially
-    if attack_config is a list.
-
-    Args:
-        data: Input data tensor (images or token IDs)
-        labels: Input label tensor
-        attack_config: Attack configuration dict or list of dicts
-        tokenizer: HuggingFace tokenizer (unused, kept for compatibility)
-        num_classes: Number of classes for label_flipping attacks (optional)
-
-    Returns:
-        Tuple of (poisoned_data, poisoned_labels)
-
-    Raises:
-        ValueError: If old nested attack config format detected
-        ValueError: If unsupported attack type specified
-        ValueError: If required parameters missing for attack type
-
-    Note:
-        For multiple attacks, specify attack_config as list of dicts.
-        Each attack is applied sequentially to the output of the previous attack.
-    """
+    """Apply poisoning attack based on config. Supports label_flipping and gaussian_noise."""
     if "params" in attack_config or (
         "type" in attack_config and "attack_type" not in attack_config
     ):
