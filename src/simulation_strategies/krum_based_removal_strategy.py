@@ -56,6 +56,11 @@ class KrumBasedRemovalStrategy(Krum):
         Returns:
             List[float]: Krum scores for each client.
         """
+        if self.num_malicious_clients is None:
+            raise ValueError(
+                "num_of_malicious_clients must be set in config for Krum-based strategies. "
+                "Calculate from attack_schedule (e.g., 20% of 10 clients = 2)"
+            )
         param_data = [fl.common.parameters_to_ndarrays(fit_res.parameters) for _, fit_res in results]
         flat_param_data = [np.concatenate([p.flatten() for p in params]) for params in param_data]
         param_data = flat_param_data
