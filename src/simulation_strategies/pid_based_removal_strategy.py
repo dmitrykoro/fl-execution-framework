@@ -166,6 +166,10 @@ class PIDBasedRemovalStrategy(fl.server.strategy.FedAvg):
 
         self.current_round += 1
 
+        # Update client.is_malicious based on attack_schedule for dynamic attacks
+        if self.strategy_history:
+            self.strategy_history.update_client_malicious_status(server_round)
+
         # Handle empty results
         if not results:
             return super().aggregate_fit(server_round, results, failures)
@@ -257,15 +261,15 @@ class PIDBasedRemovalStrategy(fl.server.strategy.FedAvg):
         available_clients = client_manager.all()  # dictionary with client IDs as keys and RayActorClientProxy objects as values
 
         # in the warmup rounds, select all clients
-        if self.current_round <= self.begin_removing_from_round - 1:
-            fit_ins = fl.common.FitIns(parameters, {})
+        if self.begin_removing_from_round is not None and self.current_round <= self.begin_removing_from_round - 1:
+            fit_ins = fl.common.FitIns(parameters, {"server_round": server_round})
             return [(client, fit_ins) for client in available_clients.values()]
 
         client_pids = {client_id: self.client_pids.get(client_id, 0) for client_id in available_clients.keys()}
 
         if self.remove_clients:
             # in the first round after warmup, remove the client with the highest PID
-            if self.current_round == self.begin_removing_from_round and False:
+            if self.begin_removing_from_round is not None and self.current_round == self.begin_removing_from_round and False:
                 highest_pid_client = max(client_pids, key=client_pids.get)
                 self.logger.info(f"Removing client with highest PID: {highest_pid_client}")
                 # add this client to the removed_clients list
@@ -290,7 +294,7 @@ class PIDBasedRemovalStrategy(fl.server.strategy.FedAvg):
         selected_client_ids = sorted_client_ids
 
         # create training configurations for selected clients
-        fit_ins = fl.common.FitIns(parameters, {})
+        fit_ins = fl.common.FitIns(parameters, {"server_round": server_round})
         return [(available_clients[cid], fit_ins) for cid in selected_client_ids if cid in available_clients]
 
     def aggregate_evaluate(

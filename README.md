@@ -65,19 +65,29 @@ Defines the aggregation strategy. Options:
 - `num_of_rounds`: total aggregation rounds.
 - `num_of_clients`: number of clients (limited to available dataset clients).
 - `num_of_malicious_clients`: number of malicious clients (malicious throughout simulation).
-- `attack_type`: type of adversarial attack:
-  - `label_flipping`: flip 100% of client labels;
-  - `gaussian_noise`: add gaussian noise to client image samples in each label. The following params need to be specified:
-    - `gaussian_noise_mean`: The mean (μ) of the Gaussian distribution. It’s the average value of the noise, 0 for the center. Setting mean > 0 will make the image brighter on average, darker otherwise.
-    - `gaussian_noise_std`: (0 - 100). The standard deviation (σ) of the Gaussian distribution, which controls how spread out the noise values are. 0 = no noise, 50+ = heavy noise.
-    - `attack_ratio`: proportion of samples for each label to poison.
-
 - `show_plots`: show plots during runtime (`true`/`false`).
 - `save_plots`: save plots to `out/` directory (`true`/`false`).
 - `save_csv`: Save metrics as `.csv` files in `out/` directory (`true`/`false`).
 - `preserve_dataset`: save poisoned dataset for verification (`true`/`false`).
 - `training_subset_fraction`: fraction of each client's dataset for training (e.g., `0.9` for 90% training, 10% evaluation).
-- `model_type`: type of model being trained
+- `model_type`: type of model being trained (e.g., `cnn`).
+
+- **`attack_schedule`**: array of attack configurations for round-based attacks. Each entry requires:
+  - `start_round`: when the attack starts (1 to `num_of_rounds`).
+  - `end_round`: when the attack ends (1 to `num_of_rounds`).
+  - `attack_type`: type of attack (`label_flipping` or `gaussian_noise`).
+  - `selection_strategy`: how to select malicious clients (`specific`, `random`, or `percentage`).
+  - **Attack parameters:**
+    - `label_flipping`: no additional parameters required.
+    - `gaussian_noise`: `target_noise_snr` (dB, recommended) or `mean`/`std`, plus optional `attack_ratio` (0.0-1.0, defaults to 1.0).
+  - **Selection parameters:**
+    - `specific`: `malicious_client_ids` (array of client IDs).
+    - `random`: `malicious_client_count` (integer).
+    - `percentage`: `malicious_percentage` (0.0-1.0).
+
+- `save_attack_snapshots`: save attack snapshots for analysis (`true`/`false`).
+- `attack_snapshot_format`: format for snapshots (`pickle`, `visual`, or `pickle_and_visual`).
+- `snapshot_max_samples`: number of samples per snapshot (1-50, default: 5).
 
 - **Flower settings**:
   - `training_device`: `cpu`, `gpu`, or `cuda`.
@@ -270,7 +280,7 @@ local client epochs.
     {
       "aggregation_strategy_keyword": "pid",
       // the following parameters are specific for pid strategy
-      "pid_threshold": 1,
+      "num_std_dev": 2.0,
       "Kp": 1,
       "Ki": 0,
       "Kd": 0
@@ -290,7 +300,7 @@ Since the strategy-specific parameters are not altered between strategies, they 
     "beta_value": 0.75,
     "num_of_clusters": 1,
     // the following parameters are specific for pid strategy
-    "pid_threshold": 1,
+    "num_std_dev": 2.0,
     "Kp": 1,
     "Ki": 0,
     "Kd": 0,

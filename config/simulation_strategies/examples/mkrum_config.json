@@ -2,21 +2,22 @@
     "shared_settings": {
       "remove_clients": "true",
       "dataset_keyword": "femnist_iid",
+      "use_llm": "false",
+      "model_type": "cnn",
       "num_of_rounds": 100,
       "begin_removing_from_round": 5,
       "num_of_malicious_clients": 2,
-      "attack_type": "label_flipping",
       "show_plots": "false",
       "save_plots": "true",
       "save_csv": "true",
       "training_device": "cpu",
       "cpus_per_client": 1,
-      "gpus_per_client": 0.25,
+      "gpus_per_client": 0.0,
       "trust_threshold": 0,
       "reputation_threshold": 0.15,
       "beta_value": 0.75,
       "num_of_clusters": 1,
-      "pid_threshold": 1,
+      "num_std_dev": 2.0,
       "Kp": 1,
       "Ki": 0.6,
       "Kd": 0.05,
@@ -26,8 +27,20 @@
       "evaluate_metrics_aggregation_fn": "weighted_average",
       "num_of_client_epochs": 2,
       "batch_size": 20,
-      "preserve_dataset": "true",
-      "aggregation_strategy_keyword": "krum"
+      "preserve_dataset": "false",
+      "aggregation_strategy_keyword": "krum",
+      "save_attack_snapshots": "true",
+      "attack_snapshot_format": "pickle_and_visual",
+      "snapshot_max_samples": 5,
+      "attack_schedule": [
+        {
+          "start_round": 1,
+          "end_round": 100,
+          "attack_type": "label_flipping",
+          "selection_strategy": "specific",
+          "malicious_client_ids": [0, 1]
+        }
+      ]
     },
     "simulation_strategies": [
       {

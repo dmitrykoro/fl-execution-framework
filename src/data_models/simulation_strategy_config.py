@@ -1,7 +1,7 @@
 import json
 
 from dataclasses import dataclass, asdict
-from typing import Any
+from typing import Optional, Any
 
 
 @dataclass
@@ -14,18 +14,17 @@ class StrategyConfig:
     num_of_rounds: int = None
     num_of_clients: int = None
     num_of_malicious_clients: int = None
-    attack_type: str = None
-    attack_ratio: float = None
-    target_noise_snr: float = None
     show_plots: bool = None
     save_plots: bool = None
     save_csv: bool = None
+    save_attack_snapshots: bool = None
+    attack_snapshot_format: str = "pickle"
+    snapshot_max_samples: int = 5
     training_device: str = None
-    cpus_per_client: int = None
+    cpus_per_client: float = None
     gpus_per_client: float = None
 
     trust_threshold: float = None
-    reputation_threshold: float = None
     beta_value: float = None
     num_of_clusters: int = None
 
@@ -50,6 +49,8 @@ class StrategyConfig:
     strict_mode: bool = None
 
     strategy_number: int = None
+
+    attack_schedule: list = None
 
     def __init__(self, **kwargs):
         for key, value in kwargs.items():

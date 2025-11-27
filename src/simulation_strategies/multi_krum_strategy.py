@@ -59,6 +59,38 @@ class MultiKrumStrategy(fl.server.strategy.FedAvg):
 
         self.strategy_history = strategy_history
 
+    def _calculate_chunked_distance(self, params1: np.ndarray, params2: np.ndarray, chunk_size: int = 10_000_000) -> float:
+        """
+        Calculate L2 distance between two parameter arrays using chunked processing.
+        Memory-efficient for large models (e.g., transformers with 100M+ parameters).
+
+        Args:
+            params1: Flattened parameter array for client 1
+            params2: Flattened parameter array for client 2
+            chunk_size: Number of parameters to process at once (default: 10M)
+
+        Returns:
+            L2 distance between the two parameter arrays
+        """
+        total_params = len(params1)
+        squared_diff_sum = 0.0
+
+        # Process in chunks to avoid memory overflow
+        for start_idx in range(0, total_params, chunk_size):
+            end_idx = min(start_idx + chunk_size, total_params)
+            chunk1 = params1[start_idx:end_idx]
+            chunk2 = params2[start_idx:end_idx]
+
+            # Compute squared difference for this chunk
+            diff = chunk1 - chunk2
+            squared_diff_sum += np.sum(diff ** 2)
+
+            # Free memory immediately
+            del diff, chunk1, chunk2
+
+        # Return L2 norm (square root of sum of squared differences)
+        return np.sqrt(squared_diff_sum)
+
     def _calculate_multi_krum_scores(
             self,
             results: List[Tuple[ClientProxy, FitRes]],
@@ -79,10 +111,23 @@ class MultiKrumStrategy(fl.server.strategy.FedAvg):
         param_data = flat_param_data
         num_clients = len(param_data)
 
+        # Determine if we need chunked calculation (for transformers)
+        param_size = len(param_data[0]) if param_data else 0
+        use_chunked = param_size > 50_000_000  # Use chunked for models >50M parameters
+
+        if use_chunked:
+            logging.info(
+                f"Multi-Krum using chunked distance calculation for large model "
+                f"({param_size:,} parameters)"
+            )
+
         # Compute pairwise distances between clients' model updates
         for i in range(num_clients):
             for j in range(i + 1, num_clients):
-                distances[i, j] = np.linalg.norm(param_data[i] - param_data[j])
+                if use_chunked:
+                    distances[i, j] = self._calculate_chunked_distance(param_data[i], param_data[j])
+                else:
+                    distances[i, j] = np.linalg.norm(param_data[i] - param_data[j])
                 distances[j, i] = distances[i, j]
 
         # Calculate Multi-Krum scores based on the distances
@@ -102,6 +147,10 @@ class MultiKrumStrategy(fl.server.strategy.FedAvg):
     ) -> Tuple[Optional[Parameters], Dict[str, Scalar]]:
 
         self.current_round += 1
+
+        # Update client.is_malicious based on attack_schedule for dynamic attacks
+        if self.strategy_history:
+            self.strategy_history.update_client_malicious_status(server_round)
 
         # clustering
         clustering_param_data = []
@@ -168,8 +217,8 @@ class MultiKrumStrategy(fl.server.strategy.FedAvg):
         available_clients = client_manager.all() # dictionary with client IDs as keys and RayActorClientProxy objects as values
 
          # in the warmup rounds, select all clients
-        if self.current_round <= self.begin_removing_from_round:
-            fit_ins = fl.common.FitIns(parameters, {})
+        if self.begin_removing_from_round is not None and self.current_round <= self.begin_removing_from_round:
+            fit_ins = fl.common.FitIns(parameters, {"server_round": server_round})
             return [(client, fit_ins) for client in available_clients.values()]
 
         # fetch the multi-krum based scores for all available clients
@@ -188,7 +237,7 @@ class MultiKrumStrategy(fl.server.strategy.FedAvg):
 
         self.logger.info(f"Removed clients at round {self.current_round} are : {self.removed_client_ids}")
         selected_client_ids = sorted(client_scores, key=client_scores.get, reverse=True)
-        fit_ins = fl.common.FitIns(parameters, {})
+        fit_ins = fl.common.FitIns(parameters, {"server_round": server_round})
 
         self.strategy_history.update_client_participation(
             current_round=self.current_round, removed_client_ids=self.removed_client_ids

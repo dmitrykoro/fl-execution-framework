@@ -38,6 +38,11 @@ class RFABasedRemovalStrategy(FedAvg):
 
         # Increment the current round counter.
         self.current_round += 1
+
+        # Update client.is_malicious based on attack_schedule for dynamic attacks
+        if self.strategy_history:
+            self.strategy_history.update_client_malicious_status(server_round)
+
         self.rounds_history[f'{self.current_round}'] = {}
         aggregate_clients = []
 
@@ -140,7 +145,7 @@ class RFABasedRemovalStrategy(FedAvg):
         available_clients = client_manager.all()  # dictionary with client IDs as keys and RayActorClientProxy objects as values
 
         # Select all clients in the warmup rounds.
-        if self.current_round <= self.begin_removing_from_round:
+        if self.begin_removing_from_round is not None and self.current_round <= self.begin_removing_from_round:
             fit_ins = fl.common.FitIns(parameters, {})
             return [(client, fit_ins) for client in available_clients.values()]
 

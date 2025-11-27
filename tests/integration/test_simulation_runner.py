@@ -46,8 +46,30 @@ def _create_mock_strategy_config() -> Dict[str, Any]:
             "save_csv": True,
         },
         "simulation_strategies": [
-            {"attack_type": "gaussian_noise"},
-            {"attack_type": "label_flipping"},
+            {
+                "attack_schedule": [
+                    {
+                        "start_round": 1,
+                        "end_round": 3,
+                        "attack_type": "gaussian_noise",
+                        "target_noise_snr": 10.0,
+                        "attack_ratio": 1.0,
+                        "selection_strategy": "percentage",
+                        "malicious_percentage": 0.2,
+                    }
+                ]
+            },
+            {
+                "attack_schedule": [
+                    {
+                        "start_round": 1,
+                        "end_round": 3,
+                        "attack_type": "label_flipping",
+                        "selection_strategy": "percentage",
+                        "malicious_percentage": 0.2,
+                    }
+                ]
+            },
         ],
     }
 
@@ -237,7 +259,9 @@ class TestSimulationRunnerInitialization:
             SimulationRunner("test_config.json")
 
         # Assert
-        mock_logging_config.assert_called_once_with(level=logging.INFO)
+        mock_logging_config.assert_called_once_with(
+            level=logging.INFO, format="%(levelname)s: %(message)s"
+        )
 
 
 class TestSimulationRunnerExecution:
@@ -892,9 +916,9 @@ class TestSimulationRunnerErrorHandling:
             with pytest.raises(RuntimeError):
                 runner.run()
 
-            # Assert - Verify setup was called but teardown was NOT called due to error
+            # Assert - Verify both setup and teardown were called
             mock_dataset_instance.setup_dataset.assert_called_once()
-            mock_dataset_instance.teardown_dataset.assert_not_called()
+            mock_dataset_instance.teardown_dataset.assert_called_once()
 
 
 class TestSimulationRunnerLogging:

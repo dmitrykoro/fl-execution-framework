@@ -56,6 +56,11 @@ class KrumBasedRemovalStrategy(Krum):
         Returns:
             List[float]: Krum scores for each client.
         """
+        if self.num_malicious_clients is None:
+            raise ValueError(
+                "num_of_malicious_clients must be set in config for Krum-based strategies. "
+                "Calculate from attack_schedule (e.g., 20% of 10 clients = 2)"
+            )
         param_data = [fl.common.parameters_to_ndarrays(fit_res.parameters) for _, fit_res in results]
         flat_param_data = [np.concatenate([p.flatten() for p in params]) for params in param_data]
         param_data = flat_param_data
@@ -83,6 +88,10 @@ class KrumBasedRemovalStrategy(Krum):
     ) -> Tuple[Optional[Parameters], Dict[str, Scalar]]:
 
         self.current_round += 1
+
+        # Update client.is_malicious based on attack_schedule for dynamic attacks
+        if self.strategy_history:
+            self.strategy_history.update_client_malicious_status(server_round)
 
         # Handle empty results
         if not results:
@@ -159,8 +168,8 @@ class KrumBasedRemovalStrategy(Krum):
         available_clients = client_manager.all()  # dictionary with client IDs as keys and RayActorClientProxy objects as values
 
         # in the warmup rounds, select all clients
-        if self.current_round <= self.begin_removing_from_round:
-            fit_ins = fl.common.FitIns(parameters, {})
+        if self.begin_removing_from_round is not None and self.current_round <= self.begin_removing_from_round:
+            fit_ins = fl.common.FitIns(parameters, {"server_round": server_round})
             return [(client, fit_ins) for client in available_clients.values()]
 
         # fetch the krum based scores for all available clients
@@ -175,7 +184,7 @@ class KrumBasedRemovalStrategy(Krum):
         logging.info(f"removed clients are : {self.removed_client_ids}")
 
         selected_client_ids = sorted(client_scores, key=client_scores.get, reverse=True)
-        fit_ins = fl.common.FitIns(parameters, {})
+        fit_ins = fl.common.FitIns(parameters, {"server_round": server_round})
 
         self.strategy_history.update_client_participation(
             current_round=self.current_round, removed_client_ids=self.removed_client_ids

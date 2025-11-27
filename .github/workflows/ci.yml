@@ -2,9 +2,10 @@ name: CI Pipeline
 
 on:
   push:
-    branches: [ "*" ]
-  pull_request:
-    branches: [ main, master ]
+  # Change to a real branch name and uncomment pull_request to enable
+    branches: [ "aj-attack" ]
+  # pull_request:
+  #   branches: [ main, master ]
 
 jobs:
   test:

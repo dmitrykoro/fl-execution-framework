@@ -8,15 +8,27 @@ set -eu
 # ============================================================================
 
 log_info() {
-    echo "✅ $1"
+    if [ -n "${LOG_FILE:-}" ]; then
+        echo "✅ $1" | tee -a "$LOG_FILE"
+    else
+        echo "✅ $1"
+    fi
 }
 
 log_warning() {
-    echo "⚠️  $1"
+    if [ -n "${LOG_FILE:-}" ]; then
+        echo "⚠️  $1" | tee -a "$LOG_FILE"
+    else
+        echo "⚠️  $1"
+    fi
 }
 
 log_error() {
-    echo "❌ $1" >&2
+    if [ -n "${LOG_FILE:-}" ]; then
+        echo "❌ $1" | tee -a "$LOG_FILE" >&2
+    else
+        echo "❌ $1" >&2
+    fi
 }
 
 setup_logging_with_file() {
@@ -73,12 +85,25 @@ get_physical_cores() {
     if [ -z "${PYTHON_CMD:-}" ]; then
         find_python_interpreter
     fi
-    "$PYTHON_CMD" -c "import psutil; print(psutil.cpu_count(logical=False) or psutil.cpu_count(logical=True) or 1)"
+    run_python -c "import psutil; print(psutil.cpu_count(logical=False) or psutil.cpu_count(logical=True) or 1)"
 }
 
 # ============================================================================
 # Python Environment
 # ============================================================================
+
+run_python() {
+    # Wrapper function to handle both regular python and py launcher
+    if [ -z "${PYTHON_CMD:-}" ]; then
+        find_python_interpreter
+    fi
+
+    if [ -n "${PYTHON_ARGS:-}" ]; then
+        "$PYTHON_CMD" $PYTHON_ARGS "$@"
+    else
+        "$PYTHON_CMD" "$@"
+    fi
+}
 
 find_python_interpreter() {
     if [ -n "${PYTHON_CMD:-}" ] && command_exists "$PYTHON_CMD"; then
@@ -88,9 +113,11 @@ find_python_interpreter() {
     log_info "🔍 Searching for a compatible Python interpreter..."
     for version in python3.11 python3.10 python3.9 python3 python; do
         if command_exists "$version"; then
-            if "$version" -c "import sys; sys.exit(not (sys.version_info >= (3, 9)))" 2>/dev/null; then
+            if "$version" -c "import sys; sys.exit(not (sys.version_info >= (3, 9) and sys.version_info < (3, 12)))" 2>/dev/null; then
                 PYTHON_CMD="$version"
                 export PYTHON_CMD
+                PYTHON_ARGS=""
+                export PYTHON_ARGS
                 log_info "Found compatible Python: $PYTHON_CMD"
                 return 0
             fi
@@ -99,16 +126,18 @@ find_python_interpreter() {
 
     if command_exists py; then
         for py_version in "-3.11" "-3.10" "-3.9" "-3"; do
-             if py "$py_version" -c "import sys; sys.exit(not (sys.version_info >= (3, 9)))" 2>/dev/null; then
-                PYTHON_CMD="py $py_version"
+             if py "$py_version" -c "import sys; sys.exit(not (sys.version_info >= (3, 9) and sys.version_info < (3, 12)))" 2>/dev/null; then
+                PYTHON_CMD="py"
                 export PYTHON_CMD
-                log_info "Found compatible Python via 'py' launcher: $PYTHON_CMD"
+                PYTHON_ARGS="$py_version"
+                export PYTHON_ARGS
+                log_info "Found compatible Python via 'py' launcher: $PYTHON_CMD $PYTHON_ARGS"
                 return 0
             fi
         done
     fi
 
-    log_error "Python 3.9+ was not found. Please install a compatible version."
+    log_error "Python 3.9, 3.10, or 3.11 was not found. Please install a compatible version."
     exit 1
 }
 
@@ -141,12 +170,16 @@ setup_virtual_environment() {
             if [ -f "$VENV_DIR/Scripts/python.exe" ]; then
                 PYTHON_CMD="$VENV_DIR/Scripts/python.exe"
                 export PYTHON_CMD
+                PYTHON_ARGS=""
+                export PYTHON_ARGS
             fi
         else
             . "$VENV_DIR/bin/activate"
             if [ -f "$VENV_DIR/bin/python" ]; then
                 PYTHON_CMD="$VENV_DIR/bin/python"
                 export PYTHON_CMD
+                PYTHON_ARGS=""
+                export PYTHON_ARGS
             fi
         fi
         log_info "Virtual environment activated."
@@ -236,7 +269,7 @@ run_python_with_unicode() {
         find_python_interpreter
     fi
 
-    PYTHONIOENCODING=utf-8 $PYTHON_CMD "$script_path" "$@"
+    PYTHONIOENCODING=utf-8 run_python "$script_path" "$@"
 }
 
 run_pytest_with_unicode() {
@@ -253,7 +286,7 @@ run_pytest_with_unicode() {
         find_python_interpreter
     fi
 
-    PYTHONIOENCODING=utf-8 $PYTHON_CMD -m pytest "$test_path" "$@"
+    PYTHONIOENCODING=utf-8 run_python -m pytest "$test_path" "$@"
 }
 
 # ============================================================================

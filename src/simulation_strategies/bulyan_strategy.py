@@ -91,6 +91,10 @@ class BulyanStrategy(fl.server.strategy.FedAvg):
     ) -> Tuple[Optional[Parameters], Dict[str, Scalar]]:
         self.current_round += 1
 
+        # Update client.is_malicious based on attack_schedule for dynamic attacks
+        if self.strategy_history:
+            self.strategy_history.update_client_malicious_status(server_round)
+
         if not results:
             return None, {}
 
@@ -182,8 +186,8 @@ class BulyanStrategy(fl.server.strategy.FedAvg):
         available_clients = client_manager.all()
 
         # Warm‑up: keep everyone
-        if self.current_round <= self.begin_removing_from_round:
-            fit_ins = fl.common.FitIns(parameters, {})
+        if self.begin_removing_from_round is not None and self.current_round <= self.begin_removing_from_round:
+            fit_ins = fl.common.FitIns(parameters, {"server_round": server_round})
             return [(c, fit_ins) for c in available_clients.values()]
 
         # --- Gather scores for available clients ----------------------
@@ -215,7 +219,7 @@ class BulyanStrategy(fl.server.strategy.FedAvg):
 
         # --- Build fit instructions ----------------------------------
         ordered_cids = sorted(client_scores, key=client_scores.get, reverse=True)
-        fit_ins = fl.common.FitIns(parameters, {})
+        fit_ins = fl.common.FitIns(parameters, {"server_round": server_round})
         return [
             (available_clients[cid], fit_ins)
             for cid in ordered_cids

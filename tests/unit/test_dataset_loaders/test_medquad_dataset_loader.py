@@ -1,6 +1,6 @@
 from unittest.mock import patch
 
-from tests.common import Mock, pytest
+from tests.common import Mock, pytest, mock_medquad_dependencies
 from src.dataset_loaders.medquad_dataset_loader import MedQuADDatasetLoader
 
 
@@ -78,111 +78,50 @@ class TestMedQuADDatasetLoader:
         assert loader.tokenize_columns == ["answer"]
         assert loader.remove_columns == ["answer", "token_type_ids", "question"]
 
-    @patch("src.dataset_loaders.medquad_dataset_loader.AutoTokenizer.from_pretrained")
-    @patch("src.dataset_loaders.medquad_dataset_loader.load_dataset")
-    @patch("src.dataset_loaders.medquad_dataset_loader.DataLoader")
-    @patch("src.dataset_loaders.medquad_dataset_loader.glob.glob")
     def test_load_datasets_processes_client_folders(
-        self,
-        mock_glob,
-        mock_dataloader,
-        mock_load_dataset,
-        mock_tokenizer,
-        dataset_loader,
+        self, dataset_loader, mock_dataset_dict_chain
     ):
         """Verify load_datasets loads datasets and returns train/val loaders per client."""
-        # Mock glob to return JSON files
-        mock_glob.return_value = ["client_0/data.json"]
+        mock_dataset_dict, _ = mock_dataset_dict_chain
 
-        # Mock tokenizer
-        mock_tokenizer_instance = Mock()
-        mock_tokenizer.return_value = mock_tokenizer_instance
+        with mock_medquad_dependencies(
+            mock_dataset_dict, glob_return=["client_0/data.json"]
+        ) as mocks:
+            # Mock DataLoader (need 2 loaders per client folder, 3 folders = 6 total)
+            mock_train_loader = Mock()
+            mock_val_loader = Mock()
+            mocks["dataloader"].side_effect = [
+                mock_train_loader,
+                mock_val_loader,  # client_0
+                mock_train_loader,
+                mock_val_loader,  # client_1
+                mock_train_loader,
+                mock_val_loader,  # client_2
+            ]
 
-        # Create mock DatasetDict that supports the chain of operations
-        mock_dataset_dict = Mock()
-        mock_train_dataset = Mock()
+            trainloaders, valloaders = dataset_loader.load_datasets()
 
-        # Configure the mock chain: DatasetDict.map() -> DatasetDict.remove_columns() -> DatasetDict.map() -> DatasetDict["train"] -> Dataset.train_test_split()
-        mock_dataset_dict.map.return_value = mock_dataset_dict
-        mock_dataset_dict.remove_columns.return_value = mock_dataset_dict
-        mock_dataset_dict.__getitem__ = Mock(return_value=mock_train_dataset)
+            # Should create tokenizer
+            mocks["tokenizer"].assert_called_once_with("bert-base-uncased")
 
-        mock_train_dataset.train_test_split.return_value = {
-            "train": Mock(),
-            "test": Mock(),
-        }
+            # Should load dataset for each client
+            assert mocks["load_dataset"].call_count == 3
 
-        # load_dataset returns the DatasetDict
-        mock_load_dataset.return_value = mock_dataset_dict
+            # Should return lists of loaders
+            assert len(trainloaders) == 3
+            assert len(valloaders) == 3
 
-        # Mock DataLoader (need 2 loaders per client folder, 3 folders = 6 total)
-        mock_train_loader = Mock()
-        mock_val_loader = Mock()
-        mock_dataloader.side_effect = [
-            mock_train_loader,
-            mock_val_loader,  # client_0
-            mock_train_loader,
-            mock_val_loader,  # client_1
-            mock_train_loader,
-            mock_val_loader,  # client_2
-        ]
-
-        trainloaders, valloaders = dataset_loader.load_datasets()
-
-        # Should create tokenizer
-        mock_tokenizer.assert_called_once_with("bert-base-uncased")
-
-        # Should load dataset for each client
-        assert mock_load_dataset.call_count == 3
-
-        # Should return lists of loaders
-        assert len(trainloaders) == 3
-        assert len(valloaders) == 3
-
-    @patch("src.dataset_loaders.medquad_dataset_loader.AutoTokenizer.from_pretrained")
-    @patch("src.dataset_loaders.medquad_dataset_loader.load_dataset")
-    @patch("src.dataset_loaders.medquad_dataset_loader.DataLoader")
-    @patch("src.dataset_loaders.medquad_dataset_loader.glob.glob")
     def test_load_datasets_handles_poisoned_clients(
-        self,
-        mock_glob,
-        mock_dataloader,
-        mock_load_dataset,
-        mock_tokenizer,
-        dataset_loader,
+        self, dataset_loader, mock_dataset_dict_chain
     ):
         """Verify poisoned clients receive the configured MLM collator settings."""
-        # Mock components
-        mock_glob.return_value = ["data.json"]
-        mock_tokenizer_instance = Mock()
-        mock_tokenizer.return_value = mock_tokenizer_instance
+        mock_dataset_dict, _ = mock_dataset_dict_chain
 
-        # Create mock DatasetDict that supports the chain of operations
-        mock_dataset_dict = Mock()
-        mock_train_dataset = Mock()
-
-        # Configure the mock chain
-        mock_dataset_dict.map.return_value = mock_dataset_dict
-        mock_dataset_dict.remove_columns.return_value = mock_dataset_dict
-        mock_dataset_dict.__getitem__ = Mock(return_value=mock_train_dataset)
-
-        mock_train_dataset.train_test_split.return_value = {
-            "train": Mock(),
-            "test": Mock(),
-        }
-
-        mock_load_dataset.return_value = mock_dataset_dict
-
-        with patch(
-            "src.dataset_loaders.medquad_dataset_loader.DataCollatorForLanguageModeling"
-        ) as mock_collator:
-            mock_collator_instance = Mock()
-            mock_collator.return_value = mock_collator_instance
-
+        with mock_medquad_dependencies(mock_dataset_dict) as mocks:
             dataset_loader.load_datasets()
 
             # Check that different MLM probabilities are used
-            collator_calls = mock_collator.call_args_list
+            collator_calls = mocks["collator"].call_args_list
 
             # First client (client_0) should be poisoned
             poisoned_call = collator_calls[0]
@@ -194,45 +133,23 @@ class TestMedQuADDatasetLoader:
             args, kwargs = normal_call
             assert kwargs["mlm_probability"] == 0.15  # Normal client
 
-    @patch("src.dataset_loaders.medquad_dataset_loader.AutoTokenizer.from_pretrained")
-    @patch("src.dataset_loaders.medquad_dataset_loader.load_dataset")
     def test_load_datasets_applies_tokenization(
-        self, mock_load_dataset, mock_tokenizer, dataset_loader
+        self, dataset_loader, mock_dataset_dict_chain
     ):
         """Verify tokenization and column removal are applied to loaded datasets."""
-        # Mock tokenizer
+        mock_dataset_dict, _ = mock_dataset_dict_chain
+
+        # Mock tokenizer with return value
         mock_tokenizer_instance = Mock()
         mock_tokenizer_instance.return_value = {
             "input_ids": [1, 2, 3],
             "attention_mask": [1, 1, 1],
         }
-        mock_tokenizer.return_value = mock_tokenizer_instance
 
-        # Create mock DatasetDict that supports the chain of operations
-        mock_dataset_dict = Mock()
-        mock_train_dataset = Mock()
-
-        # Configure the mock chain: DatasetDict.map() -> DatasetDict.remove_columns() -> DatasetDict.map() -> DatasetDict["train"] -> Dataset.train_test_split()
-        mock_dataset_dict.map.return_value = mock_dataset_dict
-        mock_dataset_dict.remove_columns.return_value = mock_dataset_dict
-        mock_dataset_dict.__getitem__ = Mock(return_value=mock_train_dataset)
-
-        mock_train_dataset.train_test_split.return_value = {
-            "train": Mock(),
-            "test": Mock(),
-        }
-
-        mock_load_dataset.return_value = mock_dataset_dict
-
-        with patch(
-            "src.dataset_loaders.medquad_dataset_loader.glob.glob",
-            return_value=["data.json"],
+        with mock_medquad_dependencies(
+            mock_dataset_dict, tokenizer_return=mock_tokenizer_instance
         ):
-            with patch("src.dataset_loaders.medquad_dataset_loader.DataLoader"):
-                with patch(
-                    "src.dataset_loaders.medquad_dataset_loader.DataCollatorForLanguageModeling"
-                ):
-                    dataset_loader.load_datasets()
+            dataset_loader.load_datasets()
 
         # Should apply tokenization mapping
         assert mock_dataset_dict.map.called
@@ -241,102 +158,45 @@ class TestMedQuADDatasetLoader:
         # Should apply chunking mapping (2 map calls per client, 3 clients = 6 total)
         assert mock_dataset_dict.map.call_count == 6
 
-    def test_load_datasets_skips_hidden_files(self, dataset_loader):
+    def test_load_datasets_skips_hidden_files(
+        self, dataset_loader, mock_dataset_dict_chain
+    ):
         """Verify hidden files/folders are ignored when scanning client folders."""
+        mock_dataset_dict, _ = mock_dataset_dict_chain
+
         with patch(
             "src.dataset_loaders.medquad_dataset_loader.os.listdir"
         ) as mock_listdir:
             mock_listdir.return_value = ["client_0", ".DS_Store", "client_1"]
 
-            with patch(
-                "src.dataset_loaders.medquad_dataset_loader.glob.glob",
-                return_value=["data.json"],
-            ):
-                with patch(
-                    "src.dataset_loaders.medquad_dataset_loader.AutoTokenizer.from_pretrained"
-                ):
-                    with patch(
-                        "src.dataset_loaders.medquad_dataset_loader.load_dataset"
-                    ) as mock_load_dataset:
-                        # Create mock DatasetDict that supports the chain of operations
-                        mock_dataset_dict = Mock()
-                        mock_train_dataset = Mock()
-
-                        # Configure the mock chain
-                        mock_dataset_dict.map.return_value = mock_dataset_dict
-                        mock_dataset_dict.remove_columns.return_value = (
-                            mock_dataset_dict
-                        )
-                        mock_dataset_dict.__getitem__ = Mock(
-                            return_value=mock_train_dataset
-                        )
-
-                        mock_train_dataset.train_test_split.return_value = {
-                            "train": Mock(),
-                            "test": Mock(),
-                        }
-
-                        mock_load_dataset.return_value = mock_dataset_dict
-
-                        with patch(
-                            "src.dataset_loaders.medquad_dataset_loader.DataLoader"
-                        ):
-                            with patch(
-                                "src.dataset_loaders.medquad_dataset_loader.DataCollatorForLanguageModeling"
-                            ):
-                                trainloaders, valloaders = (
-                                    dataset_loader.load_datasets()
-                                )
+            with mock_medquad_dependencies(mock_dataset_dict) as mocks:
+                trainloaders, valloaders = dataset_loader.load_datasets()
 
         # Should only process non-hidden folders (client_0 and client_1)
-        assert mock_load_dataset.call_count == 2
+        assert mocks["load_dataset"].call_count == 2
 
-    @patch("src.dataset_loaders.medquad_dataset_loader.os.listdir")
     def test_load_datasets_sorts_client_folders_correctly(
-        self, mock_listdir, dataset_loader
+        self, dataset_loader, mock_dataset_dict_chain
     ):
         """Verify client folders are processed in numeric order by suffix."""
-        mock_listdir.return_value = ["client_10", "client_2", "client_1"]
+        mock_dataset_dict, _ = mock_dataset_dict_chain
 
         with patch(
-            "src.dataset_loaders.medquad_dataset_loader.glob.glob",
-            return_value=["data.json"],
-        ):
-            with patch(
-                "src.dataset_loaders.medquad_dataset_loader.AutoTokenizer.from_pretrained"
-            ):
-                with patch(
-                    "src.dataset_loaders.medquad_dataset_loader.load_dataset"
-                ) as mock_load_dataset:
-                    # Create mock DatasetDict that supports the chain of operations
-                    mock_dataset_dict = Mock()
-                    mock_train_dataset = Mock()
+            "src.dataset_loaders.medquad_dataset_loader.os.listdir"
+        ) as mock_listdir:
+            mock_listdir.return_value = ["client_10", "client_2", "client_1"]
 
-                    # Configure the mock chain
-                    mock_dataset_dict.map.return_value = mock_dataset_dict
-                    mock_dataset_dict.remove_columns.return_value = mock_dataset_dict
-                    mock_dataset_dict.__getitem__ = Mock(
-                        return_value=mock_train_dataset
-                    )
-
-                    mock_train_dataset.train_test_split.return_value = {
-                        "train": Mock(),
-                        "test": Mock(),
-                    }
-
-                    mock_load_dataset.return_value = mock_dataset_dict
-
-                    with patch("src.dataset_loaders.medquad_dataset_loader.DataLoader"):
-                        with patch(
-                            "src.dataset_loaders.medquad_dataset_loader.DataCollatorForLanguageModeling"
-                        ):
-                            dataset_loader.load_datasets()
+            with mock_medquad_dependencies(mock_dataset_dict) as mocks:
+                dataset_loader.load_datasets()
 
         # Should be called 3 times in sorted order
-        assert mock_load_dataset.call_count == 3
+        assert mocks["load_dataset"].call_count == 3
 
-    def test_load_datasets_creates_correct_poisoned_client_list(self, dataset_loader):
+    def test_load_datasets_creates_correct_poisoned_client_list(
+        self, dataset_loader, mock_dataset_dict_chain
+    ):
         """Verify the loader identifies the correct client IDs to poison."""
+        mock_dataset_dict, _ = mock_dataset_dict_chain
         # Set num_poisoned_clients to 2
         dataset_loader.num_poisoned_clients = 2
 
@@ -345,59 +205,24 @@ class TestMedQuADDatasetLoader:
         ) as mock_listdir:
             mock_listdir.return_value = ["client_0", "client_1", "client_2"]
 
-            with patch(
-                "src.dataset_loaders.medquad_dataset_loader.glob.glob",
-                return_value=["data.json"],
-            ):
-                with patch(
-                    "src.dataset_loaders.medquad_dataset_loader.AutoTokenizer.from_pretrained"
-                ):
-                    with patch(
-                        "src.dataset_loaders.medquad_dataset_loader.load_dataset"
-                    ) as mock_load_dataset:
-                        # Create mock DatasetDict that supports the chain of operations
-                        mock_dataset_dict = Mock()
-                        mock_train_dataset = Mock()
+            with mock_medquad_dependencies(mock_dataset_dict) as mocks:
+                dataset_loader.load_datasets()
 
-                        # Configure the mock chain
-                        mock_dataset_dict.map.return_value = mock_dataset_dict
-                        mock_dataset_dict.remove_columns.return_value = (
-                            mock_dataset_dict
-                        )
-                        mock_dataset_dict.__getitem__ = Mock(
-                            return_value=mock_train_dataset
-                        )
+                # Check that first 2 clients get poisoned settings
+                collator_calls = mocks["collator"].call_args_list
 
-                        mock_train_dataset.train_test_split.return_value = {
-                            "train": Mock(),
-                            "test": Mock(),
-                        }
+                # Client 0 and 1 should be poisoned
+                for i in [0, 1]:
+                    args, kwargs = collator_calls[i]
+                    assert kwargs["mlm_probability"] == 0.75
+                    assert kwargs["mask_replace_prob"] == 0
+                    assert kwargs["random_replace_prob"] == 1
 
-                        mock_load_dataset.return_value = mock_dataset_dict
-
-                        with patch(
-                            "src.dataset_loaders.medquad_dataset_loader.DataLoader"
-                        ):
-                            with patch(
-                                "src.dataset_loaders.medquad_dataset_loader.DataCollatorForLanguageModeling"
-                            ) as mock_collator:
-                                dataset_loader.load_datasets()
-
-                                # Check that first 2 clients get poisoned settings
-                                collator_calls = mock_collator.call_args_list
-
-                                # Client 0 and 1 should be poisoned
-                                for i in [0, 1]:
-                                    args, kwargs = collator_calls[i]
-                                    assert kwargs["mlm_probability"] == 0.75
-                                    assert kwargs["mask_replace_prob"] == 0
-                                    assert kwargs["random_replace_prob"] == 1
-
-                                # Client 2 should be normal
-                                args, kwargs = collator_calls[2]
-                                assert kwargs["mlm_probability"] == 0.15
-                                assert kwargs["mask_replace_prob"] == 0.8
-                                assert kwargs["random_replace_prob"] == 0.1
+                # Client 2 should be normal
+                args, kwargs = collator_calls[2]
+                assert kwargs["mlm_probability"] == 0.15
+                assert kwargs["mask_replace_prob"] == 0.8
+                assert kwargs["random_replace_prob"] == 0.1
 
     def test_tokenize_function_joins_columns_correctly(self, dataset_loader):
         """Test internal tokenize_function joins specified columns correctly"""
@@ -428,41 +253,13 @@ class TestMedQuADDatasetLoader:
                 ["This is answer 1", "This is answer 2"], truncation=False
             )
 
-    @patch("src.dataset_loaders.medquad_dataset_loader.AutoTokenizer.from_pretrained")
-    @patch("src.dataset_loaders.medquad_dataset_loader.load_dataset")
-    @patch("src.dataset_loaders.medquad_dataset_loader.DataLoader")
-    @patch("src.dataset_loaders.medquad_dataset_loader.glob.glob")
     def test_load_datasets_uses_correct_train_test_split(
-        self,
-        mock_glob,
-        mock_dataloader,
-        mock_load_dataset,
-        mock_tokenizer,
-        dataset_loader,
+        self, dataset_loader, mock_dataset_dict_chain
     ):
         """Test load_datasets uses correct train/test split fraction"""
-        mock_glob.return_value = ["data.json"]
-        mock_tokenizer.return_value = Mock()
+        mock_dataset_dict, mock_train_dataset = mock_dataset_dict_chain
 
-        # Create mock DatasetDict that supports the chain of operations
-        mock_dataset_dict = Mock()
-        mock_train_dataset = Mock()
-
-        # Configure the mock chain
-        mock_dataset_dict.map.return_value = mock_dataset_dict
-        mock_dataset_dict.remove_columns.return_value = mock_dataset_dict
-        mock_dataset_dict.__getitem__ = Mock(return_value=mock_train_dataset)
-
-        mock_train_dataset.train_test_split.return_value = {
-            "train": Mock(),
-            "test": Mock(),
-        }
-
-        mock_load_dataset.return_value = mock_dataset_dict
-
-        with patch(
-            "src.dataset_loaders.medquad_dataset_loader.DataCollatorForLanguageModeling"
-        ):
+        with mock_medquad_dependencies(mock_dataset_dict):
             dataset_loader.load_datasets()
 
         # Should use correct test_size (1 - training_subset_fraction)

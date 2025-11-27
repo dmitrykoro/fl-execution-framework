@@ -107,6 +107,11 @@ class TrustBasedRemovalStrategy(fl.server.strategy.FedAvg):
             return super().aggregate_fit(server_round, results, failures)
 
         self.current_round += 1
+
+        # Update client.is_malicious based on attack_schedule for dynamic attacks
+        if self.strategy_history:
+            self.strategy_history.update_client_malicious_status(server_round)
+
         aggregate_clients = []
 
         for result in results:
@@ -174,7 +179,7 @@ class TrustBasedRemovalStrategy(fl.server.strategy.FedAvg):
 
         # in the warmup rounds, select all clients
         if self.current_round <= self.begin_removing_from_round - 1:
-            fit_ins = fl.common.FitIns(parameters, {})
+            fit_ins = fl.common.FitIns(parameters, {"server_round": server_round})
             return [(client, fit_ins) for client in available_clients.values()]
 
         # fetch the Trust and Reputation scores for all available clients
@@ -203,7 +208,7 @@ class TrustBasedRemovalStrategy(fl.server.strategy.FedAvg):
         selected_client_ids = sorted_client_ids
 
         # create training configurations for selected clients
-        fit_ins = fl.common.FitIns(parameters, {})
+        fit_ins = fl.common.FitIns(parameters, {"server_round": server_round})
 
         self.strategy_history.update_client_participation(
             current_round=self.current_round, removed_client_ids=self.removed_client_ids

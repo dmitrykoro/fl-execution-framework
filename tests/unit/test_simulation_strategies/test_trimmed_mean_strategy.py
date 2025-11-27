@@ -56,7 +56,6 @@ class TestTrimmedMeanBasedRemovalStrategy:
         assert trimmed_mean_strategy.trim_ratio == 0.2
         assert trimmed_mean_strategy.strategy_history == mock_strategy_history
         assert trimmed_mean_strategy.current_round == 0
-        assert trimmed_mean_strategy.removed_client_ids == set()
         assert trimmed_mean_strategy.client_scores == {}
 
     def test_aggregate_fit_no_trimming_needed(self, trimmed_mean_strategy):
@@ -187,11 +186,11 @@ class TestTrimmedMeanBasedRemovalStrategy:
         assert len(result) == 5
 
     def test_configure_fit_removal_phase(self, trimmed_mean_strategy):
-        """Test configure_fit removes client with highest score."""
+        """Test configure_fit during removal phase."""
         trimmed_mean_strategy.current_round = 3  # After begin_removing_from_round
         trimmed_mean_strategy.client_scores = {
             "client_0": 0.1,
-            "client_1": 0.8,  # Highest score - should be removed
+            "client_1": 0.8,  # Highest score
             "client_2": 0.3,
             "client_3": 0.2,
             "client_4": 0.5,
@@ -207,7 +206,7 @@ class TestTrimmedMeanBasedRemovalStrategy:
             3, mock_parameters, mock_client_manager
         )
 
-        # Should return all clients for training
+        # Should return all clients sorted by score (descending)
         assert len(result) == 5
 
     def test_configure_fit_no_removal_when_disabled(self, trimmed_mean_strategy):
@@ -465,3 +464,27 @@ class TestTrimmedMeanBasedRemovalStrategy:
         aggregated_arrays = parameters_to_ndarrays(result_params)
         for arr in aggregated_arrays:
             assert np.all(np.isfinite(arr))
+
+    def test_aggregate_evaluate_with_removed_clients(self, trimmed_mean_strategy):
+        """Test aggregate_evaluate processes all client results."""
+        from flwr.common import EvaluateRes
+
+        trimmed_mean_strategy.current_round = 2
+
+        results = []
+        for i in range(5):
+            client_proxy = Mock(spec=ClientProxy)
+            client_proxy.cid = str(i)
+
+            eval_res = Mock(spec=EvaluateRes)
+            eval_res.loss = 0.5 + i * 0.1
+            eval_res.num_examples = 100
+            eval_res.metrics = {"accuracy": 0.9 - i * 0.05}
+
+            results.append((client_proxy, eval_res))
+
+        loss, metrics = trimmed_mean_strategy.aggregate_evaluate(2, results, [])
+
+        # Should aggregate all client results
+        assert loss is not None
+        trimmed_mean_strategy.strategy_history.insert_single_client_history_entry.assert_called()

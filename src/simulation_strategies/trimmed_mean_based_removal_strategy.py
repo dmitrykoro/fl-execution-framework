@@ -30,7 +30,6 @@ class TrimmedMeanBasedRemovalStrategy(FedAvg):
         self.begin_removing_from_round = begin_removing_from_round
         self.trim_ratio = trim_ratio
         self.current_round = 0
-        self.removed_client_ids = set()
         self.client_scores = {}
 
         self.strategy_history = strategy_history
@@ -43,6 +42,10 @@ class TrimmedMeanBasedRemovalStrategy(FedAvg):
     ) -> Tuple[Optional[Union[ndarrays_to_parameters, bytes]], Dict[str, Scalar]]:
 
         self.current_round += 1
+
+        # Update client.is_malicious based on attack_schedule for dynamic attacks
+        if self.strategy_history:
+            self.strategy_history.update_client_malicious_status(server_round)
 
         if not results:
             return None, {}
@@ -60,6 +63,16 @@ class TrimmedMeanBasedRemovalStrategy(FedAvg):
         if num_trim == 0:
             # No trimming needed
             aggregated_weights = self._average_weights([w for w, _, _ in weights_results])
+
+            # Store trim_frequency = 0.0 for all clients
+            for cid in participating_clients:
+                self.client_scores[cid] = 0.0
+                self.strategy_history.insert_single_client_history_entry(
+                    current_round=self.current_round,
+                    client_id=int(cid),
+                    removal_criterion=0.0
+                )
+
             self.strategy_history.update_client_participation(
                 current_round=self.current_round,
                 removed_client_ids=set()
@@ -72,12 +85,19 @@ class TrimmedMeanBasedRemovalStrategy(FedAvg):
 
         trimmed_clients: Set[str] = set()
 
+        # Track trim frequency per client for removal_criterion
+        client_trim_counts = {cid: 0 for _, _, cid in weights_results}
+        total_parameters = 0
+
         for layer_weights in weights_by_layer:
             stacked = np.stack(layer_weights)  # Shape: (n_clients, layer_shape...)
 
             # Flatten weights across clients
             trimmed_layer = []
-            for i in range(np.prod(stacked.shape[1:]) if len(stacked.shape) > 1 else 1):
+            num_params_in_layer = np.prod(stacked.shape[1:]) if len(stacked.shape) > 1 else 1
+            total_parameters += num_params_in_layer
+
+            for i in range(num_params_in_layer):
                 # For each scalar value in the layer (if multidimensional)
                 values = stacked if len(stacked.shape) == 1 else stacked.reshape((num_clients, -1))[:, i]
                 sorted_indices = np.argsort(values)
@@ -85,7 +105,7 @@ class TrimmedMeanBasedRemovalStrategy(FedAvg):
                 trimmed_values = values[trimmed_indices]
                 trimmed_layer.append(np.mean(trimmed_values))
 
-                # Track which clients were trimmed
+                # Track which clients were trimmed for this parameter
                 removed_this_dim = set(
                     weights_results[j][2] for j in sorted_indices[:num_trim]
                 ).union(
@@ -93,15 +113,31 @@ class TrimmedMeanBasedRemovalStrategy(FedAvg):
                 )
                 trimmed_clients.update(removed_this_dim)
 
+                # Increment trim count for each client that was trimmed
+                for cid in removed_this_dim:
+                    client_trim_counts[cid] += 1
+
             aggregated.append(np.array(trimmed_layer).reshape(stacked.shape[1:]))
 
-        # Log trimmed clients for this round
+        # Calculate and store trim frequency as removal_criterion
+        for cid in participating_clients:
+            trim_frequency = client_trim_counts[cid] / total_parameters if total_parameters > 0 else 0.0
+            self.client_scores[cid] = trim_frequency
+
+            # Store removal criterion in strategy_history
+            self.strategy_history.insert_single_client_history_entry(
+                current_round=self.current_round,
+                client_id=int(cid),
+                removal_criterion=float(trim_frequency)
+            )
+
+        # Update strategy history
         self.strategy_history.update_client_participation(
             current_round=self.current_round,
-            removed_client_ids=removed_this_dim
+            removed_client_ids=set()
         )
 
-        logging.info(f"removed clients are : {removed_this_dim}")
+        logging.info(f"clients with trimmed parameters this round: {trimmed_clients}")
 
         return ndarrays_to_parameters(aggregated), {}
 
@@ -114,18 +150,18 @@ class TrimmedMeanBasedRemovalStrategy(FedAvg):
         currently_removed_client_ids = set()
 
         # Fetch available clients as a dictionary.
-        available_clients = client_manager.all()  # dictionary with client IDs as keys and RayActorClientProxy objects as values
+        available_clients = client_manager.all()
 
         # Select all clients in the warmup rounds.
-        if self.current_round <= self.begin_removing_from_round:
+        if self.begin_removing_from_round is not None and self.current_round <= self.begin_removing_from_round:
             fit_ins = fl.common.FitIns(parameters, {})
             return [(client, fit_ins) for client in available_clients.values()]
 
-        # Select clients that have not been removed in previous rounds.
+        # Build client scores from all available clients
         client_scores = {client_id: self.client_scores.get(client_id, 0) for client_id in available_clients.keys()}
 
         if self.remove_clients:
-            # Remove clients with the highest score if applicable.
+            # Track client with highest score
             client_id = max(client_scores, key=client_scores.get)
             currently_removed_client_ids.add(client_id)
 
@@ -147,12 +183,11 @@ class TrimmedMeanBasedRemovalStrategy(FedAvg):
             cid = client_result[0].cid
             accuracy_matrix = client_result[1].metrics
 
-            if cid not in self.removed_client_ids:
-                self.strategy_history.insert_single_client_history_entry(
-                    client_id=int(cid),
-                    current_round=self.current_round,
-                    accuracy=accuracy_matrix['accuracy']
-                )
+            self.strategy_history.insert_single_client_history_entry(
+                client_id=int(cid),
+                current_round=self.current_round,
+                accuracy=accuracy_matrix['accuracy']
+            )
 
         if not results:
             return None, {}
@@ -169,9 +204,8 @@ class TrimmedMeanBasedRemovalStrategy(FedAvg):
                 loss=evaluate_res.loss
             )
 
-            if client_id not in self.removed_client_ids:
-                aggregate_value.append((evaluate_res.num_examples, evaluate_res.loss))
-                number_of_clients_in_loss_calc += 1
+            aggregate_value.append((evaluate_res.num_examples, evaluate_res.loss))
+            number_of_clients_in_loss_calc += 1
 
         loss_aggregated = weighted_loss_avg(aggregate_value)
 

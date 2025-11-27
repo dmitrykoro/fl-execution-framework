@@ -18,8 +18,9 @@ import locale
 import logging
 import contextlib
 import inspect
-from typing import Generator, List, Tuple, Any, Dict, Optional
+from typing import Generator, List, Tuple, Any, Dict, Optional, Union
 from unittest.mock import Mock
+from pathlib import Path
 
 # Third-party imports (conditional to avoid import errors)
 try:
@@ -174,6 +175,67 @@ def init_test_environment(
 
 
 # =============================================================================
+# DATASET LOADER TESTING UTILITIES
+# =============================================================================
+
+
+@contextlib.contextmanager
+def mock_medquad_dependencies(
+    mock_dataset_dict, glob_return=None, tokenizer_return=None
+) -> Generator[Dict[str, Any], None, None]:
+    """
+    Context manager for patching MedQuAD dataset loader dependencies.
+
+    Args:
+        mock_dataset_dict: Pre-configured mock DatasetDict
+        glob_return: Return value for glob.glob (default: ["data.json"])
+        tokenizer_return: Mock tokenizer instance (default: Mock())
+
+    Yields:
+        Dictionary with mock objects: {
+            'load_dataset': mock_load_dataset,
+            'tokenizer': mock_tokenizer,
+            'glob': mock_glob,
+            'dataloader': mock_dataloader,
+            'collator': mock_collator
+        }
+    """
+    from unittest.mock import Mock, patch
+
+    if glob_return is None:
+        glob_return = ["data.json"]
+    if tokenizer_return is None:
+        tokenizer_return = Mock()
+
+    with (
+        patch("src.dataset_loaders.medquad_dataset_loader.glob.glob") as mock_glob,
+        patch(
+            "src.dataset_loaders.medquad_dataset_loader.AutoTokenizer.from_pretrained"
+        ) as mock_tokenizer,
+        patch(
+            "src.dataset_loaders.medquad_dataset_loader.load_dataset"
+        ) as mock_load_dataset,
+        patch(
+            "src.dataset_loaders.medquad_dataset_loader.DataLoader"
+        ) as mock_dataloader,
+        patch(
+            "src.dataset_loaders.medquad_dataset_loader.DataCollatorForLanguageModeling"
+        ) as mock_collator,
+    ):
+        mock_glob.return_value = glob_return
+        mock_tokenizer.return_value = tokenizer_return
+        mock_load_dataset.return_value = mock_dataset_dict
+
+        yield {
+            "load_dataset": mock_load_dataset,
+            "tokenizer": mock_tokenizer,
+            "glob": mock_glob,
+            "dataloader": mock_dataloader,
+            "collator": mock_collator,
+        }
+
+
+# =============================================================================
 # FL TESTING UTILITIES
 # =============================================================================
 
@@ -268,6 +330,190 @@ def create_mock_flower_client(client_id: int) -> Mock:
 
 
 # =============================================================================
+# ATTACK SNAPSHOT TESTING UTILITIES
+# =============================================================================
+
+try:
+    import torch
+except ImportError:
+    torch = None
+
+try:
+    import json
+    import pickle
+except ImportError:
+    json = None
+    pickle = None
+
+
+def create_sample_tensors(
+    batch_size: int = 5, image_shape: tuple = (1, 28, 28), num_classes: int = 10
+) -> tuple:
+    """
+    Create sample data and label tensors for testing attack snapshots.
+
+    Args:
+        batch_size: Number of samples in batch
+        image_shape: Shape of each image (C, H, W)
+        num_classes: Number of classes for labels
+
+    Returns:
+        Tuple of (data_tensor, labels_tensor)
+    """
+    if torch is None:
+        raise ImportError("torch is required for create_sample_tensors")
+    data = torch.rand(batch_size, *image_shape)
+    labels = torch.randint(0, num_classes, (batch_size,))
+    return data, labels
+
+
+def create_attack_config(attack_type: str = "label_flipping", **kwargs) -> dict:
+    """
+    Create attack configuration dictionary.
+
+    Args:
+        attack_type: Type of attack
+        **kwargs: Additional attack-specific parameters
+
+    Returns:
+        Attack configuration dictionary
+    """
+    config = {"attack_type": attack_type}
+    config.update(kwargs)
+    return config
+
+
+def create_nested_attack_config(attack_type: str = "label_flipping", **kwargs) -> dict:
+    """
+    Create nested attack configuration (schedule-style).
+
+    Args:
+        attack_type: Type of attack
+        **kwargs: Additional attack-specific parameters
+
+    Returns:
+        Nested attack configuration dictionary
+    """
+    config = {
+        "type": attack_type,
+        "parameters": kwargs,
+    }
+    return config
+
+
+def build_snapshot_path(
+    output_dir: Union[Path, str],
+    client_id: int,
+    round_num: int,
+    attack_type: str,
+    file_format: str = "pickle",
+    strategy_number: int = 0,
+) -> Path:
+    """
+    Build path to snapshot file following framework conventions.
+
+    Args:
+        output_dir: Base output directory
+        client_id: Client ID
+        round_num: Round number
+        attack_type: Attack type
+        file_format: Format ('pickle' or 'json')
+        strategy_number: Strategy number (default: 0)
+
+    Returns:
+        Path to snapshot file
+    """
+    if file_format == "json":
+        filename = f"{attack_type}_metadata.json"
+    else:
+        filename = f"{attack_type}.pickle"
+
+    return (
+        Path(output_dir)
+        / f"attack_snapshots_{strategy_number}"
+        / f"client_{client_id}"
+        / f"round_{round_num}"
+        / filename
+    )
+
+
+def verify_pickle_snapshot(
+    filepath: Union[Path, str],
+    expected_client_id: int,
+    expected_round: int,
+    expected_attack_type: str,
+    expected_num_samples: int,
+) -> None:
+    """
+    Verify pickle snapshot file contents.
+
+    Args:
+        filepath: Path to snapshot file
+        expected_client_id: Expected client ID
+        expected_round: Expected round number
+        expected_attack_type: Expected attack type
+        expected_num_samples: Expected number of samples
+    """
+    if pickle is None:
+        raise ImportError("pickle is required for verify_pickle_snapshot")
+
+    filepath = Path(filepath) if isinstance(filepath, str) else filepath
+    assert filepath.exists(), f"Snapshot file should exist: {filepath}"
+
+    with open(filepath, "rb") as f:
+        snapshot = pickle.load(f)
+
+    # Verify structure
+    assert "metadata" in snapshot
+    assert "data" in snapshot
+    assert "labels" in snapshot
+    assert "original_labels" in snapshot
+
+    # Verify metadata
+    metadata = snapshot["metadata"]
+    assert metadata["client_id"] == expected_client_id
+    assert metadata["round_num"] == expected_round
+    assert metadata["attack_type"] == expected_attack_type
+    assert metadata["num_samples"] == expected_num_samples
+
+    # Verify data
+    assert len(snapshot["data"]) == expected_num_samples
+    assert len(snapshot["labels"]) == expected_num_samples
+    assert len(snapshot["original_labels"]) == expected_num_samples
+
+
+def verify_json_metadata(
+    filepath: Union[Path, str],
+    expected_client_id: int,
+    expected_round: int,
+    expected_attack_type: str,
+) -> None:
+    """
+    Verify JSON metadata file contents.
+
+    Args:
+        filepath: Path to JSON file
+        expected_client_id: Expected client ID
+        expected_round: Expected round number
+        expected_attack_type: Expected attack type
+    """
+    if json is None:
+        raise ImportError("json is required for verify_json_metadata")
+
+    filepath = Path(filepath) if isinstance(filepath, str) else filepath
+    assert filepath.exists(), f"Metadata file should exist: {filepath}"
+
+    with open(filepath, "r") as f:
+        metadata = json.load(f)
+
+    assert metadata["client_id"] == expected_client_id
+    assert metadata["round_num"] == expected_round
+    assert metadata["attack_type"] == expected_attack_type
+    assert "data_shape" in metadata
+    assert "labels_shape" in metadata
+
+
+# =============================================================================
 # CONSTANTS AND CONFIGURATION
 # =============================================================================
 
@@ -284,6 +530,7 @@ STRATEGY_CONFIGS = {
         "num_of_clients": 10,
         "trust_threshold": 0.7,
         "beta_value": 0.5,
+        "config_is_ai_generated": False,
     },
     "pid": {
         "aggregation_strategy_keyword": "pid",
@@ -292,24 +539,28 @@ STRATEGY_CONFIGS = {
         "Kp": 1.0,
         "Ki": 0.1,
         "Kd": 0.01,
+        "config_is_ai_generated": False,
     },
     "krum": {
         "aggregation_strategy_keyword": "krum",
         "num_of_rounds": 4,
         "num_of_clients": 12,
         "num_krum_selections": 8,
+        "config_is_ai_generated": False,
     },
     "multi-krum": {
         "aggregation_strategy_keyword": "multi-krum",
         "num_of_rounds": 4,
         "num_of_clients": 12,
         "num_krum_selections": 8,
+        "config_is_ai_generated": False,
     },
     "trimmed_mean": {
         "aggregation_strategy_keyword": "trimmed_mean",
         "num_of_rounds": 4,
         "num_of_clients": 10,
         "trim_ratio": 0.2,
+        "config_is_ai_generated": False,
     },
 }
 
@@ -340,11 +591,20 @@ __all__ = [
     "init_demo_output",
     "setup_test_logging",
     "init_test_environment",
+    # Dataset loader testing utilities
+    "mock_medquad_dependencies",
     # FL testing utilities
     "generate_mock_client_data",
     "FLTestHelpers",
     "assert_valid_fl_result",
     "create_mock_flower_client",
+    # Attack snapshot testing utilities
+    "create_sample_tensors",
+    "create_attack_config",
+    "create_nested_attack_config",
+    "build_snapshot_path",
+    "verify_pickle_snapshot",
+    "verify_json_metadata",
     # Constants
     "DEFAULT_PARAM_SHAPE",
     "DEFAULT_NUM_CLIENTS",

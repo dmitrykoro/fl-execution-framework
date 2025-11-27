@@ -1,5 +1,6 @@
 import os
 import glob
+import torch
 from datasets import load_dataset
 from transformers import AutoTokenizer
 from torch.utils.data import DataLoader
@@ -15,6 +16,7 @@ class MedQuADDatasetLoader:
             chunk_size: int = 256,
             mlm_probability: float = 0.15,
             num_poisoned_clients: int = 0,
+            attack_schedule=None,
             tokenize_columns=["answer"],
             remove_columns=["answer", "token_type_ids", "question"],
         ):
@@ -26,22 +28,28 @@ class MedQuADDatasetLoader:
         self.chunk_size = chunk_size
         self.mlm_probability = mlm_probability
         self.num_poisoned_clients = num_poisoned_clients
+        self.attack_schedule = attack_schedule
         self.tokenize_columns = tokenize_columns
         self.remove_columns = remove_columns
-    
+        self.tokenizer = None
+
     def load_datasets(self):
         """
         Loads and tokenizes dataset for masked language modeling (MLM).
         """
-        
+
         trainloaders = []
         valloaders = []
 
-        tokenizer = AutoTokenizer.from_pretrained(self.model_name)
-        
-        poisoned_client_ids = []
-        for i in range(self.num_poisoned_clients):
-            poisoned_client_ids.append(i)
+        self.tokenizer = AutoTokenizer.from_pretrained(self.model_name)
+        tokenizer = self.tokenizer
+
+        # Skip filesystem poisoning if attack_schedule is configured
+        # (dynamic poisoning will be applied in-memory during training)
+        if self.attack_schedule:
+            poisoned_client_ids = []
+        else:
+            poisoned_client_ids = list(range(self.num_poisoned_clients))
 
         client_folders = [d for d in os.listdir(self.dataset_dir) if d.startswith("client_")]
         for client_folder in sorted(client_folders, key=lambda string: int(string.split("_")[1])):
@@ -69,7 +77,9 @@ class MedQuADDatasetLoader:
                 return result
 
             client_dataset = client_dataset.map(tokenize_function, batched=True)
-            client_dataset = client_dataset.remove_columns(self.remove_columns)
+            columns_to_remove = [col for col in self.remove_columns if col in client_dataset["train"].column_names]
+            if columns_to_remove:
+                client_dataset = client_dataset.remove_columns(columns_to_remove)
             client_dataset = client_dataset.map(chunk_function, batched=True)
             dataset = client_dataset["train"].train_test_split(test_size=(1 - self.training_subset_fraction))
 
@@ -88,10 +98,20 @@ class MedQuADDatasetLoader:
             )
 
             trainloader = DataLoader(
-                dataset["train"], batch_size=self.batch_size, shuffle=True, collate_fn=collate_fn
+                dataset["train"],
+                batch_size=self.batch_size,
+                shuffle=True,
+                collate_fn=collate_fn,
+                num_workers=0,  # Avoid CUDA fork issues
+                pin_memory=torch.cuda.is_available()  # Fast GPU transfer
             )
             valloader = DataLoader(
-                dataset["test"], batch_size=self.batch_size, shuffle=False, collate_fn=collate_fn
+                dataset["test"],
+                batch_size=self.batch_size,
+                shuffle=False,
+                collate_fn=collate_fn,
+                num_workers=0,
+                pin_memory=torch.cuda.is_available()
             )
 
 

@@ -105,6 +105,10 @@ class MultiKrumBasedRemovalStrategy(Krum):
 
         self.current_round += 1
 
+        # Update client.is_malicious based on attack_schedule for dynamic attacks
+        if self.strategy_history:
+            self.strategy_history.update_client_malicious_status(server_round)
+
         # Handle empty results
         if not results:
             return super().aggregate_fit(server_round, results, failures)
@@ -171,8 +175,8 @@ class MultiKrumBasedRemovalStrategy(Krum):
         available_clients = client_manager.all()  # dictionary with client IDs as keys and RayActorClientProxy objects as values
 
         # in the warmup rounds, select all clients
-        if self.current_round <= self.begin_removing_from_round:
-            fit_ins = fl.common.FitIns(parameters, {})
+        if self.begin_removing_from_round is not None and self.current_round <= self.begin_removing_from_round:
+            fit_ins = fl.common.FitIns(parameters, {"server_round": server_round})
             return [(client, fit_ins) for client in available_clients.values()]
 
         # fetch the multi-krum based scores for all available clients
@@ -198,7 +202,7 @@ class MultiKrumBasedRemovalStrategy(Krum):
         self.logger.info(f"removed clients are : {self.removed_client_ids}")
 
         selected_client_ids = sorted(client_scores, key=client_scores.get, reverse=True)
-        fit_ins = fl.common.FitIns(parameters, {})
+        fit_ins = fl.common.FitIns(parameters, {"server_round": server_round})
 
         self.strategy_history.update_client_participation(
             current_round=self.current_round, removed_client_ids=self.removed_client_ids

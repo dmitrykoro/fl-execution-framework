@@ -8,8 +8,8 @@ and clear error message generation.
 from tests.common import pytest
 from jsonschema import ValidationError
 from src.config_loaders.validate_strategy_config import (
-    check_llm_specific_parameters,
-    validate_dependent_params,
+    _validate_llm_parameters,
+    _validate_dependent_params,
     validate_strategy_config,
 )
 
@@ -28,7 +28,15 @@ class TestValidateStrategyConfig:
             "num_of_rounds": 5,
             "num_of_clients": 10,
             "num_of_malicious_clients": 2,
-            "attack_type": "label_flipping",
+            "attack_schedule": [
+                {
+                    "start_round": 1,
+                    "end_round": 5,
+                    "attack_type": "label_flipping",
+                    "selection_strategy": "percentage",
+                    "malicious_percentage": 0.2,
+                }
+            ],
             "show_plots": "false",
             "save_plots": "true",
             "save_csv": "true",
@@ -65,11 +73,21 @@ class TestValidateStrategyConfig:
             "num_of_rounds": 3,
             "num_of_clients": 8,
             "num_of_malicious_clients": 1,
-            "attack_type": "gaussian_noise",
+            "attack_schedule": [
+                {
+                    "start_round": 1,
+                    "end_round": 3,
+                    "attack_type": "gaussian_noise",
+                    "target_noise_snr": 10.0,
+                    "attack_ratio": 0.2,
+                    "selection_strategy": "percentage",
+                    "malicious_percentage": 0.125,
+                }
+            ],
             "show_plots": "false",
             "save_plots": "false",
             "save_csv": "true",
-            "preserve_dataset": "true",
+            "preserve_dataset": "false",
             "training_subset_fraction": 1.0,
             "training_device": "gpu",
             "cpus_per_client": 2,
@@ -86,9 +104,6 @@ class TestValidateStrategyConfig:
             "Kp": 1.0,
             "Ki": 0.1,
             "Kd": 0.01,
-            # Gaussian noise attack parameters
-            "target_noise_snr": 10.0,
-            "attack_ratio": 0.2,
         }
 
         # Should not raise any exception
@@ -105,17 +120,17 @@ class TestValidateStrategyConfig:
             "num_of_rounds": 4,
             "num_of_clients": 12,
             "num_of_malicious_clients": 0,
-            "attack_type": "label_flipping",
+            "attack_schedule": [],
             "show_plots": "true",
             "save_plots": "true",
             "save_csv": "false",
             "preserve_dataset": "false",
             "training_subset_fraction": 0.9,
-            "training_device": "cuda",
+            "training_device": "gpu",
             "cpus_per_client": 1,
             "gpus_per_client": 1.0,
-            "min_fit_clients": 10,
-            "min_evaluate_clients": 10,
+            "min_fit_clients": 12,
+            "min_evaluate_clients": 12,
             "min_available_clients": 12,
             "evaluate_metrics_aggregation_fn": "weighted_average",
             "num_of_client_epochs": 2,
@@ -138,17 +153,25 @@ class TestValidateStrategyConfig:
             "num_of_rounds": 6,
             "num_of_clients": 15,
             "num_of_malicious_clients": 3,
-            "attack_type": "label_flipping",
+            "attack_schedule": [
+                {
+                    "start_round": 1,
+                    "end_round": 6,
+                    "attack_type": "label_flipping",
+                    "selection_strategy": "percentage",
+                    "malicious_percentage": 0.2,
+                }
+            ],
             "show_plots": "false",
             "save_plots": "false",
             "save_csv": "true",
-            "preserve_dataset": "true",
+            "preserve_dataset": "false",
             "training_subset_fraction": 0.7,
             "training_device": "cpu",
             "cpus_per_client": 4,
             "gpus_per_client": 0.0,
-            "min_fit_clients": 12,
-            "min_evaluate_clients": 12,
+            "min_fit_clients": 15,
+            "min_evaluate_clients": 15,
             "min_available_clients": 15,
             "evaluate_metrics_aggregation_fn": "weighted_average",
             "num_of_client_epochs": 1,
@@ -174,7 +197,15 @@ class TestValidateStrategyConfigMissingRequiredParams:
             "num_of_rounds": 5,
             "num_of_clients": 10,
             "num_of_malicious_clients": 2,
-            "attack_type": "label_flipping",
+            "attack_schedule": [
+                {
+                    "start_round": 1,
+                    "end_round": 5,
+                    "attack_type": "label_flipping",
+                    "selection_strategy": "percentage",
+                    "malicious_percentage": 0.2,
+                }
+            ],
             "show_plots": "false",
             "save_plots": "true",
             "save_csv": "true",
@@ -206,7 +237,15 @@ class TestValidateStrategyConfigMissingRequiredParams:
             "num_of_rounds": 5,
             "num_of_clients": 10,
             "num_of_malicious_clients": 2,
-            "attack_type": "label_flipping",
+            "attack_schedule": [
+                {
+                    "start_round": 1,
+                    "end_round": 5,
+                    "attack_type": "label_flipping",
+                    "selection_strategy": "percentage",
+                    "malicious_percentage": 0.2,
+                }
+            ],
             "show_plots": "false",
             "save_plots": "true",
             "save_csv": "true",
@@ -238,7 +277,15 @@ class TestValidateStrategyConfigMissingRequiredParams:
             "use_llm": "false",
             "num_of_clients": 10,
             "num_of_malicious_clients": 2,
-            "attack_type": "label_flipping",
+            "attack_schedule": [
+                {
+                    "start_round": 1,
+                    "end_round": 5,
+                    "attack_type": "label_flipping",
+                    "selection_strategy": "percentage",
+                    "malicious_percentage": 0.2,
+                }
+            ],
             "show_plots": "false",
             "save_plots": "true",
             "save_csv": "true",
@@ -271,7 +318,15 @@ class TestValidateStrategyConfigMissingRequiredParams:
             "num_of_rounds": 5,
             "num_of_clients": 10,
             "num_of_malicious_clients": 2,
-            "attack_type": "label_flipping",
+            "attack_schedule": [
+                {
+                    "start_round": 1,
+                    "end_round": 5,
+                    "attack_type": "label_flipping",
+                    "selection_strategy": "percentage",
+                    "malicious_percentage": 0.2,
+                }
+            ],
             "show_plots": "false",
             "save_plots": "true",
             "save_csv": "true",
@@ -301,7 +356,15 @@ class TestValidateStrategyConfigInvalidValues:
             "num_of_rounds": 5,
             "num_of_clients": 10,
             "num_of_malicious_clients": 2,
-            "attack_type": "label_flipping",
+            "attack_schedule": [
+                {
+                    "start_round": 1,
+                    "end_round": 5,
+                    "attack_type": "label_flipping",
+                    "selection_strategy": "percentage",
+                    "malicious_percentage": 0.2,
+                }
+            ],
             "show_plots": "false",
             "save_plots": "true",
             "save_csv": "true",
@@ -334,7 +397,15 @@ class TestValidateStrategyConfigInvalidValues:
             "num_of_rounds": 5,
             "num_of_clients": 10,
             "num_of_malicious_clients": 2,
-            "attack_type": "label_flipping",
+            "attack_schedule": [
+                {
+                    "start_round": 1,
+                    "end_round": 5,
+                    "attack_type": "label_flipping",
+                    "selection_strategy": "percentage",
+                    "malicious_percentage": 0.2,
+                }
+            ],
             "show_plots": "false",
             "save_plots": "true",
             "save_csv": "true",
@@ -367,7 +438,15 @@ class TestValidateStrategyConfigInvalidValues:
             "num_of_rounds": 5,
             "num_of_clients": 10,
             "num_of_malicious_clients": 2,
-            "attack_type": "label_flipping",
+            "attack_schedule": [
+                {
+                    "start_round": 1,
+                    "end_round": 5,
+                    "attack_type": "label_flipping",
+                    "selection_strategy": "percentage",
+                    "malicious_percentage": 0.2,
+                }
+            ],
             "show_plots": "false",
             "save_plots": "true",
             "save_csv": "true",
@@ -396,7 +475,7 @@ class TestValidateStrategyConfigInvalidValues:
         assert "'maybe' is not one of ['true', 'false']" in str(exc_info.value)
 
     def test_invalid_attack_type(self):
-        """Test validation fails for invalid attack type."""
+        """Test validation fails for invalid attack type in attack_schedule."""
         config = {
             "aggregation_strategy_keyword": "trust",
             "remove_clients": "true",
@@ -406,7 +485,15 @@ class TestValidateStrategyConfigInvalidValues:
             "num_of_rounds": 5,
             "num_of_clients": 10,
             "num_of_malicious_clients": 2,
-            "attack_type": "invalid_attack",
+            "attack_schedule": [
+                {
+                    "start_round": 1,
+                    "end_round": 5,
+                    "attack_type": "invalid_attack",
+                    "selection_strategy": "percentage",
+                    "malicious_percentage": 0.2,
+                }
+            ],
             "show_plots": "false",
             "save_plots": "true",
             "save_csv": "true",
@@ -421,15 +508,20 @@ class TestValidateStrategyConfigInvalidValues:
             "evaluate_metrics_aggregation_fn": "weighted_average",
             "num_of_client_epochs": 3,
             "batch_size": 32,
+            "begin_removing_from_round": 2,
+            "trust_threshold": 0.7,
+            "beta_value": 0.5,
+            "num_of_clusters": 1,
         }
 
         with pytest.raises(ValidationError) as exc_info:
             validate_strategy_config(config)
 
-        assert (
-            "'invalid_attack' is not one of ['label_flipping', 'gaussian_noise']"
-            in str(exc_info.value)
-        )
+        error_message = str(exc_info.value)
+        assert "'invalid_attack' is not one of" in error_message
+        # Should include all supported attack types
+        assert "label_flipping" in error_message
+        assert "gaussian_noise" in error_message
 
     def test_invalid_training_device(self):
         """Test validation fails for invalid training device."""
@@ -442,7 +534,15 @@ class TestValidateStrategyConfigInvalidValues:
             "num_of_rounds": 5,
             "num_of_clients": 10,
             "num_of_malicious_clients": 2,
-            "attack_type": "label_flipping",
+            "attack_schedule": [
+                {
+                    "start_round": 1,
+                    "end_round": 5,
+                    "attack_type": "label_flipping",
+                    "selection_strategy": "percentage",
+                    "malicious_percentage": 0.2,
+                }
+            ],
             "show_plots": "false",
             "save_plots": "true",
             "save_csv": "true",
@@ -462,7 +562,7 @@ class TestValidateStrategyConfigInvalidValues:
         with pytest.raises(ValidationError) as exc_info:
             validate_strategy_config(config)
 
-        assert "'quantum' is not one of ['cpu', 'gpu', 'cuda']" in str(exc_info.value)
+        assert "'quantum' is not one of ['cpu', 'gpu']" in str(exc_info.value)
 
     def test_invalid_data_types(self):
         """Test validation fails for invalid data types."""
@@ -475,7 +575,15 @@ class TestValidateStrategyConfigInvalidValues:
             "num_of_rounds": "five",  # Should be integer
             "num_of_clients": 10,
             "num_of_malicious_clients": 2,
-            "attack_type": "label_flipping",
+            "attack_schedule": [
+                {
+                    "start_round": 1,
+                    "end_round": 5,
+                    "attack_type": "label_flipping",
+                    "selection_strategy": "percentage",
+                    "malicious_percentage": 0.2,
+                }
+            ],
             "show_plots": "false",
             "save_plots": "true",
             "save_csv": "true",
@@ -512,7 +620,7 @@ class TestValidateDependentParams:
         }
 
         with pytest.raises(ValidationError) as exc_info:
-            validate_dependent_params(config)
+            _validate_dependent_params(config)
 
         assert "Missing parameter trust_threshold for trust aggregation trust" in str(
             exc_info.value
@@ -529,7 +637,7 @@ class TestValidateDependentParams:
         }
 
         with pytest.raises(ValidationError) as exc_info:
-            validate_dependent_params(config)
+            _validate_dependent_params(config)
 
         assert "Missing parameter beta_value for trust aggregation trust" in str(
             exc_info.value
@@ -546,7 +654,7 @@ class TestValidateDependentParams:
         }
 
         with pytest.raises(ValidationError) as exc_info:
-            validate_dependent_params(config)
+            _validate_dependent_params(config)
 
         assert (
             "Missing parameter begin_removing_from_round for trust aggregation trust"
@@ -564,7 +672,7 @@ class TestValidateDependentParams:
         }
 
         with pytest.raises(ValidationError) as exc_info:
-            validate_dependent_params(config)
+            _validate_dependent_params(config)
 
         assert "Missing parameter num_of_clusters for trust aggregation trust" in str(
             exc_info.value
@@ -581,7 +689,7 @@ class TestValidateDependentParams:
         }
 
         with pytest.raises(ValidationError) as exc_info:
-            validate_dependent_params(config)
+            _validate_dependent_params(config)
 
         assert "Missing parameter Kp for PID aggregation pid" in str(exc_info.value)
 
@@ -596,7 +704,7 @@ class TestValidateDependentParams:
         }
 
         with pytest.raises(ValidationError) as exc_info:
-            validate_dependent_params(config)
+            _validate_dependent_params(config)
 
         assert "Missing parameter Ki for PID aggregation pid_scaled" in str(
             exc_info.value
@@ -613,7 +721,7 @@ class TestValidateDependentParams:
         }
 
         with pytest.raises(ValidationError) as exc_info:
-            validate_dependent_params(config)
+            _validate_dependent_params(config)
 
         assert "Missing parameter Kd for PID aggregation pid_standardized" in str(
             exc_info.value
@@ -630,7 +738,7 @@ class TestValidateDependentParams:
         }
 
         with pytest.raises(ValidationError) as exc_info:
-            validate_dependent_params(config)
+            _validate_dependent_params(config)
 
         assert "Missing parameter num_std_dev for PID aggregation pid" in str(
             exc_info.value
@@ -644,7 +752,7 @@ class TestValidateDependentParams:
         }
 
         with pytest.raises(ValidationError) as exc_info:
-            validate_dependent_params(config)
+            _validate_dependent_params(config)
 
         assert (
             "Missing parameter num_krum_selections for Krum-based aggregation krum"
@@ -659,7 +767,7 @@ class TestValidateDependentParams:
         }
 
         with pytest.raises(ValidationError) as exc_info:
-            validate_dependent_params(config)
+            _validate_dependent_params(config)
 
         assert (
             "Missing parameter num_krum_selections for Krum-based aggregation multi-krum"
@@ -674,7 +782,7 @@ class TestValidateDependentParams:
         }
 
         with pytest.raises(ValidationError) as exc_info:
-            validate_dependent_params(config)
+            _validate_dependent_params(config)
 
         assert (
             "Missing parameter num_krum_selections for Krum-based aggregation multi-krum-based"
@@ -689,56 +797,10 @@ class TestValidateDependentParams:
         }
 
         with pytest.raises(ValidationError) as exc_info:
-            validate_dependent_params(config)
+            _validate_dependent_params(config)
 
         assert (
             "Missing parameter trim_ratio for trimmed mean aggregation trimmed_mean"
-            in str(exc_info.value)
-        )
-
-    def test_gaussian_noise_attack_missing_parameters(self):
-        """Test validation fails when gaussian noise attack is missing required parameters."""
-        config = {
-            "aggregation_strategy_keyword": "trust",
-            "attack_type": "gaussian_noise",
-            # Trust-specific parameters (required first)
-            "begin_removing_from_round": 2,
-            "trust_threshold": 0.7,
-            "beta_value": 0.5,
-            "num_of_clusters": 1,
-            # Missing target_noise_snr, attack_ratio
-        }
-
-        with pytest.raises(ValidationError) as exc_info:
-            validate_dependent_params(config)
-
-        error_message = str(exc_info.value)
-        assert (
-            "Missing target_noise_snr that is required for gaussian_noise in configuration"
-            in error_message
-        )
-
-
-    def test_gaussian_noise_attack_missing_attack_ratio(self):
-        """Test validation fails when gaussian noise attack is missing attack_ratio parameter."""
-        config = {
-            "aggregation_strategy_keyword": "trust",
-            "attack_type": "gaussian_noise",
-            # Trust-specific parameters (required first)
-            "begin_removing_from_round": 2,
-            "trust_threshold": 0.7,
-            "beta_value": 0.5,
-            "num_of_clusters": 1,
-            # Gaussian noise parameters
-            "target_noise_snr": 10.0,
-            # Missing attack_ratio
-        }
-
-        with pytest.raises(ValidationError) as exc_info:
-            validate_dependent_params(config)
-
-        assert (
-            "Missing attack_ratio that is required for gaussian_noise in configuration"
             in str(exc_info.value)
         )
 
@@ -757,7 +819,15 @@ class TestValidateStrategyConfigErrorMessages:
             "num_of_rounds": 5,
             "num_of_clients": 10,
             "num_of_malicious_clients": 2,
-            "attack_type": "label_flipping",
+            "attack_schedule": [
+                {
+                    "start_round": 1,
+                    "end_round": 5,
+                    "attack_type": "label_flipping",
+                    "selection_strategy": "percentage",
+                    "malicious_percentage": 0.2,
+                }
+            ],
             "show_plots": "false",
             "save_plots": "true",
             "save_csv": "true",
@@ -812,7 +882,15 @@ class TestValidateStrategyConfigErrorMessages:
             "num_of_rounds": "not_a_number",  # Should be integer
             "num_of_clients": 10,
             "num_of_malicious_clients": 2,
-            "attack_type": "label_flipping",
+            "attack_schedule": [
+                {
+                    "start_round": 1,
+                    "end_round": 5,
+                    "attack_type": "label_flipping",
+                    "selection_strategy": "percentage",
+                    "malicious_percentage": 0.2,
+                }
+            ],
             "show_plots": "false",
             "save_plots": "true",
             "save_csv": "true",
@@ -844,32 +922,12 @@ class TestValidateStrategyConfigErrorMessages:
         }
 
         with pytest.raises(ValidationError) as exc_info:
-            validate_dependent_params(config)
+            _validate_dependent_params(config)
 
         error_message = str(exc_info.value)
         # Should clearly indicate the missing parameter and strategy
         assert "Missing parameter" in error_message
         assert "for trust aggregation trust" in error_message
-
-    def test_clear_error_message_for_attack_specific_missing_params(self):
-        """Test that error messages clearly indicate which attack-specific parameter is missing."""
-        config = {
-            "aggregation_strategy_keyword": "trust",
-            "attack_type": "gaussian_noise",
-            # Trust-specific parameters (required first)
-            "begin_removing_from_round": 2,
-            "trust_threshold": 0.7,
-            "beta_value": 0.5,
-            "num_of_clusters": 1,
-            # Missing gaussian noise specific parameters
-        }
-
-        with pytest.raises(ValidationError) as exc_info:
-            validate_dependent_params(config)
-
-        error_message = str(exc_info.value)
-        # Should clearly indicate the missing parameter and attack type
-        assert "that is required for gaussian_noise in configuration" in error_message
 
 
 class TestValidateStrategyConfigEdgeCases:
@@ -886,17 +944,25 @@ class TestValidateStrategyConfigEdgeCases:
             "num_of_rounds": 4,
             "num_of_clients": 10,
             "num_of_malicious_clients": 2,
-            "attack_type": "label_flipping",
+            "attack_schedule": [
+                {
+                    "start_round": 1,
+                    "end_round": 4,
+                    "attack_type": "label_flipping",
+                    "selection_strategy": "percentage",
+                    "malicious_percentage": 0.2,
+                }
+            ],
             "show_plots": "false",
             "save_plots": "false",
             "save_csv": "true",
-            "preserve_dataset": "true",
+            "preserve_dataset": "false",
             "training_subset_fraction": 0.8,
             "training_device": "cpu",
             "cpus_per_client": 1,
             "gpus_per_client": 0.0,
-            "min_fit_clients": 8,
-            "min_evaluate_clients": 8,
+            "min_fit_clients": 10,
+            "min_evaluate_clients": 10,
             "min_available_clients": 10,
             "evaluate_metrics_aggregation_fn": "weighted_average",
             "num_of_client_epochs": 3,
@@ -917,7 +983,7 @@ class TestValidateStrategyConfigEdgeCases:
             "num_of_rounds": 3,
             "num_of_clients": 15,
             "num_of_malicious_clients": 0,
-            "attack_type": "label_flipping",
+            "attack_schedule": [],
             "show_plots": "true",
             "save_plots": "true",
             "save_csv": "false",
@@ -926,8 +992,8 @@ class TestValidateStrategyConfigEdgeCases:
             "training_device": "gpu",
             "cpus_per_client": 2,
             "gpus_per_client": 1.0,
-            "min_fit_clients": 12,
-            "min_evaluate_clients": 12,
+            "min_fit_clients": 15,
+            "min_evaluate_clients": 15,
             "min_available_clients": 15,
             "evaluate_metrics_aggregation_fn": "weighted_average",
             "num_of_client_epochs": 2,
@@ -938,10 +1004,9 @@ class TestValidateStrategyConfigEdgeCases:
         validate_strategy_config(config)
 
     def test_label_flipping_attack_no_additional_params_required(self):
-        """Test that label flipping attack doesn't require additional parameters."""
+        """Test that label flipping attack doesn't require additional parameters in schedule."""
         config = {
             "aggregation_strategy_keyword": "trust",
-            "attack_type": "label_flipping",
             "begin_removing_from_round": 2,
             "trust_threshold": 0.7,
             "beta_value": 0.5,
@@ -949,7 +1014,7 @@ class TestValidateStrategyConfigEdgeCases:
         }
 
         # Should not raise any exception for dependent params
-        validate_dependent_params(config)
+        _validate_dependent_params(config)
 
     def test_empty_config_validation(self):
         """Test validation of completely empty configuration."""
@@ -973,7 +1038,15 @@ class TestValidateStrategyConfigEdgeCases:
             "num_of_rounds": 5,
             "num_of_clients": 10,
             "num_of_malicious_clients": 2,
-            "attack_type": "label_flipping",
+            "attack_schedule": [
+                {
+                    "start_round": 1,
+                    "end_round": 5,
+                    "attack_type": "label_flipping",
+                    "selection_strategy": "percentage",
+                    "malicious_percentage": 0.2,
+                }
+            ],
             "show_plots": "false",
             "save_plots": "true",
             "save_csv": "true",
@@ -982,8 +1055,8 @@ class TestValidateStrategyConfigEdgeCases:
             "training_device": "cpu",
             "cpus_per_client": 1,
             "gpus_per_client": 0.0,
-            "min_fit_clients": 8,
-            "min_evaluate_clients": 8,
+            "min_fit_clients": 10,
+            "min_evaluate_clients": 10,
             "min_available_clients": 10,
             "evaluate_metrics_aggregation_fn": "weighted_average",
             "num_of_client_epochs": 3,
@@ -1009,7 +1082,7 @@ class TestCheckLlmSpecificParameters:
         config = {"model_type": "cnn", "use_llm": "true"}
 
         with pytest.raises(ValidationError) as exc_info:
-            check_llm_specific_parameters(config)
+            _validate_llm_parameters(config)
 
         assert "LLM finetuning is only supported for transformer models" in str(
             exc_info.value
@@ -1026,7 +1099,7 @@ class TestCheckLlmSpecificParameters:
         }
 
         with pytest.raises(ValidationError) as exc_info:
-            check_llm_specific_parameters(config)
+            _validate_llm_parameters(config)
 
         assert "Missing parameter llm_model for LLM finetuning" in str(exc_info.value)
 
@@ -1041,7 +1114,7 @@ class TestCheckLlmSpecificParameters:
         }
 
         with pytest.raises(ValidationError) as exc_info:
-            check_llm_specific_parameters(config)
+            _validate_llm_parameters(config)
 
         assert "Missing parameter llm_finetuning for LLM finetuning" in str(
             exc_info.value
@@ -1058,7 +1131,7 @@ class TestCheckLlmSpecificParameters:
         }
 
         with pytest.raises(ValidationError) as exc_info:
-            check_llm_specific_parameters(config)
+            _validate_llm_parameters(config)
 
         assert "Missing parameter llm_task for LLM finetuning" in str(exc_info.value)
 
@@ -1073,7 +1146,7 @@ class TestCheckLlmSpecificParameters:
         }
 
         with pytest.raises(ValidationError) as exc_info:
-            check_llm_specific_parameters(config)
+            _validate_llm_parameters(config)
 
         assert "Missing parameter llm_chunk_size for LLM finetuning" in str(
             exc_info.value
@@ -1091,7 +1164,7 @@ class TestCheckLlmSpecificParameters:
         }
 
         with pytest.raises(ValidationError) as exc_info:
-            check_llm_specific_parameters(config)
+            _validate_llm_parameters(config)
 
         assert "Missing parameter mlm_probability for LLM task mlm" in str(
             exc_info.value
@@ -1112,7 +1185,7 @@ class TestCheckLlmSpecificParameters:
         }
 
         with pytest.raises(ValidationError) as exc_info:
-            check_llm_specific_parameters(config)
+            _validate_llm_parameters(config)
 
         assert "Missing parameter lora_rank for LORA" in str(exc_info.value)
 
@@ -1131,7 +1204,7 @@ class TestCheckLlmSpecificParameters:
         }
 
         with pytest.raises(ValidationError) as exc_info:
-            check_llm_specific_parameters(config)
+            _validate_llm_parameters(config)
 
         assert "Missing parameter lora_alpha for LORA" in str(exc_info.value)
 
@@ -1150,7 +1223,7 @@ class TestCheckLlmSpecificParameters:
         }
 
         with pytest.raises(ValidationError) as exc_info:
-            check_llm_specific_parameters(config)
+            _validate_llm_parameters(config)
 
         assert "Missing parameter lora_dropout for LORA" in str(exc_info.value)
 
@@ -1169,7 +1242,7 @@ class TestCheckLlmSpecificParameters:
         }
 
         with pytest.raises(ValidationError) as exc_info:
-            check_llm_specific_parameters(config)
+            _validate_llm_parameters(config)
 
         assert "Missing parameter lora_target_modules for LORA" in str(exc_info.value)
 
@@ -1184,7 +1257,7 @@ class TestCheckLlmSpecificParameters:
         }
 
         # Should not raise any exception
-        check_llm_specific_parameters(config)
+        _validate_llm_parameters(config)
 
     def test_llm_valid_lora_finetuning_config(self):
         """Test that valid LORA finetuning config passes validation."""
@@ -1201,7 +1274,7 @@ class TestCheckLlmSpecificParameters:
         }
 
         # Should not raise any exception
-        check_llm_specific_parameters(config)
+        _validate_llm_parameters(config)
 
     def test_llm_valid_mlm_task_config(self):
         """Test that valid MLM task config passes validation."""
@@ -1215,14 +1288,14 @@ class TestCheckLlmSpecificParameters:
         }
 
         # Should not raise any exception
-        check_llm_specific_parameters(config)
+        _validate_llm_parameters(config)
 
 
 class TestStrictModeValidation:
     """Test suite for strict_mode validation functionality."""
 
     def test_strict_mode_defaults_to_true(self):
-        """Test that strict_mode defaults to 'true' when not specified."""
+        """Test that strict_mode defaults to 'true' and rejects invalid configs."""
         config = {
             "aggregation_strategy_keyword": "trust",
             "remove_clients": "true",
@@ -1232,7 +1305,15 @@ class TestStrictModeValidation:
             "num_of_rounds": 5,
             "num_of_clients": 10,
             "num_of_malicious_clients": 2,
-            "attack_type": "label_flipping",
+            "attack_schedule": [
+                {
+                    "start_round": 1,
+                    "end_round": 5,
+                    "attack_type": "label_flipping",
+                    "selection_strategy": "percentage",
+                    "malicious_percentage": 0.2,
+                }
+            ],
             "show_plots": "false",
             "save_plots": "true",
             "save_csv": "true",
@@ -1255,15 +1336,16 @@ class TestStrictModeValidation:
             # strict_mode not specified - should default to "true"
         }
 
-        # Should not raise exception and auto-configure clients
-        validate_strategy_config(config)
-        assert config["strict_mode"] == "true"
-        assert config["min_fit_clients"] == 10
-        assert config["min_evaluate_clients"] == 10
-        assert config["min_available_clients"] == 10
+        # Should raise ValidationError because min_* values don't match num_of_clients
+        with pytest.raises(ValidationError) as exc_info:
+            validate_strategy_config(config)
 
-    def test_strict_mode_enabled_auto_configures_clients(self):
-        """Test that strict_mode=true forces all min_* values to equal num_of_clients."""
+        error_message = str(exc_info.value)
+        assert "CONFIG REJECTED: strict_mode requires all clients to participate" in error_message
+        assert "min_fit_clients: 8" in error_message
+
+    def test_strict_mode_enabled_rejects_invalid_config(self):
+        """Test that strict_mode=true rejects configs where min_* != num_of_clients."""
         config = {
             "aggregation_strategy_keyword": "trust",
             "remove_clients": "true",
@@ -1273,7 +1355,15 @@ class TestStrictModeValidation:
             "num_of_rounds": 5,
             "num_of_clients": 10,
             "num_of_malicious_clients": 2,
-            "attack_type": "label_flipping",
+            "attack_schedule": [
+                {
+                    "start_round": 1,
+                    "end_round": 5,
+                    "attack_type": "label_flipping",
+                    "selection_strategy": "percentage",
+                    "malicious_percentage": 0.2,
+                }
+            ],
             "show_plots": "false",
             "save_plots": "true",
             "save_csv": "true",
@@ -1282,9 +1372,9 @@ class TestStrictModeValidation:
             "training_device": "cpu",
             "cpus_per_client": 1,
             "gpus_per_client": 0.0,
-            "min_fit_clients": 5,  # Will be auto-configured to 10
-            "min_evaluate_clients": 7,  # Will be auto-configured to 10
-            "min_available_clients": 8,  # Will be auto-configured to 10
+            "min_fit_clients": 5,
+            "min_evaluate_clients": 7,
+            "min_available_clients": 8,
             "evaluate_metrics_aggregation_fn": "weighted_average",
             "num_of_client_epochs": 3,
             "batch_size": 32,
@@ -1296,11 +1386,14 @@ class TestStrictModeValidation:
             "num_of_clusters": 1,
         }
 
-        # Should not raise exception and auto-configure all client values
-        validate_strategy_config(config)
-        assert config["min_fit_clients"] == 10
-        assert config["min_evaluate_clients"] == 10
-        assert config["min_available_clients"] == 10
+        # Should raise ValidationError because min_* values don't match num_of_clients
+        with pytest.raises(ValidationError) as exc_info:
+            validate_strategy_config(config)
+
+        error_message = str(exc_info.value)
+        assert "CONFIG REJECTED: strict_mode requires all clients to participate" in error_message
+        assert "min_fit_clients: 5" in error_message
+        assert "min_evaluate_clients: 7" in error_message
 
     def test_strict_mode_disabled_preserves_client_config(self):
         """Test that strict_mode=false preserves original client configuration."""
@@ -1313,7 +1406,15 @@ class TestStrictModeValidation:
             "num_of_rounds": 5,
             "num_of_clients": 10,
             "num_of_malicious_clients": 2,
-            "attack_type": "label_flipping",
+            "attack_schedule": [
+                {
+                    "start_round": 1,
+                    "end_round": 5,
+                    "attack_type": "label_flipping",
+                    "selection_strategy": "percentage",
+                    "malicious_percentage": 0.2,
+                }
+            ],
             "show_plots": "false",
             "save_plots": "true",
             "save_csv": "true",
@@ -1353,7 +1454,15 @@ class TestStrictModeValidation:
             "num_of_rounds": 5,
             "num_of_clients": 5,
             "num_of_malicious_clients": 2,
-            "attack_type": "label_flipping",
+            "attack_schedule": [
+                {
+                    "start_round": 1,
+                    "end_round": 5,
+                    "attack_type": "label_flipping",
+                    "selection_strategy": "percentage",
+                    "malicious_percentage": 0.4,
+                }
+            ],
             "show_plots": "false",
             "save_plots": "true",
             "save_csv": "true",
@@ -1397,7 +1506,15 @@ class TestStrictModeValidation:
             "num_of_rounds": 5,
             "num_of_clients": 10,
             "num_of_malicious_clients": 2,
-            "attack_type": "label_flipping",
+            "attack_schedule": [
+                {
+                    "start_round": 1,
+                    "end_round": 5,
+                    "attack_type": "label_flipping",
+                    "selection_strategy": "percentage",
+                    "malicious_percentage": 0.2,
+                }
+            ],
             "show_plots": "false",
             "save_plots": "true",
             "save_csv": "true",
@@ -1437,7 +1554,15 @@ class TestStrictModeValidation:
             "num_of_rounds": 5,
             "num_of_clients": 10,
             "num_of_malicious_clients": 2,
-            "attack_type": "label_flipping",
+            "attack_schedule": [
+                {
+                    "start_round": 1,
+                    "end_round": 5,
+                    "attack_type": "label_flipping",
+                    "selection_strategy": "percentage",
+                    "malicious_percentage": 0.2,
+                }
+            ],
             "show_plots": "false",
             "save_plots": "true",
             "save_csv": "true",
@@ -1464,124 +1589,3 @@ class TestStrictModeValidation:
             validate_strategy_config(config)
 
         assert "'maybe' is not one of ['true', 'false']" in str(exc_info.value)
-
-
-class TestValidateStrategyConfigLlmIntegration:
-    """Test LLM integration in the main validation function."""
-
-    def test_validate_strategy_config_calls_llm_validation(self):
-        """Test that main validation calls LLM validation when use_llm is true."""
-        config = {
-            "aggregation_strategy_keyword": "trust",
-            "remove_clients": "true",
-            "dataset_keyword": "medquad",
-            "model_type": "transformer",
-            "use_llm": "true",
-            "num_of_rounds": 5,
-            "num_of_clients": 10,
-            "num_of_malicious_clients": 2,
-            "attack_type": "label_flipping",
-            "show_plots": "false",
-            "save_plots": "true",
-            "save_csv": "true",
-            "preserve_dataset": "false",
-            "training_subset_fraction": 0.8,
-            "training_device": "cpu",
-            "cpus_per_client": 1,
-            "gpus_per_client": 0.0,
-            "min_fit_clients": 8,
-            "min_evaluate_clients": 8,
-            "min_available_clients": 10,
-            "evaluate_metrics_aggregation_fn": "weighted_average",
-            "num_of_client_epochs": 3,
-            "batch_size": 32,
-            # Trust-specific parameters
-            "begin_removing_from_round": 2,
-            "trust_threshold": 0.7,
-            "beta_value": 0.5,
-            "num_of_clusters": 1,
-            # Missing LLM parameters should cause error
-        }
-
-        with pytest.raises(ValidationError) as exc_info:
-            validate_strategy_config(config)
-
-        # Should call LLM validation and fail due to missing parameters
-        assert "Missing parameter llm_model for LLM finetuning" in str(exc_info.value)
-
-    def test_validate_strategy_config_skips_llm_validation_when_disabled(self):
-        """Test that main validation skips LLM validation when use_llm is false."""
-        config = {
-            "aggregation_strategy_keyword": "trust",
-            "remove_clients": "true",
-            "dataset_keyword": "femnist_iid",
-            "model_type": "cnn",
-            "use_llm": "false",
-            "num_of_rounds": 5,
-            "num_of_clients": 10,
-            "num_of_malicious_clients": 2,
-            "attack_type": "label_flipping",
-            "show_plots": "false",
-            "save_plots": "true",
-            "save_csv": "true",
-            "preserve_dataset": "false",
-            "training_subset_fraction": 0.8,
-            "training_device": "cpu",
-            "cpus_per_client": 1,
-            "gpus_per_client": 0.0,
-            "min_fit_clients": 8,
-            "min_evaluate_clients": 8,
-            "min_available_clients": 10,
-            "evaluate_metrics_aggregation_fn": "weighted_average",
-            "num_of_client_epochs": 3,
-            "batch_size": 32,
-            # Trust-specific parameters
-            "begin_removing_from_round": 2,
-            "trust_threshold": 0.7,
-            "beta_value": 0.5,
-            "num_of_clusters": 1,
-            # No LLM parameters needed when use_llm is false
-        }
-
-        # Should not raise any exception
-        validate_strategy_config(config)
-
-    def test_validate_strategy_config_checks_client_numbers(self):
-        """Test that main validation checks client number consistency."""
-        config = {
-            "aggregation_strategy_keyword": "trust",
-            "remove_clients": "true",
-            "dataset_keyword": "femnist_iid",
-            "model_type": "cnn",
-            "use_llm": "false",
-            "num_of_rounds": 5,
-            "num_of_clients": 5,  # Too few clients
-            "num_of_malicious_clients": 2,
-            "attack_type": "label_flipping",
-            "show_plots": "false",
-            "save_plots": "true",
-            "save_csv": "true",
-            "preserve_dataset": "false",
-            "training_subset_fraction": 0.8,
-            "training_device": "cpu",
-            "cpus_per_client": 1,
-            "gpus_per_client": 0.0,
-            "min_fit_clients": 8,  # More than num_of_clients
-            "min_evaluate_clients": 8,  # More than num_of_clients
-            "min_available_clients": 10,  # More than num_of_clients
-            "evaluate_metrics_aggregation_fn": "weighted_average",
-            "num_of_client_epochs": 3,
-            "batch_size": 32,
-            # Trust-specific parameters
-            "begin_removing_from_round": 2,
-            "trust_threshold": 0.7,
-            "beta_value": 0.5,
-            "num_of_clusters": 1,
-        }
-
-        with pytest.raises(ValidationError) as exc_info:
-            validate_strategy_config(config)
-
-        # Should fail due to insufficient clients
-        error_message = str(exc_info.value)
-        assert "EXPERIMENT STOPPED: Client configuration error" in error_message
