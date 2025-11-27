@@ -507,23 +507,26 @@ def _apply_strict_mode(config: dict) -> None:
             f"Please ensure all min_* values are <= {num_of_clients}"
         )
 
-    # If strict_mode is enabled, force all min_* = num_of_clients
+    # If strict_mode is enabled, reject configs where min_* != num_of_clients
     if strict_mode:
         if (
                 num_fit_clients != num_of_clients or
                 num_evaluate_clients != num_of_clients or
                 num_available_clients != num_of_clients
         ):
-            # Force all to equal total clients
-            config["min_fit_clients"] = num_of_clients
-            config["min_evaluate_clients"] = num_of_clients
-            config["min_available_clients"] = num_of_clients
-
-            logging.info(f"STRICT MODE ENABLED: Auto-configured client participation")
-            logging.info(f"  - Set min_fit_clients = {num_of_clients}")
-            logging.info(f"  - Set min_evaluate_clients = {num_of_clients}")
-            logging.info(f"  - Set min_available_clients = {num_of_clients}")
-            logging.info(f"  - This ensures all clients participate in every round")
+            raise ValidationError(
+                f"CONFIG REJECTED: strict_mode requires all clients to participate.\n"
+                f"\n"
+                f"Current values:\n"
+                f"  - num_of_clients: {num_of_clients}\n"
+                f"  - min_fit_clients: {num_fit_clients}\n"
+                f"  - min_evaluate_clients: {num_evaluate_clients}\n"
+                f"  - min_available_clients: {num_available_clients}\n"
+                f"\n"
+                f"Fix:\n"
+                f"  Set all min_* values equal to num_of_clients ({num_of_clients})\n"
+                f"  Or set 'strict_mode': 'false' to allow partial participation\n"
+            )
 
 
 def validate_strategy_config(config: dict) -> None:
