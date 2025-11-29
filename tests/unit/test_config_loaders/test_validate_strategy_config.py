@@ -13,174 +13,155 @@ from src.config_loaders.validate_strategy_config import (
     validate_strategy_config,
 )
 
+VALID_STRATEGY_CONFIGS = {
+    "trust": {
+        "aggregation_strategy_keyword": "trust",
+        "remove_clients": "true",
+        "dataset_keyword": "femnist_iid",
+        "model_type": "cnn",
+        "use_llm": "false",
+        "num_of_rounds": 5,
+        "num_of_clients": 10,
+        "num_of_malicious_clients": 2,
+        "attack_schedule": [
+            {
+                "start_round": 1,
+                "end_round": 5,
+                "attack_type": "label_flipping",
+                "selection_strategy": "percentage",
+                "malicious_percentage": 0.2,
+            }
+        ],
+        "show_plots": "false",
+        "save_plots": "true",
+        "save_csv": "true",
+        "preserve_dataset": "false",
+        "training_subset_fraction": 0.8,
+        "training_device": "cpu",
+        "cpus_per_client": 1,
+        "gpus_per_client": 0.0,
+        "min_fit_clients": 10,
+        "min_evaluate_clients": 10,
+        "min_available_clients": 10,
+        "evaluate_metrics_aggregation_fn": "weighted_average",
+        "num_of_client_epochs": 3,
+        "batch_size": 32,
+        "strict_mode": "true",
+        "begin_removing_from_round": 2,
+        "trust_threshold": 0.7,
+        "beta_value": 0.5,
+        "num_of_clusters": 1,
+    },
+    "pid": {
+        "aggregation_strategy_keyword": "pid",
+        "remove_clients": "true",
+        "dataset_keyword": "its",
+        "model_type": "cnn",
+        "use_llm": "false",
+        "num_of_rounds": 3,
+        "num_of_clients": 8,
+        "num_of_malicious_clients": 1,
+        "attack_schedule": [
+            {
+                "start_round": 1,
+                "end_round": 3,
+                "attack_type": "gaussian_noise",
+                "target_noise_snr": 10.0,
+                "attack_ratio": 0.2,
+                "selection_strategy": "percentage",
+                "malicious_percentage": 0.125,
+            }
+        ],
+        "show_plots": "false",
+        "save_plots": "false",
+        "save_csv": "true",
+        "preserve_dataset": "false",
+        "training_subset_fraction": 1.0,
+        "training_device": "gpu",
+        "cpus_per_client": 2,
+        "gpus_per_client": 0.5,
+        "min_fit_clients": 8,
+        "min_evaluate_clients": 8,
+        "min_available_clients": 8,
+        "evaluate_metrics_aggregation_fn": "weighted_average",
+        "num_of_client_epochs": 5,
+        "batch_size": 64,
+        "strict_mode": "true",
+        "num_std_dev": 2.0,
+        "Kp": 1.0,
+        "Ki": 0.1,
+        "Kd": 0.01,
+    },
+    "krum": {
+        "aggregation_strategy_keyword": "krum",
+        "remove_clients": "false",
+        "dataset_keyword": "pneumoniamnist",
+        "model_type": "cnn",
+        "use_llm": "false",
+        "num_of_rounds": 4,
+        "num_of_clients": 12,
+        "num_of_malicious_clients": 0,
+        "attack_schedule": [],
+        "show_plots": "true",
+        "save_plots": "true",
+        "save_csv": "false",
+        "preserve_dataset": "false",
+        "training_subset_fraction": 0.9,
+        "training_device": "gpu",
+        "cpus_per_client": 1,
+        "gpus_per_client": 1.0,
+        "min_fit_clients": 12,
+        "min_evaluate_clients": 12,
+        "min_available_clients": 12,
+        "evaluate_metrics_aggregation_fn": "weighted_average",
+        "num_of_client_epochs": 2,
+        "batch_size": 16,
+        "num_krum_selections": 8,
+    },
+    "trimmed_mean": {
+        "aggregation_strategy_keyword": "trimmed_mean",
+        "remove_clients": "true",
+        "dataset_keyword": "bloodmnist",
+        "model_type": "cnn",
+        "use_llm": "false",
+        "num_of_rounds": 6,
+        "num_of_clients": 15,
+        "num_of_malicious_clients": 3,
+        "attack_schedule": [
+            {
+                "start_round": 1,
+                "end_round": 6,
+                "attack_type": "label_flipping",
+                "selection_strategy": "percentage",
+                "malicious_percentage": 0.2,
+            }
+        ],
+        "show_plots": "false",
+        "save_plots": "false",
+        "save_csv": "true",
+        "preserve_dataset": "false",
+        "training_subset_fraction": 0.7,
+        "training_device": "cpu",
+        "cpus_per_client": 4,
+        "gpus_per_client": 0.0,
+        "min_fit_clients": 15,
+        "min_evaluate_clients": 15,
+        "min_available_clients": 15,
+        "evaluate_metrics_aggregation_fn": "weighted_average",
+        "num_of_client_epochs": 1,
+        "batch_size": 128,
+        "trim_ratio": 0.2,
+    },
+}
+
 
 class TestValidateStrategyConfig:
     """Test suite for strategy configuration validation functionality."""
 
-    def test_validate_strategy_config_valid_trust_strategy(self):
-        """Test validation of valid trust strategy configuration."""
-        config = {
-            "aggregation_strategy_keyword": "trust",
-            "remove_clients": "true",
-            "dataset_keyword": "femnist_iid",
-            "model_type": "cnn",
-            "use_llm": "false",
-            "num_of_rounds": 5,
-            "num_of_clients": 10,
-            "num_of_malicious_clients": 2,
-            "attack_schedule": [
-                {
-                    "start_round": 1,
-                    "end_round": 5,
-                    "attack_type": "label_flipping",
-                    "selection_strategy": "percentage",
-                    "malicious_percentage": 0.2,
-                }
-            ],
-            "show_plots": "false",
-            "save_plots": "true",
-            "save_csv": "true",
-            "preserve_dataset": "false",
-            "training_subset_fraction": 0.8,
-            "training_device": "cpu",
-            "cpus_per_client": 1,
-            "gpus_per_client": 0.0,
-            "min_fit_clients": 10,
-            "min_evaluate_clients": 10,
-            "min_available_clients": 10,
-            "evaluate_metrics_aggregation_fn": "weighted_average",
-            "num_of_client_epochs": 3,
-            "batch_size": 32,
-            "strict_mode": "true",
-            # Trust-specific parameters
-            "begin_removing_from_round": 2,
-            "trust_threshold": 0.7,
-            "beta_value": 0.5,
-            "num_of_clusters": 1,
-        }
-
-        # Should not raise any exception
-        validate_strategy_config(config)
-
-    def test_validate_strategy_config_valid_pid_strategy(self):
-        """Test validation of valid PID strategy configuration."""
-        config = {
-            "aggregation_strategy_keyword": "pid",
-            "remove_clients": "true",
-            "dataset_keyword": "its",
-            "model_type": "cnn",
-            "use_llm": "false",
-            "num_of_rounds": 3,
-            "num_of_clients": 8,
-            "num_of_malicious_clients": 1,
-            "attack_schedule": [
-                {
-                    "start_round": 1,
-                    "end_round": 3,
-                    "attack_type": "gaussian_noise",
-                    "target_noise_snr": 10.0,
-                    "attack_ratio": 0.2,
-                    "selection_strategy": "percentage",
-                    "malicious_percentage": 0.125,
-                }
-            ],
-            "show_plots": "false",
-            "save_plots": "false",
-            "save_csv": "true",
-            "preserve_dataset": "false",
-            "training_subset_fraction": 1.0,
-            "training_device": "gpu",
-            "cpus_per_client": 2,
-            "gpus_per_client": 0.5,
-            "min_fit_clients": 8,
-            "min_evaluate_clients": 8,
-            "min_available_clients": 8,
-            "evaluate_metrics_aggregation_fn": "weighted_average",
-            "num_of_client_epochs": 5,
-            "batch_size": 64,
-            "strict_mode": "true",
-            # PID-specific parameters
-            "num_std_dev": 2.0,
-            "Kp": 1.0,
-            "Ki": 0.1,
-            "Kd": 0.01,
-        }
-
-        # Should not raise any exception
-        validate_strategy_config(config)
-
-    def test_validate_strategy_config_valid_krum_strategy(self):
-        """Test validation of valid Krum strategy configuration."""
-        config = {
-            "aggregation_strategy_keyword": "krum",
-            "remove_clients": "false",
-            "dataset_keyword": "pneumoniamnist",
-            "model_type": "cnn",
-            "use_llm": "false",
-            "num_of_rounds": 4,
-            "num_of_clients": 12,
-            "num_of_malicious_clients": 0,
-            "attack_schedule": [],
-            "show_plots": "true",
-            "save_plots": "true",
-            "save_csv": "false",
-            "preserve_dataset": "false",
-            "training_subset_fraction": 0.9,
-            "training_device": "gpu",
-            "cpus_per_client": 1,
-            "gpus_per_client": 1.0,
-            "min_fit_clients": 12,
-            "min_evaluate_clients": 12,
-            "min_available_clients": 12,
-            "evaluate_metrics_aggregation_fn": "weighted_average",
-            "num_of_client_epochs": 2,
-            "batch_size": 16,
-            # Krum-specific parameters
-            "num_krum_selections": 8,
-        }
-
-        # Should not raise any exception
-        validate_strategy_config(config)
-
-    def test_validate_strategy_config_valid_trimmed_mean_strategy(self):
-        """Test validation of valid trimmed mean strategy configuration."""
-        config = {
-            "aggregation_strategy_keyword": "trimmed_mean",
-            "remove_clients": "true",
-            "dataset_keyword": "bloodmnist",
-            "model_type": "cnn",
-            "use_llm": "false",
-            "num_of_rounds": 6,
-            "num_of_clients": 15,
-            "num_of_malicious_clients": 3,
-            "attack_schedule": [
-                {
-                    "start_round": 1,
-                    "end_round": 6,
-                    "attack_type": "label_flipping",
-                    "selection_strategy": "percentage",
-                    "malicious_percentage": 0.2,
-                }
-            ],
-            "show_plots": "false",
-            "save_plots": "false",
-            "save_csv": "true",
-            "preserve_dataset": "false",
-            "training_subset_fraction": 0.7,
-            "training_device": "cpu",
-            "cpus_per_client": 4,
-            "gpus_per_client": 0.0,
-            "min_fit_clients": 15,
-            "min_evaluate_clients": 15,
-            "min_available_clients": 15,
-            "evaluate_metrics_aggregation_fn": "weighted_average",
-            "num_of_client_epochs": 1,
-            "batch_size": 128,
-            # Trimmed mean specific parameters
-            "trim_ratio": 0.2,
-        }
-
-        # Should not raise any exception
+    @pytest.mark.parametrize("strategy_type", list(VALID_STRATEGY_CONFIGS.keys()))
+    def test_validate_strategy_config_valid(self, strategy_type):
+        """Test validation of valid strategy configurations."""
+        config = VALID_STRATEGY_CONFIGS[strategy_type]
         validate_strategy_config(config)
 
 
