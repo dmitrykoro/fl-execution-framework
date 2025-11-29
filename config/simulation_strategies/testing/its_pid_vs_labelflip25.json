@@ -1,0 +1,50 @@
+{
+  "_title": "PID Controller vs 25% Label Flipping (ITS)",
+  "shared_settings": {
+    "aggregation_strategy_keyword": "pid",
+    "remove_clients": "true",
+    "begin_removing_from_round": 5,
+    "dataset_keyword": "its",
+    "model_type": "cnn",
+    "use_llm": "false",
+    "num_of_rounds": 50,
+    "num_of_clients": 8,
+    "show_plots": "false",
+    "save_plots": "true",
+    "save_csv": "true",
+    "preserve_dataset": "false",
+    "training_subset_fraction": 0.9,
+    "training_device": "cpu",
+    "cpus_per_client": 2,
+    "gpus_per_client": 0.0,
+    "min_fit_clients": 8,
+    "min_evaluate_clients": 8,
+    "min_available_clients": 8,
+    "pid_threshold": 1,
+    "Kp": 1,
+    "Ki": 0.6,
+    "Kd": 0.4,
+    "num_std_dev": 2.0,
+    "evaluate_metrics_aggregation_fn": "weighted_average",
+    "num_of_client_epochs": 4,
+    "batch_size": 10,
+    "save_attack_snapshots": "true",
+    "attack_snapshot_format": "pickle_and_visual",
+    "snapshot_max_samples": 5
+  },
+  "simulation_strategies": [
+    {
+      "attack_schedule": [
+        {
+          "start_round": 1,
+          "end_round": 50,
+          "attack_type": "label_flipping",
+          "flip_fraction": 1.0,
+          "target_class": 1,
+          "selection_strategy": "percentage",
+          "malicious_percentage": 0.25
+        }
+      ]
+    }
+  ]
+}
