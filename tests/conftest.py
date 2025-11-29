@@ -10,9 +10,11 @@ import os
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict
+from unittest.mock import Mock, patch
 
 import pytest
-from tests.common import STRATEGY_CONFIGS, np
+from tests.common import STRATEGY_CONFIGS, np, generate_mock_client_data
+from src.data_models.simulation_strategy_history import SimulationStrategyHistory
 
 # Deterministic test environment
 os.environ["LOKY_MAX_CPU_COUNT"] = "1"  # Single-threaded
@@ -59,7 +61,128 @@ def prevent_real_output_dirs(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) ->
     )
 
 
-# Strategy testing fixtures
+@pytest.fixture
+def mock_strategy_history():
+    """Create mock strategy history for all strategy tests."""
+    return Mock(spec=SimulationStrategyHistory)
+
+
+@pytest.fixture
+def mock_client_results_factory():
+    """Factory for creating mock client results with configurable client count."""
+
+    def _create(num_clients: int = 5, param_shape: tuple = (10, 5)):
+        return generate_mock_client_data(
+            num_clients=num_clients, param_shape=param_shape
+        )
+
+    return _create
+
+
+@pytest.fixture
+def mock_client_results(mock_client_results_factory):
+    """Default mock client results with 5 clients."""
+    return mock_client_results_factory(5)
+
+
+@pytest.fixture
+def mock_client_results_15(mock_client_results_factory):
+    """Mock client results with 15 clients (for Bulyan strategy)."""
+    return mock_client_results_factory(15)
+
+
+@pytest.fixture
+def krum_fit_metrics_fn():
+    """Provide consistent fit_metrics_aggregation_fn for Krum-based strategies."""
+    return lambda x: x
+
+
+@pytest.fixture(scope="module")
+def mock_network_model():
+    """Create mock network model for PID strategy tests. Module-scoped for performance."""
+    return Mock()
+
+
+@pytest.fixture
+def mock_loader_factory():
+    """Factory for creating mock data loaders by type (cnn/transformer)."""
+    import torch
+
+    def _create(data_type="cnn", purpose="train", batch_count=5):
+        if data_type == "cnn":
+            shape = (3, 32, 32)  # CNN image shape
+            mock_data = [
+                (torch.randn(8, *shape), torch.randint(0, 10, (8,)))
+                for _ in range(batch_count)
+            ]
+        else:  # transformer
+            mock_data = []
+            for _ in range(batch_count):
+                batch = {
+                    "input_ids": torch.randint(0, 1000, (8, 512)),
+                    "attention_mask": torch.ones(8, 512),
+                    "labels": torch.randint(0, 1000, (8, 512)),
+                }
+                mock_data.append(batch)
+
+        mock_loader = Mock()
+        mock_loader.__iter__ = Mock(return_value=iter(mock_data))
+        mock_loader.__len__ = Mock(return_value=batch_count)
+        return mock_loader
+
+    return _create
+
+
+@pytest.fixture
+def mock_clustering_factory():
+    """Factory for creating clustering mock contexts (KMeans/MinMaxScaler)."""
+
+    def _create(strategy_module, num_clients=5):
+        module_path = f"src.simulation_strategies.{strategy_module}"
+
+        mock_data: Dict[str, Any] = {
+            "kmeans": None,
+            "scaler": None,
+            "kmeans_instance": None,
+            "scaler_instance": None,
+        }
+
+        class ClusteringContext:
+            def __enter__(self):
+                self.kmeans_patch = patch(f"{module_path}.KMeans")
+                self.scaler_patch = patch(f"{module_path}.MinMaxScaler")
+
+                mock_data["kmeans"] = self.kmeans_patch.start()
+                mock_data["scaler"] = self.scaler_patch.start()
+
+                mock_data["kmeans_instance"] = Mock()
+                transform_result = np.array(
+                    [[0.1 * (i + 1)] for i in range(num_clients)]
+                )
+                mock_data["kmeans_instance"].transform.return_value = transform_result
+                mock_data["kmeans"].return_value.fit.return_value = mock_data[
+                    "kmeans_instance"
+                ]
+
+                mock_data["scaler_instance"] = Mock()
+                mock_data["scaler_instance"].transform.return_value = transform_result
+                mock_data["scaler_instance"].fit.return_value = mock_data[
+                    "scaler_instance"
+                ]
+                mock_data["scaler"].return_value = mock_data["scaler_instance"]
+
+                return mock_data
+
+            def __exit__(self, exc_type, exc_val, exc_tb):
+                self.kmeans_patch.stop()
+                self.scaler_patch.stop()
+                return False
+
+        return ClusteringContext()
+
+    return _create
+
+
 @pytest.fixture(scope="session")
 def mock_strategy_configs() -> Dict[str, Dict[str, Any]]:
     """Strategy configurations for parameterized tests."""

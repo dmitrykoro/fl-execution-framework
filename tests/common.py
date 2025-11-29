@@ -513,11 +513,34 @@ def verify_json_metadata(
     assert "labels_shape" in metadata
 
 
-# =============================================================================
-# CONSTANTS AND CONFIGURATION
-# =============================================================================
+def assert_close(actual, expected, tolerance=1e-6, msg=""):
+    """Assert two values are within tolerance."""
+    diff = abs(actual - expected)
+    assert diff < tolerance, (
+        f"{msg}: {actual} != {expected} (diff={diff}, tol={tolerance})"
+    )
 
-# Common test configuration values
+
+def assert_matrix_symmetric(matrix, tolerance=1e-6):
+    """Assert matrix is symmetric within tolerance."""
+    if np is None:
+        raise ImportError("numpy required for assert_matrix_symmetric")
+    assert np.allclose(matrix, matrix.T, atol=tolerance), "Matrix is not symmetric"
+
+
+def assert_valid_scores(scores, min_val=0.0, max_val=None):
+    """Assert all scores are within expected bounds."""
+    for i, s in enumerate(scores):
+        assert s >= min_val, f"Score[{i}]={s} below min {min_val}"
+        if max_val is not None:
+            assert s <= max_val, f"Score[{i}]={s} above max {max_val}"
+
+
+def assert_bounds(value, lower=0.0, upper=1.0, name="value"):
+    """Assert value is within bounds [lower, upper]."""
+    assert lower <= value <= upper, f"{name}={value} not in [{lower}, {upper}]"
+
+
 DEFAULT_PARAM_SHAPE = (10, 5)
 DEFAULT_NUM_CLIENTS = 5
 DEFAULT_NUM_EXAMPLES = 100
@@ -598,6 +621,10 @@ __all__ = [
     "FLTestHelpers",
     "assert_valid_fl_result",
     "create_mock_flower_client",
+    "assert_close",
+    "assert_matrix_symmetric",
+    "assert_valid_scores",
+    "assert_bounds",
     # Attack snapshot testing utilities
     "create_sample_tensors",
     "create_attack_config",
