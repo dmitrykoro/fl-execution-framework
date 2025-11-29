@@ -22,14 +22,21 @@ jobs:
     timeout-minutes: 10
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6
+        id: setup-python
         with:
           python-version: '3.10'
-          cache: 'pip'
 
-      - run: pip install -r requirements.txt
+      - name: Cache Python packages
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.pythonLocation }}
+          key: python-${{ runner.os }}-${{ steps.setup-python.outputs.python-version }}-${{ hashFiles('requirements.txt') }}
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
 
       - name: Smoke test configs
         run: PYTHONPATH=. python tests/scripts/ci_smoke_test.py
@@ -39,14 +46,21 @@ jobs:
     timeout-minutes: 5
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6
+        id: setup-python
         with:
           python-version: '3.10'
-          cache: 'pip'
 
-      - run: pip install -r requirements.txt
+      - name: Cache Python packages
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.pythonLocation }}
+          key: python-${{ runner.os }}-${{ steps.setup-python.outputs.python-version }}-${{ hashFiles('requirements.txt') }}
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
 
       - name: Strategy pipeline integration tests
         run: python -m pytest tests/integration/test_strategy_pipeline.py -v --tb=short
