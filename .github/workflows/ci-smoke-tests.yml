@@ -9,6 +9,9 @@ on:
       - 'src/**'
       - 'tests/**'
       - '.github/workflows/**'
+      - 'requirements.txt'
+      # - 'pyproject.toml'
+      # - '.coveragerc'
   pull_request:
     branches: [main]
     paths:
@@ -16,6 +19,9 @@ on:
       - 'src/**'
       - 'tests/**'
       - '.github/workflows/**'
+      - 'requirements.txt'
+      # - 'pyproject.toml'
+      # - '.coveragerc'
 
 jobs:
   smoke-test:
