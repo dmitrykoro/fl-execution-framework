@@ -1341,7 +1341,10 @@ class TestStrictModeValidation:
             validate_strategy_config(config)
 
         error_message = str(exc_info.value)
-        assert "CONFIG REJECTED: strict_mode requires all clients to participate" in error_message
+        assert (
+            "CONFIG REJECTED: strict_mode requires all clients to participate"
+            in error_message
+        )
         assert "min_fit_clients: 8" in error_message
 
     def test_strict_mode_enabled_rejects_invalid_config(self):
@@ -1391,7 +1394,10 @@ class TestStrictModeValidation:
             validate_strategy_config(config)
 
         error_message = str(exc_info.value)
-        assert "CONFIG REJECTED: strict_mode requires all clients to participate" in error_message
+        assert (
+            "CONFIG REJECTED: strict_mode requires all clients to participate"
+            in error_message
+        )
         assert "min_fit_clients: 5" in error_message
         assert "min_evaluate_clients: 7" in error_message
 
