@@ -1,6 +1,7 @@
 name: Config Smoke Tests
 
 on:
+  workflow_dispatch:
   push:
     branches: [aj-attack, aj-test, main]
     paths:
