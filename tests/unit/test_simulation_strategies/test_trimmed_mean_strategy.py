@@ -16,21 +16,13 @@ from tests.common import (
     parameters_to_ndarrays,
     ClientProxy,
 )
-from src.data_models.simulation_strategy_history import SimulationStrategyHistory
 from src.simulation_strategies.trimmed_mean_based_removal_strategy import (
     TrimmedMeanBasedRemovalStrategy,
 )
 
-from tests.common import generate_mock_client_data
-
 
 class TestTrimmedMeanBasedRemovalStrategy:
     """Test cases for TrimmedMeanBasedRemovalStrategy."""
-
-    @pytest.fixture
-    def mock_strategy_history(self):
-        """Create mock strategy history."""
-        return Mock(spec=SimulationStrategyHistory)
 
     @pytest.fixture
     def trimmed_mean_strategy(self, mock_strategy_history, mock_output_directory):
@@ -45,9 +37,9 @@ class TestTrimmedMeanBasedRemovalStrategy:
         )
 
     @pytest.fixture
-    def mock_client_results(self):
-        """Generate mock client results for testing."""
-        return generate_mock_client_data(num_clients=10)
+    def mock_client_results(self, mock_client_results_factory):
+        """Trimmed mean tests need 10 clients."""
+        return mock_client_results_factory(10)
 
     def test_initialization(self, trimmed_mean_strategy, mock_strategy_history):
         """Test TrimmedMeanBasedRemovalStrategy initialization."""

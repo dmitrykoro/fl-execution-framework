@@ -7,26 +7,13 @@ Tests Krum client selection algorithms, distance calculations, and subset identi
 from unittest.mock import patch
 
 from tests.common import Mock, np, pytest, FitRes, ndarrays_to_parameters, ClientProxy
-from src.data_models.simulation_strategy_history import SimulationStrategyHistory
 from src.simulation_strategies.krum_based_removal_strategy import (
     KrumBasedRemovalStrategy,
 )
 
-from tests.common import generate_mock_client_data
-
 
 class TestKrumBasedRemovalStrategy:
     """Test cases for KrumBasedRemovalStrategy."""
-
-    @pytest.fixture
-    def mock_client_results(self):
-        """Generate mock client results for testing."""
-        return generate_mock_client_data(num_clients=5)
-
-    @pytest.fixture
-    def mock_strategy_history(self):
-        """Create mock strategy history."""
-        return Mock(spec=SimulationStrategyHistory)
 
     @pytest.fixture
     def krum_strategy(
@@ -43,11 +30,6 @@ class TestKrumBasedRemovalStrategy:
             fraction_evaluate=1.0,
             fit_metrics_aggregation_fn=krum_fit_metrics_fn,
         )
-
-    @pytest.fixture
-    def krum_fit_metrics_fn(self):
-        """Provide consistent fit_metrics_aggregation_fn for Krum-based strategies."""
-        return lambda x: x
 
     @pytest.fixture
     def mock_clustering(self):

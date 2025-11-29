@@ -15,19 +15,11 @@ from tests.common import (
     parameters_to_ndarrays,
     ClientProxy,
 )
-from src.data_models.simulation_strategy_history import SimulationStrategyHistory
 from src.simulation_strategies.bulyan_strategy import BulyanStrategy
-
-from tests.common import generate_mock_client_data
 
 
 class TestBulyanStrategy:
     """Test cases for BulyanStrategy."""
-
-    @pytest.fixture
-    def mock_strategy_history(self):
-        """Create mock strategy history."""
-        return Mock(spec=SimulationStrategyHistory)
 
     @pytest.fixture
     def bulyan_strategy(self, mock_strategy_history, mock_output_directory):
@@ -42,9 +34,9 @@ class TestBulyanStrategy:
         )
 
     @pytest.fixture
-    def mock_client_results(self):
-        """Generate mock client results for testing."""
-        return generate_mock_client_data(num_clients=15)
+    def mock_client_results(self, mock_client_results_15):
+        """Alias to 15-client results for Bulyan tests."""
+        return mock_client_results_15
 
     def test_initialization(self, bulyan_strategy, mock_strategy_history):
         """Test BulyanStrategy initialization."""
@@ -56,6 +48,7 @@ class TestBulyanStrategy:
         assert bulyan_strategy.client_scores == {}
         assert bulyan_strategy.removed_client_ids == set()
 
+    @pytest.mark.algorithm
     def test_pairwise_sq_dists_static_method(self):
         """Test _pairwise_sq_dists static method."""
         vectors = np.array(
@@ -221,16 +214,12 @@ class TestBulyanStrategy:
                 1, mock_client_results, []
             )
 
-            # Should return aggregated parameters
             assert result_params is not None
             assert isinstance(result_metrics, dict)
-
-            # Verify current_round was incremented
             assert bulyan_strategy.current_round == 1
-
-            # Verify client scores were calculated
             assert len(bulyan_strategy.client_scores) == 15
 
+    @pytest.mark.edge_case
     def test_aggregate_fit_insufficient_clients(self, bulyan_strategy):
         """Test aggregate_fit with insufficient clients for Bulyan preconditions."""
         # Create insufficient clients (less than 4*f + 3 = 4*2 + 3 = 11)
@@ -268,10 +257,9 @@ class TestBulyanStrategy:
             mock_parent_aggregate.return_value = (Mock(), {})
 
             bulyan_strategy.aggregate_fit(1, insufficient_results, [])
-
-            # Should fall back to simple mean aggregation
             mock_parent_aggregate.assert_called_once()
 
+    @pytest.mark.edge_case
     def test_aggregate_fit_empty_results(self, bulyan_strategy):
         """Test aggregate_fit handles empty results."""
         result_params, result_metrics = bulyan_strategy.aggregate_fit(1, [], [])

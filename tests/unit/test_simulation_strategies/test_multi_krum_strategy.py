@@ -8,19 +8,11 @@ from unittest.mock import patch
 
 from tests.common import Mock, np, pytest, FitRes, ndarrays_to_parameters, ClientProxy
 from flwr.common import EvaluateRes
-from src.data_models.simulation_strategy_history import SimulationStrategyHistory
 from src.simulation_strategies.multi_krum_strategy import MultiKrumStrategy
-
-from tests.common import generate_mock_client_data
 
 
 class TestMultiKrumStrategy:
     """MultiKrumStrategy unit tests."""
-
-    @pytest.fixture
-    def mock_strategy_history(self):
-        """Mock strategy history."""
-        return Mock(spec=SimulationStrategyHistory)
 
     @pytest.fixture
     def multi_krum_strategy(self, mock_strategy_history, mock_output_directory):
@@ -36,9 +28,9 @@ class TestMultiKrumStrategy:
         )
 
     @pytest.fixture
-    def mock_client_results(self):
+    def mock_client_results(self, mock_client_results_factory):
         """Six mock clients with generated parameters."""
-        return generate_mock_client_data(num_clients=6)
+        return mock_client_results_factory(6)
 
     def test_initialization(self, multi_krum_strategy, mock_strategy_history):
         """Verify initialization sets parameters correctly."""

@@ -7,26 +7,13 @@ Tests trust score calculation algorithms, client removal logic, and threshold be
 from unittest.mock import patch
 
 from tests.common import Mock, np, pytest, FitRes, ndarrays_to_parameters, ClientProxy
-from src.data_models.simulation_strategy_history import SimulationStrategyHistory
 from src.simulation_strategies.trust_based_removal_strategy import (
     TrustBasedRemovalStrategy,
 )
 
-from tests.common import generate_mock_client_data
-
 
 class TestTrustBasedRemovalStrategy:
     """Test cases for TrustBasedRemovalStrategy."""
-
-    @pytest.fixture
-    def mock_client_results(self):
-        """Generate mock client results for testing."""
-        return generate_mock_client_data(num_clients=5)
-
-    @pytest.fixture
-    def mock_strategy_history(self):
-        """Create mock strategy history."""
-        return Mock(spec=SimulationStrategyHistory)
 
     @pytest.fixture
     def trust_strategy(self, mock_strategy_history, mock_output_directory):
@@ -53,96 +40,67 @@ class TestTrustBasedRemovalStrategy:
         assert trust_strategy.client_trusts == {}
         assert trust_strategy.removed_client_ids == set()
 
-    def test_calculate_reputation_first_round(self, trust_strategy):
-        """Test reputation calculation for first round."""
-        trust_strategy.current_round = 1
+    @pytest.mark.parametrize(
+        "round_num,has_prior_rep,prior_rep",
+        [
+            pytest.param(1, False, None, id="first-round"),
+            pytest.param(3, True, 0.6, id="subsequent-round"),
+        ],
+    )
+    def test_calculate_reputation_rounds(
+        self, trust_strategy, round_num, has_prior_rep, prior_rep
+    ):
+        """Test reputation calculation for first and subsequent rounds."""
+        trust_strategy.current_round = round_num
         truth_value = np.array([0.8])
+        if has_prior_rep:
+            trust_strategy.client_reputations["client_1"] = prior_rep
 
         reputation = trust_strategy.calculate_reputation("client_1", truth_value)
 
-        assert reputation == truth_value
+        if not has_prior_rep:
+            assert reputation == truth_value
+        else:
+            assert isinstance(reputation, (float, np.ndarray))
 
-    def test_calculate_reputation_subsequent_rounds(self, trust_strategy):
-        """Test reputation calculation for subsequent rounds."""
-        trust_strategy.current_round = 3
-        trust_strategy.client_reputations["client_1"] = 0.6
-        truth_value = np.array([0.8])
+    @pytest.mark.parametrize(
+        "prev_rep,truth_val,bound_check",
+        [
+            pytest.param(0.6, 0.8, "both", id="positive-truth"),
+            pytest.param(0.6, 0.3, "both", id="negative-truth"),
+            pytest.param(0.9, 0.95, "upper", id="upper-bound"),
+            pytest.param(0.1, 0.05, "lower", id="lower-bound"),
+        ],
+    )
+    def test_update_reputation(self, trust_strategy, prev_rep, truth_val, bound_check):
+        """Test reputation update with various truth values and bounds."""
+        truth_value = np.array([truth_val])
+        updated_reputation = trust_strategy.update_reputation(prev_rep, truth_value, 3)
 
-        reputation = trust_strategy.calculate_reputation("client_1", truth_value)
-
-        # Should call update_reputation method
-        assert isinstance(reputation, (float, np.ndarray))
-
-    def test_update_reputation_positive_truth(self, trust_strategy):
-        """Test reputation update with positive truth value."""
-        prev_reputation = 0.6
-        truth_value = np.array([0.8])
-        current_round = 3
-
-        updated_reputation = trust_strategy.update_reputation(
-            prev_reputation, truth_value, current_round
-        )
-
-        # Should be between 0 and 1
-        assert 0 <= updated_reputation <= 1
         assert isinstance(updated_reputation, float)
+        if bound_check == "both":
+            assert 0 <= updated_reputation <= 1
+        elif bound_check == "upper":
+            assert updated_reputation <= 1.0
+        elif bound_check == "lower":
+            assert updated_reputation >= 0.0
 
-    def test_update_reputation_negative_truth(self, trust_strategy):
-        """Test reputation update with negative truth value."""
-        prev_reputation = 0.6
-        truth_value = np.array([0.3])
-        current_round = 3
+    @pytest.mark.parametrize(
+        "round_num,has_prior_trust,prior_trust",
+        [
+            pytest.param(1, False, None, id="first-round"),
+            pytest.param(3, True, 0.6, id="subsequent-round"),
+        ],
+    )
+    def test_calculate_trust_rounds(
+        self, trust_strategy, round_num, has_prior_trust, prior_trust
+    ):
+        """Test trust calculation for first and subsequent rounds."""
+        trust_strategy.current_round = round_num
+        if has_prior_trust:
+            trust_strategy.client_trusts["client_1"] = prior_trust
 
-        updated_reputation = trust_strategy.update_reputation(
-            prev_reputation, truth_value, current_round
-        )
-
-        # Should be between 0 and 1
-        assert 0 <= updated_reputation <= 1
-        assert isinstance(updated_reputation, float)
-
-    def test_update_reputation_bounds(self, trust_strategy):
-        """Test reputation update respects bounds [0, 1]."""
-        # Test upper bound
-        prev_reputation = 0.9
-        truth_value = np.array([0.95])
-        current_round = 2
-
-        updated_reputation = trust_strategy.update_reputation(
-            prev_reputation, truth_value, current_round
-        )
-        assert updated_reputation <= 1.0
-
-        # Test lower bound
-        prev_reputation = 0.1
-        truth_value = np.array([0.05])
-        current_round = 2
-
-        updated_reputation = trust_strategy.update_reputation(
-            prev_reputation, truth_value, current_round
-        )
-        assert updated_reputation >= 0.0
-
-    def test_calculate_trust_first_round(self, trust_strategy):
-        """Test trust calculation for first round."""
-        trust_strategy.current_round = 1
-        reputation = 0.8
-        d = 0.7
-
-        trust = trust_strategy.calculate_trust("client_1", reputation, d)
-
-        # Should call update_trust with prev_trust = 0
-        assert isinstance(trust, float)
-        assert 0 <= trust <= 1
-
-    def test_calculate_trust_subsequent_rounds(self, trust_strategy):
-        """Test trust calculation for subsequent rounds."""
-        trust_strategy.current_round = 3
-        trust_strategy.client_trusts["client_1"] = 0.6
-        reputation = 0.8
-        d = 0.7
-
-        trust = trust_strategy.calculate_trust("client_1", reputation, d)
+        trust = trust_strategy.calculate_trust("client_1", 0.8, 0.7)
 
         assert isinstance(trust, float)
         assert 0 <= trust <= 1
@@ -169,18 +127,18 @@ class TestTrustBasedRemovalStrategy:
 
         assert abs(trust - expected_trust) < 1e-6
 
-    def test_update_trust_bounds(self, trust_strategy):
+    @pytest.mark.parametrize(
+        "prev_trust,reputation,d",
+        [
+            pytest.param(0.9, 0.95, 0.9, id="high-values"),
+            pytest.param(0.1, 0.05, 0.1, id="low-values"),
+            pytest.param(0.5, 0.5, 0.5, id="medium-values"),
+        ],
+    )
+    def test_update_trust_bounds(self, trust_strategy, prev_trust, reputation, d):
         """Test trust update respects bounds [0, 1]."""
-        # Test various combinations that might exceed bounds
-        test_cases = [
-            (0.9, 0.95, 0.9),  # High values
-            (0.1, 0.05, 0.1),  # Low values
-            (0.5, 0.5, 0.5),  # Medium values
-        ]
-
-        for prev_trust, reputation, d in test_cases:
-            trust = trust_strategy.update_trust(prev_trust, reputation, d)
-            assert 0 <= trust <= 1
+        trust = trust_strategy.update_trust(prev_trust, reputation, d)
+        assert 0 <= trust <= 1
 
     @patch("src.simulation_strategies.trust_based_removal_strategy.KMeans")
     @patch("src.simulation_strategies.trust_based_removal_strategy.MinMaxScaler")
@@ -336,100 +294,97 @@ class TestTrustBasedRemovalStrategy:
         # Should not remove any clients
         assert trust_strategy.removed_client_ids == set()
 
-    def test_begin_removing_from_round_parameter(self, mock_strategy_history):
+    @pytest.mark.parametrize(
+        "begin_round",
+        [
+            pytest.param(1, id="round-1"),
+            pytest.param(3, id="round-3"),
+            pytest.param(5, id="round-5"),
+        ],
+    )
+    def test_begin_removing_from_round_parameter(
+        self, mock_strategy_history, begin_round
+    ):
         """Test begin_removing_from_round parameter handling."""
-        # Test different begin_removing_from_round values
-        for begin_round in [1, 3, 5]:
-            strategy = TrustBasedRemovalStrategy(
-                remove_clients=True,
-                beta_value=0.5,
-                trust_threshold=0.7,
-                begin_removing_from_round=begin_round,
-                strategy_history=mock_strategy_history,
-            )
+        strategy = TrustBasedRemovalStrategy(
+            remove_clients=True,
+            beta_value=0.5,
+            trust_threshold=0.7,
+            begin_removing_from_round=begin_round,
+            strategy_history=mock_strategy_history,
+        )
 
-            assert strategy.begin_removing_from_round == begin_round
+        assert strategy.begin_removing_from_round == begin_round
 
-            # Test warmup behavior
-            strategy.current_round = begin_round - 1
-            mock_client_manager = Mock()
-            mock_clients = {"client_0": Mock(), "client_1": Mock()}
-            mock_client_manager.all.return_value = mock_clients
+        strategy.current_round = begin_round - 1
+        mock_client_manager = Mock()
+        mock_clients = {"client_0": Mock(), "client_1": Mock()}
+        mock_client_manager.all.return_value = mock_clients
 
-            result = strategy.configure_fit(1, Mock(), mock_client_manager)
+        result = strategy.configure_fit(1, Mock(), mock_client_manager)
 
-            # Should not remove clients during warmup
-            assert strategy.removed_client_ids == set()
-            assert len(result) == 2
+        # Should not remove clients during warmup
+        assert strategy.removed_client_ids == set()
+        assert len(result) == 2
 
-    def test_beta_value_parameter_effect(self, mock_strategy_history):
+    @pytest.mark.parametrize(
+        "beta",
+        [
+            pytest.param(0.1, id="beta-0.1"),
+            pytest.param(0.5, id="beta-0.5"),
+            pytest.param(0.9, id="beta-0.9"),
+        ],
+    )
+    def test_beta_value_parameter_effect(self, mock_strategy_history, beta):
         """Test beta_value parameter affects trust and reputation calculations."""
-        # Test with different beta values
-        beta_values = [0.1, 0.5, 0.9]
+        strategy = TrustBasedRemovalStrategy(
+            remove_clients=True,
+            beta_value=beta,
+            trust_threshold=0.7,
+            begin_removing_from_round=2,
+            strategy_history=mock_strategy_history,
+        )
 
-        for beta in beta_values:
-            strategy = TrustBasedRemovalStrategy(
-                remove_clients=True,
-                beta_value=beta,
-                trust_threshold=0.7,
-                begin_removing_from_round=2,
-                strategy_history=mock_strategy_history,
-            )
+        reputation = strategy.update_reputation(0.6, np.array([0.8]), 3)
+        assert 0 <= reputation <= 1
 
-            # Test reputation update
-            prev_reputation = 0.6
-            truth_value = np.array([0.8])
-            current_round = 3
+        trust = strategy.update_trust(0.5, 0.8, 0.7)
+        assert 0 <= trust <= 1
 
-            reputation = strategy.update_reputation(
-                prev_reputation, truth_value, current_round
-            )
-
-            # Beta value should affect the result
-            assert 0 <= reputation <= 1
-
-            # Test trust update
-            prev_trust = 0.5
-            reputation_val = 0.8
-            d = 0.7
-
-            trust = strategy.update_trust(prev_trust, reputation_val, d)
-
-            # Beta value should affect the result
-            assert 0 <= trust <= 1
-
-    def test_trust_threshold_parameter_effect(self, mock_strategy_history):
+    @pytest.mark.parametrize(
+        "threshold,expected_removed",
+        [
+            pytest.param(0.3, {"client_2"}, id="threshold-0.3"),
+            pytest.param(0.7, {"client_1", "client_2"}, id="threshold-0.7"),
+            pytest.param(0.9, {"client_0", "client_1", "client_2"}, id="threshold-0.9"),
+        ],
+    )
+    def test_trust_threshold_parameter_effect(
+        self, mock_strategy_history, threshold, expected_removed
+    ):
         """Test trust_threshold parameter affects client removal."""
-        thresholds = [0.3, 0.7, 0.9]
+        strategy = TrustBasedRemovalStrategy(
+            remove_clients=True,
+            beta_value=0.5,
+            trust_threshold=threshold,
+            begin_removing_from_round=1,
+            strategy_history=mock_strategy_history,
+        )
 
-        for threshold in thresholds:
-            strategy = TrustBasedRemovalStrategy(
-                remove_clients=True,
-                beta_value=0.5,
-                trust_threshold=threshold,
-                begin_removing_from_round=1,
-                strategy_history=mock_strategy_history,
-            )
+        strategy.current_round = 2
+        strategy.client_trusts = {
+            "client_0": 0.8,
+            "client_1": 0.5,
+            "client_2": 0.2,
+        }
 
-            strategy.current_round = 2
-            strategy.client_trusts = {
-                "client_0": 0.8,
-                "client_1": 0.5,
-                "client_2": 0.2,
-            }
+        mock_client_manager = Mock()
+        mock_clients = {f"client_{i}": Mock() for i in range(3)}
+        mock_client_manager.all.return_value = mock_clients
 
-            mock_client_manager = Mock()
-            mock_clients = {f"client_{i}": Mock() for i in range(3)}
-            mock_client_manager.all.return_value = mock_clients
+        strategy.configure_fit(2, Mock(), mock_client_manager)
 
-            strategy.configure_fit(2, Mock(), mock_client_manager)
-
-            # Clients below threshold should be removed
-            for client_id, trust in strategy.client_trusts.items():
-                if trust < threshold:
-                    assert client_id in strategy.removed_client_ids
-                else:
-                    assert client_id not in strategy.removed_client_ids
+        assert strategy.removed_client_ids == expected_removed
 
     def test_strategy_history_integration(self, trust_strategy, mock_client_results):
         """Test integration with strategy history."""

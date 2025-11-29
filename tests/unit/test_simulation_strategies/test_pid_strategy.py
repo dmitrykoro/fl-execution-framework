@@ -8,89 +8,52 @@ from unittest.mock import patch
 
 import torch
 from tests.common import Mock, np, pytest, FitRes, ndarrays_to_parameters, ClientProxy
-from src.data_models.simulation_strategy_history import SimulationStrategyHistory
 from src.simulation_strategies.pid_based_removal_strategy import PIDBasedRemovalStrategy
-
-from tests.common import generate_mock_client_data
 
 
 class TestPIDBasedRemovalStrategy:
     """Test cases for PIDBasedRemovalStrategy."""
 
     @pytest.fixture
-    def mock_strategy_history(self):
-        """Create mock strategy history."""
-        return Mock(spec=SimulationStrategyHistory)
-
-    @pytest.fixture
-    def mock_network_model(self):
-        """Create mock network model."""
-        return Mock()
-
-    @pytest.fixture
-    def pid_strategy(
+    def pid_strategy_factory(
         self, mock_strategy_history, mock_network_model, mock_output_directory
     ):
+        """Factory fixture for creating PID strategy variants."""
+
+        def _create(variant="pid", **kwargs):
+            defaults = {
+                "remove_clients": True,
+                "begin_removing_from_round": 2,
+                "ki": 0.1,
+                "kd": 0.01,
+                "kp": 1.0,
+                "num_std_dev": 2.0,
+                "strategy_history": mock_strategy_history,
+                "network_model": mock_network_model,
+                "use_lora": False,
+                "aggregation_strategy_keyword": variant,
+                "fraction_fit": 1.0,
+                "fraction_evaluate": 1.0,
+            }
+            defaults.update(kwargs)
+            return PIDBasedRemovalStrategy(**defaults)
+
+        return _create
+
+    @pytest.fixture
+    def pid_strategy(self, pid_strategy_factory):
         """Create PIDBasedRemovalStrategy instance for testing."""
-        return PIDBasedRemovalStrategy(
-            remove_clients=True,
-            begin_removing_from_round=2,
-            ki=0.1,
-            kd=0.01,
-            kp=1.0,
-            num_std_dev=2.0,
-            strategy_history=mock_strategy_history,
-            network_model=mock_network_model,
-            use_lora=False,
-            aggregation_strategy_keyword="pid",
-            fraction_fit=1.0,
-            fraction_evaluate=1.0,
-        )
+        return pid_strategy_factory("pid")
 
     @pytest.fixture
-    def pid_scaled_strategy(
-        self, mock_strategy_history, mock_network_model, mock_output_directory
-    ):
+    def pid_scaled_strategy(self, pid_strategy_factory):
         """Create PIDBasedRemovalStrategy instance for pid_scaled testing."""
-        return PIDBasedRemovalStrategy(
-            remove_clients=True,
-            begin_removing_from_round=2,
-            ki=0.1,
-            kd=0.01,
-            kp=1.0,
-            num_std_dev=2.0,
-            strategy_history=mock_strategy_history,
-            network_model=mock_network_model,
-            use_lora=False,
-            aggregation_strategy_keyword="pid_scaled",
-            fraction_fit=1.0,
-            fraction_evaluate=1.0,
-        )
+        return pid_strategy_factory("pid_scaled")
 
     @pytest.fixture
-    def pid_standardized_strategy(
-        self, mock_strategy_history, mock_network_model, mock_output_directory
-    ):
+    def pid_standardized_strategy(self, pid_strategy_factory):
         """Create PIDBasedRemovalStrategy instance for pid_standardized testing."""
-        return PIDBasedRemovalStrategy(
-            remove_clients=True,
-            begin_removing_from_round=2,
-            ki=0.1,
-            kd=0.01,
-            kp=1.0,
-            num_std_dev=2.0,
-            strategy_history=mock_strategy_history,
-            network_model=mock_network_model,
-            use_lora=False,
-            aggregation_strategy_keyword="pid_standardized",
-            fraction_fit=1.0,
-            fraction_evaluate=1.0,
-        )
-
-    @pytest.fixture
-    def mock_client_results(self):
-        """Generate mock client results for testing."""
-        return generate_mock_client_data(num_clients=5)
+        return pid_strategy_factory("pid_standardized")
 
     def test_initialization(
         self, pid_strategy, mock_strategy_history, mock_network_model
@@ -111,158 +74,119 @@ class TestPIDBasedRemovalStrategy:
         assert pid_strategy.client_distances == {}
         assert pid_strategy.removed_client_ids == set()
 
-    def test_calculate_single_client_pid_first_round(self, pid_strategy):
-        """Test PID calculation for first round (P component only)."""
-        pid_strategy.current_round = 1
+    @pytest.mark.parametrize(
+        "round_num,has_prior_state",
+        [
+            pytest.param(1, False, id="first-round-P-only"),
+            pytest.param(3, True, id="subsequent-round-PID"),
+        ],
+    )
+    def test_calculate_single_client_pid_rounds(
+        self, pid_strategy, round_num, has_prior_state
+    ):
+        """Test PID calculation for first and subsequent rounds."""
+        pid_strategy.current_round = round_num
         client_id = "client_1"
         distance = 0.5
+
+        if has_prior_state:
+            pid_strategy.client_distance_sums[client_id] = 1.2
+            pid_strategy.client_distances[client_id] = 0.3
 
         pid_score = pid_strategy.calculate_single_client_pid(client_id, distance)
 
-        # First round should only have P component
         expected_p = distance * pid_strategy.kp
-        assert pid_score == expected_p
+        if not has_prior_state:
+            assert pid_score == expected_p
+        else:
+            expected_i = pid_strategy.client_distance_sums[client_id] * pid_strategy.ki
+            expected_d = pid_strategy.kd * (
+                distance - pid_strategy.client_distances[client_id]
+            )
+            expected_pid = expected_p + expected_i + expected_d
+            assert abs(pid_score - expected_pid) < 1e-6
 
-    def test_calculate_single_client_pid_subsequent_rounds(self, pid_strategy):
-        """Test PID calculation for subsequent rounds (P + I + D components)."""
-        pid_strategy.current_round = 3
+    @pytest.mark.parametrize(
+        "round_num,has_prior_state",
+        [
+            pytest.param(1, False, id="first-round-P-only"),
+            pytest.param(3, True, id="subsequent-round-scaled-I"),
+        ],
+    )
+    def test_calculate_single_client_pid_scaled_rounds(
+        self, pid_scaled_strategy, round_num, has_prior_state
+    ):
+        """Test PID scaled calculation for first and subsequent rounds."""
+        pid_scaled_strategy.current_round = round_num
         client_id = "client_1"
         distance = 0.5
 
-        # Set up previous state
-        pid_strategy.client_distance_sums[client_id] = 1.2
-        pid_strategy.client_distances[client_id] = 0.3
-
-        pid_score = pid_strategy.calculate_single_client_pid(client_id, distance)
-
-        # Should include P, I, and D components
-        expected_p = distance * pid_strategy.kp
-        expected_i = pid_strategy.client_distance_sums[client_id] * pid_strategy.ki
-        expected_d = pid_strategy.kd * (
-            distance - pid_strategy.client_distances[client_id]
-        )
-        expected_pid = expected_p + expected_i + expected_d
-
-        assert abs(pid_score - expected_pid) < 1e-6
-
-    def test_calculate_single_client_pid_scaled_first_round(self, pid_scaled_strategy):
-        """Test PID scaled calculation for first round."""
-        pid_scaled_strategy.current_round = 1
-        client_id = "client_1"
-        distance = 0.5
+        if has_prior_state:
+            pid_scaled_strategy.client_distance_sums[client_id] = 1.2
+            pid_scaled_strategy.client_distances[client_id] = 0.3
 
         pid_score = pid_scaled_strategy.calculate_single_client_pid_scaled(
             client_id, distance
         )
 
-        # First round should only have P component
         expected_p = distance * pid_scaled_strategy.kp
-        assert pid_score == expected_p
+        if not has_prior_state:
+            assert pid_score == expected_p
+        else:
+            expected_i_scaled = (
+                pid_scaled_strategy.client_distance_sums[client_id]
+                * pid_scaled_strategy.ki
+            ) / pid_scaled_strategy.current_round
+            expected_d = pid_scaled_strategy.kd * (
+                distance - pid_scaled_strategy.client_distances[client_id]
+            )
+            expected_pid = expected_p + expected_i_scaled + expected_d
+            assert abs(pid_score - expected_pid) < 1e-6
 
-    def test_calculate_single_client_pid_scaled_subsequent_rounds(
-        self, pid_scaled_strategy
+    @pytest.mark.parametrize(
+        "round_num,has_prior_state,sum_std_dev",
+        [
+            pytest.param(1, False, 0.2, id="first-round-P-only"),
+            pytest.param(3, True, 0.2, id="subsequent-round-standardized-I"),
+            pytest.param(3, True, 0.0, id="subsequent-round-zero-std-dev"),
+        ],
+    )
+    def test_calculate_single_client_pid_standardized_rounds(
+        self, pid_standardized_strategy, round_num, has_prior_state, sum_std_dev
     ):
-        """Test PID scaled calculation for subsequent rounds with I scaling."""
-        pid_scaled_strategy.current_round = 3
-        client_id = "client_1"
-        distance = 0.5
-
-        # Set up previous state
-        pid_scaled_strategy.client_distance_sums[client_id] = 1.2
-        pid_scaled_strategy.client_distances[client_id] = 0.3
-
-        pid_score = pid_scaled_strategy.calculate_single_client_pid_scaled(
-            client_id, distance
-        )
-
-        # Should include P, scaled I, and D components
-        expected_p = distance * pid_scaled_strategy.kp
-        expected_i_scaled = (
-            pid_scaled_strategy.client_distance_sums[client_id] * pid_scaled_strategy.ki
-        ) / pid_scaled_strategy.current_round
-        expected_d = pid_scaled_strategy.kd * (
-            distance - pid_scaled_strategy.client_distances[client_id]
-        )
-        expected_pid = expected_p + expected_i_scaled + expected_d
-
-        assert abs(pid_score - expected_pid) < 1e-6
-
-    def test_calculate_single_client_pid_standardized_first_round(
-        self, pid_standardized_strategy
-    ):
-        """Test PID standardized calculation for first round."""
-        pid_standardized_strategy.current_round = 1
+        """Test PID standardized calculation for various rounds and std_dev cases."""
+        pid_standardized_strategy.current_round = round_num
         client_id = "client_1"
         distance = 0.5
         avg_sum = 1.0
-        sum_std_dev = 0.2
+
+        if has_prior_state:
+            pid_standardized_strategy.client_distance_sums[client_id] = 1.2
+            pid_standardized_strategy.client_distances[client_id] = 0.3
 
         pid_score = pid_standardized_strategy.calculate_single_client_pid_standardized(
             client_id, distance, avg_sum, sum_std_dev
         )
 
-        # First round should only have P component
         expected_p = distance * pid_standardized_strategy.kp
-        assert pid_score == expected_p
-
-    def test_calculate_single_client_pid_standardized_subsequent_rounds(
-        self, pid_standardized_strategy
-    ):
-        """Test PID standardized calculation for subsequent rounds with standardized I."""
-        pid_standardized_strategy.current_round = 3
-        client_id = "client_1"
-        distance = 0.5
-        avg_sum = 1.0
-        sum_std_dev = 0.2
-
-        # Set up previous state
-        pid_standardized_strategy.client_distance_sums[client_id] = 1.2
-        pid_standardized_strategy.client_distances[client_id] = 0.3
-
-        pid_score = pid_standardized_strategy.calculate_single_client_pid_standardized(
-            client_id, distance, avg_sum, sum_std_dev
-        )
-
-        # Should include P, standardized I, and D components
-        expected_p = distance * pid_standardized_strategy.kp
-        expected_i_standardized = (
-            (pid_standardized_strategy.client_distance_sums[client_id] - avg_sum)
-            / sum_std_dev
-        ) * pid_standardized_strategy.ki
-        expected_d = pid_standardized_strategy.kd * (
-            distance - pid_standardized_strategy.client_distances[client_id]
-        )
-        expected_pid = expected_p + expected_i_standardized + expected_d
-
-        assert abs(pid_score - expected_pid) < 1e-6
-
-    def test_calculate_single_client_pid_standardized_zero_std_dev(
-        self, pid_standardized_strategy
-    ):
-        """Test PID standardized calculation handles zero standard deviation."""
-        pid_standardized_strategy.current_round = 3
-        client_id = "client_1"
-        distance = 0.5
-        avg_sum = 1.0
-        sum_std_dev = 0.0  # Zero standard deviation
-
-        # Set up previous state
-        pid_standardized_strategy.client_distance_sums[client_id] = 1.2
-        pid_standardized_strategy.client_distances[client_id] = 0.3
-
-        pid_score = pid_standardized_strategy.calculate_single_client_pid_standardized(
-            client_id, distance, avg_sum, sum_std_dev
-        )
-
-        # I component should be 0 when std_dev is 0
-        expected_p = distance * pid_standardized_strategy.kp
-        expected_i = 0  # Should be 0 due to zero std_dev
-        expected_d = pid_standardized_strategy.kd * (
-            distance - pid_standardized_strategy.client_distances[client_id]
-        )
-        expected_pid = expected_p + expected_i + expected_d
-
-        assert abs(pid_score - expected_pid) < 1e-6
+        if not has_prior_state:
+            assert pid_score == expected_p
+        else:
+            if sum_std_dev == 0.0:
+                expected_i = 0
+            else:
+                expected_i = (
+                    (
+                        pid_standardized_strategy.client_distance_sums[client_id]
+                        - avg_sum
+                    )
+                    / sum_std_dev
+                ) * pid_standardized_strategy.ki
+            expected_d = pid_standardized_strategy.kd * (
+                distance - pid_standardized_strategy.client_distances[client_id]
+            )
+            expected_pid = expected_p + expected_i + expected_d
+            assert abs(pid_score - expected_pid) < 1e-6
 
     def test_calculate_all_pid_scores_pid_variant(
         self, pid_strategy, mock_client_results
@@ -324,111 +248,40 @@ class TestPIDBasedRemovalStrategy:
         # Verify PID scores were stored
         assert len(pid_standardized_strategy.client_pids) == 5
 
-    def test_kp_parameter_effect(
-        self, mock_strategy_history, mock_network_model, mock_output_directory
-    ):
-        """Test Kp parameter affects P component calculation."""
-        kp_values = [0.5, 1.0, 2.0]
+    @pytest.mark.parametrize(
+        "param,value,test_round",
+        [
+            pytest.param("kp", 0.5, 1, id="kp-0.5"),
+            pytest.param("kp", 1.0, 1, id="kp-1.0"),
+            pytest.param("kp", 2.0, 1, id="kp-2.0"),
+            pytest.param("ki", 0.05, 3, id="ki-0.05"),
+            pytest.param("ki", 0.1, 3, id="ki-0.1"),
+            pytest.param("ki", 0.2, 3, id="ki-0.2"),
+            pytest.param("kd", 0.005, 3, id="kd-0.005"),
+            pytest.param("kd", 0.01, 3, id="kd-0.01"),
+            pytest.param("kd", 0.02, 3, id="kd-0.02"),
+        ],
+    )
+    def test_k_parameter_effects(self, pid_strategy_factory, param, value, test_round):
+        """Test K-parameters (kp, ki, kd) affect PID calculation correctly."""
+        strategy = pid_strategy_factory("pid", **{param: value})
+        strategy.current_round = test_round
+        client_id = "client_1"
+        distance = 0.5
 
-        for kp in kp_values:
-            strategy = PIDBasedRemovalStrategy(
-                remove_clients=True,
-                begin_removing_from_round=2,
-                ki=0.1,
-                kd=0.01,
-                kp=kp,
-                num_std_dev=2.0,
-                strategy_history=mock_strategy_history,
-                network_model=mock_network_model,
-                use_lora=False,
-                aggregation_strategy_keyword="pid",
-            )
-
-            strategy.current_round = 1
-            distance = 0.5
-
-            pid_score = strategy.calculate_single_client_pid("client_1", distance)
-
-            # P component should be distance * kp
-            expected_p = distance * kp
-            assert abs(pid_score - expected_p) < 1e-6
-
-    def test_ki_parameter_effect(
-        self, mock_strategy_history, mock_network_model, mock_output_directory
-    ):
-        """Test Ki parameter affects I component calculation."""
-        ki_values = [0.05, 0.1, 0.2]
-
-        for ki in ki_values:
-            strategy = PIDBasedRemovalStrategy(
-                remove_clients=True,
-                begin_removing_from_round=2,
-                ki=ki,
-                kd=0.01,
-                kp=1.0,
-                num_std_dev=2.0,
-                strategy_history=mock_strategy_history,
-                network_model=mock_network_model,
-                use_lora=False,
-                aggregation_strategy_keyword="pid",
-            )
-
-            strategy.current_round = 3
-            client_id = "client_1"
-            distance = 0.5
-            distance_sum = 1.2
-
-            strategy.client_distance_sums[client_id] = distance_sum
+        if test_round > 1:
+            strategy.client_distance_sums[client_id] = 1.2
             strategy.client_distances[client_id] = 0.3
 
-            pid_score = strategy.calculate_single_client_pid(client_id, distance)
+        pid_score = strategy.calculate_single_client_pid(client_id, distance)
 
-            # I component should be affected by ki
-            expected_i = distance_sum * ki
-            # P and D components
-            expected_p = distance * strategy.kp
+        expected_p = distance * strategy.kp
+        if test_round == 1:
+            assert abs(pid_score - expected_p) < 1e-6
+        else:
+            expected_i = strategy.client_distance_sums[client_id] * strategy.ki
             expected_d = strategy.kd * (distance - strategy.client_distances[client_id])
             expected_total = expected_p + expected_i + expected_d
-
-            assert abs(pid_score - expected_total) < 1e-6
-
-    def test_kd_parameter_effect(
-        self, mock_strategy_history, mock_network_model, mock_output_directory
-    ):
-        """Test Kd parameter affects D component calculation."""
-        kd_values = [0.005, 0.01, 0.02]
-
-        for kd in kd_values:
-            strategy = PIDBasedRemovalStrategy(
-                remove_clients=True,
-                begin_removing_from_round=2,
-                ki=0.1,
-                kd=kd,
-                kp=1.0,
-                num_std_dev=2.0,
-                strategy_history=mock_strategy_history,
-                network_model=mock_network_model,
-                use_lora=False,
-                aggregation_strategy_keyword="pid",
-            )
-
-            strategy.current_round = 3
-            client_id = "client_1"
-            distance = 0.5
-            prev_distance = 0.3
-
-            strategy.client_distance_sums[client_id] = 1.2
-            strategy.client_distances[client_id] = prev_distance
-
-            pid_score = strategy.calculate_single_client_pid(client_id, distance)
-
-            # D component should be affected by kd
-            expected_d = kd * (distance - prev_distance)
-            # P and I components
-            expected_p = distance * strategy.kp
-            expected_i = strategy.client_distance_sums[client_id] * strategy.ki
-            expected_total = expected_p + expected_i + expected_d
-
             assert abs(pid_score - expected_total) < 1e-6
 
     def test_num_std_dev_parameter_effect(self, pid_strategy):
@@ -645,27 +498,19 @@ class TestPIDBasedRemovalStrategy:
             assert strategy.removed_client_ids == set()
             assert len(result) == 2
 
-    def test_cosine_similarity_static_method(self):
-        """Test cosine similarity calculation."""
-
-        tensor1 = torch.tensor([1.0, 2.0, 3.0])
-        tensor2 = torch.tensor([2.0, 4.0, 6.0])
-
+    @pytest.mark.parametrize(
+        "t1,t2,expected",
+        [
+            pytest.param([1.0, 2.0, 3.0], [2.0, 4.0, 6.0], 1.0, id="parallel-vectors"),
+            pytest.param([1.0, 0.0], [0.0, 1.0], 0.0, id="orthogonal-vectors"),
+        ],
+    )
+    def test_cosine_similarity(self, t1, t2, expected):
+        """Test cosine similarity calculation for various vector pairs."""
+        tensor1 = torch.tensor(t1)
+        tensor2 = torch.tensor(t2)
         similarity = PIDBasedRemovalStrategy.cosine_similarity(tensor1, tensor2)
-
-        # Vectors are parallel, so cosine similarity should be 1.0
-        assert abs(similarity - 1.0) < 1e-6
-
-    def test_cosine_similarity_orthogonal_vectors(self):
-        """Test cosine similarity with orthogonal vectors."""
-
-        tensor1 = torch.tensor([1.0, 0.0])
-        tensor2 = torch.tensor([0.0, 1.0])
-
-        similarity = PIDBasedRemovalStrategy.cosine_similarity(tensor1, tensor2)
-
-        # Orthogonal vectors should have cosine similarity of 0
-        assert abs(similarity) < 1e-6
+        assert abs(similarity - expected) < 1e-6
 
     def test_strategy_history_integration(self, pid_strategy, mock_client_results):
         """Test integration with strategy history."""

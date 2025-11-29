@@ -17,17 +17,9 @@ from tests.common import (
 )
 from src.simulation_strategies.rfa_based_removal_strategy import RFABasedRemovalStrategy
 
-from tests.common import generate_mock_client_data
-from src.data_models.simulation_strategy_history import SimulationStrategyHistory
-
 
 class TestRFABasedRemovalStrategy:
     """Test cases for RFABasedRemovalStrategy."""
-
-    @pytest.fixture
-    def mock_strategy_history(self):
-        """Create mock strategy history."""
-        return Mock(spec=SimulationStrategyHistory)
 
     @pytest.fixture
     def rfa_strategy(self, mock_strategy_history, mock_output_directory):
@@ -40,11 +32,6 @@ class TestRFABasedRemovalStrategy:
             fraction_fit=1.0,
             fraction_evaluate=1.0,
         )
-
-    @pytest.fixture
-    def mock_client_results(self):
-        """Generate mock client results for testing."""
-        return generate_mock_client_data(num_clients=5)
 
     def test_initialization(self, rfa_strategy):
         """Test RFABasedRemovalStrategy initialization."""
