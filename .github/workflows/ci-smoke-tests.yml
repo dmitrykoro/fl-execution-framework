@@ -8,12 +8,14 @@ on:
       - 'config/**'
       - 'src/**'
       - 'tests/**'
+      - '.github/workflows/**'
   pull_request:
     branches: [main]
     paths:
       - 'config/**'
       - 'src/**'
       - 'tests/**'
+      - '.github/workflows/**'
 
 jobs:
   smoke-test:
