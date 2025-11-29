@@ -19,13 +19,10 @@ import argparse
 import json
 import sys
 from pathlib import Path
-
-# Add project root to path
-project_root = Path(__file__).parent.parent.parent
-sys.path.insert(0, str(project_root))
-
 from rich.console import Console
 
+# Project root for path resolution
+project_root = Path(__file__).parent.parent.parent
 console = Console()
 
 # Same fast configs as other scripts
@@ -122,7 +119,9 @@ def run_parse_only(configs: list[str], config_dir: Path) -> int:
     return 0 if failed == 0 else 1
 
 
-def run_mock_simulations(configs: list[str], config_dir: Path, baselines_dir: Path) -> int:
+def run_mock_simulations(
+    configs: list[str], config_dir: Path, baselines_dir: Path
+) -> int:
     """Run mock simulations with full output generation."""
     # Import mock runner (deferred to avoid heavy imports in parse-only mode)
     from tests.scripts.mock_simulation_runner import run_mock_simulation, verify_outputs
@@ -138,11 +137,15 @@ def run_mock_simulations(configs: list[str], config_dir: Path, baselines_dir: Pa
             configs_without.append(config)
 
     if configs_without:
-        console.print(f"[yellow]Missing baselines for {len(configs_without)} config(s)[/yellow]")
+        console.print(
+            f"[yellow]Missing baselines for {len(configs_without)} config(s)[/yellow]"
+        )
         console.print("[yellow]Falling back to parse-only for those.[/yellow]\n")
 
     if configs_with_baselines:
-        console.print(f"[cyan]Running {len(configs_with_baselines)} mock simulation(s)...[/cyan]\n")
+        console.print(
+            f"[cyan]Running {len(configs_with_baselines)} mock simulation(s)...[/cyan]\n"
+        )
 
     passed = 0
     failed = 0

@@ -18,21 +18,16 @@ Usage:
 import argparse
 import csv
 import json
-import os
 import sys
 from datetime import datetime
 from pathlib import Path
-from typing import Optional
-
-# Add project root to path
-project_root = Path(__file__).parent.parent.parent
-sys.path.insert(0, str(project_root))
-
 from local.runner.executor import ExperimentExecutor
 from local.runner.timing_db import TimingDatabase
 from rich.console import Console
 from rich.table import Table
 
+# Project root for path resolution
+project_root = Path(__file__).parent.parent.parent
 console = Console()
 
 # Configs under 2 minutes (120 seconds) - comprehensive coverage
@@ -96,8 +91,12 @@ def parse_round_metrics(csv_path: Path) -> dict:
 
                 # Final values for quick access
                 final_row = rows[-1]
-                metrics["final_accuracy"] = _safe_float(final_row.get("average_accuracy_history"))
-                metrics["final_loss"] = _safe_float(final_row.get("aggregated_loss_history"))
+                metrics["final_accuracy"] = _safe_float(
+                    final_row.get("average_accuracy_history")
+                )
+                metrics["final_loss"] = _safe_float(
+                    final_row.get("aggregated_loss_history")
+                )
 
     except Exception as e:
         console.print(f"[yellow]Warning: Could not parse {csv_path}: {e}[/yellow]")
@@ -144,7 +143,14 @@ def parse_per_client_metrics(csv_path: Path, num_clients: int) -> dict:
                             _safe_float(row.get(f"{prefix}absolute_distance_history"))
                         )
                         clients[str(client_id)]["participation"].append(
-                            int(_safe_float(row.get(f"{prefix}aggregation_participation_history"), 1))
+                            int(
+                                _safe_float(
+                                    row.get(
+                                        f"{prefix}aggregation_participation_history"
+                                    ),
+                                    1,
+                                )
+                            )
                         )
 
     except Exception as e:
@@ -234,7 +240,9 @@ def extract_baseline_from_output(
             # Also parse per-client metrics
             per_client_csv = csv_dir / f"per_client_metrics_{idx}.csv"
             if per_client_csv.exists():
-                metrics["per_client"] = parse_per_client_metrics(per_client_csv, num_clients)
+                metrics["per_client"] = parse_per_client_metrics(
+                    per_client_csv, num_clients
+                )
 
             baseline["strategies"].append(metrics)
 
@@ -299,7 +307,9 @@ def run_and_record(
     }
 
     config_base = project_root / "config" / "simulation_strategies" / config_subdir
-    console.print(f"\n[cyan]Recording baselines for {len(configs)} config(s)...[/cyan]\n")
+    console.print(
+        f"\n[cyan]Recording baselines for {len(configs)} config(s)...[/cyan]\n"
+    )
 
     with ExperimentExecutor(
         project_root=project_root,
@@ -311,7 +321,9 @@ def run_and_record(
         skip_gc=True,
     ) as executor:
         for idx, config_name in enumerate(configs, start=1):
-            console.print(f"\n[bold cyan]=== [{idx}/{len(configs)}] {config_name} ===[/bold cyan]")
+            console.print(
+                f"\n[bold cyan]=== [{idx}/{len(configs)}] {config_name} ===[/bold cyan]"
+            )
 
             # Get num_clients from config
             config_path = config_base / config_name
@@ -328,7 +340,9 @@ def run_and_record(
 
                 if baseline["strategies"]:
                     baseline_path = save_baseline(baseline, baselines_dir)
-                    console.print(f"[green][OK] Saved baseline: {baseline_path.name}[/green]")
+                    console.print(
+                        f"[green][OK] Saved baseline: {baseline_path.name}[/green]"
+                    )
 
                     # Show summary
                     for strat in baseline["strategies"]:
@@ -342,10 +356,12 @@ def run_and_record(
 
                     results["recorded"].append(config_name)
                 else:
-                    console.print(f"[yellow][!] No strategy data found in output[/yellow]")
+                    console.print(
+                        "[yellow][!] No strategy data found in output[/yellow]"
+                    )
                     results["failed"].append(config_name)
             else:
-                console.print(f"[red][X] Failed - no output directory[/red]")
+                console.print("[red][X] Failed - no output directory[/red]")
                 results["failed"].append(config_name)
 
             # Cleanup between runs

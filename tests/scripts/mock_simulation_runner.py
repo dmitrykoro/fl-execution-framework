@@ -16,13 +16,10 @@ import argparse
 import json
 import sys
 from pathlib import Path
-
-# Add project root to path
-project_root = Path(__file__).parent.parent.parent
-sys.path.insert(0, str(project_root))
-
 from rich.console import Console
 
+# Project root for path resolution
+project_root = Path(__file__).parent.parent.parent
 console = Console()
 
 # Same fast configs as other scripts
@@ -73,7 +70,9 @@ def load_config(config_name: str, config_dir: Path) -> dict:
         return json.load(f)
 
 
-def populate_history_from_baseline(strategy_history, baseline_strategy: dict, num_clients: int):
+def populate_history_from_baseline(
+    strategy_history, baseline_strategy: dict, num_clients: int
+):
     """Populate SimulationStrategyHistory with baseline data."""
     per_round = baseline_strategy.get("per_round", {})
     per_client = baseline_strategy.get("per_client", {})
@@ -88,11 +87,17 @@ def populate_history_from_baseline(strategy_history, baseline_strategy: dict, nu
             strategy_history.insert_single_client_history_entry(
                 client_id=client_id,
                 current_round=round_num,
-                removal_criterion=client_data.get("removal_criterion", [0.0] * total_rounds)[idx],
-                absolute_distance=client_data.get("absolute_distance", [0.0] * total_rounds)[idx],
+                removal_criterion=client_data.get(
+                    "removal_criterion", [0.0] * total_rounds
+                )[idx],
+                absolute_distance=client_data.get(
+                    "absolute_distance", [0.0] * total_rounds
+                )[idx],
                 loss=client_data.get("loss", [0.0] * total_rounds)[idx],
                 accuracy=client_data.get("accuracy", [0.0] * total_rounds)[idx],
-                aggregation_participation=client_data.get("participation", [1] * total_rounds)[idx],
+                aggregation_participation=client_data.get(
+                    "participation", [1] * total_rounds
+                )[idx],
             )
 
     # Populate per-round data
@@ -159,7 +164,9 @@ def run_mock_simulation(
         # Process each strategy in the config
         shared_settings = config.get("shared_settings", {})
         strategies = config.get("simulation_strategies", [{}])
-        num_clients = baseline.get("num_clients", shared_settings.get("num_of_clients", 10))
+        num_clients = baseline.get(
+            "num_clients", shared_settings.get("num_of_clients", 10)
+        )
 
         executed_simulations = []
 
@@ -172,7 +179,9 @@ def run_mock_simulation(
             if strat_idx < len(baseline.get("strategies", [])):
                 baseline_strategy = baseline["strategies"][strat_idx]
             else:
-                baseline_strategy = baseline["strategies"][0] if baseline.get("strategies") else {}
+                baseline_strategy = (
+                    baseline["strategies"][0] if baseline.get("strategies") else {}
+                )
 
             # Create strategy config
             strategy_config = StrategyConfig.from_dict(merged_config)
@@ -192,11 +201,13 @@ def run_mock_simulation(
             # Create strategy history
             strategy_history = SimulationStrategyHistory(
                 strategy_config=strategy_config,
-                dataset_handler=dataset_handler,
+                dataset_handler=dataset_handler,  # type: ignore[arg-type]
             )
 
             # Populate from baseline
-            populate_history_from_baseline(strategy_history, baseline_strategy, num_clients)
+            populate_history_from_baseline(
+                strategy_history, baseline_strategy, num_clients
+            )
 
             # Calculate additional metrics
             strategy_history.calculate_additional_rounds_data()
@@ -210,7 +221,10 @@ def run_mock_simulation(
 
             # Generate plots
             if strategy_config.save_plots:
-                new_plot_handler.show_plots_within_strategy(mock_sim, directory_handler)
+                new_plot_handler.show_plots_within_strategy(
+                    mock_sim,  # pyright: ignore[reportArgumentType]
+                    directory_handler,
+                )
 
             # Save CSVs
             if strategy_config.save_csv:
@@ -220,7 +234,9 @@ def run_mock_simulation(
 
         # Generate inter-strategy plots if multiple strategies
         if len(executed_simulations) > 1:
-            new_plot_handler.show_inter_strategy_plots(executed_simulations, directory_handler)
+            new_plot_handler.show_inter_strategy_plots(
+                executed_simulations, directory_handler
+            )
 
         # Generate main dashboard
         generate_main_dashboard(directory_handler.dirname)
@@ -229,6 +245,7 @@ def run_mock_simulation(
 
     except Exception as e:
         import traceback
+
         errors.append(f"Error running mock simulation: {e}")
         errors.append(traceback.format_exc())
         return False, None, errors
