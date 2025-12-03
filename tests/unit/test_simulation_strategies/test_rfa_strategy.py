@@ -53,7 +53,6 @@ class TestRFABasedRemovalStrategy:
         assert rfa_strategy.weighted_median_factor == 1.0
         assert rfa_strategy.current_round == 0
         assert rfa_strategy.removed_client_ids == set()
-        assert rfa_strategy.rounds_history == {}
         assert rfa_strategy.client_scores == {}
 
     def test_geometric_median_single_point(self, rfa_strategy):
@@ -208,9 +207,6 @@ class TestRFABasedRemovalStrategy:
             # Verify current_round was incremented
             assert rfa_strategy.current_round == 1
 
-            # Verify rounds_history was updated
-            assert "1" in rfa_strategy.rounds_history
-
     def test_aggregate_fit_deviation_calculation(
         self, rfa_strategy, mock_client_results
     ):
@@ -306,9 +302,6 @@ class TestRFABasedRemovalStrategy:
             "client_3": 0.2,
             "client_4": 0.5,
         }
-        rfa_strategy.rounds_history[f"{rfa_strategy.current_round}"] = {
-            "client_info": {f"client_{i}": {} for i in range(5)}
-        }
 
         mock_client_manager = Mock()
         mock_clients = {f"client_{i}": Mock() for i in range(5)}
@@ -368,7 +361,7 @@ class TestRFABasedRemovalStrategy:
             assert len(result) == 2
 
     def test_rounds_history_tracking(self, rfa_strategy, mock_client_results):
-        """Test that rounds_history is properly maintained."""
+        """Test that strategy_history is properly updated during aggregate_fit."""
         with (
             patch(
                 "src.simulation_strategies.rfa_based_removal_strategy.KMeans"
@@ -392,21 +385,15 @@ class TestRFABasedRemovalStrategy:
 
             rfa_strategy.aggregate_fit(1, mock_client_results, [])
 
-            # Verify rounds_history structure
-            assert "1" in rfa_strategy.rounds_history
-            assert "round_info" in rfa_strategy.rounds_history["1"]
-            assert "client_info" in rfa_strategy.rounds_history["1"]
+            # Verify strategy_history methods called correctly
+            assert (
+                rfa_strategy.strategy_history.insert_single_client_history_entry.call_count
+                == 5
+            )
+            rfa_strategy.strategy_history.insert_round_history_entry.assert_called_once()
 
-            # Verify client info is recorded
-            client_info = rfa_strategy.rounds_history["1"]["client_info"]
-            assert len(client_info) == 5
-
-            # Verify each client has required fields
-            for client_key, client_data in client_info.items():
-                assert "removal_criterion" in client_data
-                assert "absolute_distance" in client_data
-                assert "normalized_distance" in client_data
-                assert "is_removed" in client_data
+            # Verify client_scores populated
+            assert len(rfa_strategy.client_scores) == 5
 
     def test_edge_case_single_client(self, rfa_strategy):
         """Test handling of single client scenario."""
@@ -583,12 +570,11 @@ class TestRFABasedRemovalStrategy:
             result_params, result_metrics = rfa_strategy.aggregate_fit(1, results, [])
             mock_parent.assert_called_once()
 
-    def test_configure_fit_rounds_history_initialization(self, rfa_strategy):
-        """Test configure_fit properly initializes rounds_history."""
+    def test_configure_fit_updates_participation(self, rfa_strategy):
+        """Test configure_fit properly updates client participation via strategy_history."""
         rfa_strategy.current_round = 3
         rfa_strategy.remove_clients = True
         rfa_strategy.client_scores = {"client_0": 0.1, "client_1": 0.8}
-        rfa_strategy.rounds_history = {}
 
         mock_client_manager = Mock()
         mock_clients = {"client_0": Mock(), "client_1": Mock()}
@@ -596,12 +582,9 @@ class TestRFABasedRemovalStrategy:
 
         rfa_strategy.configure_fit(3, Mock(), mock_client_manager)
 
-        # Should initialize rounds_history for current round
-        assert f"{rfa_strategy.current_round}" in rfa_strategy.rounds_history
-        assert (
-            "client_info"
-            in rfa_strategy.rounds_history[f"{rfa_strategy.current_round}"]
-        )
+        # Verify client with highest score removed and participation tracked
+        assert "client_1" in rfa_strategy.removed_client_ids
+        rfa_strategy.strategy_history.update_client_participation.assert_called_once()
 
     def test_aggregate_evaluate_with_removed_clients(self, rfa_strategy):
         """Test aggregate_evaluate handles removed clients correctly."""
@@ -609,18 +592,6 @@ class TestRFABasedRemovalStrategy:
 
         rfa_strategy.removed_client_ids = {"1", "3"}
         rfa_strategy.current_round = 2
-
-        # Initialize rounds_history with client info from previous round
-        rfa_strategy.rounds_history["1"] = {
-            "client_info": {
-                f"client_{i}": {
-                    "removal_criterion": 0.1,
-                    "is_removed": (str(i) in rfa_strategy.removed_client_ids),
-                }
-                for i in range(5)
-            }
-        }
-        rfa_strategy.rounds_history["2"] = {"client_info": {}}
 
         results = []
         for i in range(5):
@@ -639,25 +610,13 @@ class TestRFABasedRemovalStrategy:
         # Should aggregate only non-removed clients
         assert loss is not None
 
-    def test_aggregate_evaluate_copies_previous_round_history(self, rfa_strategy):
-        """Test aggregate_evaluate copies client info from previous round."""
+    def test_aggregate_evaluate_records_metrics(self, rfa_strategy):
+        """Test aggregate_evaluate records client metrics via strategy_history."""
         from flwr.common import EvaluateRes
 
         rfa_strategy.current_round = 2
         rfa_strategy.removed_client_ids = set()
 
-        # Set up previous round history
-        rfa_strategy.rounds_history = {
-            "1": {
-                "client_info": {
-                    "client_0": {"removal_criterion": 0.1, "is_removed": False},
-                    "client_1": {"removal_criterion": 0.8, "is_removed": False},
-                }
-            },
-            "2": {"client_info": {}},
-        }
-
-        # Client_1 is not in results, so it should be copied from previous round
         results = []
         client_proxy = Mock(spec=ClientProxy)
         client_proxy.cid = "0"
@@ -671,11 +630,6 @@ class TestRFABasedRemovalStrategy:
 
         rfa_strategy.aggregate_evaluate(2, results, [])
 
-        # Verify client_1 info was copied from previous round
-        assert "client_1" in rfa_strategy.rounds_history["2"]["client_info"]
-        assert (
-            rfa_strategy.rounds_history["2"]["client_info"]["client_1"][
-                "removal_criterion"
-            ]
-            == 0.8
-        )
+        # Verify strategy_history calls for accuracy and loss
+        rfa_strategy.strategy_history.insert_single_client_history_entry.assert_called()
+        rfa_strategy.strategy_history.insert_round_history_entry.assert_called_once()
