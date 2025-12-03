@@ -2,6 +2,7 @@
 source = src
 omit =
     */tests/*
+    */local/*
     */__pycache__/*
     */venv/*
     */.venv/*
