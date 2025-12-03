@@ -201,7 +201,7 @@ config_schema = {
 
 
 def _validate_dependent_params(strategy_config: dict) -> None:
-    """Validate that all params that require additional params are correct."""
+    """Validate strategy-specific required parameters are present."""
 
     aggregation_strategy_keyword = strategy_config["aggregation_strategy_keyword"]
 
@@ -242,16 +242,7 @@ def _validate_dependent_params(strategy_config: dict) -> None:
 
 
 def _populate_client_selection(config: dict) -> None:
-    """
-    Populate _selected_clients for random and percentage selection strategies.
-
-    For reproducibility, uses deterministic seeding:
-    - If attack entry has 'random_seed': use it
-    - Otherwise: auto-generate seed from attack parameters
-
-    Research-backed approach: Fixed client selection per attack window
-    (not re-randomized each round) for reproducibility.
-    """
+    """Populate _selected_clients for random and percentage selection strategies."""
     import random
 
     schedule = config.get("attack_schedule", [])
@@ -305,15 +296,7 @@ def _populate_client_selection(config: dict) -> None:
 
 
 def _validate_attack_schedule(config: dict) -> None:
-    """
-    Validate attack_schedule entries and enforce related constraints.
-
-    Ensures each schedule entry has:
-    - Valid round ranges
-    - Required attack-type-specific parameters
-    - Proper selection strategy configuration
-    - Preserve_dataset set to false
-    """
+    """Validate attack_schedule entries and enforce related constraints."""
     schedule = config.get("attack_schedule", [])
 
     for idx, entry in enumerate(schedule):
@@ -417,7 +400,7 @@ def _validate_attack_schedule(config: dict) -> None:
 
 
 def _validate_llm_parameters(strategy_config: dict) -> None:
-    """Check if LLM specific parameters are valid"""
+    """Validate LLM-specific parameters are present and valid."""
 
     if strategy_config["model_type"] != "transformer":
         raise ValidationError("LLM finetuning is only supported for transformer models")
@@ -478,27 +461,37 @@ def _apply_strict_mode(config: dict) -> None:
             f"Please ensure all min_* values are <= {num_of_clients}"
         )
 
-    # If strict_mode is enabled, force all min_* = num_of_clients
+    # If strict_mode is enabled, reject configs where min_* != num_of_clients
     if strict_mode:
         if (
             num_fit_clients != num_of_clients
             or num_evaluate_clients != num_of_clients
             or num_available_clients != num_of_clients
         ):
-            # Force all to equal total clients
-            config["min_fit_clients"] = num_of_clients
-            config["min_evaluate_clients"] = num_of_clients
-            config["min_available_clients"] = num_of_clients
-
-            logging.info("STRICT MODE ENABLED: Auto-configured client participation")
-            logging.info(f"  - Set min_fit_clients = {num_of_clients}")
-            logging.info(f"  - Set min_evaluate_clients = {num_of_clients}")
-            logging.info(f"  - Set min_available_clients = {num_of_clients}")
-            logging.info("  - This ensures all clients participate in every round")
+            raise ValidationError(
+                f"CONFIG REJECTED: strict_mode requires all clients to participate.\n"
+                f"\n"
+                f"Current values:\n"
+                f"  - num_of_clients: {num_of_clients}\n"
+                f"  - min_fit_clients: {num_fit_clients}\n"
+                f"  - min_evaluate_clients: {num_evaluate_clients}\n"
+                f"  - min_available_clients: {num_available_clients}\n"
+                f"\n"
+                f"Fix:\n"
+                f"  Set all min_* values equal to num_of_clients ({num_of_clients})\n"
+                f"  Or set 'strict_mode': 'false' to allow partial participation\n"
+            )
 
 
 def validate_strategy_config(config: dict) -> None:
-    """Validate config based on the schema, will raise an exception if invalid"""
+    """Validate simulation config against schema and strategy-specific constraints.
+
+    Args:
+        config: Configuration dictionary to validate and populate.
+
+    Raises:
+        ValidationError: If config fails schema or constraint validation.
+    """
 
     # Validates config structure, types, and basic constraints against JSON schema
     validate(instance=config, schema=config_schema)
