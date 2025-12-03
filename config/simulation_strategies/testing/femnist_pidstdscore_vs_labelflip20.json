@@ -1,0 +1,50 @@
+{
+  "_title": "PID Standardized Score-Based vs 20% Label Flipping (FEMNIST)",
+  "shared_settings": {
+    "aggregation_strategy_keyword": "pid_standardized_score_based",
+    "remove_clients": "true",
+    "begin_removing_from_round": 2,
+    "dataset_keyword": "femnist_iid",
+    "model_type": "cnn",
+    "use_llm": "false",
+    "num_of_rounds": 10,
+    "num_of_clients": 10,
+    "show_plots": "false",
+    "save_plots": "true",
+    "save_csv": "true",
+    "preserve_dataset": "false",
+    "training_subset_fraction": 0.9,
+    "training_device": "cpu",
+    "cpus_per_client": 2,
+    "gpus_per_client": 0.0,
+    "min_fit_clients": 10,
+    "min_evaluate_clients": 10,
+    "min_available_clients": 10,
+    "evaluate_metrics_aggregation_fn": "weighted_average",
+    "num_of_client_epochs": 2,
+    "batch_size": 32,
+    "strict_mode": "true",
+    "Kp": 1,
+    "Ki": 0.6,
+    "Kd": 0.05,
+    "num_std_dev": 2.0,
+    "save_attack_snapshots": "true",
+    "attack_snapshot_format": "pickle_and_visual",
+    "snapshot_max_samples": 5
+  },
+  "simulation_strategies": [
+    {
+      "attack_schedule": [
+        {
+          "start_round": 1,
+          "end_round": 10,
+          "attack_type": "label_flipping",
+          "flip_fraction": 0.7,
+          "target_class": 7,
+          "selection_strategy": "percentage",
+          "malicious_percentage": 0.2
+        }
+      ]
+    }
+  ]
+}
