@@ -1,0 +1,49 @@
+{
+  "_title": "Trimmed Mean vs 20% Label Flipping (FEMNIST)",
+  "shared_settings": {
+    "aggregation_strategy_keyword": "trimmed_mean",
+    "trim_ratio": 0.2,
+    "remove_clients": "false",
+    "begin_removing_from_round": 5,
+    "dataset_keyword": "femnist_iid",
+    "use_llm": "false",
+    "model_type": "cnn",
+    "num_of_rounds": 30,
+    "num_of_clients": 10,
+    "show_plots": "false",
+    "save_plots": "true",
+    "save_csv": "true",
+    "training_device": "cpu",
+    "cpus_per_client": 2,
+    "gpus_per_client": 0.0,
+    "training_subset_fraction": 0.9,
+    "min_fit_clients": 10,
+    "min_evaluate_clients": 10,
+    "min_available_clients": 10,
+    "evaluate_metrics_aggregation_fn": "weighted_average",
+    "num_of_client_epochs": 3,
+    "batch_size": 10,
+    "preserve_dataset": "false",
+    "save_attack_snapshots": "true",
+    "attack_snapshot_format": "pickle_and_visual",
+    "snapshot_max_samples": 5
+  },
+  "simulation_strategies": [
+    {
+      "attack_schedule": [
+        {
+          "start_round": 1,
+          "end_round": 30,
+          "attack_type": "label_flipping",
+          "flip_fraction": 1.0,
+          "target_class": 7,
+          "selection_strategy": "specific",
+          "malicious_client_ids": [
+            0,
+            1
+          ]
+        }
+      ]
+    }
+  ]
+}
