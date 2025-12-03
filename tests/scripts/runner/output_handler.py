@@ -1,4 +1,4 @@
-"""Real-time output handling for subprocesses following 2025 best practices."""
+"""Real-time output handling for subprocesses."""
 
 import subprocess
 from typing import List, Optional, Callable
@@ -85,12 +85,6 @@ def create_subprocess(
     cmd: List[str], cwd: Path, env: dict, encoding: str = "utf-8"
 ) -> subprocess.Popen:
     """Create subprocess with optimal settings for real-time output.
-
-    Following 2025 best practices:
-    - Uses encoding parameter (Python 3.6+)
-    - Line buffering with bufsize=1
-    - Merges stderr into stdout for simplified handling
-    - Text mode enabled
 
     Args:
         cmd: Command and arguments list
