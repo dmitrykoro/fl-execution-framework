@@ -283,11 +283,10 @@ def _create_flip_attack(param_size: int) -> NDArray:
 
 ATTACK_FUNCTIONS: Dict[str, Callable[[int], NDArray]] = {
     "gaussian_noise": _create_gaussian_attack,
-    "gaussian": _create_gaussian_attack,
-    "model_poisoning": _create_model_poisoning_attack,
-    "byzantine_clients": _create_byzantine_clients_attack,
-    "gradient_inversion": _create_gradient_inversion_attack,
     "label_flipping": _create_label_flipping_attack,
+    "model_poisoning": _create_model_poisoning_attack,
+    "byzantine_perturbation": _create_byzantine_clients_attack,
+    "gradient_scaling": _create_gradient_inversion_attack,
     "backdoor_attack": _create_backdoor_attack,
     "zero": _create_zero_attack,
     "flip": _create_flip_attack,
@@ -298,7 +297,7 @@ def generate_byzantine_client_parameters(
     num_clients: int,
     num_byzantine: int,
     param_size: int = 1000,
-    attack_type: str = "gaussian",
+    attack_type: str = "gaussian_noise",
 ) -> List[NDArray]:
     """Generate client parameters with Byzantine clients for defense testing.
 
@@ -306,7 +305,7 @@ def generate_byzantine_client_parameters(
         num_clients: Total number of clients
         num_byzantine: Number of Byzantine clients
         param_size: Size of parameter vector
-        attack_type: Type of attack (e.g., "gaussian", "model_poisoning")
+        attack_type: Type of attack (e.g., "gaussian_noise", "model_poisoning")
 
     Returns:
         List of parameters with Byzantine clients included
