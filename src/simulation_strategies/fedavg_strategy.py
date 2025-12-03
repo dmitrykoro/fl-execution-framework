@@ -10,11 +10,10 @@ from src.data_models.simulation_strategy_history import SimulationStrategyHistor
 
 
 class FedAvgStrategy(fl.server.strategy.FedAvg):
-    """
-    FedAvg strategy with round-level metrics tracking.
+    """FedAvg strategy with round-level metrics tracking.
 
-    This wrapper extends Flower's built-in FedAvg to collect aggregated loss
-    and accuracy metrics per round for visualization purposes.
+    Extends Flower's FedAvg to collect aggregated loss and accuracy metrics
+    per round.
     """
 
     def __init__(
@@ -45,13 +44,17 @@ class FedAvgStrategy(fl.server.strategy.FedAvg):
         results: List[Tuple[ClientProxy, EvaluateRes]],
         failures: List[Union[Tuple[ClientProxy, EvaluateRes], BaseException]],
     ) -> Tuple[Optional[float], Dict[str, Scalar]]:
-        """
-        Aggregate evaluation results and track round-level metrics.
+        """Aggregate evaluation results and track round-level metrics.
 
-        Collects:
-        - Per-client loss and accuracy
-        - Aggregated (weighted average) loss
-        - Average accuracy across all clients
+        Collects per-client loss/accuracy and computes weighted averages.
+
+        Args:
+            server_round: Current round number from the Flower server.
+            results: List of (ClientProxy, EvaluateRes) tuples from clients.
+            failures: List of failed evaluation results or exceptions.
+
+        Returns:
+            Tuple of (weighted average loss, metrics dict with accuracy).
         """
         if not results:
             return None, {}

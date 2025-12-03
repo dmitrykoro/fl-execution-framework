@@ -25,16 +25,11 @@ from src.data_models.simulation_strategy_history import SimulationStrategyHistor
 
 
 class BulyanStrategy(fl.server.strategy.FedAvg):
-    """Bulyan aggregation strategy implemented in the *same coding style* as
-    the provided ``MultiKrumStrategy``.
+    """Bulyan Byzantine-resilient aggregation strategy.
 
-    Arguments mirror the original class so the surrounding secure‑FL
-    framework can swap strategies without refactoring.
+    Combines Multi-Krum selection with coordinate-wise trimmed mean to filter
+    malicious client updates before aggregation.
     """
-
-    # ------------------------------------------------------------------
-    # Construction ------------------------------------------------------
-    # ------------------------------------------------------------------
 
     def __init__(
         self,
@@ -46,19 +41,13 @@ class BulyanStrategy(fl.server.strategy.FedAvg):
         **kwargs,
     ):
         super().__init__(*args, **kwargs)
-
-        # --- Public / framework‑visible fields -------------------------
         self.remove_clients = remove_clients
-        self.num_krum_selections = num_krum_selections  # n - f
+        self.num_krum_selections = num_krum_selections
         self.begin_removing_from_round = begin_removing_from_round
-
-        # --- Internal state -------------------------------------------
         self.client_scores: dict[str, float] = {}
         self.removed_client_ids: set[str] = set()
         self.current_round: int = 0
         self.strategy_history = strategy_history
-
-        # --- Logger (matches MultiKrum style) -------------------------
         self.logger = logging.getLogger(f"bulyan_{id(self)}")
         self.logger.setLevel(logging.INFO)
         out_dir = DirectoryHandler.dirname
@@ -69,19 +58,11 @@ class BulyanStrategy(fl.server.strategy.FedAvg):
         self.logger.addHandler(console_handler)
         self.logger.propagate = False
 
-    # ------------------------------------------------------------------
-    # Helper: pairwise distances (cached) ------------------------------
-    # ------------------------------------------------------------------
-
     @staticmethod
     def _pairwise_sq_dists(vectors: np.ndarray) -> np.ndarray:
         """Return condensed Euclidean distance matrix squared."""
         diff = vectors[:, None, :] - vectors[None, :, :]
         return np.square(np.linalg.norm(diff, axis=2))
-
-    # ------------------------------------------------------------------
-    # Core aggregation --------------------------------------------------
-    # ------------------------------------------------------------------
 
     def aggregate_fit(
         self,
@@ -89,6 +70,19 @@ class BulyanStrategy(fl.server.strategy.FedAvg):
         results: list[tuple[ClientProxy, FitRes]],
         failures: list[Union[tuple[ClientProxy, FitRes], BaseException]],
     ) -> tuple[Optional[Parameters], dict[str, Scalar]]:
+        """Aggregate client model updates using the Bulyan algorithm.
+
+        Applies Multi-Krum to select candidate clients, then computes
+        coordinate-wise trimmed mean for Byzantine-resilient aggregation.
+
+        Args:
+            server_round: Current round number from the Flower server.
+            results: List of (ClientProxy, FitRes) tuples from clients.
+            failures: List of failed client results or exceptions.
+
+        Returns:
+            Tuple of (aggregated parameters, metrics dict).
+        """
         self.current_round += 1
 
         # Update client.is_malicious based on attack_schedule for dynamic attacks
@@ -98,7 +92,6 @@ class BulyanStrategy(fl.server.strategy.FedAvg):
         if not results:
             return None, {}
 
-        # ---------------- Clustering diagnostics (optional) ------------
         clustering_param_data = []
         for _, fit_res in results:
             tensors = [
@@ -111,7 +104,6 @@ class BulyanStrategy(fl.server.strategy.FedAvg):
         abs_distances = kmeans.transform(X_embed)
         norm_distances = MinMaxScaler().fit(abs_distances).transform(abs_distances)
 
-        # ---------------- Flatten updates ------------------------------
         param_arrays = [parameters_to_ndarrays(fr.parameters) for _, fr in results]
         flat_updates = np.stack(
             [np.concatenate([p.ravel() for p in pa]) for pa in param_arrays]
@@ -130,7 +122,6 @@ class BulyanStrategy(fl.server.strategy.FedAvg):
             )
             return super().aggregate_fit(server_round, results, failures)
 
-        # ----------------- Multi‑Krum phase ----------------------------
         time_start_calc = time.time_ns()
         dists = self._pairwise_sq_dists(flat_updates)
         m = n - f - 2  # number of nearest neighbours to sum
@@ -138,15 +129,12 @@ class BulyanStrategy(fl.server.strategy.FedAvg):
         candidate_idx = np.argpartition(krum_scores, C)[:C]
         candidates = flat_updates[candidate_idx]
 
-        # ----------------- Trimmed‑mean phase --------------------------
-        # drop top f and bottom f scores from C candidates
         sorted_idx = np.argsort(candidates, axis=0)
         kept_slice = slice(f, C - f)
         trimmed = candidates[sorted_idx[kept_slice, np.arange(dim)], np.arange(dim)]
         bulyan_vector = trimmed.mean(axis=0)
         time_end_calc = time.time_ns()
 
-        # ----------------- Prepare return params -----------------------
         agg_list, cursor = [], 0
         for arr in param_arrays[0]:
             num = arr.size
@@ -158,7 +146,6 @@ class BulyanStrategy(fl.server.strategy.FedAvg):
             cursor += num
         aggregated_parameters = ndarrays_to_parameters(agg_list)
 
-        # ----------------- Book‑keeping & logging ----------------------
         self.strategy_history.insert_round_history_entry(
             score_calculation_time_nanos=time_end_calc - time_start_calc
         )
@@ -182,19 +169,29 @@ class BulyanStrategy(fl.server.strategy.FedAvg):
 
         return aggregated_parameters, {}
 
-    # ------------------------------------------------------------------
-    # Client selection --------------------------------------------------
-    # ------------------------------------------------------------------
-
     def configure_fit(
         self,
         server_round: int,
         parameters: Parameters,
         client_manager,
     ) -> list[tuple[ClientProxy, fl.common.FitIns]]:
+        """Configure client selection for the next training round.
+
+        During warmup rounds (before begin_removing_from_round), all clients
+        participate. After warmup, removes f clients with highest deviation
+        scores each round.
+
+        Args:
+            server_round: Current round number from the Flower server.
+            parameters: Current global model parameters to distribute.
+            client_manager: Flower client manager for accessing clients.
+
+        Returns:
+            List of (ClientProxy, FitIns) tuples for selected clients.
+        """
         available_clients = client_manager.all()
 
-        # Warm‑up: keep everyone
+        # Warmup phase: include all clients
         if (
             self.begin_removing_from_round is not None
             and self.current_round <= self.begin_removing_from_round
@@ -202,16 +199,12 @@ class BulyanStrategy(fl.server.strategy.FedAvg):
             fit_ins = fl.common.FitIns(parameters, {"server_round": server_round})
             return [(c, fit_ins) for c in available_clients.values()]
 
-        # --- Gather scores for available clients ----------------------
         client_scores = {
             cid: self.client_scores.get(cid, 0.0) for cid in available_clients.keys()
         }
-
-        # --- Reset removed set each round -----------------------------
         self.removed_client_ids = set()
 
         if self.remove_clients:
-            # Remove *f* clients with highest scores this round
             n = len(client_scores)
             f = max(0, n - self.num_krum_selections) // 2
             for _ in range(f):
@@ -235,7 +228,6 @@ class BulyanStrategy(fl.server.strategy.FedAvg):
             current_round=self.current_round, removed_client_ids=self.removed_client_ids
         )
 
-        # --- Build fit instructions ----------------------------------
         ordered_cids = sorted(client_scores, key=client_scores.get, reverse=True)
         fit_ins = fl.common.FitIns(parameters, {"server_round": server_round})
         return [
@@ -244,16 +236,25 @@ class BulyanStrategy(fl.server.strategy.FedAvg):
             if cid in available_clients
         ]
 
-    # ------------------------------------------------------------------
-    # Evaluation aggregation (identical pattern to Multi‑Krum) ---------
-    # ------------------------------------------------------------------
-
     def aggregate_evaluate(
         self,
         server_round: int,
         results: list[tuple[ClientProxy, EvaluateRes]],
         failures: list[tuple[Union[ClientProxy, EvaluateRes], BaseException]],
     ) -> tuple[Optional[float], dict[str, Scalar]]:
+        """Aggregate client evaluation results and record metrics.
+
+        Records per-client accuracy and loss to strategy_history. Computes
+        weighted average loss from non-removed clients only.
+
+        Args:
+            server_round: Current round number from the Flower server.
+            results: List of (ClientProxy, EvaluateRes) tuples from clients.
+            failures: List of failed evaluation results or exceptions.
+
+        Returns:
+            Tuple of (aggregated loss, metrics dict).
+        """
         self.logger.info(
             "\n" + "-" * 50 + f"AGGREGATION ROUND {server_round}" + "-" * 50
         )

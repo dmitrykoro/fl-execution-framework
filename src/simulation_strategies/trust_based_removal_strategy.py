@@ -18,6 +18,12 @@ from src.data_models.simulation_strategy_history import SimulationStrategyHistor
 
 
 class TrustBasedRemovalStrategy(fl.server.strategy.FedAvg):
+    """Trust-based Byzantine-resilient aggregation strategy.
+
+    Maintains reputation and trust scores for each client based on their
+    historical behavior, removing clients that fall below thresholds.
+    """
+
     def __init__(
         self,
         remove_clients: bool,
@@ -43,7 +49,7 @@ class TrustBasedRemovalStrategy(fl.server.strategy.FedAvg):
         self.strategy_history = strategy_history
 
     def calculate_reputation(self, client_id, truth_value):
-        """Calculate initial reputation."""
+        """Calculate reputation based on truth value."""
 
         if self.current_round == 1:
             return truth_value
@@ -76,7 +82,7 @@ class TrustBasedRemovalStrategy(fl.server.strategy.FedAvg):
         return updated_reputation[0]
 
     def calculate_trust(self, client_id, reputation, d):
-        """Function to get previous rounds trust value and calculate trust."""
+        """Calculate trust using previous round's value."""
 
         if self.current_round == 1:
             prev_trust = 0
@@ -85,7 +91,7 @@ class TrustBasedRemovalStrategy(fl.server.strategy.FedAvg):
         return self.update_trust(prev_trust, reputation, d)
 
     def update_trust(self, prev_trust, reputation, d):
-        """Calculates trust based on reputation value of a client."""
+        """Calculate trust based on reputation and truth value."""
         # Convert numpy arrays to scalars if needed
         if hasattr(d, "item"):
             d = d.item()
@@ -111,12 +117,24 @@ class TrustBasedRemovalStrategy(fl.server.strategy.FedAvg):
         results: list[tuple[fl.server.client_proxy.ClientProxy, fl.common.FitRes]],
         failures: list[Union[tuple[ClientProxy, FitRes], BaseException]],
     ) -> tuple[Optional[Parameters], dict[str, Scalar]]:
+        """Aggregate client updates and compute trust scores.
+
+        Updates reputation and trust for each client based on their distance
+        from the cluster centroid.
+
+        Args:
+            server_round: Current round number from the Flower server.
+            results: List of (ClientProxy, FitRes) tuples from clients.
+            failures: List of failed client results or exceptions.
+
+        Returns:
+            Tuple of (aggregated parameters, metrics dict).
+        """
         if not results:
             return super().aggregate_fit(server_round, results, failures)
 
         self.current_round += 1
 
-        # Update client.is_malicious based on attack_schedule for dynamic attacks
         if self.strategy_history:
             self.strategy_history.update_client_malicious_status(server_round)
 
@@ -134,18 +152,14 @@ class TrustBasedRemovalStrategy(fl.server.strategy.FedAvg):
             server_round, aggregate_clients, failures
         )
 
-        # clustering
         clustering_param_data = []
         for client_proxy, fit_res in results:
             client_params = fl.common.parameters_to_ndarrays(fit_res.parameters)
-
             params_tensor_list = [torch.Tensor(arr) for arr in client_params]
             flattened_param_list = [param.flatten() for param in params_tensor_list]
             param_tensor = torch.cat(flattened_param_list)
-            # extract mean of weights and bias of the last layer (fc3)
             clustering_param_data.append(param_tensor)
 
-        # perform clustering
         X = np.array(clustering_param_data)
         kmeans = KMeans(n_clusters=1, init="k-means++").fit(X)
         distances = kmeans.transform(X)
@@ -190,30 +204,36 @@ class TrustBasedRemovalStrategy(fl.server.strategy.FedAvg):
         return aggregated_parameters, aggregated_metrics
 
     def configure_fit(self, server_round, parameters, client_manager):
-        # fetch the available clients as a dictionary
-        available_clients = client_manager.all()  # dictionary with client IDs as keys and RayActorClientProxy objects as values
+        """Configure client selection for the next training round.
 
-        # in the warmup rounds, select all clients
+        During warmup, all clients participate. After warmup, removes clients
+        with trust scores below the threshold.
+
+        Args:
+            server_round: Current round number from the Flower server.
+            parameters: Current global model parameters to distribute.
+            client_manager: Flower client manager for accessing clients.
+
+        Returns:
+            List of (ClientProxy, FitIns) tuples for selected clients.
+        """
+        available_clients = client_manager.all()
+
         if self.current_round <= self.begin_removing_from_round - 1:
             fit_ins = fl.common.FitIns(parameters, {"server_round": server_round})
             return [(client, fit_ins) for client in available_clients.values()]
 
-        # fetch the Trust and Reputation scores for all available clients
         client_trusts = {
             client_id: self.client_trusts.get(client_id, 0)
             for client_id in available_clients.keys()
         }
 
         if self.remove_clients:
-            # in the first round after warmup, remove the client with the lowest TRUST
             if self.current_round == self.begin_removing_from_round:
                 client_id = min(client_trusts, key=client_trusts.get)
                 logging.info(f"Removing client with lowest TRUST: {client_id}")
-                # add this client to the removed_clients list
                 self.removed_client_ids.add(client_id)
-                # add to history
             else:
-                # remove clients with trust lower than threshold.
                 for client_id, trust in client_trusts.items():
                     if (
                         trust < self.trust_threshold
@@ -222,16 +242,12 @@ class TrustBasedRemovalStrategy(fl.server.strategy.FedAvg):
                         logging.info(
                             f"Removing client with TRUST less than Threshold: {client_id}"
                         )
-                        # add this client to the removed_clients list
                         self.removed_client_ids.add(client_id)
 
             logging.info(f"removed clients are : {self.removed_client_ids}")
 
-        # select clients based on updated TRUSTS and available clients
         sorted_client_ids = sorted(client_trusts, key=client_trusts.get, reverse=True)
         selected_client_ids = sorted_client_ids
-
-        # create training configurations for selected clients
         fit_ins = fl.common.FitIns(parameters, {"server_round": server_round})
 
         self.strategy_history.update_client_participation(
@@ -250,6 +266,19 @@ class TrustBasedRemovalStrategy(fl.server.strategy.FedAvg):
         results: list[tuple[ClientProxy, EvaluateRes]],
         failures: list[tuple[Union[ClientProxy, EvaluateRes], BaseException]],
     ) -> tuple[Optional[float], dict[str, Scalar]]:
+        """Aggregate client evaluation results and record metrics.
+
+        Records per-client accuracy and loss to strategy_history. Computes
+        weighted average loss from non-removed clients only.
+
+        Args:
+            server_round: Current round number from the Flower server.
+            results: List of (ClientProxy, EvaluateRes) tuples from clients.
+            failures: List of failed evaluation results or exceptions.
+
+        Returns:
+            Tuple of (aggregated loss, metrics dict).
+        """
         logging.info("\n" + "-" * 50 + f"AGGREGATION ROUND {server_round}" + "-" * 50)
         for client_result in results:
             cid = client_result[0].cid

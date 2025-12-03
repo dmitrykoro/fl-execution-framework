@@ -15,6 +15,12 @@ from src.data_models.simulation_strategy_history import SimulationStrategyHistor
 
 
 class TrimmedMeanBasedRemovalStrategy(FedAvg):
+    """Trimmed mean aggregation strategy with client removal.
+
+    Computes coordinate-wise trimmed mean to exclude extreme parameter values,
+    tracking trim frequency as removal criterion.
+    """
+
     def __init__(
         self,
         remove_clients: bool,
@@ -36,19 +42,29 @@ class TrimmedMeanBasedRemovalStrategy(FedAvg):
     def aggregate_fit(
         self, server_round: int, results: List[Tuple], failures: List[BaseException]
     ) -> Tuple[Optional[Union[ndarrays_to_parameters, bytes]], Dict[str, Scalar]]:
+        """Aggregate client updates using coordinate-wise trimmed mean.
+
+        Trims the top and bottom trim_ratio values for each parameter coordinate
+        and averages the remaining values. Tracks trim frequency as removal
+        criterion.
+
+        Args:
+            server_round: Current round number from the Flower server.
+            results: List of (ClientProxy, FitRes) tuples from clients.
+            failures: List of failed client results or exceptions.
+
+        Returns:
+            Tuple of (aggregated parameters, metrics dict).
+        """
         self.current_round += 1
 
-        # Update client.is_malicious based on attack_schedule for dynamic attacks
         if self.strategy_history:
             self.strategy_history.update_client_malicious_status(server_round)
 
         if not results:
             return None, {}
 
-        # Track all clients that submitted updates
         participating_clients = [client.cid for client, _ in results]
-
-        # Extract weights and client IDs
         weights_results = [
             (
                 parameters_to_ndarrays(fit_res.parameters),
@@ -62,12 +78,10 @@ class TrimmedMeanBasedRemovalStrategy(FedAvg):
         num_trim = int(self.trim_ratio * num_clients)
 
         if num_trim == 0:
-            # No trimming needed
             aggregated_weights = self._average_weights(
                 [w for w, _, _ in weights_results]
             )
 
-            # Store trim_frequency = 0.0 for all clients
             for cid in participating_clients:
                 self.client_scores[cid] = 0.0
                 self.strategy_history.insert_single_client_history_entry(
@@ -81,20 +95,14 @@ class TrimmedMeanBasedRemovalStrategy(FedAvg):
             )
             return ndarrays_to_parameters(aggregated_weights), {}
 
-        # Transpose weights for each layer
         weights_by_layer = list(zip(*[w for w, _, _ in weights_results]))
         aggregated = []
-
         trimmed_clients: Set[str] = set()
-
-        # Track trim frequency per client for removal_criterion
         client_trim_counts = {cid: 0 for _, _, cid in weights_results}
         total_parameters = 0
 
         for layer_weights in weights_by_layer:
-            stacked = np.stack(layer_weights)  # Shape: (n_clients, layer_shape...)
-
-            # Flatten weights across clients
+            stacked = np.stack(layer_weights)
             trimmed_layer = []
             num_params_in_layer = (
                 np.prod(stacked.shape[1:]) if len(stacked.shape) > 1 else 1
@@ -102,7 +110,6 @@ class TrimmedMeanBasedRemovalStrategy(FedAvg):
             total_parameters += num_params_in_layer
 
             for i in range(num_params_in_layer):
-                # For each scalar value in the layer (if multidimensional)
                 values = (
                     stacked
                     if len(stacked.shape) == 1
@@ -113,19 +120,16 @@ class TrimmedMeanBasedRemovalStrategy(FedAvg):
                 trimmed_values = values[trimmed_indices]
                 trimmed_layer.append(np.mean(trimmed_values))
 
-                # Track which clients were trimmed for this parameter
                 removed_this_dim = set(
                     weights_results[j][2] for j in sorted_indices[:num_trim]
                 ).union(weights_results[j][2] for j in sorted_indices[-num_trim:])
                 trimmed_clients.update(removed_this_dim)
 
-                # Increment trim count for each client that was trimmed
                 for cid in removed_this_dim:
                     client_trim_counts[cid] += 1
 
             aggregated.append(np.array(trimmed_layer).reshape(stacked.shape[1:]))
 
-        # Calculate and store trim frequency as removal_criterion
         for cid in participating_clients:
             trim_frequency = (
                 client_trim_counts[cid] / total_parameters
@@ -133,15 +137,12 @@ class TrimmedMeanBasedRemovalStrategy(FedAvg):
                 else 0.0
             )
             self.client_scores[cid] = trim_frequency
-
-            # Store removal criterion in strategy_history
             self.strategy_history.insert_single_client_history_entry(
                 current_round=self.current_round,
                 client_id=int(cid),
                 removal_criterion=float(trim_frequency),
             )
 
-        # Update strategy history
         self.strategy_history.update_client_participation(
             current_round=self.current_round, removed_client_ids=set()
         )
@@ -153,12 +154,22 @@ class TrimmedMeanBasedRemovalStrategy(FedAvg):
     def configure_fit(
         self, server_round: int, parameters: Parameters, client_manager
     ) -> List[Tuple[ClientProxy, fl.common.FitIns]]:
-        currently_removed_client_ids = set()
+        """Configure client selection for the next training round.
 
-        # Fetch available clients as a dictionary.
+        During warmup, all clients participate. After warmup, removes the
+        client with highest trim frequency if remove_clients is enabled.
+
+        Args:
+            server_round: Current round number from the Flower server.
+            parameters: Current global model parameters to distribute.
+            client_manager: Flower client manager for accessing clients.
+
+        Returns:
+            List of (ClientProxy, FitIns) tuples for selected clients.
+        """
+        currently_removed_client_ids = set()
         available_clients = client_manager.all()
 
-        # Select all clients in the warmup rounds.
         if (
             self.begin_removing_from_round is not None
             and self.current_round <= self.begin_removing_from_round
@@ -166,14 +177,12 @@ class TrimmedMeanBasedRemovalStrategy(FedAvg):
             fit_ins = fl.common.FitIns(parameters, {"server_round": server_round})
             return [(client, fit_ins) for client in available_clients.values()]
 
-        # Build client scores from all available clients
         client_scores = {
             client_id: self.client_scores.get(client_id, 0)
             for client_id in available_clients.keys()
         }
 
         if self.remove_clients:
-            # Track client with highest score
             client_id = max(client_scores, key=client_scores.get)
             currently_removed_client_ids.add(client_id)
 
@@ -192,6 +201,19 @@ class TrimmedMeanBasedRemovalStrategy(FedAvg):
         results: List[Tuple[ClientProxy, EvaluateRes]],
         failures: List[Tuple[Union[ClientProxy, EvaluateRes], BaseException]],
     ) -> Tuple[Optional[float], Dict[str, Scalar]]:
+        """Aggregate client evaluation results and record metrics.
+
+        Records per-client accuracy and loss to strategy_history. Computes
+        weighted average loss from all participating clients.
+
+        Args:
+            server_round: Current round number from the Flower server.
+            results: List of (ClientProxy, EvaluateRes) tuples from clients.
+            failures: List of failed evaluation results or exceptions.
+
+        Returns:
+            Tuple of (aggregated loss, metrics dict).
+        """
         logging.info("\n" + "-" * 50 + f"AGGREGATION ROUND {server_round}" + "-" * 50)
 
         for client_result in results:

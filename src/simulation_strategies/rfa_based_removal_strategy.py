@@ -14,6 +14,12 @@ from flwr.server.strategy.fedavg import FedAvg
 
 
 class RFABasedRemovalStrategy(FedAvg):
+    """Robust Federated Averaging (RFA) strategy with client removal.
+
+    Uses geometric median aggregation for Byzantine resilience and removes
+    clients with high deviation from the median.
+    """
+
     def __init__(
         self,
         remove_clients: bool,
@@ -30,7 +36,6 @@ class RFABasedRemovalStrategy(FedAvg):
         self.weighted_median_factor = weighted_median_factor
         self.current_round = 0
         self.removed_client_ids = set()
-        self.rounds_history = {}
         self.client_scores = {}
 
     def aggregate_fit(
@@ -39,20 +44,28 @@ class RFABasedRemovalStrategy(FedAvg):
         results: list[tuple[ClientProxy, FitRes]],
         failures: list[Union[tuple[ClientProxy, FitRes], BaseException]],
     ) -> tuple[Optional[Parameters], dict[str, Scalar]]:
+        """Aggregate client updates using Robust Federated Averaging.
+
+        Computes the geometric median of client parameters for robust
+        aggregation. Records deviation from median as removal criterion.
+
+        Args:
+            server_round: Current round number from the Flower server.
+            results: List of (ClientProxy, FitRes) tuples from clients.
+            failures: List of failed client results or exceptions.
+
+        Returns:
+            Tuple of (aggregated parameters, metrics dict).
+        """
         if not results:
             return super().aggregate_fit(server_round, results, failures)
 
-        # Increment the current round counter.
         self.current_round += 1
 
-        # Update client.is_malicious based on attack_schedule for dynamic attacks
         if self.strategy_history:
             self.strategy_history.update_client_malicious_status(server_round)
 
-        self.rounds_history[f"{self.current_round}"] = {}
         aggregate_clients = []
-
-        # Filter clients that have not been removed.
         for result in results:
             client_id = result[0].cid
             if client_id not in self.removed_client_ids:
@@ -61,7 +74,6 @@ class RFABasedRemovalStrategy(FedAvg):
         if not aggregate_clients:
             return super().aggregate_fit(server_round, results, failures)
 
-        # Convert parameters to numpy arrays for aggregation.
         param_data = [
             fl.common.parameters_to_ndarrays(fit_res.parameters)
             for _, fit_res in aggregate_clients
@@ -71,17 +83,14 @@ class RFABasedRemovalStrategy(FedAvg):
         )
 
         time_start_calc = time.time_ns()
-        # Calculate the geometric median (RFA) and use it as the removal criterion.
         geometric_median = self._geometric_median(stacked_params)
         weighted_geometric_median = geometric_median * self.weighted_median_factor
         time_end_calc = time.time_ns()
-        self.rounds_history[f"{self.current_round}"]["round_info"] = {}
-        self.rounds_history[f"{self.current_round}"]["round_info"][
-            "score_calculation_time_nanos"
-        ] = time_end_calc - time_start_calc
 
-        self.rounds_history[f"{self.current_round}"]["client_info"] = {}
-        # Perform clustering for monitoring and logging purposes.
+        self.strategy_history.insert_round_history_entry(
+            score_calculation_time_nanos=time_end_calc - time_start_calc
+        )
+
         clustering_param_data = []
         for client_proxy, fit_res in results:
             client_params = fl.common.parameters_to_ndarrays(fit_res.parameters)
@@ -90,7 +99,6 @@ class RFABasedRemovalStrategy(FedAvg):
             param_tensor = torch.cat(flattened_param_list)
             clustering_param_data.append(param_tensor)
 
-        # Perform clustering using KMeans.
         X = np.array(clustering_param_data)
         kmeans = KMeans(n_clusters=1, init="k-means++").fit(X)
         distances = kmeans.transform(X)
@@ -99,28 +107,15 @@ class RFABasedRemovalStrategy(FedAvg):
         scaler.fit(distances)
         normalized_distances = scaler.transform(distances)
 
-        # Store the removal criterion (deviation from weighted geometric median) and other info for each client.
         for i, (client_proxy, _) in enumerate(aggregate_clients):
             client_id = client_proxy.cid
             deviation = np.linalg.norm(stacked_params[i] - weighted_geometric_median)
             self.client_scores[client_id] = deviation
-            self.rounds_history[f"{self.current_round}"]["client_info"][
-                f"client_{client_id}"
-            ] = {
-                "removal_criterion": deviation,
-                "absolute_distance": float(distances[i][0]),
-                "normalized_distance": float(normalized_distances[i][0]),
-                "is_removed": self.rounds_history.get(f"{self.current_round - 1}", {})
-                .get("client_info", {})
-                .get(f"client_{client_id}", {})
-                .get("is_removed", False),
-            }
 
             logging.info(
                 f"Aggregation round: {server_round} Client ID: {client_id} Deviation: {deviation} Normalized Distance: {normalized_distances[i][0]}"
             )
 
-            # Store removal criterion in strategy_history
             self.strategy_history.insert_single_client_history_entry(
                 current_round=self.current_round,
                 client_id=int(client_id),
@@ -128,7 +123,6 @@ class RFABasedRemovalStrategy(FedAvg):
                 absolute_distance=float(distances[i][0]),
             )
 
-        # Aggregate the parameters using the weighted geometric median.
         aggregated_parameters_list = []
         start_idx = 0
         for param in param_data[0]:
@@ -149,17 +143,7 @@ class RFABasedRemovalStrategy(FedAvg):
     def _geometric_median(
         self, points: np.ndarray, max_iter: int = 1000, tol: float = 1e-5
     ) -> np.ndarray:
-        """
-        Calculate the geometric median of a set of points.
-
-        Args:
-            points (np.ndarray): Numpy array of points for which the geometric median is to be calculated.
-            max_iter (int): Maximum number of iterations for convergence.
-            tol (float): Tolerance for convergence.
-
-        Returns:
-            np.ndarray: The calculated geometric median.
-        """
+        """Calculate the geometric median via iteratively reweighted least squares."""
         median = np.mean(points, axis=0)
         for _ in range(max_iter):
             distances = np.linalg.norm(points - median, axis=1)
@@ -176,42 +160,47 @@ class RFABasedRemovalStrategy(FedAvg):
     def configure_fit(
         self, server_round: int, parameters: Parameters, client_manager
     ) -> list[tuple[ClientProxy, fl.common.FitIns]]:
-        # Fetch available clients as a dictionary.
-        available_clients = client_manager.all()  # dictionary with client IDs as keys and RayActorClientProxy objects as values
+        """Configure client selection for the next training round.
 
-        # Select all clients in the warmup rounds.
-        if self.current_round <= self.begin_removing_from_round:
+        During warmup, all clients participate. After warmup, removes the
+        client with highest deviation from geometric median each round.
+
+        Args:
+            server_round: Current round number from the Flower server.
+            parameters: Current global model parameters to distribute.
+            client_manager: Flower client manager for accessing clients.
+
+        Returns:
+            List of (ClientProxy, FitIns) tuples for selected clients.
+        """
+        available_clients = client_manager.all()
+
+        if (
+            self.begin_removing_from_round is not None
+            and self.current_round <= self.begin_removing_from_round
+        ):
             fit_ins = fl.common.FitIns(parameters, {"server_round": server_round})
             return [(client, fit_ins) for client in available_clients.values()]
 
-        # Select clients that have not been removed in previous rounds.
         client_scores = {
             client_id: self.client_scores.get(client_id, 0)
             for client_id in available_clients.keys()
         }
 
         if self.remove_clients:
-            # Remove clients with the highest deviation if applicable.
             client_id = max(client_scores, key=client_scores.get)
             logging.info(f"Removing client with highest deviation: {client_id}")
             self.removed_client_ids.add(client_id)
-            if f"{self.current_round}" not in self.rounds_history:
-                self.rounds_history[f"{self.current_round}"] = {"client_info": {}}
-            if (
-                f"client_{client_id}"
-                not in self.rounds_history[f"{self.current_round}"]["client_info"]
-            ):
-                self.rounds_history[f"{self.current_round}"]["client_info"][
-                    f"client_{client_id}"
-                ] = {}
-            self.rounds_history[f"{self.current_round}"]["client_info"][
-                f"client_{client_id}"
-            ]["is_removed"] = True
 
         logging.info(f"removed clients are : {self.removed_client_ids}")
 
         selected_client_ids = sorted(client_scores, key=client_scores.get, reverse=True)
         fit_ins = fl.common.FitIns(parameters, {"server_round": server_round})
+
+        self.strategy_history.update_client_participation(
+            current_round=self.current_round, removed_client_ids=self.removed_client_ids
+        )
+
         return [
             (available_clients[cid], fit_ins)
             for cid in selected_client_ids
@@ -224,42 +213,30 @@ class RFABasedRemovalStrategy(FedAvg):
         results: list[tuple[ClientProxy, EvaluateRes]],
         failures: list[tuple[Union[ClientProxy, EvaluateRes], BaseException]],
     ) -> tuple[Optional[float], dict[str, Scalar]]:
-        logging.info("\n" + "-" * 50 + f"AGGREGATION ROUND {server_round}" + "-" * 50)
+        """Aggregate client evaluation results and record metrics.
 
-        previous_round = str(self.current_round - 1)
-        for client_id in (
-            self.rounds_history.get(previous_round, {}).get("client_info", {}).keys()
-        ):
-            if (
-                client_id
-                not in self.rounds_history[f"{self.current_round}"]["client_info"]
-            ):
-                self.rounds_history[f"{self.current_round}"]["client_info"][
-                    client_id
-                ] = self.rounds_history[previous_round]["client_info"][client_id].copy()
-                if client_id in self.removed_client_ids:
-                    self.rounds_history[f"{self.current_round}"]["client_info"][
-                        client_id
-                    ]["accuracy"] = None
-                    self.rounds_history[f"{self.current_round}"]["client_info"][
-                        client_id
-                    ]["loss"] = None
+        Records per-client accuracy and loss to strategy_history. Computes
+        weighted average loss from non-removed clients only.
+
+        Args:
+            server_round: Current round number from the Flower server.
+            results: List of (ClientProxy, EvaluateRes) tuples from clients.
+            failures: List of failed evaluation results or exceptions.
+
+        Returns:
+            Tuple of (aggregated loss, metrics dict).
+        """
+        logging.info("\n" + "-" * 50 + f"AGGREGATION ROUND {server_round}" + "-" * 50)
 
         for client_result in results:
             cid = client_result[0].cid
             accuracy_matrix = client_result[1].metrics
 
-            # Store accuracy in strategy_history
             self.strategy_history.insert_single_client_history_entry(
                 client_id=int(cid),
                 current_round=self.current_round,
                 accuracy=accuracy_matrix.get("accuracy"),
             )
-
-            if cid not in self.removed_client_ids:
-                self.rounds_history[f"{self.current_round}"]["client_info"][
-                    f"client_{cid}"
-                ]["accuracy"] = accuracy_matrix.get("accuracy")
 
         if not results:
             return None, {}
@@ -269,8 +246,6 @@ class RFABasedRemovalStrategy(FedAvg):
 
         for client_metadata, evaluate_res in results:
             client_id = client_metadata.cid
-
-            # Store loss in strategy_history
             self.strategy_history.insert_single_client_history_entry(
                 client_id=int(client_id),
                 current_round=self.current_round,
@@ -278,13 +253,9 @@ class RFABasedRemovalStrategy(FedAvg):
             )
 
             if client_id not in self.removed_client_ids:
-                self.rounds_history[f"{self.current_round}"]["client_info"][
-                    f"client_{client_id}"
-                ]["loss"] = evaluate_res.loss
                 aggregate_value.append((evaluate_res.num_examples, evaluate_res.loss))
                 number_of_clients_in_loss_calc += 1
 
-        # Ensure at least one client remains for evaluation
         if not aggregate_value:
             logging.warning(
                 f"Round {server_round}: No clients available for evaluation "
@@ -294,7 +265,6 @@ class RFABasedRemovalStrategy(FedAvg):
 
         loss_aggregated = weighted_loss_avg(aggregate_value)
 
-        # Store aggregated loss in strategy_history
         self.strategy_history.insert_round_history_entry(
             loss_aggregated=loss_aggregated
         )

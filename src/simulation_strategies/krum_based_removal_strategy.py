@@ -19,6 +19,12 @@ from src.data_models.simulation_strategy_history import SimulationStrategyHistor
 
 
 class KrumBasedRemovalStrategy(Krum):
+    """Krum-based Byzantine-resilient aggregation with client removal.
+
+    Uses Krum scoring to identify and remove potentially malicious clients,
+    aggregating only the single most trusted client's update each round.
+    """
+
     def __init__(
         self,
         remove_clients: bool,
@@ -43,16 +49,12 @@ class KrumBasedRemovalStrategy(Krum):
     def _calculate_krum_scores(
         self, results: list[tuple[ClientProxy, FitRes]], distances: np.ndarray
     ) -> list[float]:
-        """
-        Calculate Krum scores based on the parameter differences between clients.
-
-        Args:
-            results (list[tuple[ClientProxy, FitRes]]): List of client proxies and their fit results.
-            distances: empty array to store distances
-
-        Returns:
-            list[float]: Krum scores for each client.
-        """
+        """Calculate Krum scores based on pairwise parameter distances."""
+        if self.num_malicious_clients is None:
+            raise ValueError(
+                "num_of_malicious_clients must be set in config for Krum-based strategies. "
+                "Calculate from attack_schedule (e.g., 20% of 10 clients = 2)"
+            )
         param_data = [
             fl.common.parameters_to_ndarrays(fit_res.parameters)
             for _, fit_res in results
@@ -63,13 +65,11 @@ class KrumBasedRemovalStrategy(Krum):
         param_data = flat_param_data
         num_clients = len(param_data)
 
-        # Compute pairwise distances between clients' model updates
         for i in range(num_clients):
             for j in range(i + 1, num_clients):
                 distances[i, j] = np.linalg.norm(param_data[i] - param_data[j])
                 distances[j, i] = distances[i, j]
 
-        # Calculate Krum scores based on the distances
         scores = []
         for i in range(num_clients):
             sorted_distances = np.sort(distances[i])
@@ -83,27 +83,36 @@ class KrumBasedRemovalStrategy(Krum):
         results: list[tuple[ClientProxy, FitRes]],
         failures: list[Union[tuple[ClientProxy, FitRes], BaseException]],
     ) -> tuple[Optional[Parameters], dict[str, Scalar]]:
+        """Aggregate client model updates using the Krum algorithm.
+
+        Computes Krum scores for each client based on pairwise parameter
+        distances, then selects the client with the minimum score for
+        aggregation.
+
+        Args:
+            server_round: Current round number from the Flower server.
+            results: List of (ClientProxy, FitRes) tuples from clients.
+            failures: List of failed client results or exceptions.
+
+        Returns:
+            Tuple of (aggregated parameters, metrics dict).
+        """
         self.current_round += 1
 
-        # Update client.is_malicious based on attack_schedule for dynamic attacks
         if self.strategy_history:
             self.strategy_history.update_client_malicious_status(server_round)
 
-        # Handle empty results
         if not results:
             return super().aggregate_fit(server_round, results, failures)
 
-        # clustering
         clustering_param_data = []
         for client_proxy, fit_res in results:
             client_params = fl.common.parameters_to_ndarrays(fit_res.parameters)
             params_tensor_list = [torch.Tensor(arr) for arr in client_params]
             flattened_param_list = [param.flatten() for param in params_tensor_list]
             param_tensor = torch.cat(flattened_param_list)
-            # extract mean of weights and bias of the last layer (fc3)
             clustering_param_data.append(param_tensor)
 
-        # perform clustering
         X = np.array(clustering_param_data)
         kmeans = KMeans(n_clusters=1, init="k-means++").fit(X)
         distances = kmeans.transform(X)
@@ -139,20 +148,14 @@ class KrumBasedRemovalStrategy(Krum):
                 f"Aggregation round: {server_round} Client ID: {client_id} Krum Score: {score} Normalized Distance: {normalized_distances[i][0]}"
             )
 
-        # Select the client with the minimum Krum score
         min_krum_score_index = np.argmin(krum_scores)
         min_krum_client = results[min_krum_score_index]
-
-        # Log the selected client for aggregation
         selected_client_id = min_krum_client[0].cid
         logging.info(
             f"Selected client for aggregation: {selected_client_id} with Krum Score: {krum_scores[min_krum_score_index]}"
         )
 
-        # Aggregate only the selected client's parameters
-        selected_clients = [
-            min_krum_client
-        ]  # Aggregate only the client with the minimum Krum score
+        selected_clients = [min_krum_client]
         aggregated_parameters, aggregated_metrics = super().aggregate_fit(
             server_round, selected_clients, failures
         )
@@ -162,10 +165,22 @@ class KrumBasedRemovalStrategy(Krum):
     def configure_fit(
         self, server_round: int, parameters: Parameters, client_manager
     ) -> list[tuple[ClientProxy, fl.common.FitIns]]:
-        # fetch the available clients as a dictionary
-        available_clients = client_manager.all()  # dictionary with client IDs as keys and RayActorClientProxy objects as values
+        """Configure client selection for the next training round.
 
-        # in the warmup rounds, select all clients
+        During warmup rounds (before begin_removing_from_round), all clients
+        participate. After warmup, removes the client with highest Krum score
+        each round if remove_clients is enabled.
+
+        Args:
+            server_round: Current round number from the Flower server.
+            parameters: Current global model parameters to distribute.
+            client_manager: Flower client manager for accessing clients.
+
+        Returns:
+            List of (ClientProxy, FitIns) tuples for selected clients.
+        """
+        available_clients = client_manager.all()
+
         if (
             self.begin_removing_from_round is not None
             and self.current_round <= self.begin_removing_from_round
@@ -173,14 +188,12 @@ class KrumBasedRemovalStrategy(Krum):
             fit_ins = fl.common.FitIns(parameters, {"server_round": server_round})
             return [(client, fit_ins) for client in available_clients.values()]
 
-        # fetch the krum based scores for all available clients
         client_scores = {
             client_id: self.client_scores.get(client_id, 0)
             for client_id in available_clients.keys()
         }
 
         if self.remove_clients:
-            # in the first round after warmup, remove the client with the highest Krum score
             client_id = max(client_scores, key=client_scores.get)
             logging.info(f"Removing client with highest Krum score: {client_id}")
             self.removed_client_ids.add(client_id)
@@ -206,6 +219,19 @@ class KrumBasedRemovalStrategy(Krum):
         results: list[tuple[ClientProxy, EvaluateRes]],
         failures: list[tuple[Union[ClientProxy, EvaluateRes], BaseException]],
     ) -> tuple[Optional[float], dict[str, Scalar]]:
+        """Aggregate client evaluation results and record metrics.
+
+        Records per-client accuracy and loss to strategy_history. Computes
+        weighted average loss from non-removed clients only.
+
+        Args:
+            server_round: Current round number from the Flower server.
+            results: List of (ClientProxy, EvaluateRes) tuples from clients.
+            failures: List of failed evaluation results or exceptions.
+
+        Returns:
+            Tuple of (aggregated loss, metrics dict).
+        """
         logging.info("\n" + "-" * 50 + f"AGGREGATION ROUND {server_round}" + "-" * 50)
 
         for client_result in results:

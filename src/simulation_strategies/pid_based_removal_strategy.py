@@ -16,6 +16,12 @@ from src.data_models.simulation_strategy_history import SimulationStrategyHistor
 
 
 class PIDBasedRemovalStrategy(fl.server.strategy.FedAvg):
+    """PID controller-based Byzantine-resilient aggregation strategy.
+
+    Uses a PID controller to track client behavior over time, identifying
+    malicious clients based on cumulative deviation patterns.
+    """
+
     def __init__(
         self,
         remove_clients: bool,
@@ -52,28 +58,19 @@ class PIDBasedRemovalStrategy(fl.server.strategy.FedAvg):
 
         self.network_model = network_model
         self.use_lora = use_lora
-
         self.aggregation_strategy_keyword = aggregation_strategy_keyword
-
-        # Create a logger
         self.logger = logging.getLogger(f"pid_strategy_{id(self)}")
-        self.logger.setLevel(
-            logging.INFO
-        )  # Set the logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL)
-
-        # Create handlers
+        self.logger.setLevel(logging.INFO)
         out_dir = DirectoryHandler.dirname
         os.makedirs(out_dir, exist_ok=True)
         file_handler = logging.FileHandler(f"{out_dir}/output.log")
         console_handler = logging.StreamHandler()
-
-        # Add the handlers to the logger
         self.logger.addHandler(file_handler)
         self.logger.addHandler(console_handler)
         self.logger.propagate = False
 
     def calculate_single_client_pid_scaled(self, client_id, distance):
-        """Calculate pid."""
+        """Calculate PID score with integral term scaled by round number."""
 
         p = distance * self.kp
 
@@ -106,7 +103,7 @@ class PIDBasedRemovalStrategy(fl.server.strategy.FedAvg):
     def calculate_single_client_pid_standardized(
         self, client_id, distance, avg_sum, sum_std_dev=0
     ):
-        """Calculate pid with standardized distance."""
+        """Calculate PID score with standardized integral term."""
 
         p = distance * self.kp
 
@@ -128,6 +125,17 @@ class PIDBasedRemovalStrategy(fl.server.strategy.FedAvg):
     def calculate_all_pid_scores(
         self, results, normalized_distances, standardized=False, scaled=False
     ) -> list[float]:
+        """Calculate PID scores for all clients based on strategy keyword.
+
+        Args:
+            results: List of (ClientProxy, FitRes) tuples from clients.
+            normalized_distances: Normalized distance from centroid for each client.
+            standardized: Use standardized PID calculation if True.
+            scaled: Use scaled PID calculation if True.
+
+        Returns:
+            List of PID scores for each client.
+        """
         pid_scores = []
 
         if self.aggregation_strategy_keyword == "pid_scaled":
@@ -186,13 +194,24 @@ class PIDBasedRemovalStrategy(fl.server.strategy.FedAvg):
         results: list[tuple[fl.server.client_proxy.ClientProxy, fl.common.FitRes]],
         failures: list[Union[tuple[ClientProxy, FitRes], BaseException]],
     ) -> tuple[Optional[Parameters], dict[str, Scalar]]:
+        """Aggregate client updates using PID-based scoring.
+
+        Computes PID scores tracking cumulative client behavior over rounds
+        and aggregates non-removed clients' parameters.
+
+        Args:
+            server_round: Current round number from the Flower server.
+            results: List of (ClientProxy, FitRes) tuples from clients.
+            failures: List of failed client results or exceptions.
+
+        Returns:
+            Tuple of (aggregated parameters, metrics dict).
+        """
         self.current_round += 1
 
-        # Update client.is_malicious based on attack_schedule for dynamic attacks
         if self.strategy_history:
             self.strategy_history.update_client_malicious_status(server_round)
 
-        # Handle empty results
         if not results:
             return super().aggregate_fit(server_round, results, failures)
 
@@ -207,18 +226,14 @@ class PIDBasedRemovalStrategy(fl.server.strategy.FedAvg):
             server_round, aggregate_clients, failures
         )
 
-        # clustering
         clustering_param_data = []
         for client_proxy, fit_res in results:
             client_params = fl.common.parameters_to_ndarrays(fit_res.parameters)
-
             params_tensor_list = [torch.Tensor(arr) for arr in client_params]
             flattened_param_list = [param.flatten() for param in params_tensor_list]
             param_tensor = torch.cat(flattened_param_list)
-            # extract mean of weights and bias of the last layer (fc3)
             clustering_param_data.append(param_tensor)
 
-        # perform clustering
         X = np.array(clustering_param_data)
         kmeans = KMeans(n_clusters=1, init="k-means++").fit(X)
         distances = kmeans.transform(X)
@@ -264,15 +279,12 @@ class PIDBasedRemovalStrategy(fl.server.strategy.FedAvg):
                 f"Normalized Distance: {normalized_distances[i][0]} "
             )
 
-        # use pid-based threshold if self.aggregation_strategy_keyword is pid or pid_standardized_score_based
         if self.aggregation_strategy_keyword in ("pid", "pid_standardized_score_based"):
             pid_avg = np.mean(counted_pids)
             pid_std = np.std(counted_pids)
             self.current_threshold = (
                 pid_avg + (self.num_std_dev * pid_std) if len(counted_pids) > 1 else 0
             )
-
-        # use distance-based threshold for pid_scaled and pid_standardized
         elif self.aggregation_strategy_keyword in ("pid_scaled", "pid_standardized"):
             distances_avg = (
                 np.mean(list(self.client_distances.values()))
@@ -299,10 +311,21 @@ class PIDBasedRemovalStrategy(fl.server.strategy.FedAvg):
         return aggregated_parameters, aggregated_metrics
 
     def configure_fit(self, server_round, parameters, client_manager):
-        # fetch the available clients as a dictionary
-        available_clients = client_manager.all()  # dictionary with client IDs as keys and RayActorClientProxy objects as values
+        """Configure client selection for the next training round.
 
-        # in the warmup rounds, select all clients
+        During warmup, all clients participate. After warmup, removes clients
+        with PID scores exceeding the threshold.
+
+        Args:
+            server_round: Current round number from the Flower server.
+            parameters: Current global model parameters to distribute.
+            client_manager: Flower client manager for accessing clients.
+
+        Returns:
+            List of (ClientProxy, FitIns) tuples for selected clients.
+        """
+        available_clients = client_manager.all()
+
         if (
             self.begin_removing_from_round is not None
             and self.current_round <= self.begin_removing_from_round - 1
@@ -316,7 +339,6 @@ class PIDBasedRemovalStrategy(fl.server.strategy.FedAvg):
         }
 
         if self.remove_clients:
-            # in the first round after warmup, remove the client with the highest PID
             if (
                 self.begin_removing_from_round is not None
                 and self.current_round == self.begin_removing_from_round
@@ -326,11 +348,8 @@ class PIDBasedRemovalStrategy(fl.server.strategy.FedAvg):
                 self.logger.info(
                     f"Removing client with highest PID: {highest_pid_client}"
                 )
-                # add this client to the removed_clients list
                 self.removed_client_ids.add(highest_pid_client)
-
             else:
-                # remove clients with PID higher than threshold.
                 for client_id, pid in client_pids.items():
                     if (
                         pid > self.current_threshold
@@ -339,7 +358,6 @@ class PIDBasedRemovalStrategy(fl.server.strategy.FedAvg):
                         self.logger.info(
                             f"Removing client with PID greater than Threshold: {client_id}"
                         )
-                        # add this client to the removed_clients list
                         self.removed_client_ids.add(client_id)
 
         self.strategy_history.update_client_participation(
@@ -348,11 +366,8 @@ class PIDBasedRemovalStrategy(fl.server.strategy.FedAvg):
 
         self.logger.info(f"removed clients are : {self.removed_client_ids}")
 
-        # select clients based on updated PID and available clients
         sorted_client_ids = sorted(client_pids, key=client_pids.get, reverse=True)
         selected_client_ids = sorted_client_ids
-
-        # create training configurations for selected clients
         fit_ins = fl.common.FitIns(parameters, {"server_round": server_round})
         return [
             (available_clients[cid], fit_ins)
@@ -366,6 +381,19 @@ class PIDBasedRemovalStrategy(fl.server.strategy.FedAvg):
         results: list[tuple[ClientProxy, EvaluateRes]],
         failures: list[tuple[Union[ClientProxy, EvaluateRes], BaseException]],
     ) -> tuple[Optional[float], dict[str, Scalar]]:
+        """Aggregate client evaluation results and record metrics.
+
+        Records per-client accuracy and loss to strategy_history. Computes
+        weighted average loss from non-removed clients only.
+
+        Args:
+            server_round: Current round number from the Flower server.
+            results: List of (ClientProxy, EvaluateRes) tuples from clients.
+            failures: List of failed evaluation results or exceptions.
+
+        Returns:
+            Tuple of (aggregated loss, metrics dict).
+        """
         self.logger.info(
             "\n" + "-" * 50 + f"AGGREGATION ROUND {server_round}" + "-" * 50
         )
