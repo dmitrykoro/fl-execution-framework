@@ -1,0 +1,7 @@
+{
+  "include": ["tests/"],
+  "pythonVersion": "3.10",
+  "reportMissingImports": false,
+  "reportAttributeAccessIssue": false,
+  "reportUnknownMemberType": false
+}
