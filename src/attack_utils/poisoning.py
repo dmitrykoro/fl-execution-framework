@@ -16,30 +16,26 @@ def apply_label_flipping(
     labels: torch.Tensor,
     num_classes: int,
 ) -> torch.Tensor:
-    """Apply label flipping attack by remapping each class to a different random class.
-
-    Each source class is randomly mapped to a different target class (not itself).
-    This creates a class-level random mapping for the entire label set.
+    """Apply bijective label flipping where each class maps to exactly one other class.
 
     Args:
-        labels: Input label tensor of shape (N,)
-        num_classes: Total number of classes in the dataset
+        labels: Input label tensor to flip.
+        num_classes: Total number of classes in the dataset.
 
     Returns:
-        Modified label tensor with same shape, where each class is remapped to
-        a different random class
+        Modified label tensor with all classes remapped.
     """
-    unique_classes = torch.unique(labels)
+    perm = torch.randperm(num_classes).tolist()
+
+    # Ensure no class maps to itself
+    for i in range(num_classes):
+        if perm[i] == i:
+            swap_idx = (i + 1) % num_classes
+            perm[i], perm[swap_idx] = perm[swap_idx], perm[i]
+
     modified_labels = labels.clone()
-
-    for source_class in unique_classes:
-        source_val = source_class.item()
-        valid_targets = [t for t in range(num_classes) if t != source_val]
-        if not valid_targets:
-            continue
-
-        target_class = valid_targets[torch.randint(0, len(valid_targets), (1,)).item()]
-        modified_labels[labels == source_val] = target_class
+    for src_class in range(num_classes):
+        modified_labels[labels == src_class] = perm[src_class]
 
     return modified_labels
 
@@ -51,24 +47,17 @@ def apply_gaussian_noise(
     target_noise_snr: Optional[float] = None,
     attack_ratio: float = 1.0,
 ) -> torch.Tensor:
-    """Apply Gaussian noise poisoning attack to images.
-
-    Adds Gaussian noise to a subset of images. Noise can be specified either via
-    mean/std parameters or target SNR (signal-to-noise ratio) in dB.
+    """Add Gaussian noise to images using either SNR targeting or direct mean/std.
 
     Args:
-        images: Input image tensor of shape (N, C, H, W)
-        mean: Mean of Gaussian noise distribution (default: 0.0)
-        std: Standard deviation of Gaussian noise distribution (default: 0.1)
-        target_noise_snr: Target SNR in dB. If provided, overrides mean/std parameters
-        attack_ratio: Fraction of samples to poison, range [0.0, 1.0] (default: 1.0)
+        images: Input image tensor of shape (N, C, H, W).
+        mean: Noise mean when using direct mode. Defaults to 0.0.
+        std: Noise standard deviation when using direct mode. Defaults to 0.1.
+        target_noise_snr: Target signal-to-noise ratio in dB. If provided, overrides mean/std.
+        attack_ratio: Fraction of images to poison. Defaults to 1.0.
 
     Returns:
-        Poisoned image tensor with same shape as input, values clamped to [0, 1]
-
-    Note:
-        If target_noise_snr is specified, noise power is calculated to achieve
-        the specified SNR relative to signal power.
+        Poisoned image tensor with values clamped to [0, 1].
     """
     num_samples = images.shape[0]
     num_to_poison = int(num_samples * attack_ratio)
@@ -93,22 +82,7 @@ def apply_gaussian_noise(
 
 
 def _encode_vocabulary_sequences(tokenizer, vocabulary: list) -> dict:
-    """Encode vocabulary words into token ID sequences.
-
-    Converts vocabulary words into tokenizer-specific token ID sequences.
-    Tracks both single-token and multi-token vocabulary entries.
-
-    Args:
-        tokenizer: HuggingFace tokenizer for encoding text
-        vocabulary: List of vocabulary words to encode
-
-    Returns:
-        Dictionary mapping token ID tuples to original words.
-        Key: tuple of token IDs, Value: original word string
-
-    Note:
-        Logs statistics about single-token vs multi-token vocabulary entries.
-    """
+    """Encode vocabulary words into token ID sequences, returning tuple-to-word mapping."""
     vocab_sequences = {}
     single_token_count = 0
     multi_token_count = 0
@@ -138,25 +112,7 @@ def _apply_sequence_replacement(
     target_sequences: dict,
     replacement_token_ids: list,
 ) -> torch.Tensor:
-    """Apply multi-token sequence replacement attack.
-
-    Scans token sequences for matches with target vocabulary sequences
-    (up to max_seq_length tokens) and replaces them with random tokens
-    from the replacement list.
-
-    Args:
-        tokens: Input token tensor of shape (N, seq_len)
-        replacement_prob: Probability of replacing each matched sequence [0.0, 1.0]
-        target_sequences: Dict mapping token ID tuples to vocabulary words
-        replacement_token_ids: List of token IDs to use as replacements
-
-    Returns:
-        Modified token tensor with sequences replaced
-
-    Note:
-        Scans from longest sequences down to single tokens to handle
-        overlapping multi-token matches.
-    """
+    """Replace multi-token sequences matching target vocabulary with random replacement tokens."""
     modified_tokens = tokens.clone()
     max_seq_length = max(len(seq) for seq in target_sequences.keys())
 
@@ -220,20 +176,7 @@ def _apply_single_token_replacement(
     target_token_ids: list,
     replacement_token_ids: list,
 ) -> torch.Tensor:
-    """Apply single-token replacement attack.
-
-    Replaces individual target tokens with random tokens from the
-    replacement list based on replacement probability.
-
-    Args:
-        tokens: Input token tensor of shape (N, seq_len)
-        replacement_prob: Probability of replacing each target token [0.0, 1.0]
-        target_token_ids: List of target token IDs to replace
-        replacement_token_ids: List of token IDs to use as replacements
-
-    Returns:
-        Modified token tensor with individual tokens replaced
-    """
+    """Replace individual target tokens with random replacement tokens based on probability."""
     modified_tokens = tokens.clone()
 
     for batch_idx in range(tokens.shape[0]):
@@ -257,24 +200,17 @@ def apply_token_replacement(
     replacement_token_ids: Optional[list] = None,
     target_sequences: Optional[dict] = None,
 ) -> torch.Tensor:
-    """Apply token replacement attack with optional sequence matching.
-
-    Supports both single-token and multi-token sequence replacement.
-    If target_sequences provided, uses sequence matching; otherwise
-    uses simple single-token replacement.
+    """Apply token replacement attack with single-token or multi-token sequence matching.
 
     Args:
-        tokens: Input token tensor of shape (N, seq_len)
-        replacement_prob: Probability of replacing each match [0.0, 1.0] (default: 0.2)
-        target_token_ids: List of single target token IDs (optional)
-        replacement_token_ids: List of replacement token IDs (optional)
-        target_sequences: Dict of token ID tuples for sequence matching (optional)
+        tokens: Input token tensor of shape (N, seq_len).
+        replacement_prob: Probability of replacing each match. Defaults to 0.2.
+        target_token_ids: List of single token IDs to target.
+        replacement_token_ids: List of token IDs to use as replacements.
+        target_sequences: Dict mapping token ID tuples to words for sequence matching.
 
     Returns:
-        Modified token tensor with replacements applied
-
-    Raises:
-        ValueError: If neither target_token_ids nor target_sequences provided
+        Modified token tensor with replacements applied, or original if no targets specified.
     """
     if replacement_prob <= 0:
         return tokens
@@ -297,25 +233,16 @@ def apply_token_replacement(
 def should_poison_this_round(
     current_round: int, client_id: int, attack_schedule: Optional[list]
 ) -> Tuple[bool, list]:
-    """Determine if a client should be poisoned in the current round.
-
-    Checks attack schedule to see if the client is selected for poisoning
-    in the specified round based on the attack configuration.
+    """Determine if a client should be poisoned this round based on attack schedule.
 
     Args:
-        current_round: Current training round number
-        client_id: ID of the client to check
-        attack_schedule: List of attack configuration dicts with round ranges
-            and client selection strategies (optional)
+        current_round: Current training round number.
+        client_id: ID of the client to check.
+        attack_schedule: List of attack configuration dicts with round ranges and client targeting.
 
     Returns:
-        Tuple of (should_poison: bool, active_attacks: list)
-        - should_poison: True if client should be poisoned this round
-        - active_attacks: List of attack configs active for this client/round
-
-    Note:
-        Returns (False, []) if no attack_schedule provided or no attacks
-        are active for this client in this round.
+        Tuple of (should_poison, active_attacks) where active_attacks is a list of
+        matching attack configs for this client and round.
     """
     if not attack_schedule:
         return False, []
@@ -360,32 +287,24 @@ def apply_poisoning_attack(
     labels: torch.Tensor,
     attack_config: dict,
     tokenizer=None,
-    num_classes: int = None,
+    num_classes: int | None = None,
 ) -> Tuple[torch.Tensor, torch.Tensor]:
-    """Apply poisoning attack to dataset based on attack configuration.
+    """Apply a poisoning attack to dataset based on attack configuration.
 
-    Main entry point for applying attacks. Supports label_flipping,
-    gaussian_noise, and token_replacement attacks. Can apply multiple
-    attacks sequentially if attack_config is a list.
+    Supports label_flipping, gaussian_noise, and token_replacement attack types.
 
     Args:
-        data: Input data tensor (images or token IDs)
-        labels: Input label tensor
-        attack_config: Attack configuration dict or list of dicts
-        tokenizer: HuggingFace tokenizer for token_replacement attacks (optional)
-        num_classes: Number of classes for label_flipping attacks (optional)
+        data: Input data tensor (images or token IDs).
+        labels: Input label tensor.
+        attack_config: Attack configuration dict with 'attack_type' and type-specific params.
+        tokenizer: HuggingFace tokenizer for token_replacement attacks.
+        num_classes: Number of classes for label_flipping attacks.
 
     Returns:
-        Tuple of (poisoned_data, poisoned_labels)
+        Tuple of (poisoned_data, poisoned_labels).
 
     Raises:
-        ValueError: If old nested attack config format detected
-        ValueError: If unsupported attack type specified
-        ValueError: If required parameters missing for attack type
-
-    Note:
-        For multiple attacks, specify attack_config as list of dicts.
-        Each attack is applied sequentially to the output of the previous attack.
+        ValueError: If old nested attack config format detected or required params missing.
     """
     if "params" in attack_config or (
         "type" in attack_config and "attack_type" not in attack_config
