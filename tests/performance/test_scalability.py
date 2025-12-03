@@ -612,10 +612,10 @@ class TestByzantineScenarioPerformance:
     @pytest.mark.parametrize(
         "attack_config",
         [
-            {"num_clients": 20, "num_byzantine": 2, "attack_type": "gaussian"},
+            {"num_clients": 20, "num_byzantine": 2, "attack_type": "gaussian_noise"},
             {"num_clients": 30, "num_byzantine": 5, "attack_type": "zero"},
             {"num_clients": 40, "num_byzantine": 8, "attack_type": "flip"},
-            {"num_clients": 50, "num_byzantine": 10, "attack_type": "gaussian"},
+            {"num_clients": 50, "num_byzantine": 10, "attack_type": "gaussian_noise"},
         ],
     )
     def test_byzantine_defense_performance(

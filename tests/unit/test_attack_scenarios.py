@@ -12,8 +12,8 @@ ATTACK_SCENARIOS = [
     # (attack_type, defense_strategies, expected_robustness)
     ("gaussian_noise", ["trust", "krum", "rfa"], "high"),
     ("model_poisoning", ["multi-krum", "bulyan", "trimmed_mean"], "high"),
-    ("byzantine_clients", ["trust", "krum", "rfa", "bulyan"], "high"),
-    ("gradient_inversion", ["trust", "pid", "trimmed_mean"], "medium"),
+    ("byzantine_perturbation", ["trust", "krum", "rfa", "bulyan"], "high"),
+    ("gradient_scaling", ["trust", "pid", "trimmed_mean"], "medium"),
     ("label_flipping", ["krum", "multi-krum", "bulyan"], "high"),
     ("backdoor_attack", ["trust", "rfa", "bulyan"], "medium"),
 ]
@@ -91,7 +91,7 @@ class TestAttackScenarios:
 
             if expected_robustness == "high":
                 # High robustness: should detect and remove most Byzantine clients
-                mock_strategy.detect_byzantine_clients.return_value = list(
+                mock_strategy.detect_byzantine_perturbation.return_value = list(
                     range(num_byzantine)
                 )
                 # Use smaller values to ensure stability assertions pass
@@ -101,7 +101,7 @@ class TestAttackScenarios:
                 )
             elif expected_robustness == "medium":
                 # Medium robustness: should detect some Byzantine clients
-                mock_strategy.detect_byzantine_clients.return_value = list(
+                mock_strategy.detect_byzantine_perturbation.return_value = list(
                     range(num_byzantine // 2)
                 )
                 np.random.seed(42)  # Ensure reproducible results
@@ -110,14 +110,14 @@ class TestAttackScenarios:
                 )
             else:
                 # Low robustness: may not detect Byzantine clients effectively
-                mock_strategy.detect_byzantine_clients.return_value = []
+                mock_strategy.detect_byzantine_perturbation.return_value = []
                 np.random.seed(42)  # Ensure reproducible results
                 mock_strategy.aggregate_parameters.return_value = (
                     np.random.randn(param_size) * 0.1
                 )
 
             # Verify strategy can handle the attack
-            detected_byzantine = mock_strategy.detect_byzantine_clients()
+            detected_byzantine = mock_strategy.detect_byzantine_perturbation()
             aggregated_params = mock_strategy.aggregate_parameters()
 
             # Assertions based on expected robustness
@@ -142,8 +142,8 @@ class TestAttackScenarios:
         [
             "gaussian_noise",
             "model_poisoning",
-            "byzantine_clients",
-            "gradient_inversion",
+            "byzantine_perturbation",
+            "gradient_scaling",
         ],
     )
     def test_attack_parameter_generation(self, attack_type):
@@ -173,7 +173,11 @@ class TestAttackScenarios:
         # Verify attack characteristics
         param_norms = [np.linalg.norm(params) for params in attack_params]
 
-        if attack_type in ["gaussian_noise", "model_poisoning", "byzantine_clients"]:
+        if attack_type in [
+            "gaussian_noise",
+            "model_poisoning",
+            "byzantine_perturbation",
+        ]:
             # These attacks should produce some parameters with large norms
             max_norm = max(param_norms)
             assert max_norm > 5.0, (
@@ -227,11 +231,11 @@ class TestAttackScenarios:
 
                 # Simulate detection - ensure at least 1 detection for low ratios
                 detected_count = max(1, int(num_byzantine * expected_detection_rate))
-                mock_strategy.detect_byzantine_clients.return_value = list(
+                mock_strategy.detect_byzantine_perturbation.return_value = list(
                     range(detected_count)
                 )
 
-                detected_byzantine = mock_strategy.detect_byzantine_clients()
+                detected_byzantine = mock_strategy.detect_byzantine_perturbation()
 
                 # Verify detection performance
                 detection_rate = len(detected_byzantine) / num_byzantine
@@ -258,7 +262,11 @@ class TestAttackScenarios:
         param_size = 600
 
         # Test against multiple attack types
-        for attack_type in ["gaussian_noise", "model_poisoning", "byzantine_clients"]:
+        for attack_type in [
+            "gaussian_noise",
+            "model_poisoning",
+            "byzantine_perturbation",
+        ]:
             generate_byzantine_client_parameters(
                 num_clients=num_clients,
                 num_byzantine=num_byzantine,
@@ -289,7 +297,9 @@ class TestAttackScenarios:
                 )
                 aggregation_results.append(aggregated)
 
-                mock_strategy.detect_byzantine_clients.return_value = strategy_detection
+                mock_strategy.detect_byzantine_perturbation.return_value = (
+                    strategy_detection
+                )
                 mock_strategy.aggregate_parameters.return_value = aggregated
 
             # Combine results from multiple strategies
@@ -347,7 +357,7 @@ class TestAttackScenarios:
             else:
                 detected_count = int(num_byzantine * detection_success_rate)
 
-            mock_strategy.detect_byzantine_clients.return_value = list(
+            mock_strategy.detect_byzantine_perturbation.return_value = list(
                 range(detected_count)
             )
 
@@ -360,7 +370,7 @@ class TestAttackScenarios:
                 np.random.randn(param_size) * aggregation_noise
             )
 
-            detected_byzantine = mock_strategy.detect_byzantine_clients()
+            detected_byzantine = mock_strategy.detect_byzantine_perturbation()
             aggregated_params = mock_strategy.aggregate_parameters()
 
             # Verify detection performance matches expected difficulty
@@ -421,7 +431,7 @@ class TestAttackScenarios:
             aggregation_noise = 0.01
 
         detected_count = int(num_byzantine * detection_rate)
-        mock_strategy.detect_byzantine_clients.return_value = list(
+        mock_strategy.detect_byzantine_perturbation.return_value = list(
             range(detected_count)
         )
         np.random.seed(42)  # Ensure reproducible results
@@ -429,7 +439,7 @@ class TestAttackScenarios:
             param_size
         ) * min(aggregation_noise, 0.1)
 
-        detected_byzantine = mock_strategy.detect_byzantine_clients()
+        detected_byzantine = mock_strategy.detect_byzantine_perturbation()
         aggregated_params = mock_strategy.aggregate_parameters()
 
         # Verify dataset-specific behavior
@@ -469,7 +479,7 @@ class TestAttackScenarios:
                 detection_rate = 0.6
 
             detected_count = int(num_byzantine * detection_rate)
-            mock_strategy.detect_byzantine_clients.return_value = list(
+            mock_strategy.detect_byzantine_perturbation.return_value = list(
                 range(detected_count)
             )
 
@@ -480,7 +490,7 @@ class TestAttackScenarios:
                 np.random.randn(param_size) * aggregation_noise
             )
 
-            detected_byzantine = mock_strategy.detect_byzantine_clients()
+            detected_byzantine = mock_strategy.detect_byzantine_perturbation()
             aggregated_params = mock_strategy.aggregate_parameters()
 
             # Verify coordinated attack detection
@@ -545,16 +555,16 @@ class TestAttackScenarios:
                         detection_rate = 0.7
 
                     detected_count = int(num_byzantine * detection_rate)
-                    mock_strategy.detect_byzantine_clients.return_value = list(
+                    mock_strategy.detect_byzantine_perturbation.return_value = list(
                         range(detected_count)
                     )
                 else:
                     # No attacks to detect in normal rounds
-                    mock_strategy.detect_byzantine_clients.return_value = []
+                    mock_strategy.detect_byzantine_perturbation.return_value = []
 
                 mock_strategy.get_round_number.return_value = round_num
 
-                detected_byzantine = mock_strategy.detect_byzantine_clients()
+                detected_byzantine = mock_strategy.detect_byzantine_perturbation()
                 current_round = mock_strategy.get_round_number()
 
                 # Verify timing-aware detection
@@ -602,7 +612,7 @@ class TestAttackScenarios:
                 else:
                     detected_count = int(num_byzantine * detection_rate)
 
-                mock_strategy.detect_byzantine_clients.return_value = list(
+                mock_strategy.detect_byzantine_perturbation.return_value = list(
                     range(detected_count)
                 )
 
@@ -613,7 +623,7 @@ class TestAttackScenarios:
                     np.random.randn(param_size) * aggregation_noise
                 )
 
-                detected_byzantine = mock_strategy.detect_byzantine_clients()
+                detected_byzantine = mock_strategy.detect_byzantine_perturbation()
                 aggregated_params = mock_strategy.aggregate_parameters()
 
                 # Verify robustness thresholds

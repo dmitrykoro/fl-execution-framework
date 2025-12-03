@@ -414,10 +414,14 @@ class TestByzantineFaultTolerance:
             # Byzantine client attacks
             (
                 ["trust", "krum", "rfa", "bulyan"],
-                "byzantine_clients",
+                "byzantine_perturbation",
                 "very_high_robustness",
             ),
-            (["multi-krum", "trimmed_mean"], "byzantine_clients", "high_robustness"),
+            (
+                ["multi-krum", "trimmed_mean"],
+                "byzantine_perturbation",
+                "high_robustness",
+            ),
         ],
     )
     def test_byzantine_fault_tolerance_combinations(
@@ -695,23 +699,27 @@ class TestAttackDefenseScenarios:
             ("model_poisoning", ["pid"], "low_effectiveness"),
             # Byzantine client attacks
             (
-                "byzantine_clients",
+                "byzantine_perturbation",
                 ["trust", "krum", "rfa", "bulyan"],
                 "very_high_effectiveness",
             ),
-            ("byzantine_clients", ["multi-krum", "trimmed_mean"], "high_effectiveness"),
             (
-                "byzantine_clients",
+                "byzantine_perturbation",
+                ["multi-krum", "trimmed_mean"],
+                "high_effectiveness",
+            ),
+            (
+                "byzantine_perturbation",
                 ["pid_scaled", "pid_standardized"],
                 "medium_effectiveness",
             ),
             # Gradient inversion attacks
             (
-                "gradient_inversion",
+                "gradient_scaling",
                 ["trust", "pid", "trimmed_mean"],
                 "medium_effectiveness",
             ),
-            ("gradient_inversion", ["krum", "bulyan"], "high_effectiveness"),
+            ("gradient_scaling", ["krum", "bulyan"], "high_effectiveness"),
         ],
     )
     def test_attack_defense_scenario_workflows(
@@ -816,7 +824,7 @@ class TestAttackDefenseScenarios:
         mocks = mock_attack_simulation_components
 
         # Test defense against multiple attacks
-        attack_types = ["gaussian_noise", "model_poisoning", "byzantine_clients"]
+        attack_types = ["gaussian_noise", "model_poisoning", "byzantine_perturbation"]
         defense_strategies = ["trust", "krum", "rfa", "bulyan", "trimmed_mean"]
 
         # Create configurations for each attack type with all defense strategies
@@ -954,7 +962,7 @@ class TestAttackDefenseScenarios:
                 "expected_params": {"num_krum_selections": 6},
             },
             {
-                "attack_type": "byzantine_clients",
+                "attack_type": "byzantine_perturbation",
                 "defense_strategy": "bulyan",
                 "attack_intensity": "low",
                 "expected_params": {},
