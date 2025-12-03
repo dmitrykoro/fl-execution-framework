@@ -2,7 +2,7 @@ import numpy as np
 import flwr as fl
 import logging
 
-from typing import Optional, Union
+from typing import Dict, List, Optional, Set, Tuple, Union
 
 from flwr.common import Parameters, Scalar
 from flwr.server.strategy.aggregate import weighted_loss_avg
@@ -34,8 +34,8 @@ class TrimmedMeanBasedRemovalStrategy(FedAvg):
         self.strategy_history = strategy_history
 
     def aggregate_fit(
-        self, server_round: int, results: list[tuple], failures: list[BaseException]
-    ) -> tuple[Optional[Union[ndarrays_to_parameters, bytes]], dict[str, Scalar]]:
+        self, server_round: int, results: List[Tuple], failures: List[BaseException]
+    ) -> Tuple[Optional[Union[ndarrays_to_parameters, bytes]], Dict[str, Scalar]]:
         self.current_round += 1
 
         # Update client.is_malicious based on attack_schedule for dynamic attacks
@@ -85,7 +85,7 @@ class TrimmedMeanBasedRemovalStrategy(FedAvg):
         weights_by_layer = list(zip(*[w for w, _, _ in weights_results]))
         aggregated = []
 
-        trimmed_clients: set[str] = set()
+        trimmed_clients: Set[str] = set()
 
         # Track trim frequency per client for removal_criterion
         client_trim_counts = {cid: 0 for _, _, cid in weights_results}
@@ -152,15 +152,18 @@ class TrimmedMeanBasedRemovalStrategy(FedAvg):
 
     def configure_fit(
         self, server_round: int, parameters: Parameters, client_manager
-    ) -> list[tuple[ClientProxy, fl.common.FitIns]]:
+    ) -> List[Tuple[ClientProxy, fl.common.FitIns]]:
         currently_removed_client_ids = set()
 
         # Fetch available clients as a dictionary.
         available_clients = client_manager.all()
 
         # Select all clients in the warmup rounds.
-        if self.current_round <= self.begin_removing_from_round:
-            fit_ins = fl.common.FitIns(parameters, {})
+        if (
+            self.begin_removing_from_round is not None
+            and self.current_round <= self.begin_removing_from_round
+        ):
+            fit_ins = fl.common.FitIns(parameters, {"server_round": server_round})
             return [(client, fit_ins) for client in available_clients.values()]
 
         # Build client scores from all available clients
@@ -175,7 +178,7 @@ class TrimmedMeanBasedRemovalStrategy(FedAvg):
             currently_removed_client_ids.add(client_id)
 
         selected_client_ids = sorted(client_scores, key=client_scores.get, reverse=True)
-        fit_ins = fl.common.FitIns(parameters, {})
+        fit_ins = fl.common.FitIns(parameters, {"server_round": server_round})
 
         return [
             (available_clients[cid], fit_ins)
@@ -186,9 +189,9 @@ class TrimmedMeanBasedRemovalStrategy(FedAvg):
     def aggregate_evaluate(
         self,
         server_round: int,
-        results: list[tuple[ClientProxy, EvaluateRes]],
-        failures: list[tuple[Union[ClientProxy, EvaluateRes], BaseException]],
-    ) -> tuple[Optional[float], dict[str, Scalar]]:
+        results: List[Tuple[ClientProxy, EvaluateRes]],
+        failures: List[Tuple[Union[ClientProxy, EvaluateRes], BaseException]],
+    ) -> Tuple[Optional[float], Dict[str, Scalar]]:
         logging.info("\n" + "-" * 50 + f"AGGREGATION ROUND {server_round}" + "-" * 50)
 
         for client_result in results:
@@ -240,7 +243,7 @@ class TrimmedMeanBasedRemovalStrategy(FedAvg):
 
         return loss_aggregated, metrics_aggregated
 
-    def _average_weights(self, weights: list[list[np.ndarray]]) -> list[np.ndarray]:
+    def _average_weights(self, weights: List[List[np.ndarray]]) -> List[np.ndarray]:
         """Compute average weights."""
         avg_weights = []
         for layers in zip(*weights):
