@@ -287,7 +287,7 @@ def apply_poisoning_attack(
     labels: torch.Tensor,
     attack_config: dict,
     tokenizer=None,
-    num_classes: int | None = None,
+    num_classes: Optional[int] = None,
 ) -> Tuple[torch.Tensor, torch.Tensor]:
     """Apply a poisoning attack to dataset based on attack configuration.
 
