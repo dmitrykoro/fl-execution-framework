@@ -11,6 +11,11 @@ from src.network_models.bert_model_definition import (
 )
 from src.attack_utils.poisoning import should_poison_this_round, apply_poisoning_attack
 from src.attack_utils.attack_snapshots import save_attack_snapshot, save_visual_snapshot
+from src.attack_utils.weight_poisoning import (
+    apply_weight_poisoning,
+    WEIGHT_ATTACK_TYPES,
+)
+from src.attack_utils.weight_snapshots import save_weight_snapshot
 
 
 class FlowerClient(fl.client.NumPyClient):
@@ -424,8 +429,61 @@ class FlowerClient(fl.client.NumPyClient):
         if torch.cuda.is_available():
             torch.cuda.empty_cache()
 
+        # Get trained parameters
+        trained_parameters = self.get_parameters(self.net)
+
+        # Apply weight-level poisoning if scheduled
+        current_round = config.get("server_round", 1) if config else 1
+        should_poison, attack_configs = should_poison_this_round(
+            current_round, self.client_id, self.attacks_schedule
+        )
+
+        # Filter to only weight-level attacks
+        weight_attack_configs = [
+            cfg
+            for cfg in attack_configs
+            if cfg.get("attack_type") in WEIGHT_ATTACK_TYPES
+        ]
+
+        if should_poison and weight_attack_configs:
+            logging.info(
+                f"[Client {self.client_id}] WEIGHT POISONING at round {current_round}: "
+                f"{[cfg.get('attack_type') for cfg in weight_attack_configs]}"
+            )
+
+            # Save snapshot before poisoning if configured
+            params_before = None
+            if self.save_attack_snapshots and self.output_dir:
+                params_before = [p.copy() for p in trained_parameters]
+
+            # Apply weight poisoning
+            poisoned_parameters = apply_weight_poisoning(
+                trained_parameters, weight_attack_configs
+            )
+
+            # Save weight snapshot after poisoning
+            if self.save_attack_snapshots and self.output_dir and params_before:
+                for attack_cfg in weight_attack_configs:
+                    save_weight_snapshot(
+                        parameters_before=params_before,
+                        parameters_after=poisoned_parameters,
+                        attack_type=attack_cfg.get("attack_type"),
+                        attack_config=attack_cfg,
+                        client_id=self.client_id,
+                        round_num=current_round,
+                        output_dir=self.output_dir,
+                        strategy_number=self.strategy_number,
+                        experiment_info=self.experiment_info,
+                    )
+
+            return (
+                poisoned_parameters,
+                len(self.trainloader.dataset),
+                {"loss": epoch_loss, "accuracy": epoch_acc},
+            )
+
         return (
-            self.get_parameters(self.net),
+            trained_parameters,
             len(self.trainloader.dataset),
             {"loss": epoch_loss, "accuracy": epoch_acc},
         )

@@ -120,6 +120,9 @@ config_schema = {
                             "label_flipping",
                             "gaussian_noise",
                             "token_replacement",
+                            "model_poisoning",
+                            "gradient_scaling",
+                            "byzantine_perturbation",
                         ],
                     },
                     "selection_strategy": {
@@ -139,6 +142,20 @@ config_schema = {
                     "random_seed": {"type": "integer", "minimum": 0},
                     "target_noise_snr": {"type": "number"},
                     "attack_ratio": {"type": "number", "minimum": 0.0, "maximum": 1.0},
+                    # Weight poisoning parameters
+                    "poison_ratio": {"type": "number", "minimum": 0.0, "maximum": 1.0},
+                    "magnitude": {"type": "number", "minimum": 0.0},
+                    "scale_factor": {"type": "number", "minimum": 0.0},
+                    "noise_scale": {"type": "number", "minimum": 0.0},
+                    "seed": {"type": "integer", "minimum": 0},
+                    # Token replacement parameters
+                    "target_vocabulary": {"type": "string"},
+                    "replacement_strategy": {"type": "string"},
+                    "replacement_prob": {
+                        "type": "number",
+                        "minimum": 0.0,
+                        "maximum": 1.0,
+                    },
                 },
                 "required": [
                     "start_round",
