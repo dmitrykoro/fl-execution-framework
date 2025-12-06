@@ -37,7 +37,7 @@
           "start_round": 1,
           "end_round": 1,
           "attack_type": "byzantine_perturbation",
-          "noise_scale": 10.0,
+          "noise_scale": 3.0,
           "selection_strategy": "specific",
           "malicious_client_ids": [0]
         }
@@ -50,7 +50,7 @@
           "start_round": 4,
           "end_round": 4,
           "attack_type": "gradient_scaling",
-          "scale_factor": 3.0,
+          "scale_factor": 2.0,
           "selection_strategy": "specific",
           "malicious_client_ids": [0]
         }

@@ -37,7 +37,7 @@
           "start_round": 2,
           "end_round": 4,
           "attack_type": "byzantine_perturbation",
-          "noise_scale": 15.0,
+          "noise_scale": 3.0,
           "selection_strategy": "specific",
           "malicious_client_ids": [0]
         }

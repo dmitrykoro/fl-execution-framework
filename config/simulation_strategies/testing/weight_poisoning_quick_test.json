@@ -38,7 +38,7 @@
           "end_round": 4,
           "attack_type": "model_poisoning",
           "poison_ratio": 0.2,
-          "magnitude": 100.0,
+          "magnitude": 5.0,
           "selection_strategy": "specific",
           "malicious_client_ids": [0]
         }

@@ -38,7 +38,7 @@
           "end_round": 4,
           "attack_type": "model_poisoning",
           "poison_ratio": 0.1,
-          "magnitude": 50.0,
+          "magnitude": 5.0,
           "selection_strategy": "specific",
           "malicious_client_ids": [0]
         }
@@ -51,7 +51,7 @@
           "start_round": 2,
           "end_round": 4,
           "attack_type": "gradient_scaling",
-          "scale_factor": 5.0,
+          "scale_factor": 2.0,
           "selection_strategy": "specific",
           "malicious_client_ids": [1]
         }
@@ -64,7 +64,7 @@
           "start_round": 2,
           "end_round": 4,
           "attack_type": "byzantine_perturbation",
-          "noise_scale": 15.0,
+          "noise_scale": 3.0,
           "selection_strategy": "specific",
           "malicious_client_ids": [2]
         }
@@ -78,7 +78,7 @@
           "end_round": 3,
           "attack_type": "model_poisoning",
           "poison_ratio": 0.1,
-          "magnitude": 50.0,
+          "magnitude": 5.0,
           "selection_strategy": "specific",
           "malicious_client_ids": [0]
         },
@@ -86,7 +86,7 @@
           "start_round": 4,
           "end_round": 5,
           "attack_type": "gradient_scaling",
-          "scale_factor": 3.0,
+          "scale_factor": 2.0,
           "selection_strategy": "specific",
           "malicious_client_ids": [1]
         },
@@ -94,7 +94,7 @@
           "start_round": 6,
           "end_round": 7,
           "attack_type": "byzantine_perturbation",
-          "noise_scale": 10.0,
+          "noise_scale": 3.0,
           "selection_strategy": "specific",
           "malicious_client_ids": [2]
         }
