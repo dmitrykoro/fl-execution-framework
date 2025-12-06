@@ -68,7 +68,11 @@ class SimulationRunner:
         flwr_logger.propagate = False
 
         self._config_loader = ConfigLoader(
-            usecase_config_path=f"config/simulation_strategies/{config_filename}",
+            usecase_config_path=(
+                config_filename
+                if os.path.isabs(config_filename) or os.path.exists(config_filename)
+                else f"config/simulation_strategies/{config_filename}"
+            ),
             dataset_config_path="config/dataset_keyword_to_dataset_dir.json",
         )
         self._simulation_strategy_config_dicts = (
