@@ -160,13 +160,16 @@ class DirectoryHandler:
             writer.writerow(csv_headers)
 
             metric_cells = []
-            started_removing_from = self.simulation_strategy_history.strategy_config.begin_removing_from_round
+            started_removing_from = (
+                self.simulation_strategy_history.strategy_config.begin_removing_from_round
+                or 1
+            )
 
             for metric_name in statsable_metrics:
                 collected_history = (
                     self.simulation_strategy_history.rounds_history.get_metric_by_name(
                         metric_name
-                    )[started_removing_from : -1 - 1]
+                    )[started_removing_from - 1 :]
                 )
 
                 metric_mean = np.mean(collected_history) if collected_history else 0.0

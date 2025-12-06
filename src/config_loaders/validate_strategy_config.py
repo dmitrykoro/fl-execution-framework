@@ -93,7 +93,7 @@ config_schema = {
         "batch_size": {"type": "integer"},
         # Strategy specific parameters
         # Trust
-        "begin_removing_from_round": {"type": "integer"},
+        "begin_removing_from_round": {"type": "integer", "minimum": 1},
         "trust_threshold": {"type": "number"},
         "beta_value": {"type": "number"},
         "num_of_clusters": {"type": "integer", "minimum": 1, "maximum": 1},
