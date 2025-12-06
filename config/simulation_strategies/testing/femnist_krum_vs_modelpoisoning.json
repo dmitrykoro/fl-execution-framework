@@ -1,0 +1,48 @@
+{
+  "shared_settings": {
+    "strict_mode": "true",
+    "aggregation_strategy_keyword": "krum",
+    "remove_clients": "true",
+    "dataset_keyword": "femnist_iid",
+    "use_llm": "false",
+    "num_of_rounds": 5,
+    "num_of_clients": 6,
+    "num_of_malicious_clients": 1,
+    "show_plots": "false",
+    "save_plots": "true",
+    "save_csv": "true",
+    "preserve_dataset": "false",
+    "training_subset_fraction": 0.1,
+    "training_device": "cpu",
+    "cpus_per_client": 1,
+    "gpus_per_client": 0.0,
+    "model_type": "cnn",
+    "num_of_client_epochs": 1,
+    "batch_size": 32,
+    "min_fit_clients": 6,
+    "min_evaluate_clients": 6,
+    "min_available_clients": 6,
+    "evaluate_metrics_aggregation_fn": "weighted_average",
+    "num_krum_selections": 4,
+    "save_attack_snapshots": "true",
+    "attack_snapshot_format": "pickle_and_visual",
+    "snapshot_max_samples": 3,
+    "begin_removing_from_round": 2
+  },
+  "simulation_strategies": [
+    {
+      "strategy_name": "Krum vs Model Poisoning (FEMNIST)",
+      "attack_schedule": [
+        {
+          "start_round": 2,
+          "end_round": 4,
+          "attack_type": "model_poisoning",
+          "poison_ratio": 0.2,
+          "magnitude": 5.0,
+          "selection_strategy": "specific",
+          "malicious_client_ids": [0]
+        }
+      ]
+    }
+  ]
+}
