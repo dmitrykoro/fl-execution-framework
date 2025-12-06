@@ -11,8 +11,6 @@ venv
 out
 datasets/
 /datasets/*
-
-# Coverage files
 .coverage
 .coverage.*
 htmlcov/
@@ -24,10 +22,5 @@ pytest.log
 tests/logs/
 .sonarwork/
 *sonar-project.properties
-build/
-cache/
-dist/
 timing_db.json
-
-# Personal local utilities
-local/
+logs/

@@ -6,6 +6,7 @@ import os
 import subprocess
 import sys
 import time
+from datetime import datetime
 from pathlib import Path
 from typing import Optional, List
 from dataclasses import dataclass
@@ -90,8 +91,6 @@ class ExperimentExecutor:
 
     def _open_log_file(self) -> None:
         """Create and open a log file for capturing all experiment output."""
-        from datetime import datetime
-
         # Create logs directory if it doesn't exist
         logs_dir = self.project_root / "logs"
         logs_dir.mkdir(exist_ok=True)
@@ -120,6 +119,28 @@ class ExperimentExecutor:
             self.log_file_handle.write("=" * 80 + "\n")
             self.log_file_handle.close()
             self.log_file_handle = None
+
+    def _kill_ray_processes(self) -> None:
+        """Kill stray Ray processes to prevent resource leaks.
+
+        On Windows, Ray's raylet.exe can become orphaned and hold GPU memory,
+        file locks, and network ports. This ensures clean slate between experiments.
+        """
+        try:
+            if sys.platform == "win32":
+                subprocess.run(
+                    ["taskkill", "/F", "/IM", "raylet.exe"],
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                )
+            else:
+                subprocess.run(
+                    ["pkill", "-9", "-f", "raylet"],
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                )
+        except Exception:
+            pass  # Don't crash if cleanup fails
 
     def _get_config_title(self, config_name: str) -> Optional[str]:
         """Extract title from config file if available.
@@ -364,6 +385,11 @@ class ExperimentExecutor:
             return ExperimentResult(
                 config_name, ExecutionResult.FAILED, -1, duration, output_dir
             )
+
+        finally:
+            # Always kill stray Ray processes to prevent resource leaks
+            self._kill_ray_processes()
+            gc.collect()
 
     def cleanup(self, is_last: bool = False) -> None:
         """Perform cleanup between experiments.
