@@ -79,7 +79,7 @@ Defines the aggregation strategy. Options:
 - **`attack_schedule`**: array of attack entries for round-based attack configuration. Each entry requires:
   - `start_round`: when the attack should start (1 to `num_of_rounds`).
   - `end_round`: when the attack should end (1 to `num_of_rounds`).
-  - `attack_type`: type of attack to apply. Options: `label_flipping`, `gaussian_noise`, `token_replacement`.
+  - `attack_type`: type of attack to apply. Options: `label_flipping`, `gaussian_noise`, `token_replacement`, `model_poisoning`, `gradient_scaling`, `byzantine_perturbation`.
   - `selection_strategy`: how to select malicious clients. Options: `specific`, `random`, `percentage`.
   - **Attack type parameters:**
     - `label_flipping`: no parameters required.
@@ -87,6 +87,9 @@ Defines the aggregation strategy. Options:
     - `token_replacement`:
       - Vocabulary-based (recommended): `target_vocabulary` (`"medical"`, `"financial"`, or `"legal"`), `replacement_strategy` (`"negative"` or `"positive"`, defaults to `"negative"`), `replacement_probability` (0.0-1.0, defaults to 0.2).
       - Manual token IDs: `target_token_ids` (array), `replacement_token_ids` (array), `replacement_probability` (0.0-1.0, defaults to 0.2).
+    - `model_poisoning`: `poison_ratio` (0.0-1.0, fraction of weights to poison), `magnitude` (standard deviations).
+    - `gradient_scaling`: `scale_factor` (multiplier for all weights).
+    - `byzantine_perturbation`: `noise_scale` (standard deviations of random noise).
   - **Client selection parameters:**
     - `specific`: `malicious_client_ids` (array of client IDs).
     - `random`: `malicious_client_count` (integer).
@@ -148,6 +151,17 @@ Defines the aggregation strategy. Options:
 3. **Specify Configuration**: update `src/simulation_runner.py` with the desired configuration file.
 4. **Execution**: run `sh run_simulation.sh` (automated virtual environment setup and execution).
 5. **Output**: plots and `.csv` files (if enabled) saved in `out/` directory.
+
+### Batch Experiments
+
+1. **Execution**: run experiment groups with the interactive runner.
+   ```bash
+   python -m tests.scripts.experiment_runner testing
+   python -m tests.scripts.experiment_runner gpu
+   python -m tests.scripts.experiment_runner examples
+   ```
+2. **Selection**: choose experiments from the interactive menu.
+3. **Output**: artifacts (logs, plots, CSVs) saved to `out/<timestamp>_<config_name>/`.
 
 ---
 
