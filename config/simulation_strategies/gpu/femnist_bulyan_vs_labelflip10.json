@@ -1,0 +1,52 @@
+{
+  "_title": "Bulyan vs 10% Label Flipping (FEMNIST)",
+  "shared_settings": {
+    "aggregation_strategy_keyword": "bulyan",
+    "remove_clients": "true",
+    "dataset_keyword": "femnist_iid",
+    "use_llm": "false",
+    "model_type": "cnn",
+    "num_of_rounds": 50,
+    "num_of_clients": 20,
+    "show_plots": "false",
+    "save_plots": "true",
+    "save_csv": "true",
+    "training_device": "gpu",
+    "cpus_per_client": 1.0,
+    "gpus_per_client": 0.9,
+    "trust_threshold": 0.15,
+    "beta_value": 0.75,
+    "num_of_clusters": 1,
+    "Kp": 1,
+    "Ki": 0.05,
+    "Kd": 0.05,
+    "num_krum_selections": 16,
+    "training_subset_fraction": 0.9,
+    "min_fit_clients": 20,
+    "min_evaluate_clients": 20,
+    "min_available_clients": 20,
+    "evaluate_metrics_aggregation_fn": "weighted_average",
+    "num_of_client_epochs": 3,
+    "batch_size": 10,
+    "preserve_dataset": "false",
+    "save_attack_snapshots": "true",
+    "attack_snapshot_format": "pickle_and_visual",
+    "snapshot_max_samples": 5,
+    "begin_removing_from_round": 2
+  },
+  "simulation_strategies": [
+    {
+      "attack_schedule": [
+        {
+          "start_round": 1,
+          "end_round": 50,
+          "attack_type": "label_flipping",
+          "flip_fraction": 1.0,
+          "target_class": 7,
+          "selection_strategy": "percentage",
+          "malicious_percentage": 0.1
+        }
+      ]
+    }
+  ]
+}

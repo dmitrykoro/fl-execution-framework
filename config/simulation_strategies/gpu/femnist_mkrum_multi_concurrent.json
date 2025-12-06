@@ -1,0 +1,55 @@
+{
+  "_title": "Multi-Krum vs Concurrent Multi-Attack (FEMNIST)",
+  "shared_settings": {
+    "aggregation_strategy_keyword": "multi-krum",
+    "num_krum_selections": 3,
+    "remove_clients": "false",
+    "begin_removing_from_round": 20,
+    "dataset_keyword": "femnist_iid",
+    "model_type": "cnn",
+    "use_llm": "false",
+    "num_of_rounds": 15,
+    "num_of_clients": 10,
+    "show_plots": "false",
+    "save_plots": "true",
+    "save_csv": "true",
+    "preserve_dataset": "false",
+    "training_subset_fraction": 0.3,
+    "training_device": "gpu",
+    "cpus_per_client": 1.0,
+    "gpus_per_client": 0.9,
+    "min_fit_clients": 10,
+    "min_evaluate_clients": 10,
+    "min_available_clients": 10,
+    "evaluate_metrics_aggregation_fn": "weighted_average",
+    "num_of_client_epochs": 1,
+    "batch_size": 16,
+    "save_attack_snapshots": "true",
+    "attack_snapshot_format": "pickle_and_visual",
+    "snapshot_max_samples": 5
+  },
+  "simulation_strategies": [
+    {
+      "attack_schedule": [
+        {
+          "start_round": 1,
+          "end_round": 15,
+          "attack_type": "gaussian_noise",
+          "selection_strategy": "percentage",
+          "malicious_percentage": 0.5,
+          "target_noise_snr": 12.0,
+          "attack_ratio": 0.5
+        },
+        {
+          "start_round": 1,
+          "end_round": 15,
+          "attack_type": "label_flipping",
+          "selection_strategy": "percentage",
+          "malicious_percentage": 0.5,
+          "flip_fraction": 0.7,
+          "target_class": 5
+        }
+      ]
+    }
+  ]
+}

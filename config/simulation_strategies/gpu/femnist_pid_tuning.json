@@ -1,0 +1,68 @@
+{
+  "_title": "PID Controller Tuning Experiment (FEMNIST)",
+  "shared_settings": {
+    "aggregation_strategy_keyword": "pid",
+    "remove_clients": "true",
+    "begin_removing_from_round": 5,
+    "dataset_keyword": "femnist_iid",
+    "model_type": "cnn",
+    "use_llm": "false",
+    "num_of_rounds": 40,
+    "num_of_clients": 12,
+    "show_plots": "false",
+    "save_plots": "true",
+    "save_csv": "true",
+    "preserve_dataset": "false",
+    "training_subset_fraction": 0.85,
+    "training_device": "gpu",
+    "cpus_per_client": 1.0,
+    "gpus_per_client": 0.9,
+    "min_fit_clients": 12,
+    "min_evaluate_clients": 12,
+    "min_available_clients": 12,
+    "pid_threshold": 1.5,
+    "Kp": 1.2,
+    "Ki": 0.8,
+    "Kd": 0.1,
+    "num_std_dev": 2.0,
+    "evaluate_metrics_aggregation_fn": "weighted_average",
+    "num_of_client_epochs": 2,
+    "batch_size": 32,
+    "save_attack_snapshots": "true",
+    "attack_snapshot_format": "pickle_and_visual",
+    "snapshot_max_samples": 5
+  },
+  "simulation_strategies": [
+    {
+      "attack_schedule": [
+        {
+          "start_round": 1,
+          "end_round": 15,
+          "attack_type": "label_flipping",
+          "flip_fraction": 0.7,
+          "target_class": 7,
+          "selection_strategy": "percentage",
+          "malicious_percentage": 0.25
+        },
+        {
+          "start_round": 16,
+          "end_round": 30,
+          "attack_type": "gaussian_noise",
+          "target_noise_snr": 9.0,
+          "attack_ratio": 0.75,
+          "selection_strategy": "percentage",
+          "malicious_percentage": 0.25
+        },
+        {
+          "start_round": 31,
+          "end_round": 40,
+          "attack_type": "gaussian_noise",
+          "target_noise_snr": 10.0,
+          "attack_ratio": 1.0,
+          "selection_strategy": "percentage",
+          "malicious_percentage": 0.25
+        }
+      ]
+    }
+  ]
+}
