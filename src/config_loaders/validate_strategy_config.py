@@ -526,8 +526,16 @@ def _validate_llm_parameters(strategy_config: dict) -> None:
 def _apply_strict_mode(config: dict) -> None:
     """Handle strict_mode validation and client configuration logic."""
 
-    # Set strict_mode to "true" by default if not specified; force strict mode when config is AI generated
-    if "strict_mode" not in config or config["config_is_ai_generated"] == "true":
+    # set strict mode if AI generated, try-catch for legacy configs
+    try:
+        if config["config_is_ai_generated"] == "true":
+            config["strict_mode"] = "true"
+
+    except Exception as e: # noqa
+        pass
+
+    # Set strict_mode to "true" by default if not specified
+    if "strict_mode" not in config:
         config["strict_mode"] = "true"
 
     strict_mode = config["strict_mode"] == "true"

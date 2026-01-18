@@ -167,6 +167,7 @@ class SimulationRunner:
 
         # after all strategies are executed, show comparison averaging plots
         new_plot_handler.show_inter_strategy_plots(executed_simulation_strategies, self._directory_handler)
+
         try:
             output_dir = getattr(self._directory_handler, 'dirname', None)
             if output_dir:
