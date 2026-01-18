@@ -14,6 +14,8 @@ from flwr.server.client_proxy import ClientProxy
 
 from src.output_handlers.directory_handler import DirectoryHandler
 from src.data_models.simulation_strategy_history import SimulationStrategyHistory
+from src.utils.medmentions_strategy_helper import aggregate_strict_medmentions_metrics
+
 
 class PIDBasedRemovalStrategy(fl.server.strategy.FedAvg):
     def __init__(
@@ -261,7 +263,7 @@ class PIDBasedRemovalStrategy(fl.server.strategy.FedAvg):
         available_clients = client_manager.all()  # dictionary with client IDs as keys and RayActorClientProxy objects as values
 
         # in the warmup rounds, select all clients
-        if self.current_round <= self.begin_removing_from_round - 1:
+        if self.begin_removing_from_round is not None and self.current_round <= self.begin_removing_from_round - 1:
             fit_ins = fl.common.FitIns(parameters, {"server_round": server_round})
             return [(client, fit_ins) for client in available_clients.values()]
 
@@ -269,7 +271,7 @@ class PIDBasedRemovalStrategy(fl.server.strategy.FedAvg):
 
         if self.remove_clients:
             # in the first round after warmup, remove the client with the highest PID
-            if self.current_round == self.begin_removing_from_round and False:
+            if self.begin_removing_from_round is not None and self.current_round == self.begin_removing_from_round and False:
                 highest_pid_client = max(client_pids, key=client_pids.get)
                 self.logger.info(f"Removing client with highest PID: {highest_pid_client}")
                 # add this client to the removed_clients list
@@ -283,8 +285,11 @@ class PIDBasedRemovalStrategy(fl.server.strategy.FedAvg):
                         # add this client to the removed_clients list
                         self.removed_client_ids.add(client_id)
 
+        # Use server_round (not self.current_round) because current_round is incremented
+        # in aggregate_fit which runs AFTER configure_fit. Using self.current_round would
+        # cause the last round's participation to never be recorded.
         self.strategy_history.update_client_participation(
-            current_round=self.current_round, removed_client_ids=self.removed_client_ids
+            current_round=server_round, removed_client_ids=self.removed_client_ids
         )
 
         self.logger.info(f"removed clients are : {self.removed_client_ids}")
@@ -343,6 +348,14 @@ class PIDBasedRemovalStrategy(fl.server.strategy.FedAvg):
             logging.debug(f'Loss: {result[1].loss}')
 
         metrics_aggregated = {}
+        metrics_aggregated = aggregate_strict_medmentions_metrics(
+            results=results,
+            removed_client_ids=self.removed_client_ids,
+            remove_clients=self.remove_clients,
+            current_round=self.current_round,
+            begin_removing_from_round=self.begin_removing_from_round,
+            strategy_history=self.strategy_history
+        )
 
         self.logger.info(
             f'Round: {server_round} '

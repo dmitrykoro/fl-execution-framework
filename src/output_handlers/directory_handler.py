@@ -48,12 +48,18 @@ class DirectoryHandler:
     def _save_simulation_config(self):
         """Save simulation config to current directory"""
 
+        config_dict = self.simulation_strategy_history.strategy_config.__dict__.copy()
+
+        # Convert PyTorch device to string for JSON serialization
+        if "training_device" in config_dict and hasattr(config_dict["training_device"], "type"):
+            config_dict["training_device"] = str(config_dict["training_device"])
+
         with open(
                 f"{self.dirname}/"
                 f"strategy_config_{self.simulation_strategy_history.strategy_config.strategy_number}.json",
                 "w"
         ) as file:
-            json.dump(self.simulation_strategy_history.strategy_config.__dict__, file, indent=4)
+            json.dump(config_dict, file, indent=4)
 
     def _save_per_client_to_csv(self):
         """Save per-client metrics to csv"""

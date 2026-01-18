@@ -7,7 +7,6 @@ and dataset configuration handling and validation.
 
 import os
 from pathlib import Path
-from typing import Dict
 from unittest.mock import patch
 
 from tests.common import Mock, pytest
@@ -36,7 +35,7 @@ class TestDatasetHandler:
         return handler
 
     @pytest.fixture
-    def mock_dataset_config_list(self, tmp_path: Path) -> Dict[str, str]:
+    def mock_dataset_config_list(self, tmp_path: Path) -> dict[str, str]:
         """Create mock dataset configuration mapping."""
         return {
             "its": str(tmp_path / "source_datasets" / "its"),
@@ -49,7 +48,7 @@ class TestDatasetHandler:
         self,
         mock_strategy_config: StrategyConfig,
         mock_directory_handler: Mock,
-        mock_dataset_config_list: Dict[str, str],
+        mock_dataset_config_list: dict[str, str],
     ) -> DatasetHandler:
         """Create DatasetHandler instance for testing."""
         handler = DatasetHandler(
@@ -61,7 +60,7 @@ class TestDatasetHandler:
 
     @pytest.fixture
     def temp_source_dataset(
-        self, tmp_path: Path, mock_dataset_config_list: Dict[str, str]
+        self, tmp_path: Path, mock_dataset_config_list: dict[str, str]
     ) -> Path:
         """Create temporary source dataset structure for testing."""
         source_dir = Path(mock_dataset_config_list["its"])
@@ -88,7 +87,7 @@ class TestDatasetHandler:
         self,
         mock_strategy_config: StrategyConfig,
         mock_directory_handler: Mock,
-        mock_dataset_config_list: Dict[str, str],
+        mock_dataset_config_list: dict[str, str],
     ) -> None:
         """Test initialization."""
         handler = DatasetHandler(

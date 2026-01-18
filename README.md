@@ -1,58 +1,57 @@
-# Federated Learning Simulation Framework
-
-> *A framework for Federated Learning simulation configuration and execution*
-
 [![codecov](https://codecov.io/github/dmitrykoro/fl-execution-framework/graph/badge.svg?token=HJFASRJ43T)](https://codecov.io/github/dmitrykoro/fl-execution-framework)
-
-A framework for configuring and executing federated learning simulations with Flower.  
-Configure simulation parameters, compare aggregation strategies, and collect metrics
-in a standardized way with plug-and-play custom aggregation support.
+# Knowledge Management Framework for Federated Learning
+### A framework for Federated Learning simulation configuration and execution
 
 ---
 
-## 📋 Prerequisites
+## General information
 
-- Python 3.9, 3.10, or 3.11
+This is the framework for the configuration and management of federated learning simulation strategies.
+Federated Learning setup is based on Flower. The framework provides functionality to configure simulation execution
+and collect metrics in an uniformed way. It also allows to vary any number of simulation parameters and compare the
+effects of these parameters on the collected metrics, as well as plug-and-play integration of custom aggregation strategies.
 
-## ⚙️ Configuring the Simulation Parameters
+---
 
-- **Sample configuration**: located at `config/simulation_strategies/example_strategy_config.json` 📝
-- **Usage**: pass the configuration file as a parameter when initializing `SimulationRunner` in `src/simulation_runner.py` 🚀
+## Configuring the Simulation Parameters
 
-### 📋 Description of Simulation Parameters
+- **Sample configuration**: located at `config/simulation_strategies/example_strategy_config.json`.
+- **Usage**: pass the configuration file as a parameter when initializing `SimulationRunner` in `src/simulation_runner.py`.
 
+### Description of Simulation Parameters 
 #### (found at `config/simulation_strategies/example_strategy_config.json`)
 
 #### Common parameters (applicable to all strategies)
 
-- **`aggregation_strategy_keyword`**
+- **`aggregation_strategy_keyword`**  
 Defines the aggregation strategy. Options:
   - `trust`: Trust & Reputation-based aggregation.
   - `pid`: PID-based aggregation. Initial version of the formula.
   - `pid_scaled`: PID-based aggregation with Integral part divided by the number of current round, threshold is calculated based on client distances.
   - `pid_standardized`: PID-based aggregation with the Integral part standardized based on the distribution parameters of all Integral parts, threshold is calculated based on client distances.
-  - `pid_standardized_score_based`: Same as pid_standardized, but threshold is calculated based on pid scores.
+  - `pid_standardized_score_based`: Same as pid_standardized, but threshold is calculated based on pid scores. 
   - `multi-krum`: Multi-Krum aggregation. Clients are removed from aggregation only in current round.
-  - `krum`: Krum aggregation works like Multi-Krum, but uses only a single client.
+  - `krum`: Krum aggregation works like Multi-Krum, but uses only a single client. 
   - `multi-krum-based`: Multi-Krum-based aggregation where removed clients are excluded from aggregation permanently.
   - `rfa`: RFA (Robust Federated Averaging) aggregation strategy. Provides Byzantine fault tolerance through weighted median-based aggregation.
   - `trimmed_mean`: Trimmed-Mean aggregation strategy. Aggregates updates by removing a fixed fraction of the largest and smallest values for each parameter dimension before averaging. Robust against outliers and certain types of attacks.
   - `bulyan`: Bulyan aggregation strategy. Uses Multi-Krum as the first step of filtering and Trimmed-Mean as the second step to ensure robustness.
 
+
 - **`strict_mode`**: ensures that Flower trains and aggregates all available clients at every round. When enabled (default), automatically sets `min_fit_clients`, `min_evaluate_clients`, and `min_available_clients` to equal `num_of_clients`. Options: `"true"`, `"false"`.
 
 - **`remove_clients`**: attempt to remove malicious clients using strategy-specific mechanisms.
 
-- **`dataset_keyword`**
+
+- **`dataset_keyword`**  
   Dataset used for execution. Options:
   - `femnist_iid`: handwritten digit subset (0-9), 10 classes, IID distribution, 100 clients.
-  - `femnist_niid`: same, but the data is distributed in non-iid manner, according to authors' description. 16 clients max.
-  - `its`: Intelligent Transportation Systems domain, binary classification (traffic sign vs stop sign), 12 clients.
+  - `femnist_niid`: same, but the data is distributed in non-iid manner, according to authors' description. 16 clients max. 
+  - `its`: intelligent Transportation Systems domain, binary classification (traffic sign vs stop sign), 12 clients.
   - `pneumoniamnist`: medical imaging (pneumonia diagnosis), binary classification, IID distribution, 10 clients.
-  - `flair`: non-IID distribution (FLAIR dataset, unsupported in current version), 20 clients.
-  - `bloodmnist`: IID distribution, but non-equal number of samples per class, 40 clients.
+  - `flair`: non-IID distribution (FLAIR dataset, unsupported in current version), 20 clients. 
+  - `bloodmnist`: IID distribution, but non-equal number of samples per class, 40 clients. 
   - `lung_photos`: contains images of lung cancer from NLST archive from different CT machines. Data distributed according to the source, with varying number of images representing each stage of cancer. 30 clients.
-  - `medquad`: medical question-answering dataset (MedQuAD), text-based for LLM training, variable clients.
   - `breastmnist`: breast ultrasound images for tumor detection, binary classification (malignant vs benign), 10 clients.
   - `pathmnist`: histopathologic images of colon tissue, 9 classes, IID distribution, 40 clients.
   - `dermamnist`: dermatological lesion images, 7 classes (various skin diseases), 10 clients.
@@ -62,36 +61,39 @@ Defines the aggregation strategy. Options:
   - `organamnist`: axial view CT scans of abdominal organs, 11 classes, 40 clients.
   - `organcmnist`: coronal view CT scans of abdominal organs, 11 classes, 40 clients.
   - `organsmnist`: sagittal view CT scans of abdominal organs, 11 classes, 40 clients.
+  - `medmentions`: PubMed extracts with NER labels, 10 clients (can manually generate more clients using the script in `src/utils/make_medmentions.py`)
 
 - `num_of_rounds`: total aggregation rounds.
 - `num_of_clients`: number of clients (limited to available dataset clients).
 - `num_of_malicious_clients`: number of malicious clients (malicious throughout simulation).
-
-- **`attack_schedule`**: List of attack configurations with round-based scheduling. See [Attack Scheduling Guide](docs/attack-scheduling.md) for detailed examples.
-
-  **Attack Parameters**:
-
-  | Attack Type | Parameter | Description |
-  |------------|-----------|-------------|
-  | `label_flipping` | `flip_fraction` (required) | Fraction of labels to flip (0.0-1.0) |
-  | `label_flipping` | `target_class` (optional) | Target class for flipping (if specified) |
-  | `gaussian_noise` | `target_noise_snr` (required) | Noise level in dB (higher = less noise) |
-  | `gaussian_noise` | `attack_ratio` (required) | Fraction of samples to poison (0.0-1.0) |
-  | `brightness` | `factor` (optional, default: 0.5) | Brightness multiplier for images |
-  | `token_replacement` | `replacement_prob` (optional, default: 0.2) | Probability of replacing tokens |
-  | `token_replacement` | `vocab_size` (optional, default: 30522) | Vocabulary size for random replacement |
-
 - `show_plots`: show plots during runtime (`true`/`false`).
 - `save_plots`: save plots to `out/` directory (`true`/`false`).
 - `save_csv`: Save metrics as `.csv` files in `out/` directory (`true`/`false`).
 - `preserve_dataset`: save poisoned dataset for verification (`true`/`false`).
 - `training_subset_fraction`: fraction of each client's dataset for training (e.g., `0.9` for 90% training, 10% evaluation).
-- `model_type`: type of model being trained. 
+- `model_type`: type of model being trained (e.g., `cnn`).
+
+- **`attack_schedule`**: array of attack configurations for round-based attacks. Each entry requires:
+  - `start_round`: when the attack starts (1 to `num_of_rounds`).
+  - `end_round`: when the attack ends (1 to `num_of_rounds`).
+  - `attack_type`: type of attack (`label_flipping` or `gaussian_noise`).
+  - `selection_strategy`: how to select malicious clients (`specific`, `random`, or `percentage`).
+  - **Attack parameters:**
+    - `label_flipping`: no additional parameters required.
+    - `gaussian_noise`: `target_noise_snr` (dB, recommended) or `mean`/`std`, plus optional `attack_ratio` (0.0-1.0, defaults to 1.0).
+  - **Selection parameters:**
+    - `specific`: `malicious_client_ids` (array of client IDs).
+    - `random`: `malicious_client_count` (integer).
+    - `percentage`: `malicious_percentage` (0.0-1.0).
+
+- `save_attack_snapshots`: save attack snapshots for analysis (`true`/`false`).
+- `attack_snapshot_format`: format for snapshots (`pickle`, `visual`, or `pickle_and_visual`).
+- `snapshot_max_samples`: number of samples per snapshot (1-50, default: 5).
 
 - **Flower settings**:
   - `training_device`: `cpu`, `gpu`, or `cuda`.
-  - `cpus_per_client`: processors per client.
-  - `gpus_per_client`: GPUs per client (if `cuda` is set as the `training_device`).
+  - `cpus_per_client`: processors per client. 
+  - `gpus_per_client`: GPUs per client (if `cuda` is set as the `training_device`). 
   - `min_fit_clients`, `min_evaluate_clients`, `min_available_clients`: client quotas for each round.
   - `evaluate_metrics_aggregation_fn`: not used.
   - `num_of_client_epochs`: local client training epochs per round.
@@ -108,7 +110,7 @@ Defines the aggregation strategy. Options:
   - **Lora settings**
     - `lora_rank`: rank/size of the low-rank matrices used in lora
     - `lora_alpha`: scaling factor for lora updates
-    - `lora_dropout`: dropout rate applied during training
+    - `lora_dropout`: droput rate applied during training
     - `lora_target_modules`: list of model layers where lora should be applied
 
 #### Strategy-specific parameters
@@ -116,63 +118,39 @@ Defines the aggregation strategy. Options:
 **For `bulyan`, `krum`, `multi-krum-based`, `multi-krum`, `rfa`, `trimmed_mean`, `pid` strategies**: 
 
 **For `trust` strategy**:
-
+- `begin_removing_from_round`: start round for removing malicious clients.
 - `trust_threshold`: threshold for client removal (typically, in the range `0-1`).
 - `beta_value`: constant for Trust & Reputation calculus.
 - `num_of_clusters`: number of clusters (must be `1`).
 
 **For `pid`, `pid_standardized`, `pid_scaled`, `pid_standardized_score_based` strategies**:
-
-- `num_std_dev`: number of standard deviations used in the calculation of PID threshold at each round.
+- `num_std_dev`: number of standard deviations used int he calculation of PiD threshold at each round. 
 - `Kp`, `Ki`, `Kd`: PID controller parameters.
 
 **For `krum`, `multi-krum`, `multi-krum-based` strategies**:
-
-- `num_krum_selections`: how many clients the algorithm will select.
+- `num_krum_selections`: how many clients the algorithm will select. 
 
 **For `trimmed_mean` strategy**:
-
 - `trim_ratio`: fraction of extreme values to discard from both ends (lowest and highest) of each parameter dimension before averaging. Must be in the range 0–0.5.
+
+
 
 ---
 
-## 🚀 How to Run
+## How to Run
 
-1. **Python Environment**: The framework supports Python 3.9-3.11 (developed with 3.10.14). Ensure a compatible version is installed before running the code.
+1. **Python Environment**: Python 3.10.14 is used in the framework. Before attempting to run the code, make sure the Python 3.10.14 is
+   installed in the system.
 2. **Configuration**: place configurations in `config/simulation_strategies/`.
 3. **Specify Configuration**: update `src/simulation_runner.py` with the desired configuration file.
 4. **Execution**:
-    - On UNIX: run `sh run_simulation.sh` (automated virtual environment setup and execution).
-    - On Windows: install dependencies from `requirements.txt` and execute manually.
+  - On UNIX: run `sh run_simulation.sh` (automated virtual environment setup and execution).
+  - On Windows: install dependencies from `requirements.txt` and execute manually.
 5. **Output**: plots and `.csv` files (if enabled) saved in `out/` directory.
 
 ---
 
-## 📚 Developer Documentation
-
-### Testing & Development
-
-For detailed testing and development guidelines, see:
-
-- **[Testing Guide](tests/docs/testing_guide.md)** 🧪 - Complete testing documentation including:
-  - Quick start commands & development workflow
-  - Test development standards & patterns
-  - Mock data generation & strategy testing
-  - Performance optimization & quality checks
-
-- **[Interactive Demos](tests/demo/README.md)** 🎭 - Hands-on learning through runnable examples:
-  - FL mock data generation showcase
-  - Test failure analysis & debugging
-  - Cross-platform demo launcher
-  - Edge case handling examples
-
-### Configuration Guides
-
-- **[Attack Scheduling Guide](docs/attack-scheduling.md)** 🎯 - Detailed documentation for configuring attack schedules with round-based scheduling, client selection strategies, and attack stacking
-
----
-
-## 📊 Description of Collected Metrics
+## Description of Collected Metrics
 
 - **Client-Level Metrics**:
   - `Loss`: Provided by Flower.
@@ -187,9 +165,9 @@ For detailed testing and development guidelines, see:
 
 ---
 
-## 📈 Examples of Strategy Comparison
+## Examples on strategies comparison
 
-The framework allows you to execute multiple aggregation strategies one after another and then compare metrics
+The framework allows to execute multiple aggregation strategies one after another and then compare metrics
 between these strategies. The metrics such as `Average loss` and `Average accuracy` will be plotted on one graph for all
 executed strategies to allow the analysis of the effect that changed parameters had on the training process.
 
@@ -211,137 +189,138 @@ The configuration file is the `JSON` that has the following format:
 }
 ```
 
-- `shared_settings` is the section where you can put settings that you do not wish to change for each strategy.
+* `shared_settings` is the section where you can put settings that you do not wish to change for each strategy.
   It can be number of clients or any other settings.
-- `simulation_strategies` is the JSON array of strategy settings that you wish to alter for each strategy if you believe
+* `simulation_strategies` is the json array of strategy settings that you wish to alter for each strategy if you believe
   they may have effects on the learning or attack mitigation process.
+
 
 ---
 
 ### Examples
 
+
+
 1. We want to see how the number of local epochs will affect metrics. In that case, the `num_of_client_epochs` should
    be put into each entry in the `simulation_strategies` array:
 
-    ```json
+```json
+{
+  "shared_settings": {
+    "num_of_rounds": 100,
+    "begin_removing_from_round": 4,
+    "num_of_clients": 10,
+    
+    // all other settings according to specification
+  },
+  "simulation_strategies": [
     {
-      "shared_settings": {
-        "num_of_rounds": 100,
-        "begin_removing_from_round": 4,
-        "num_of_clients": 10,
-        
-        // all other settings according to specification
-      },
-      "simulation_strategies": [
-        {
-          "num_of_client_epochs": 1
-        },
-        {
-          "num_of_client_epochs": 2
-        },
-        {
-          "num_of_client_epochs": 3
-        }
-      ]
+      "num_of_client_epochs": 1
+    },
+    {
+      "num_of_client_epochs": 2
+    },
+    {
+      "num_of_client_epochs": 3
     }
-    ```
+  ]
+}
+```
 
-    This configuration will result in the execution of 3 aggregation strategies in total, with the number of each client's
-    local epochs varied starting from 1 to 3 for each execution. Then, the history of each strategy's loss and accuracy
-    will be displayed within one plot, making it easy to draw conclusions on the efficiency of increasing the number of
-    local client epochs.
+This configuration will result in the execution of 3 aggregation strategies in total, with the number of each client's
+local epochs varied starting form 1 to 3 for each execution. Then, the history of each strategy's loss and accuracy
+will be displayed within one plot, making it easy to draw conclusions on the efficiency of increasing the number of
+local client epochs.
 
-    ---
+---
 
-2. We want to see how the `trust`-based mitigation works when we have a different number of malicious clients,
+2. We want to see how the `trust`-based mitigation works when we have the different number of malicious clients,
    and determine if it has any effects on the resulting loss or accuracy. Similarly, `num_of_malicious_clients` is now
    a variable between strategies:
 
-    ```json
+```json
+{
+  "shared_settings": {
+    "aggregation_strategy_keyword": "trust",
+    "num_of_clients": 20,
+    
+    // all other settings according to specification
+  },
+  "simulation_strategies": [
     {
-      "shared_settings": {
-        "aggregation_strategy_keyword": "trust",
-        "num_of_clients": 20,
-        
-        // all other settings according to specification
-      },
-      "simulation_strategies": [
-        {
-          "num_of_malicious_clients": 2
-        },
-        {
-          "num_of_malicious_clients": 4
-        },
-        {
-          "num_of_malicious_clients": 6
-        }
-      ]
+      "num_of_malicious_clients": 2
+    },
+    {
+      "num_of_malicious_clients": 4
+    },
+    {
+      "num_of_malicious_clients": 6
     }
-    ```
+  ]
+}
+```
 
-    ---
+---
 
 3. We want to compare `trust` with `pid`:
 
-    ```json
+```json
+{
+  "shared_settings": {
+    "num_of_clients": 20,
+    "num_of_malicious_clients": 2,
+    
+    // all other settings according to specification
+  },
+  "simulation_strategies": [
     {
-      "shared_settings": {
-        "num_of_clients": 20,
-        "num_of_malicious_clients": 2,
-        
-        // all other settings according to specification
-      },
-      "simulation_strategies": [
-        {
-          "aggregation_strategy_keyword": "trust",
-          // the following parameters are specific for trust strategy
-          "trust_threshold": 0.15,
-          "beta_value": 0.75,
-          "num_of_clusters": 1
-        },
-        {
-          "aggregation_strategy_keyword": "pid",
-          // the following parameters are specific for pid strategy
-          "pid_threshold": 1,
-          "Kp": 1,
-          "Ki": 0,
-          "Kd": 0
-        }
-      ]
-    }
-    ```
-
-    Since the strategy-specific parameters are not altered between strategies, they can also be put to `shared_settings`:
-
-    ```json
+      "aggregation_strategy_keyword": "trust",
+      // the following parameters are specific for trust strategy
+      "trust_threshold": 0.15,
+      "beta_value": 0.75,
+      "num_of_clusters": 1
+    },
     {
-      "shared_settings": {
-        "num_of_clients": 20,
-        "num_of_malicious_clients": 2,
-        // the following parameters are specific for trust strategy
-        "trust_threshold": 0.15,
-        "beta_value": 0.75,
-        "num_of_clusters": 1,
-        // the following parameters are specific for pid strategy
-        "pid_threshold": 1,
-        "Kp": 1,
-        "Ki": 0,
-        "Kd": 0,
-        
-        // all other settings according to specification
-      },
-      "simulation_strategies": [
-        {
-          "aggregation_strategy_keyword": "trust"
-        },
-        {
-          "aggregation_strategy_keyword": "pid"
-        }
-      ]
+      "aggregation_strategy_keyword": "pid",
+      // the following parameters are specific for pid strategy
+      "num_std_dev": 2.0,
+      "Kp": 1,
+      "Ki": 0,
+      "Kd": 0
     }
-    ```
+  ]
+}
+```
 
-    -- the execution results of these two will be identical.
+Since the strategy-specific parameters are not altered between strategies, they can also be put to `shared_settigns`:
+```json
+{
+  "shared_settings": {
+    "num_of_clients": 20,
+    "num_of_malicious_clients": 2,
+    // the following parameters are specific for trust strategy
+    "trust_threshold": 0.15,
+    "beta_value": 0.75,
+    "num_of_clusters": 1,
+    // the following parameters are specific for pid strategy
+    "num_std_dev": 2.0,
+    "Kp": 1,
+    "Ki": 0,
+    "Kd": 0,
+    
+    // all other settings according to specification
+  },
+  "simulation_strategies": [
+    {
+      "aggregation_strategy_keyword": "trust"
+    },
+    {
+      "aggregation_strategy_keyword": "pid"
+    }
+  ]
+}
+```
+-- the execution results of these two will be identical.
 
 ---
 
@@ -349,4 +328,5 @@ This design of the configuration file provides the flexibility to put any number
 and compare how they affect the simulation outcome.
 
 One limitation is that as of now it is impossible to vary the number of aggregation rounds, so the parameter
-`num_of_rounds` must always be in the `shared_settings` section.
+`num_of_rounds` must always be in the `shared_settings` section. 
+

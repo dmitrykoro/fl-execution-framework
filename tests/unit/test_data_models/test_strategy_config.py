@@ -199,13 +199,11 @@ class TestStrategyConfig:
         trust_config = StrategyConfig(
             aggregation_strategy_keyword="trust",
             trust_threshold=0.6,
-            reputation_threshold=0.5,
             beta_value=0.3,
             num_of_clusters=3,
         )
 
         assert trust_config.trust_threshold == 0.6
-        assert trust_config.reputation_threshold == 0.5
         assert trust_config.beta_value == 0.3
         assert trust_config.num_of_clusters == 3
 

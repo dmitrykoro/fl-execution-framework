@@ -42,7 +42,7 @@ class ConfigLoader:
         try:
             with open(config_path) as f:
                 raw_config = json.load(f)
-                logging.info(f"Successfully loaded confing for {config_path}.")
+                logging.info(f"Successfully loaded config for {config_path}.")
 
             shared_settings = raw_config['shared_settings']
 
@@ -53,6 +53,16 @@ class ConfigLoader:
                 # Validate the strategy configuration
                 validate_strategy_config(strategy)
                 logging.info(f"Successfully validated config from {config_path}.")
+
+            # Log attack schedule info
+            if raw_config['simulation_strategies'] and raw_config['simulation_strategies'][0].get('attack_schedule'):
+                attack_schedule = raw_config['simulation_strategies'][0]['attack_schedule']
+                for idx, entry in enumerate(attack_schedule):
+                    if '_selected_clients' in entry:
+                        logging.info(
+                            f"attack_schedule entry {idx} ({entry.get('selection_strategy')}): "
+                            f"Selected clients {entry['_selected_clients']} for {entry.get('attack_type')} attack"
+                        )
 
             return raw_config["simulation_strategies"]
 
@@ -66,7 +76,7 @@ class ConfigLoader:
         try:
             with open(config_path) as f:
                 config = json.load(f)
-                logging.info(f"Successfully loaded confing for {config_path}.")
+                logging.info(f"Successfully loaded config for {config_path}.")
 
                 return config
 

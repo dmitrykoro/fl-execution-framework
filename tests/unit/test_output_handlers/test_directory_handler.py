@@ -65,6 +65,10 @@ class TestDirectoryHandler:
             "aggregated_loss_history",
             "average_accuracy_history",
         ]
+        mock_rounds.statsable_metrics = [
+            "aggregated_loss_history",
+            "average_accuracy_history",
+        ]
 
         def get_metric(name):
             if name == "aggregated_loss_history":
@@ -78,8 +82,8 @@ class TestDirectoryHandler:
         history = SimulationStrategyHistory(
             strategy_config=mock_strategy_config,
             dataset_handler=mock_dataset_handler,
-            rounds_history=mock_rounds,
         )
+        history.rounds_history = mock_rounds
         history.get_all_clients = Mock(return_value=mock_client_info_list)
         return history
 
@@ -110,9 +114,9 @@ class TestDirectoryHandler:
         """Test save_csv_and_config calls all individual save methods"""
         # Mock the DirectoryHandler.dirname to use temp directory
         test_dir = tmp_path / "test_output"
-        test_dir.mkdir()
+        test_dir.mkdir(exist_ok=True)
         csv_dir = test_dir / "csv"
-        csv_dir.mkdir()
+        csv_dir.mkdir(exist_ok=True)
 
         with patch.object(DirectoryHandler, "dirname", str(test_dir)):
             with patch.object(DirectoryHandler, "new_csv_dirname", str(csv_dir)):
@@ -204,8 +208,8 @@ class TestDirectoryHandler:
         history = SimulationStrategyHistory(
             strategy_config=mock_strategy_config,
             dataset_handler=mock_dataset_handler,
-            rounds_history=Mock(spec=RoundsInfo),
         )
+        history.rounds_history = Mock(spec=RoundsInfo)
         history.get_all_clients = Mock(return_value=[client_with_missing_metrics])
 
         csv_dir = tmp_path / "csv_missing_test"

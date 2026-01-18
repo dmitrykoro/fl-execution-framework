@@ -36,6 +36,29 @@ def mock_output_directory(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Pa
     return output_dir
 
 
+@pytest.fixture(autouse=True, scope="function")
+def prevent_real_output_dirs(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """
+    Prevent tests from creating directories in real out/ directory.
+
+    Patches DirectoryHandler class variables to use tmp_path for all tests.
+    Auto-cleanup happens via pytest's tmp_path fixture.
+    """
+    test_output = tmp_path / "test_output"
+    test_output.mkdir()
+    csv_dir = test_output / "csv"
+    csv_dir.mkdir()
+
+    monkeypatch.setattr(
+        "src.output_handlers.directory_handler.DirectoryHandler.dirname",
+        str(test_output),
+    )
+    monkeypatch.setattr(
+        "src.output_handlers.directory_handler.DirectoryHandler.new_csv_dirname",
+        str(csv_dir),
+    )
+
+
 # Strategy testing fixtures
 @pytest.fixture(scope="session")
 def mock_strategy_configs() -> Dict[str, Dict[str, Any]]:
@@ -72,6 +95,68 @@ def mock_client_parameters():
     """Generate mock client parameters."""
     rng = np.random.default_rng(42)
     return [rng.standard_normal(100) for _ in range(5)]
+
+
+# Dataset Loader Testing Fixtures
+@pytest.fixture
+def medquad_column_names():
+    """Standard column names for MedQuAD dataset mocks."""
+    return ["input_ids", "attention_mask", "answer", "token_type_ids", "question"]
+
+
+@pytest.fixture
+def mock_dataset_dict_chain(medquad_column_names):
+    """Create configured DatasetDict mock with method chaining support."""
+    from unittest.mock import Mock
+
+    mock_dataset_dict = Mock()
+    mock_train_dataset = Mock()
+    mock_train_dataset.column_names = medquad_column_names
+
+    # Configure method chaining
+    mock_dataset_dict.map.return_value = mock_dataset_dict
+    mock_dataset_dict.remove_columns.return_value = mock_dataset_dict
+    mock_dataset_dict.__getitem__ = Mock(return_value=mock_train_dataset)
+    mock_train_dataset.train_test_split.return_value = {
+        "train": Mock(),
+        "test": Mock(),
+    }
+
+    return mock_dataset_dict, mock_train_dataset
+
+
+# Attack Snapshot Testing Fixtures
+@pytest.fixture
+def sample_attack_data():
+    """Generate sample data tensors for attack snapshot tests."""
+    from tests.common import create_sample_tensors
+
+    data, labels = create_sample_tensors(batch_size=5)
+    return data, labels, labels.clone()
+
+
+@pytest.fixture
+def attack_config_label_flipping():
+    """Generate label flipping attack configuration."""
+    from tests.common import create_attack_config
+
+    return create_attack_config("label_flipping")
+
+
+@pytest.fixture
+def attack_config_gaussian_noise():
+    """Generate gaussian noise attack configuration."""
+    from tests.common import create_attack_config
+
+    return create_attack_config("gaussian_noise", target_noise_snr=10.0)
+
+
+@pytest.fixture
+def nested_attack_config():
+    """Generate nested attack configuration."""
+    from tests.common import create_nested_attack_config
+
+    return create_nested_attack_config("label_flipping")
 
 
 # Test failure logging setup

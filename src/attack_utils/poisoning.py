@@ -1,50 +1,31 @@
 """
-Data poisoning attack utilities for federated learning simulations.
-
-This module provides modular attack functions that can be applied dynamically
-during client training loops. Supports both image and text-based attacks.
+Utility functions for applying poisoning attacks to datasets.
 """
 
-from typing import Optional, Tuple
 import logging
+from typing import Optional, Tuple
 
 import torch
 
 
 def apply_label_flipping(
     labels: torch.Tensor,
-    flip_fraction: float = 0.5,
-    num_classes: int = 10,
-    target_class: Optional[int] = None,
+    num_classes: int,
 ) -> torch.Tensor:
-    """
-    Flip a fraction of labels to random or targeted class.
+    """Apply bijective label flipping (each class maps to exactly one other class)."""
+    perm = torch.randperm(num_classes).tolist()
 
-    Args:
-        labels: Tensor of shape (batch_size,)
-        flip_fraction: Fraction of labels to flip (0.0-1.0)
-        num_classes: Total number of classes in dataset
-        target_class: If specified, flip all to this class (targeted attack)
+    # Ensure no class maps to itself
+    for i in range(num_classes):
+        if perm[i] == i:
+            swap_idx = (i + 1) % num_classes
+            perm[i], perm[swap_idx] = perm[swap_idx], perm[i]
 
-    Returns:
-        torch.Tensor: Labels with flipped values
-    """
-    if flip_fraction <= 0:
-        return labels
+    modified_labels = labels.clone()
+    for src_class in range(num_classes):
+        modified_labels[labels == src_class] = perm[src_class]
 
-    num_to_flip = int(len(labels) * flip_fraction)
-    if num_to_flip == 0:
-        return labels
-
-    flip_indices = torch.randperm(len(labels))[:num_to_flip]
-
-    if target_class is not None:
-        labels[flip_indices] = target_class
-    else:
-        # Random flipping to different classes
-        labels[flip_indices] = torch.randint(0, num_classes, (num_to_flip,))
-
-    return labels
+    return modified_labels
 
 
 def apply_gaussian_noise(
@@ -54,107 +35,36 @@ def apply_gaussian_noise(
     target_noise_snr: Optional[float] = None,
     attack_ratio: float = 1.0,
 ) -> torch.Tensor:
-    """
-    Add Gaussian noise to image pixels.
-
-    Args:
-        images: Tensor of shape (batch_size, C, H, W), normalized to [0, 1]
-        mean: Mean of Gaussian distribution (if target_noise_snr not provided)
-        std: Standard deviation (if target_noise_snr not provided)
-        target_noise_snr: Target signal-to-noise ratio in dB (if provided, overrides mean/std)
-        attack_ratio: Fraction of samples in batch to poison (0.0-1.0)
-
-    Returns:
-        torch.Tensor: Images with added noise, clamped to [0, 1]
-    """
+    """Add Gaussian noise to images. Use target_noise_snr (dB) or mean/std."""
     num_samples = images.shape[0]
     num_to_poison = int(num_samples * attack_ratio)
 
-    # If no samples to poison, return unchanged
     if num_to_poison == 0:
         return images
 
-    # Randomly select indices to poison
     indices = torch.randperm(num_samples)[:num_to_poison]
-
-    # Clone images to avoid modifying original
     poisoned_images = images.clone()
 
     if target_noise_snr is not None:
-        # SNR-based approach
-        # SNR(dB) = 10 * log10(signal_power / noise_power)
-        # → noise_power = signal_power / (10^(SNR/10))
-        signal_power = torch.mean(poisoned_images[indices]**2, dim=(1, 2, 3), keepdim=True)
+        signal_power = torch.mean(
+            poisoned_images[indices] ** 2, dim=(1, 2, 3), keepdim=True
+        )
         noise_power = signal_power / (10 ** (target_noise_snr / 10))
         noise = torch.randn_like(poisoned_images[indices]) * torch.sqrt(noise_power)
     else:
-        # Direct mean/std noise
         noise = torch.randn_like(poisoned_images[indices]) * std + mean
 
     poisoned_images[indices] = torch.clamp(poisoned_images[indices] + noise, 0, 1)
     return poisoned_images
 
 
-def apply_brightness_attack(images: torch.Tensor, factor: float = 0.5) -> torch.Tensor:
-    """
-    Modify image brightness by a multiplicative factor.
-
-    Args:
-        images: Tensor of shape (batch_size, C, H, W)
-        factor: Brightness multiplier (0.0 = black, 1.0 = unchanged, >1.0 = brighter)
-
-    Returns:
-        torch.Tensor: Images with modified brightness, clamped to [0, 1]
-    """
-    return torch.clamp(images * factor, 0, 1)
-
-
-def apply_token_replacement(
-    tokens: torch.Tensor, replacement_prob: float = 0.2, vocab_size: int = 30522
-) -> torch.Tensor:
-    """
-    Replace tokens with random tokens from vocabulary.
-
-    Args:
-        tokens: Tensor of token IDs (batch_size, seq_len)
-        replacement_prob: Probability of replacing each token
-        vocab_size: Size of vocabulary (default: BERT vocab size)
-
-    Returns:
-        torch.Tensor: Tokens with random replacements
-    """
-    if replacement_prob <= 0:
-        return tokens
-
-    mask = torch.rand_like(tokens, dtype=torch.float32) < replacement_prob
-    random_tokens = torch.randint(0, vocab_size, tokens.shape)
-    return torch.where(mask, random_tokens, tokens)
-
-
 def should_poison_this_round(
     current_round: int, client_id: int, attack_schedule: Optional[list]
 ) -> Tuple[bool, list]:
-    """
-    Check if client should be poisoned in current round.
-
-    Returns all matching attack configs, deduplicated by attack type.
-    If multiple schedules specify the same attack type, the first match wins per type.
-    This allows stacking different attack types (e.g., label_flipping + gaussian_noise).
-
-    Args:
-        current_round: Current training round (1-indexed)
-        client_id: Client identifier
-        attack_schedule: List of attack schedule entries
-
-    Returns:
-        Tuple[bool, list[dict]]: (should_poison, list_of_attack_entries)
-            - should_poison: True if any attacks match
-            - list_of_attack_entries: List of unique attack entries (by attack_type)
-    """
+    """Check if client should be dynamically poisoned this round based on attack_schedule."""
     if not attack_schedule:
         return False, []
 
-    # Track matching attacks by attack_type to prevent duplicates
     attacks_by_type = {}
 
     for attack_entry in attack_schedule:
@@ -173,19 +83,15 @@ def should_poison_this_round(
                 is_match = True
 
         elif selection_strategy == "random":
-            # Random selection handled at strategy level
-            # Marked clients stored in _selected_clients
             targeted_clients = attack_entry.get("_selected_clients", [])
             if client_id in targeted_clients:
                 is_match = True
 
         elif selection_strategy == "percentage":
-            # Percentage selection handled at strategy level
             targeted_clients = attack_entry.get("_selected_clients", [])
             if client_id in targeted_clients:
                 is_match = True
 
-        # If matched, add to attacks_by_type (first match per type wins)
         if is_match:
             attack_type = attack_entry.get("attack_type")
             if attack_type and attack_type not in attacks_by_type:
@@ -195,71 +101,46 @@ def should_poison_this_round(
 
 
 def apply_poisoning_attack(
-    data: torch.Tensor, labels: torch.Tensor, attack_config: dict
+    data: torch.Tensor,
+    labels: torch.Tensor,
+    attack_config: dict,
+    tokenizer=None,
+    num_classes: int = None,
 ) -> Tuple[torch.Tensor, torch.Tensor]:
-    """
-    Apply poisoning attack based on attack_schedule configuration.
-
-    Args:
-        data: Input data (images or tokens)
-        labels: Labels
-        attack_config: Attack entry from attack_schedule
-
-    Returns:
-        Tuple[torch.Tensor, torch.Tensor]: (poisoned_data, poisoned_labels)
-
-    Raises:
-        ValueError: If old nested config format is detected
-    """
-    # Detect old nested format and provide helpful error
+    """Apply poisoning attack based on config. Supports label_flipping and gaussian_noise."""
     if "params" in attack_config or (
         "type" in attack_config and "attack_type" not in attack_config
     ):
         raise ValueError(
             "Detected old nested attack config format. "
             "Please use flat attack_schedule format instead. "
-            "Example: {'attack_type': 'label_flipping', 'flip_fraction': 0.7} "
+            "Example: {'attack_type': 'label_flipping'} "
             "See docs/attack-scheduling.md guide."
         )
 
     attack_type = attack_config.get("attack_type")
 
     if attack_type == "label_flipping":
-        labels = apply_label_flipping(
-            labels,
-            flip_fraction=attack_config.get("flip_fraction", 0.5),
-            num_classes=attack_config.get("num_classes", 10),
-            target_class=attack_config.get("target_class"),
-        )
+        if num_classes is None:
+            raise ValueError(
+                "Label flipping attack requires 'num_classes' parameter to be provided."
+            )
+        labels = apply_label_flipping(labels, num_classes=num_classes)
 
     elif attack_type == "gaussian_noise":
-        # Use SNR-based approach if available
         target_noise_snr = attack_config.get("target_noise_snr")
         attack_ratio = attack_config.get("attack_ratio", 1.0)
 
         if target_noise_snr is not None:
             data = apply_gaussian_noise(
-                data,
-                target_noise_snr=target_noise_snr,
-                attack_ratio=attack_ratio
+                data, target_noise_snr=target_noise_snr, attack_ratio=attack_ratio
             )
         else:
-            # Fallback to std/mean
             data = apply_gaussian_noise(
                 data,
                 mean=attack_config.get("mean", 0.0),
                 std=attack_config.get("std", 0.1),
-                attack_ratio=attack_ratio
+                attack_ratio=attack_ratio,
             )
-
-    elif attack_type == "brightness":
-        data = apply_brightness_attack(data, factor=attack_config.get("factor", 0.5))
-
-    elif attack_type == "token_replacement":
-        data = apply_token_replacement(
-            data,
-            replacement_prob=attack_config.get("replacement_prob", 0.2),
-            vocab_size=attack_config.get("vocab_size", 30522),
-        )
 
     return data, labels

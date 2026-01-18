@@ -12,6 +12,8 @@ from flwr.server.strategy.aggregate import weighted_loss_avg
 from flwr.common import EvaluateRes, Scalar
 from flwr.server.client_proxy import ClientProxy
 from flwr.server.strategy.fedavg import FedAvg
+from src.utils.medmentions_strategy_helper import aggregate_strict_medmentions_metrics
+
 
 class RFABasedRemovalStrategy(FedAvg):
     def __init__(
@@ -145,8 +147,8 @@ class RFABasedRemovalStrategy(FedAvg):
         available_clients = client_manager.all()  # dictionary with client IDs as keys and RayActorClientProxy objects as values
 
         # Select all clients in the warmup rounds.
-        if self.current_round <= self.begin_removing_from_round:
-            fit_ins = fl.common.FitIns(parameters, {"server_round": server_round})
+        if self.begin_removing_from_round is not None and self.current_round <= self.begin_removing_from_round:
+            fit_ins = fl.common.FitIns(parameters, {})
             return [(client, fit_ins) for client in available_clients.values()]
 
         # Select clients that have not been removed in previous rounds.
@@ -166,7 +168,7 @@ class RFABasedRemovalStrategy(FedAvg):
         logging.info(f"removed clients are : {self.removed_client_ids}")
 
         selected_client_ids = sorted(client_scores, key=client_scores.get, reverse=True)
-        fit_ins = fl.common.FitIns(parameters, {"server_round": server_round})
+        fit_ins = fl.common.FitIns(parameters, {})
         return [(available_clients[cid], fit_ins) for cid in selected_client_ids if cid in available_clients]
 
     def aggregate_evaluate(
@@ -215,6 +217,14 @@ class RFABasedRemovalStrategy(FedAvg):
             logging.debug(f'Loss: {result[1].loss}')
 
         metrics_aggregated = {}
+        metrics_aggregated = aggregate_strict_medmentions_metrics(
+            results=results,
+            removed_client_ids=self.removed_client_ids,
+            remove_clients=self.remove_clients,
+            current_round=self.current_round,
+            begin_removing_from_round=self.begin_removing_from_round,
+            strategy_history=self.strategy_history
+        )
 
         logging.info(
             f'Round: {server_round} '

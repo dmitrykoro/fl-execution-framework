@@ -18,8 +18,10 @@ class StrategyConfig:
     save_plots: bool = None
     save_csv: bool = None
     save_attack_snapshots: bool = None
+    attack_snapshot_format: str = "pickle"
+    snapshot_max_samples: int = 5
     training_device: str = None
-    cpus_per_client: int = None
+    cpus_per_client: float = None
     gpus_per_client: float = None
 
     trust_threshold: float = None
@@ -57,10 +59,16 @@ class StrategyConfig:
     ai_configuration_error: str = None
     num_ai_config_corrections: int = None
 
+    attack_type: str = None
+    attack_ratio: float = None
+    target_noise_snr: float = None
+
     def __init__(self, **kwargs):
         for key, value in kwargs.items():
             if value in ("true", "false"):
                 setattr(self, key, value == "true")
+            elif key == "training_device" and value == "gpu":
+                setattr(self, key, "cuda")
             else:
                 setattr(self, key, value)
 

@@ -29,6 +29,7 @@ config_schema = {
                 "flair",
                 "bloodmnist",
                 "medquad",
+                "medmentions",
                 "lung_photos",
                 "breastmnist",
                 "pathmnist",
@@ -51,9 +52,24 @@ config_schema = {
         "num_of_clients": {
             "type": "integer"
         },
+        # Pre-training poisoning fields
         "num_of_malicious_clients": {
-            "type": "integer"
+            "type": "integer",
+            "minimum": 0
         },
+        "attack_type": {
+            "type": "string",
+            "enum": ["label_flipping", "gaussian_noise", "ner_label_flipping"]
+        },
+        "attack_ratio": {
+            "type": "number",
+            "minimum": 0.0,
+            "maximum": 1.0
+        },
+        "target_noise_snr": {
+            "type": "number"
+        },
+        # Visualization and dataset fields
         "show_plots": {
             "type": "string",
             "enum": ["true", "false"]
@@ -81,7 +97,7 @@ config_schema = {
         },
         "llm_model": {
             "type": "string",
-            "enum": ["microsoft/BiomedNLP-BiomedBERT-base-uncased-abstract-fulltext"]
+            "enum": ["microsoft/BiomedNLP-BiomedBERT-base-uncased-abstract-fulltext", "gpt2"]
         },
         "llm_task": {
             "type": "string",
@@ -116,10 +132,10 @@ config_schema = {
         # Flower settings
         "training_device": {
             "type": "string",
-            "enum": ["cpu", "gpu", "cuda"]
+            "enum": ["cpu", "gpu"]
         },
         "cpus_per_client": {
-            "type": "integer"
+            "type": "number"
         },
         "gpus_per_client": {
             "type": "number"
@@ -193,12 +209,15 @@ config_schema = {
                 "properties": {
                     "start_round": {"type": "integer", "minimum": 1},
                     "end_round": {"type": "integer", "minimum": 1},
-                    "attack_type": {"type": "string", "enum": ["label_flipping", "gaussian_noise", "brightness", "token_replacement"]},
+                    "attack_type": {
+                        "type": "string",
+                        "enum": ["label_flipping", "gaussian_noise"]
+                    },
                     "selection_strategy": {"type": "string", "enum": ["specific", "random", "percentage"]},
                     "malicious_client_ids": {"type": "array", "items": {"type": "integer"}},
                     "malicious_client_count": {"type": "integer", "minimum": 1},
                     "malicious_percentage": {"type": "number", "minimum": 0.0, "maximum": 1.0},
-                    "flip_fraction": {"type": "number", "minimum": 0.0, "maximum": 1.0},
+                    "random_seed": {"type": "integer", "minimum": 0},
                     "target_noise_snr": {"type": "number"},
                     "attack_ratio": {"type": "number", "minimum": 0.0, "maximum": 1.0}
                 },
@@ -210,6 +229,15 @@ config_schema = {
         "save_attack_snapshots": {
             "type": "string",
             "enum": ["true", "false"]
+        },
+        "attack_snapshot_format": {
+            "type": "string",
+            "enum": ["pickle", "visual", "pickle_and_visual"]
+        },
+        "snapshot_max_samples": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 50
         },
 
         "config_is_ai_generated": {
@@ -231,15 +259,16 @@ config_schema = {
         "num_ai_config_corrections": {
             "type": "number"
         }
+
     },
     "required": [
         "aggregation_strategy_keyword", "remove_clients", "dataset_keyword", "model_type",
-        "use_llm", "num_of_rounds", "num_of_clients", "num_of_malicious_clients",
+        "use_llm", "num_of_rounds", "num_of_clients",
         "show_plots", "save_plots", "save_csv", "preserve_dataset",
         "training_subset_fraction", "training_device", "cpus_per_client",
         "gpus_per_client", "min_fit_clients", "min_evaluate_clients",
         "min_available_clients", "evaluate_metrics_aggregation_fn",
-        "num_of_client_epochs", "batch_size", "attack_schedule", "config_is_ai_generated"
+        "num_of_client_epochs", "batch_size", "attack_schedule"
     ]
 }
 
@@ -283,6 +312,70 @@ def _validate_dependent_params(strategy_config: dict) -> None:
                 f"Missing parameter begin_removing_from_round for aggregation {aggregation_strategy_keyword}"
             )
 
+
+def _populate_client_selection(config: dict) -> None:
+    """
+    Populate _selected_clients for random and percentage selection strategies.
+
+    For reproducibility, uses deterministic seeding:
+    - If attack entry has 'random_seed': use it
+    - Otherwise: auto-generate seed from attack parameters
+
+    Research-backed approach: Fixed client selection per attack window
+    (not re-randomized each round) for reproducibility.
+    """
+    import random
+
+    schedule = config.get("attack_schedule", [])
+    num_of_clients = config.get("num_of_clients")
+
+    for idx, entry in enumerate(schedule):
+        selection_strategy = entry.get("selection_strategy")
+
+        if selection_strategy == "specific":
+            # Already has explicit malicious_client_ids, nothing to do
+            continue
+
+        elif selection_strategy in ("random", "percentage"):
+            if "random_seed" in entry:
+                seed = entry["random_seed"]
+            else:
+                # Auto-generate seed from attack parameters for reproducibility
+                seed_string = f"{entry.get('attack_type')}_{entry.get('start_round')}_{entry.get('end_round')}_{idx}"
+                seed = hash(seed_string) % (2 ** 32)
+
+            random.seed(seed)
+
+            if selection_strategy == "random":
+                num_malicious = entry.get("malicious_client_count")
+            else:
+                malicious_percentage = entry.get("malicious_percentage")
+                num_malicious = int(num_of_clients * malicious_percentage)
+
+            if num_malicious > num_of_clients:
+                raise ValidationError(
+                    f"attack_schedule entry {idx}: Cannot select {num_malicious} clients "
+                    f"when only {num_of_clients} clients exist"
+                )
+
+            if num_malicious <= 0:
+                raise ValidationError(
+                    f"attack_schedule entry {idx}: Must select at least 1 malicious client "
+                    f"(got {num_malicious})"
+                )
+
+            all_client_ids = list(range(num_of_clients))
+            selected_clients = sorted(random.sample(all_client_ids, num_malicious))
+
+            entry["_selected_clients"] = selected_clients
+
+            logging.debug(
+                f"attack_schedule entry {idx} ({selection_strategy}): "
+                f"Selected clients {selected_clients} for {entry.get('attack_type')} attack "
+                f"(seed={seed})"
+            )
+
+
 def _validate_attack_schedule(config: dict) -> None:
     """
     Validate attack_schedule entries and enforce related constraints.
@@ -307,15 +400,15 @@ def _validate_attack_schedule(config: dict) -> None:
             )
 
         # Validate attack type and its required parameters
+        num_of_rounds = config.get("num_of_rounds")
+        if end_round > num_of_rounds:
+            raise ValidationError(
+                f"{entry_desc}: end_round ({end_round}) exceeds num_of_rounds ({num_of_rounds})"
+            )
+
         attack_type = entry.get("attack_type")
 
-        if attack_type == "label_flipping":
-            if "flip_fraction" not in entry:
-                raise ValidationError(
-                    f"{entry_desc}: label_flipping attack requires 'flip_fraction' parameter"
-                )
-
-        elif attack_type == "gaussian_noise":
+        if attack_type == "gaussian_noise":
             if "target_noise_snr" not in entry:
                 raise ValidationError(
                     f"{entry_desc}: gaussian_noise attack requires 'target_noise_snr' parameter"
@@ -348,14 +441,27 @@ def _validate_attack_schedule(config: dict) -> None:
 
     # Check for overlapping rounds (attack stacking)
     for i, entry1 in enumerate(schedule):
-        for j, entry2 in enumerate(schedule[i+1:], start=i+1):
-            if not (entry1["end_round"] < entry2["start_round"] or
-                    entry2["end_round"] < entry1["start_round"]):
+        for j, entry2 in enumerate(schedule[i + 1:], start=i + 1):
+            if not (
+                    entry1["end_round"] < entry2["start_round"] or
+                    entry2["end_round"] < entry1["start_round"]
+            ):
                 # Check if same attack type
                 if entry1.get("attack_type") == entry2.get("attack_type"):
-                    logging.warning(
-                        f"attack_schedule entries {i} and {j} have overlapping rounds with same attack_type "
-                        f"({entry1.get('attack_type')}). Entry {i} will take precedence for this attack type."
+                    raise ValidationError(
+                        f"CONFIG REJECTED: Overlapping rounds with same attack type\n"
+                        f"\n"
+                        f"Conflict:\n"
+                        f"  - Entry {i}: {entry1.get('attack_type')} (rounds {entry1['start_round']}-{entry1['end_round']})\n"
+                        f"  - Entry {j}: {entry2.get('attack_type')} (rounds {entry2['start_round']}-{entry2['end_round']})\n"
+                        f"\n"
+                        f"Reason:\n"
+                        f"  - Cannot have the same attack type active in overlapping rounds\n"
+                        f"  - Config is the single source of truth - it must be unambiguous\n"
+                        f"\n"
+                        f"Fix:\n"
+                        f"  - Adjust round ranges to not overlap for same attack type\n"
+                        f"  - Or use different attack types if you want stacked attacks\n"
                     )
                 else:
                     logging.info(
@@ -364,14 +470,21 @@ def _validate_attack_schedule(config: dict) -> None:
                         f"Both attacks will be stacked and applied sequentially."
                     )
 
-    # Force preserve_dataset to false when using attack_schedule
+    # Strict rejection: preserve_dataset incompatible with attack_schedule
     if schedule and config.get("preserve_dataset") == "true":
-        config["preserve_dataset"] = "false"
-        logging.info(
-            "ATTACK SCHEDULE DETECTED: Auto-configured preserve_dataset = false\n"
-            "  - Dynamic attacks poison data in-memory during training rounds\n"
-            "  - Filesystem dataset remains clean (not poisoned)\n"
-            "  - Use 'save_attack_snapshots' to inspect poisoned data"
+        raise ValidationError(
+            "CONFIG REJECTED: Cannot use attack_schedule with preserve_dataset=true\n"
+            "\n"
+            "Reason:\n"
+            "  - attack_schedule applies attacks in-memory during training rounds\n"
+            "  - preserve_dataset=true expects pre-poisoned filesystem dataset\n"
+            "  - These modes are incompatible\n"
+            "\n"
+            "Fix:\n"
+            "  Set 'preserve_dataset': 'false' in your config file\n"
+            "  Use 'save_attack_snapshots': 'true' to inspect poisoned data\n"
+            "\n"
+            "Config is the single source of truth - it must reflect intended execution."
         )
 
 
@@ -424,9 +537,11 @@ def _apply_strict_mode(config: dict) -> None:
     num_available_clients = config["min_available_clients"]
 
     # Always check: min_* cannot be greater than num_of_clients
-    if (num_fit_clients > num_of_clients or
-        num_evaluate_clients > num_of_clients or
-        num_available_clients > num_of_clients):
+    if (
+            num_fit_clients > num_of_clients or
+            num_evaluate_clients > num_of_clients or
+            num_available_clients > num_of_clients
+    ):
         raise ValidationError(
             f"EXPERIMENT STOPPED: Client configuration error.\n"
             f"Cannot require more clients than available:\n"
@@ -437,22 +552,26 @@ def _apply_strict_mode(config: dict) -> None:
             f"Please ensure all min_* values are <= {num_of_clients}"
         )
 
-    # If strict_mode is enabled, force all min_* = num_of_clients
+    # If strict_mode is enabled, reject configs where min_* != num_of_clients
     if strict_mode:
-        if (num_fit_clients != num_of_clients or
-            num_evaluate_clients != num_of_clients or
-            num_available_clients != num_of_clients):
-
-            # Force all to equal total clients
-            config["min_fit_clients"] = num_of_clients
-            config["min_evaluate_clients"] = num_of_clients
-            config["min_available_clients"] = num_of_clients
-
-            logging.info(f"STRICT MODE ENABLED: Auto-configured client participation")
-            logging.info(f"  - Set min_fit_clients = {num_of_clients}")
-            logging.info(f"  - Set min_evaluate_clients = {num_of_clients}")
-            logging.info(f"  - Set min_available_clients = {num_of_clients}")
-            logging.info(f"  - This ensures all clients participate in every round")
+        if (
+                num_fit_clients != num_of_clients or
+                num_evaluate_clients != num_of_clients or
+                num_available_clients != num_of_clients
+        ):
+            raise ValidationError(
+                f"CONFIG REJECTED: strict_mode requires all clients to participate.\n"
+                f"\n"
+                f"Current values:\n"
+                f"  - num_of_clients: {num_of_clients}\n"
+                f"  - min_fit_clients: {num_fit_clients}\n"
+                f"  - min_evaluate_clients: {num_evaluate_clients}\n"
+                f"  - min_available_clients: {num_available_clients}\n"
+                f"\n"
+                f"Fix:\n"
+                f"  Set all min_* values equal to num_of_clients ({num_of_clients})\n"
+                f"  Or set 'strict_mode': 'false' to allow partial participation\n"
+            )
 
 
 def validate_strategy_config(config: dict) -> None:
@@ -467,5 +586,5 @@ def validate_strategy_config(config: dict) -> None:
         _validate_llm_parameters(config)
 
     _validate_attack_schedule(config)
-
+    _populate_client_selection(config)
     _apply_strict_mode(config)

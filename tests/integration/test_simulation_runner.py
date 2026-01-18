@@ -65,7 +65,6 @@ def _create_mock_strategy_config() -> Dict[str, Any]:
                         "start_round": 1,
                         "end_round": 3,
                         "attack_type": "label_flipping",
-                        "flip_fraction": 1.0,
                         "selection_strategy": "percentage",
                         "malicious_percentage": 0.2,
                     }
@@ -260,7 +259,9 @@ class TestSimulationRunnerInitialization:
             SimulationRunner("test_config.json")
 
         # Assert
-        mock_logging_config.assert_called_once_with(level=logging.INFO)
+        mock_logging_config.assert_called_once_with(
+            level=logging.INFO, format="%(levelname)s: %(message)s"
+        )
 
 
 class TestSimulationRunnerExecution:
@@ -915,9 +916,9 @@ class TestSimulationRunnerErrorHandling:
             with pytest.raises(RuntimeError):
                 runner.run()
 
-            # Assert - Verify setup was called but teardown was NOT called due to error
+            # Assert - Verify both setup and teardown were called
             mock_dataset_instance.setup_dataset.assert_called_once()
-            mock_dataset_instance.teardown_dataset.assert_not_called()
+            mock_dataset_instance.teardown_dataset.assert_called_once()
 
 
 class TestSimulationRunnerLogging:

@@ -10,8 +10,6 @@ import torch
 from src.attack_utils.poisoning import (
     apply_label_flipping,
     apply_gaussian_noise,
-    apply_brightness_attack,
-    apply_token_replacement,
     should_poison_this_round,
     apply_poisoning_attack,
 )
@@ -20,88 +18,87 @@ from src.attack_utils.poisoning import (
 class TestApplyLabelFlipping:
     """Test suite for apply_label_flipping function."""
 
-    def test_no_flipping_when_fraction_zero(self):
-        """Test that no labels are flipped when flip_fraction is 0."""
+    def test_single_class_no_flipping(self):
+        """Test that single class dataset returns unchanged (can't flip to different class)."""
+        labels = torch.tensor([0, 0, 0, 0, 0])
+        original_labels = labels.clone()
+
+        result = apply_label_flipping(labels, num_classes=1)
+
+        assert torch.equal(result, original_labels)
+
+    def test_class_level_mapping(self):
+        """Test that all samples of each class get mapped to same random class."""
+        # Create labels with multiple samples per class
+        labels = torch.tensor([0, 0, 0, 1, 1, 1, 2, 2, 2])
+        num_classes = 5
+
+        result = apply_label_flipping(labels, num_classes=num_classes)
+
+        # All class 0 samples should map to same new class
+        class_0_values = result[labels == 0].unique()
+        assert len(class_0_values) == 1, "All class 0 samples should map to same class"
+        assert class_0_values[0] != 0, "Class 0 should not map to itself"
+
+        # All class 1 samples should map to same new class
+        class_1_values = result[labels == 1].unique()
+        assert len(class_1_values) == 1, "All class 1 samples should map to same class"
+        assert class_1_values[0] != 1, "Class 1 should not map to itself"
+
+        # All class 2 samples should map to same new class
+        class_2_values = result[labels == 2].unique()
+        assert len(class_2_values) == 1, "All class 2 samples should map to same class"
+        assert class_2_values[0] != 2, "Class 2 should not map to itself"
+
+    def test_all_labels_modified(self):
+        """Test that all labels get remapped (100% poisoning)."""
         labels = torch.tensor([0, 1, 2, 3, 4])
-        original_labels = labels.clone()
+        num_classes = 10
 
-        result = apply_label_flipping(labels, flip_fraction=0.0)
+        result = apply_label_flipping(labels, num_classes=num_classes)
 
-        assert torch.equal(result, original_labels)
+        # Every label should be different from original
+        assert not torch.equal(result, labels), "All labels should be modified"
 
-    def test_no_flipping_when_fraction_negative(self):
-        """Test that no labels are flipped when flip_fraction is negative."""
-        labels = torch.tensor([0, 1, 2, 3, 4])
-        original_labels = labels.clone()
-
-        result = apply_label_flipping(labels, flip_fraction=-0.5)
-
-        assert torch.equal(result, original_labels)
-
-    def test_no_flipping_when_num_to_flip_zero(self):
-        """Test that no labels are flipped when calculated num_to_flip is 0."""
-        labels = torch.tensor([0, 1])
-        original_labels = labels.clone()
-
-        # With only 2 labels and flip_fraction=0.3, int(2 * 0.3) = 0
-        result = apply_label_flipping(labels, flip_fraction=0.3)
-
-        assert torch.equal(result, original_labels)
-
-    def test_random_flipping(self):
-        """Test random label flipping (no target class)."""
-        labels = torch.tensor([0, 1, 2, 3, 4, 5, 6, 7, 8, 9])
-        original_labels = labels.clone()
-
-        result = apply_label_flipping(labels, flip_fraction=0.5, num_classes=10)
-
-        # Should have modified some labels (though some might randomly flip to same value)
-        # Just verify the function executed without error and returned valid labels
-        assert len(result) == len(original_labels)
+        # But should still be valid class IDs
         assert torch.all(result >= 0)
-        assert torch.all(result < 10)
-
-    def test_targeted_flipping(self):
-        """Test targeted label flipping to specific class."""
-        labels = torch.tensor([0, 1, 2, 3, 4, 5, 6, 7, 8, 9])
-        target_class = 5
-
-        result = apply_label_flipping(
-            labels, flip_fraction=0.5, num_classes=10, target_class=target_class
-        )
-
-        # Count how many labels are now target_class
-        num_target = (result == target_class).sum().item()
-        expected_flips = int(len(labels) * 0.5)
-
-        # Should have at least expected_flips of target_class
-        # (original might already have some)
-        assert num_target >= expected_flips
-
-    def test_full_flipping(self):
-        """Test flipping all labels."""
-        labels = torch.tensor([0, 1, 2, 3, 4])
-        target_class = 9
-
-        result = apply_label_flipping(
-            labels, flip_fraction=1.0, num_classes=10, target_class=target_class
-        )
-
-        # All labels should be target_class
-        assert torch.all(result == target_class)
+        assert torch.all(result < num_classes)
 
     def test_label_values_within_range(self):
         """Test that flipped labels are within valid class range."""
         labels = torch.tensor([0, 1, 2, 3, 4, 5, 6, 7, 8, 9])
         num_classes = 10
 
-        result = apply_label_flipping(
-            labels, flip_fraction=0.8, num_classes=num_classes
-        )
+        result = apply_label_flipping(labels, num_classes=num_classes)
 
         # All labels should be in range [0, num_classes)
         assert torch.all(result >= 0)
         assert torch.all(result < num_classes)
+
+    def test_no_self_mapping(self):
+        """Test that no class maps to itself."""
+        labels = torch.tensor([0, 1, 2, 3, 4])
+        num_classes = 10
+
+        result = apply_label_flipping(labels, num_classes=num_classes)
+
+        # Check each original class doesn't map to itself
+        for original_class in labels.unique():
+            mapped_class = result[labels == original_class][0]
+            assert mapped_class != original_class, (
+                f"Class {original_class} should not map to itself"
+            )
+
+    def test_two_class_swapping(self):
+        """Test label flipping with only 2 classes."""
+        labels = torch.tensor([0, 0, 1, 1])
+        num_classes = 2
+
+        result = apply_label_flipping(labels, num_classes=num_classes)
+
+        # With only 2 classes, they should swap
+        assert torch.all(result[labels == 0] == 1), "Class 0 should become class 1"
+        assert torch.all(result[labels == 1] == 0), "Class 1 should become class 0"
 
 
 class TestApplyGaussianNoise:
@@ -182,112 +179,6 @@ class TestApplyGaussianNoise:
         assert torch.all(result <= 1.0)
 
 
-class TestApplyBrightnessAttack:
-    """Test suite for apply_brightness_attack function."""
-
-    def test_brightness_darkening(self):
-        """Test darkening images with factor < 1."""
-        images = torch.rand(5, 3, 28, 28)
-
-        result = apply_brightness_attack(images, factor=0.5)
-
-        # Images should be darker
-        assert torch.all(result <= images)
-        assert torch.all(result >= 0.0)
-
-    def test_brightness_brightening(self):
-        """Test brightening images with factor > 1."""
-        images = torch.rand(5, 3, 28, 28) * 0.5  # Keep below 0.5 to allow brightening
-
-        result = apply_brightness_attack(images, factor=1.5)
-
-        # Images should be brighter (with clamping)
-        assert torch.all(result >= 0.0)
-        assert torch.all(result <= 1.0)
-
-    def test_brightness_no_change(self):
-        """Test that factor=1.0 doesn't change images."""
-        images = torch.rand(5, 3, 28, 28)
-        original_images = images.clone()
-
-        result = apply_brightness_attack(images, factor=1.0)
-
-        assert torch.allclose(result, original_images)
-
-    def test_brightness_black(self):
-        """Test that factor=0.0 creates black images."""
-        images = torch.rand(5, 3, 28, 28)
-
-        result = apply_brightness_attack(images, factor=0.0)
-
-        assert torch.all(result == 0.0)
-
-    def test_brightness_clamping(self):
-        """Test that brightness values are clamped to [0, 1]."""
-        images = torch.ones(5, 3, 28, 28)
-
-        result = apply_brightness_attack(images, factor=2.0)
-
-        # Should be clamped to 1.0
-        assert torch.all(result <= 1.0)
-
-
-class TestApplyTokenReplacement:
-    """Test suite for apply_token_replacement function."""
-
-    def test_no_replacement_when_prob_zero(self):
-        """Test that no tokens are replaced when replacement_prob is 0."""
-        tokens = torch.tensor([[1, 2, 3, 4, 5], [6, 7, 8, 9, 10]])
-        original_tokens = tokens.clone()
-
-        result = apply_token_replacement(tokens, replacement_prob=0.0)
-
-        assert torch.equal(result, original_tokens)
-
-    def test_no_replacement_when_prob_negative(self):
-        """Test that no tokens are replaced when replacement_prob is negative."""
-        tokens = torch.tensor([[1, 2, 3, 4, 5], [6, 7, 8, 9, 10]])
-        original_tokens = tokens.clone()
-
-        result = apply_token_replacement(tokens, replacement_prob=-0.5)
-
-        assert torch.equal(result, original_tokens)
-
-    def test_partial_replacement(self):
-        """Test partial token replacement."""
-        torch.manual_seed(42)  # For reproducibility
-        tokens = torch.tensor([[1, 2, 3, 4, 5]] * 100)  # Repeat for statistical test
-
-        result = apply_token_replacement(tokens, replacement_prob=0.3, vocab_size=10)
-
-        # Should have some changes
-        changed = ~torch.equal(result, tokens)
-        assert changed
-
-    def test_full_replacement(self):
-        """Test full token replacement."""
-        tokens = torch.tensor([[1, 2, 3, 4, 5], [6, 7, 8, 9, 10]])
-
-        result = apply_token_replacement(tokens, replacement_prob=1.0, vocab_size=30522)
-
-        # Most tokens should be different (extremely unlikely to match randomly)
-        num_changed = (result != tokens).sum().item()
-        assert num_changed > 0
-
-    def test_token_values_within_vocab(self):
-        """Test that replaced tokens are within vocabulary range."""
-        tokens = torch.tensor([[1, 2, 3, 4, 5]] * 10)
-        vocab_size = 1000
-
-        result = apply_token_replacement(
-            tokens, replacement_prob=0.5, vocab_size=vocab_size
-        )
-
-        # All tokens should be in range [0, vocab_size)
-        assert torch.all(result >= 0)
-        assert torch.all(result < vocab_size)
-
-
 class TestShouldPoisonThisRound:
     """Test suite for should_poison_this_round function."""
 
@@ -310,7 +201,6 @@ class TestShouldPoisonThisRound:
                 "attack_type": "label_flipping",
                 "selection_strategy": "specific",
                 "malicious_client_ids": [0, 2, 4],
-                "flip_fraction": 0.5,
             }
         ]
 
@@ -333,7 +223,6 @@ class TestShouldPoisonThisRound:
                 "attack_type": "label_flipping",
                 "selection_strategy": "random",
                 "_selected_clients": [1, 3, 5],
-                "flip_fraction": 0.5,
             }
         ]
 
@@ -379,7 +268,6 @@ class TestShouldPoisonThisRound:
                 "attack_type": "label_flipping",
                 "selection_strategy": "specific",
                 "malicious_client_ids": [0],
-                "flip_fraction": 0.5,
             }
         ]
 
@@ -404,7 +292,6 @@ class TestShouldPoisonThisRound:
                 "attack_type": "label_flipping",
                 "selection_strategy": "specific",
                 "malicious_client_ids": [0],
-                "flip_fraction": 0.5,
             },
             {
                 "start_round": 1,
@@ -412,7 +299,6 @@ class TestShouldPoisonThisRound:
                 "attack_type": "label_flipping",
                 "selection_strategy": "specific",
                 "malicious_client_ids": [0],
-                "flip_fraction": 0.8,  # Different param
             },
         ]
 
@@ -420,7 +306,6 @@ class TestShouldPoisonThisRound:
 
         # Should only return one attack (first match)
         assert len(attacks) == 1
-        assert attacks[0]["flip_fraction"] == 0.5
 
     def test_multiple_attack_types(self):
         """Test that different attack types can be returned together."""
@@ -431,7 +316,6 @@ class TestShouldPoisonThisRound:
                 "attack_type": "label_flipping",
                 "selection_strategy": "specific",
                 "malicious_client_ids": [0],
-                "flip_fraction": 0.5,
             },
             {
                 "start_round": 1,
@@ -479,13 +363,11 @@ class TestApplyPoisoningAttack:
 
         attack_config = {
             "attack_type": "label_flipping",
-            "flip_fraction": 0.5,
-            "num_classes": 10,
-            "target_class": 5,
         }
+        num_classes = 10
 
         result_images, result_labels = apply_poisoning_attack(
-            images, labels, attack_config
+            images, labels, attack_config, num_classes=num_classes
         )
 
         # Images should be unchanged
@@ -493,6 +375,10 @@ class TestApplyPoisoningAttack:
 
         # Labels should be modified
         assert not torch.equal(result_labels, original_labels)
+
+        # All labels should be in valid range
+        assert torch.all(result_labels >= 0)
+        assert torch.all(result_labels < num_classes)
 
     def test_gaussian_noise_attack_with_snr(self):
         """Test Gaussian noise attack with SNR parameter."""
@@ -539,44 +425,6 @@ class TestApplyPoisoningAttack:
         # Labels should be unchanged
         assert torch.equal(result_labels, labels)
 
-    def test_brightness_attack(self):
-        """Test brightness attack application."""
-        images = torch.rand(10, 3, 28, 28)
-        labels = torch.tensor([0, 1, 2, 3, 4, 5, 6, 7, 8, 9])
-
-        attack_config = {"attack_type": "brightness", "factor": 0.5}
-
-        result_images, result_labels = apply_poisoning_attack(
-            images, labels, attack_config
-        )
-
-        # Images should be darker
-        assert torch.all(result_images <= images)
-
-        # Labels should be unchanged
-        assert torch.equal(result_labels, labels)
-
-    def test_token_replacement_attack(self):
-        """Test token replacement attack application."""
-        tokens = torch.tensor([[1, 2, 3, 4, 5]] * 10)
-        labels = torch.tensor([0, 1, 2, 3, 4, 5, 6, 7, 8, 9])
-
-        attack_config = {
-            "attack_type": "token_replacement",
-            "replacement_prob": 0.5,
-            "vocab_size": 30522,
-        }
-
-        result_tokens, result_labels = apply_poisoning_attack(
-            tokens, labels, attack_config
-        )
-
-        # Tokens should be modified
-        assert not torch.equal(result_tokens, tokens)
-
-        # Labels should be unchanged
-        assert torch.equal(result_labels, labels)
-
     def test_old_nested_format_raises_error(self):
         """Test that old nested config format raises helpful error."""
         images = torch.rand(10, 1, 28, 28)
@@ -585,7 +433,6 @@ class TestApplyPoisoningAttack:
         # Old format with "params" key
         old_config1 = {
             "type": "label_flipping",
-            "params": {"flip_fraction": 0.5},
         }
 
         with pytest.raises(ValueError, match="old nested attack config format"):
@@ -594,7 +441,6 @@ class TestApplyPoisoningAttack:
         # Old format with "type" but no "attack_type"
         old_config2 = {
             "type": "label_flipping",
-            "flip_fraction": 0.5,
         }
 
         with pytest.raises(ValueError, match="old nested attack config format"):
@@ -617,18 +463,15 @@ class TestApplyPoisoningAttack:
         assert torch.allclose(result_images, original_images)
         assert torch.equal(result_labels, original_labels)
 
-    def test_default_parameters_used(self):
-        """Test that default parameters are used when not specified."""
+    def test_requires_num_classes(self):
+        """Test that num_classes is required for label_flipping."""
         images = torch.rand(10, 1, 28, 28)
         labels = torch.tensor([0, 1, 2, 3, 4, 5, 6, 7, 8, 9])
 
-        # Minimal config - should use defaults
-        attack_config = {"attack_type": "label_flipping"}
+        attack_config = {
+            "attack_type": "label_flipping",
+        }
 
-        result_images, result_labels = apply_poisoning_attack(
-            images, labels, attack_config
-        )
-
-        # Should still work with defaults
-        assert result_images is not None
-        assert result_labels is not None
+        # Should raise ValueError when num_classes not provided
+        with pytest.raises(ValueError, match="num_classes"):
+            apply_poisoning_attack(images, labels, attack_config)
