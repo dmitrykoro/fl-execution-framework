@@ -7,6 +7,7 @@ from pathlib import Path
 from src.ai_agent.data_models.ai_agent_config import AIAgentConfig
 from src.ai_agent.ai_vendors.chatgpt_ai_vendor import ChatgptAIVendor
 from src.simulation_runner import SimulationRunner
+from src.utils.common import obtain_env_var
 
 
 class AIAgent:
@@ -56,26 +57,10 @@ class AIAgent:
         Based on loaded config, assign vendor API. Check token is present (if not, will be prompted and added to .env).
         """
 
-        def _ensure_api_token_provided(token_key: str):
-            env_path = Path(".env")
-
-            if env_path.exists():
-                load_dotenv(dotenv_path=env_path)
-                api_token = os.getenv(token_key)
-
-                if api_token:
-                    return api_token
-
-            new_token = input(f"Please enter {token_key} token: ").strip()
-            with open(env_path, "a") as f:
-                f.write(f"\n{token_key}={new_token}\n")
-
-            return new_token
-
         vendor_keyword = agent_config.vendor_keyword
 
         if vendor_keyword == "chatgpt":
-            api_key = _ensure_api_token_provided("OPENAI_TOKEN")
+            api_key = obtain_env_var("OPENAI_TOKEN")
             return ChatgptAIVendor(agent_config, api_key=api_key)
 
         else:
