@@ -273,16 +273,35 @@ class FlowerClient(fl.client.NumPyClient):
         else:
             raise ValueError(f"Unsupported model type: {self.model_type}. Supported types are 'cnn' and 'mlm'.")
 
-    def test(self, net, testloader):
-        """Evaluate the network on the entire test set."""
+    def test(self, net, testloader, config=None):
+        """Evaluate the network on the entire test set with optional dynamic poisoning."""
+        current_round = config.get("server_round", 1) if config else 1
 
         if self.model_type == "cnn":
             criterion = torch.nn.CrossEntropyLoss()
             correct, total, loss = 0, 0, 0.0
             net.eval()
 
+            # Determine number of classes
+            if hasattr(net, 'fc3'):
+                num_classes = net.fc3.out_features
+            elif hasattr(net, 'fc'):
+                num_classes = net.fc.out_features
+            else:
+                # Default fallback
+                num_classes = 10
+
             with torch.no_grad():
                 for images, labels in testloader:
+                    should_poison, attack_configs = should_poison_this_round(
+                        current_round, self.client_id, self.attacks_schedule
+                    )
+
+                    if should_poison and attack_configs:
+                        #Apply all attacks sequentially
+                        for attack_config in attack_configs:
+                            images, labels = apply_poisoning_attack(images, lables, attack_config, tokenizer=self.tokenizer, num_classes=num_classes)
+
                     images, labels = images.to(self.training_device), labels.to(self.training_device)
                     outputs = net(images)
                     loss += criterion(outputs, labels).item()
@@ -373,7 +392,7 @@ class FlowerClient(fl.client.NumPyClient):
         self.set_parameters(self.net, parameters)
 
         if self.model_type == "transformer":
-            out = self.test(self.net, self.valloader)
+            out = self.test(self.net, self.valloader, config)
 
             # test() may return (loss, acc) or (loss, acc, mm)
             if isinstance(out, tuple) and len(out) == 3:
