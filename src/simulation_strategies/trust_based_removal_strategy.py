@@ -3,6 +3,7 @@ import flwr as fl
 import torch
 import math as m
 import logging
+import time
 
 from typing import Dict, List, Optional, Tuple, Union
 
@@ -136,6 +137,8 @@ class TrustBasedRemovalStrategy(fl.server.strategy.FedAvg):
             # extract mean of weights and bias of the last layer (fc3)
             clustering_param_data.append(param_tensor)
 
+        time_start_calc = time.time_ns()
+
         # perform clustering
         X = np.array(clustering_param_data)
         kmeans = KMeans(n_clusters=1, init='k-means++').fit(X)
@@ -162,15 +165,12 @@ class TrustBasedRemovalStrategy(fl.server.strategy.FedAvg):
                 absolute_distance=float(distances[i][0].item()) if hasattr(distances[i][0], 'item') else float(distances[i][0])
             )
 
-            logging.info(
-                f'Aggregation round: {server_round} '
-                f'Client ID: {client_id} '
-                f'Reputation: {new_reputation} '
-                f'Trust: {new_trust} '
-                f'Normalized Distance: {normalized_distances[i][0]} '
-            )
+        time_end_calc = time.time_ns()
 
-        self.strategy_history.insert_round_history_entry(removal_threshold=self.trust_threshold)
+        self.strategy_history.insert_round_history_entry(
+            removal_threshold=self.trust_threshold,
+            score_calculation_time_nanos=time_end_calc - time_start_calc
+        )
 
         return aggregated_parameters, aggregated_metrics
 

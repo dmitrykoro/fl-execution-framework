@@ -133,7 +133,7 @@ class SimulationRunner:
                 self._directory_handler.save_csv_and_config(simulation_strategy.strategy_history)
 
             except Exception as e:  # noqa
-                pass
+                raise
 
             finally:
                 # Cleanup resources even if simulation crashes

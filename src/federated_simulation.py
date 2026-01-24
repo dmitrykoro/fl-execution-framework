@@ -399,7 +399,7 @@ class FederatedSimulation:
 
         elif aggregation_strategy_keyword == "bulyan":
             self._aggregation_strategy = BulyanStrategy(
-                num_krum_selections=self.strategy_config.num_krum_selections,
+                num_bulyan_benign_clients=self.strategy_config.num_bulyan_benign_clients,
                 **common_kwargs
             )
         elif aggregation_strategy_keyword == "fools_gold":

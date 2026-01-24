@@ -34,6 +34,8 @@ class StrategyConfig:
     Kd: float = None
     num_std_dev: float = None
 
+    num_bulyan_benign_clients: int = None
+
     training_subset_fraction: float = None
     min_fit_clients: int = None
     min_evaluate_clients: int = None

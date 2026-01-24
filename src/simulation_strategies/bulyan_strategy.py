@@ -40,7 +40,7 @@ class BulyanStrategy(fl.server.strategy.FedAvg):
     def __init__(
         self,
         remove_clients: bool,
-        num_krum_selections: int, # n - f
+        num_bulyan_benign_clients: int, # n - f
         begin_removing_from_round: int,
         strategy_history: SimulationStrategyHistory,
         *args,
@@ -50,7 +50,7 @@ class BulyanStrategy(fl.server.strategy.FedAvg):
 
         # --- Public / framework‑visible fields -------------------------
         self.remove_clients = remove_clients
-        self.num_krum_selections = num_krum_selections # n - f
+        self.num_bulyan_benign_clients = num_bulyan_benign_clients # n - f
         self.begin_removing_from_round = begin_removing_from_round
 
         # --- Internal state -------------------------------------------
@@ -113,7 +113,7 @@ class BulyanStrategy(fl.server.strategy.FedAvg):
         param_arrays = [parameters_to_ndarrays(fr.parameters) for _, fr in results]
         flat_updates = np.stack([np.concatenate([p.ravel() for p in pa]) for pa in param_arrays])
         n, dim = flat_updates.shape
-        C = self.num_krum_selections
+        C = self.num_bulyan_benign_clients
         f = (n - C) // 2  # number of malicious clients
         if C > n or (n - C) % 2:
             self.logger.error("C must satisfy n - C = 2f (even, <= n)")
@@ -200,7 +200,7 @@ class BulyanStrategy(fl.server.strategy.FedAvg):
         if self.remove_clients:
             # Remove *f* clients with highest scores this round
             n = len(client_scores)
-            f = max(0, n - self.num_krum_selections) // 2
+            f = max(0, n - self.num_bulyan_benign_clients) // 2
             for _ in range(f):
                 if not client_scores:
                     break

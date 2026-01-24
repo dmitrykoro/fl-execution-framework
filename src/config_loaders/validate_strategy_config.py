@@ -196,6 +196,11 @@ config_schema = {
             "type": "integer"
         },
 
+        # Bulyan
+        "num_bulyan_benign_clients": {
+            "type": "integer"
+        },
+
         # Trimmed mean
         "trim_ratio": {
             "type": "number"
@@ -306,6 +311,12 @@ def _validate_dependent_params(strategy_config: dict) -> None:
             raise ValidationError(
                 f"Missing parameter trim_ratio for trimmed mean aggregation {aggregation_strategy_keyword}"
             )
+    elif aggregation_strategy_keyword == "bulyan":
+        if "num_bulyan_benign_clients" not in strategy_config:
+            raise ValidationError(
+                f"Missing parameter num_bulyan_benign_clients for aggregation: {aggregation_strategy_keyword}"
+            )
+
     if aggregation_strategy_keyword in ("bulyan", "krum", "multi-krum-based", "multi-krum", "rfa", "trimmed_mean", "pid"):
         if "begin_removing_from_round" not in strategy_config:
             raise ValidationError(

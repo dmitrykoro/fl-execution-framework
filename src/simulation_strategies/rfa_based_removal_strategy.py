@@ -31,7 +31,6 @@ class RFABasedRemovalStrategy(FedAvg):
         self.weighted_median_factor = weighted_median_factor
         self.current_round = 0
         self.removed_client_ids = set()
-        self.rounds_history = {}
         self.client_scores = {}
 
     def aggregate_fit(self, server_round: int, results: List[Tuple[ClientProxy, FitRes]], failures: List[Union[Tuple[ClientProxy, FitRes], BaseException]]) -> Tuple[Optional[Parameters], Dict[str, Scalar]]:
@@ -45,7 +44,6 @@ class RFABasedRemovalStrategy(FedAvg):
         if self.strategy_history:
             self.strategy_history.update_client_malicious_status(server_round)
 
-        self.rounds_history[f'{self.current_round}'] = {}
         aggregate_clients = []
 
         # Filter clients that have not been removed.

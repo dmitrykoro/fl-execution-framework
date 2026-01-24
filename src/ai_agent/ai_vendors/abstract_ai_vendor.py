@@ -8,6 +8,7 @@ from abc import ABC, abstractmethod
 from jsonschema import ValidationError
 
 from src.config_loaders.config_loader import ConfigLoader
+from src.utils.common import load_json_as_str
 from src.ai_agent.data_models.ai_agent_config import AIAgentConfig
 
 
@@ -254,12 +255,29 @@ class AbstractAIVendor(ABC):
 
         return all_content
 
-    def reason_experiment_results(self, results_dirname: str, simulation_crashed: bool):
+    def reason_experiment_results(
+            self,
+            results_dirname: str,
+            simulation_crashed: bool,
+            user_request: str,
+            generated_strategy_config_json_filepath: str
+    ):
         """
         Ask AI to provide reasoning on experiment results.
         """
         results_content = self._get_all_result_context(results_dirname)
         prompt = ""
+
+        if user_request is not None:
+            prompt += f""""
+            You are a part of an expert system that helps to facilitate federated learning experiments by parsing 
+            quantitative metrics that were collected during FL execution in this expert system. When parsing metrics, 
+            you must link the user request to observed results and provide recommendations and reasoning on observed 
+            patterns. User-provided case study objective: {user_request}. The following file contents provide 
+            the specification of possible experiment configuration entries, and it's validation logic: 
+            {self.framework_config_context}. User requested to execute the following configuration: 
+            {load_json_as_str(generated_strategy_config_json_filepath)}
+        """
 
         if simulation_crashed:
             prompt += "This experiment crashed due to a problem, but incomplete results are still available."
@@ -273,7 +291,7 @@ class AbstractAIVendor(ABC):
             Each * corresponds to the entry from simulation_strategies array, representing the results for separate case.
             Below are file contents:
             {results_content}
-            Explain the results, and provide recommendation for the user, considering their setup and 
+            Explain the results, and provide recommendation for the user, considering their prompt and 
             case study observations from the resulting files. 
          """
 
