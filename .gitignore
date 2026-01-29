@@ -28,3 +28,4 @@ cache/
 dist/
 local/
 logs/
+/.venv-wsl
