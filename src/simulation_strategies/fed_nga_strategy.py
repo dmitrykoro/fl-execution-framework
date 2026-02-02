@@ -73,7 +73,6 @@ class FedNGAStrategy(FedAvg):
         if not self.current_parameters:
             return super().aggregate_fit(server_round, results, failures)
         
-
         # clustering
         clustering_param_data = []
         for client_proxy, fit_res in results:
@@ -90,17 +89,16 @@ class FedNGAStrategy(FedAvg):
         kmeans = KMeans(n_clusters=1, init='k-means++').fit(X)
         distances = kmeans.transform(X)
 
-
         """
         Receiving update parameters from clients.
         However, Fed-NGA needs client gradients.
         So need to calcualte the gradients from the parameters
         w_c = w_g - (η_local · g) => g = (w_g - w_c) / η_local
         """
-        # 1. Current global model
+        # Current global model
         w_global = parameters_to_ndarrays(self.current_parameters)
         
-        # 2. Compute client deltas
+        # Compute client deltas
         # given parameter updates, need to change them back to client gradients
         deltas = []
         num_examples = []
@@ -120,13 +118,12 @@ class FedNGAStrategy(FedAvg):
                 absolute_distance=float(distances[i][0])
             )
 
-
         """
         After obtaining client gradients, can perform Fed-NGA aggregation
         w^(t+1) = w^t - η^t∑_m∈M (a_m · (g_m^t / ||g_m^t||))
         """
-
-        # 3. Normalize deltas (Fed-NGA core)
+        
+        # Normalize deltas (Fed-NGA core)
         # g_m^t / ||g_m^t||
         normalized_deltas = []
         for delta in deltas:
@@ -136,8 +133,7 @@ class FedNGAStrategy(FedAvg):
             else:
                 normalized_deltas.append(delta)
 
-        
-        #4. weighted aggregation
+        # weighted aggregation
         # g^t = ∑_m∈M (a_m · (g_m^t / ||g_m^t||))
         total = sum(num_examples)
         weights = [n/total for n in num_examples]
@@ -146,8 +142,7 @@ class FedNGAStrategy(FedAvg):
         for layers in zip(*normalized_deltas):
             avg_delta.append(sum(w * layer for w, layer in zip (weights, layers)))
 
-
-        # 5. Server-side learning rate per round
+        # Server-side learning rate per round
         # η_t = η / (t+c)^(1/2 + δ)
         g_norm = np.sqrt(sum(np.sum(layer ** 2) for layer in avg_delta))
 
@@ -162,13 +157,12 @@ class FedNGAStrategy(FedAvg):
         c = 100
         eta_t = eta0_dyn / ((server_round + c)**(0.5+fine_tune))
 
-        #6. new global model
+        # new global model
         # w^(t+1) = w^t - η^t · g^t
         w_new = [
             wg - eta_t * d
             for wg, d in zip(w_global, avg_delta)
         ]
-
 
         for i, (client_proxy, _) in enumerate(results):
             client_id = client_proxy.cid
@@ -180,25 +174,21 @@ class FedNGAStrategy(FedAvg):
                 f'Absolute Distance: {distances[i][0]}'
             )
 
-
         self.logger.info(
             f"Round {server_round}: "
                 f"eta={eta_t:.6f}, "
                 f"||g||={np.sqrt(sum(np.sum(l**2) for l in avg_delta)):.3f}"
         )
 
-        
         #Update strategy history
         self.strategy_history.update_client_participation(
             current_round=self.current_round,
             removed_client_ids=set()
         )
 
-
         new_params = ndarrays_to_parameters(w_new)
         self.current_parameters = new_params
         return new_params, {}
-
 
 
     def configure_fit(
@@ -233,7 +223,6 @@ class FedNGAStrategy(FedAvg):
         if not results:
             return super().aggregate_evaluate(server_round, results, failures)
         
-
         for client_result in results:
             cid = client_result[0].cid
             accuracy_matrix = client_result[1].metrics
@@ -244,7 +233,6 @@ class FedNGAStrategy(FedAvg):
                 current_round=self.current_round,
                 accuracy=float(accuracy_matrix['accuracy'])
             )
-
 
         aggregate_value = []
         number_of_clients_in_loss_calc = 0
