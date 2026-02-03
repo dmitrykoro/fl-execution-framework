@@ -95,27 +95,6 @@ def create_clients(
     return clients
 
 
-# -----------------------------
-# Clients at Round
-# -----------------------------
-
-def persist_clients_at_round(
-    session: Session,
-    experiment_event: ExperimentEvent,
-    round_number: int,
-    round_clients_info,
-):
-    for info in round_clients_info:
-        session.add(
-            ClientAtRound(
-                experiment_event_id=experiment_event.id,
-                experiment_client_id=info.client_id,
-                round_number=round_number,
-                client_is_malicious=info.is_malicious,
-                client_is_aggregated=info.was_aggregated,
-                attack_type=info.attack_type,
-            )
-        )
 
 
 # -----------------------------
@@ -183,3 +162,27 @@ def persist_round_metrics(
             )
 
     session.commit()
+
+
+
+# -----------------------------
+# Clients at Round
+# -----------------------------
+
+def persist_clients_at_round(
+    session: Session,
+    experiment_event: ExperimentEvent,
+    round_number: int,
+    round_clients_info,
+):
+    for info in round_clients_info:
+        session.add(
+            ClientAtRound(
+                experiment_event_id=experiment_event.id,
+                experiment_client_id=info.client_id,
+                round_number=round_number,
+                client_is_malicious=info.is_malicious,
+                client_is_aggregated=info.was_aggregated,
+                attack_type=info.attack_type,
+            )
+        )

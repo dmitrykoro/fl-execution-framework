@@ -148,7 +148,7 @@ class SimulationRunner:
                     dataset_config_list=self._dataset_config_list
                 )
                 dataset_handler.setup_dataset()
-                
+
                 clients = create_clients(
                     session=session,
                     experiment_event=experiment_event,
@@ -164,15 +164,7 @@ class SimulationRunner:
                     directory_handler=self._directory_handler,
                 )
                 simulation_strategy.run_simulation()
-                
-                # ------------------ DB: persist round metrics ------------------
-                persist_round_metrics(
-                    session=session,
-                    experiment_event=experiment_event,
-                    rounds_info=simulation_strategy.strategy_history.rounds_history,
-                )
 
-                session.commit()
 
                 executed_simulation_strategies.append(simulation_strategy)
 
@@ -180,6 +172,26 @@ class SimulationRunner:
                 new_plot_handler.show_plots_within_strategy(simulation_strategy, self._directory_handler)
 
                 simulation_strategy.strategy_history.calculate_additional_rounds_data()
+                print(vars(simulation_strategy.strategy_history._clients_dict[0]))
+
+                # ------------------ DB: persist round metrics ------------------
+                persist_round_metrics(
+                    session=session,
+                    experiment_event=experiment_event,
+                    rounds_info=simulation_strategy.strategy_history.rounds_history,
+                )
+                session.commit()
+
+                for round_number in range(1, strategy_config.num_of_rounds + 1):
+                    persist_clients_at_round(
+                        session=session,
+                        experiment_event=experiment_event,
+                        round_number=round_number,
+                        clients=clients,
+                        round_clients_info=simulation_strategy.strategy_history.get_all_clients(),
+
+                    )
+                session.commit()
                 self._directory_handler.save_csv_and_config(simulation_strategy.strategy_history)
 
             except Exception as e:  # noqa
