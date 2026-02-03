@@ -203,9 +203,9 @@ class FedNGAStrategy(FedAvg):
         # fetch available clients as a dictionary
         available_clients = client_manager.all()    # dictionary with client IDs as keys and RayActorClientProxy objects as values
 
-        client_pids = {client_id: self.client_scores.get(client_id, 0) for client_id in available_clients.keys()}
+        client_scores = {client_id: self.client_scores.get(client_id, 0) for client_id in available_clients.keys()}
 
-        selected_client_ids = sorted(client_pids, key=client_pids.get, reverse=True)
+        selected_client_ids = sorted(client_scores, key=client_scores.get, reverse=True)
         fit_ins = fl.common.FitIns(parameters, {})
 
         return [(available_clients[cid], fit_ins) for cid in selected_client_ids if cid in available_clients]
