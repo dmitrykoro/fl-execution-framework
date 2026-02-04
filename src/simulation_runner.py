@@ -50,7 +50,7 @@ def parse_arguments() -> argparse.Namespace:
         "config_filepath",
         type=str,
         nargs="?",
-        default="config/simulation_strategies/examples/its_config.json",
+        default="config/simulation_strategies/example_strategy_config.json",
         help="Config filename (default: example_strategy_config.json)"
     )
 
