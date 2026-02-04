@@ -86,13 +86,16 @@ def create_clients(
     for i in range(num_clients):
         client = ExperimentClient(
             experiment_event_id=experiment_event.id,
+            client_number=i,
             was_ever_malicious=i in malicious_ids,
         )
         session.add(client)
         clients.append(client)
 
     session.flush()
-    return clients
+
+    experiment_client_id_map = {c.client_number: c.id for c in clients}
+    return clients, experiment_client_id_map
 
 
 
@@ -169,20 +172,37 @@ def persist_round_metrics(
 # Clients at Round
 # -----------------------------
 
+# -----------------------------
+# persist_clients_at_round
+# -----------------------------
 def persist_clients_at_round(
     session: Session,
-    experiment_event: ExperimentEvent,
-    round_number: int,
-    round_clients_info,
+    experiment_event,
+    round_clients_info: list,
+    experiment_client_id_map: dict[int, str],
+    attack_type: str,
 ):
-    for info in round_clients_info:
-        session.add(
-            ClientAtRound(
-                experiment_event_id=experiment_event.id,
-                experiment_client_id=info.client_id,
-                round_number=round_number,
-                client_is_malicious=info.is_malicious,
-                client_is_aggregated=info.was_aggregated,
-                attack_type=info.attack_type,
+    """
+    Persist ClientAtRound rows for all clients in a round.
+    """
+
+    for client in round_clients_info:
+        # get the DB PK using the simulation client_id
+        if client.client_id not in experiment_client_id_map:
+            raise RuntimeError(
+                f"Simulation client_id {client.client_id} not found in DB mapping"
             )
-        )
+
+        experiment_client_db_id = experiment_client_id_map[client.client_id]
+
+        for i, round_number in enumerate(client.rounds):
+            session.add(
+                ClientAtRound(
+                    experiment_event_id=experiment_event.id,
+                    experiment_client_id=experiment_client_db_id,  # ✅ DB PK
+                    round_number=round_number,
+                    client_is_malicious=client.is_malicious,
+                    client_is_aggregated=client.aggregation_participation_history[i],
+                    attack_type=attack_type if client.is_malicious else "none",  # NOT NULL safe
+                )
+            )

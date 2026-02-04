@@ -50,7 +50,7 @@ def parse_arguments() -> argparse.Namespace:
         "config_filepath",
         type=str,
         nargs="?",
-        default="config/simulation_strategies/example_strategy_config.json",
+        default="config/simulation_strategies/examples/its_config.json",
         help="Config filename (default: example_strategy_config.json)"
     )
 
@@ -149,14 +149,15 @@ class SimulationRunner:
                 )
                 dataset_handler.setup_dataset()
 
-                clients = create_clients(
+                clients, experiment_client_id_map = create_clients(
                     session=session,
                     experiment_event=experiment_event,
                     num_clients=strategy_config.num_of_clients,
                     malicious_ids=dataset_handler.poisoned_client_ids,
                 )
                 session.commit()
-                
+
+
                 simulation_strategy = FederatedSimulation(
                     strategy_config=strategy_config,
                     dataset_dir=self._directory_handler.dataset_dir,
@@ -172,7 +173,7 @@ class SimulationRunner:
                 new_plot_handler.show_plots_within_strategy(simulation_strategy, self._directory_handler)
 
                 simulation_strategy.strategy_history.calculate_additional_rounds_data()
-                print(vars(simulation_strategy.strategy_history._clients_dict[0]))
+                cl = simulation_strategy.strategy_history.get_all_clients()
 
                 # ------------------ DB: persist round metrics ------------------
                 persist_round_metrics(
@@ -182,15 +183,14 @@ class SimulationRunner:
                 )
                 session.commit()
 
-                for round_number in range(1, strategy_config.num_of_rounds + 1):
-                    persist_clients_at_round(
-                        session=session,
-                        experiment_event=experiment_event,
-                        round_number=round_number,
-                        clients=clients,
-                        round_clients_info=simulation_strategy.strategy_history.get_all_clients(),
+                persist_clients_at_round(
+                    session=session,
+                    experiment_event=experiment_event,
+                    round_clients_info=cl,
+                    experiment_client_id_map=experiment_client_id_map,
+                    attack_type=simulation_strategy.strategy_config.attack_type,
+                )
 
-                    )
                 session.commit()
                 self._directory_handler.save_csv_and_config(simulation_strategy.strategy_history)
 

@@ -61,15 +61,31 @@ class ExperimentClient(Base):
     __tablename__ = "experiment_client"
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    client_number = Column(Integer, nullable=False)
+
     was_ever_malicious = Column(Boolean, default=False)
 
-    experiment_event_id = Column(Integer, ForeignKey("experiment_event.id"), nullable=False)
-    experiment_event = relationship("ExperimentEvent", back_populates="clients")
+    experiment_event_id = Column(
+        Integer,
+        ForeignKey("experiment_event.id", ondelete="CASCADE"),
+        nullable=False
+    )
+    experiment_event = relationship(
+        "ExperimentEvent",
+        back_populates="clients"
+    )
 
-    # relationships
-    metric_entries = relationship("MetricEntry", back_populates="client")
-    rounds = relationship("ClientAtRound", back_populates="client")
+    metric_entries = relationship(
+        "MetricEntry",
+        back_populates="client",
+        cascade="all, delete-orphan"
+    )
 
+    rounds = relationship(
+        "ClientAtRound",
+        back_populates="client",
+        cascade="all, delete-orphan"
+    )
 
 class ClientAtRound(Base):
     __tablename__ = "client_at_round"
