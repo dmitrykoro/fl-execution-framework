@@ -162,7 +162,9 @@ class FlowerClient(fl.client.NumPyClient):
 
                         # Apply all attacks sequentially
                         for attack_config in attack_configs:
-                            images, labels = apply_poisoning_attack(images, labels, attack_config, tokenizer=self.tokenizer, num_classes=num_classes)
+                            images, labels = apply_poisoning_attack(
+                                images, labels, attack_config, tokenizer=self.tokenizer, num_classes=num_classes
+                            )
 
                         # Save snapshot after all attacks applied
                         if epoch == 0 and batch_idx == 0:

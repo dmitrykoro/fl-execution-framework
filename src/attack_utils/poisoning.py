@@ -108,6 +108,7 @@ def apply_poisoning_attack(
     num_classes: int = None,
 ) -> Tuple[torch.Tensor, torch.Tensor]:
     """Apply poisoning attack based on config. Supports label_flipping and gaussian_noise."""
+
     if "params" in attack_config or (
         "type" in attack_config and "attack_type" not in attack_config
     ):
@@ -115,7 +116,6 @@ def apply_poisoning_attack(
             "Detected old nested attack config format. "
             "Please use flat attack_schedule format instead. "
             "Example: {'attack_type': 'label_flipping'} "
-            "See docs/attack-scheduling.md guide."
         )
 
     attack_type = attack_config.get("attack_type")

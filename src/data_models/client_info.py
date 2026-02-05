@@ -10,6 +10,8 @@ class ClientInfo:
     is_malicious: bool = None
     rounds: List[int] = None
 
+    attack_plan: List[str] = None
+
     removal_criterion_history: List[Union[float, None]] = None
     absolute_distance_history: List[Union[float, None]] = None
     loss_history: List[Union[float, None]] = None
@@ -41,10 +43,18 @@ class ClientInfo:
         self.accuracy_history = _init_list()
         self.aggregation_participation_history = _init_list(value=1)
 
+        self.attack_plan = _init_list()
+
         self.rounds = []
 
         for round_num in range(self.num_of_rounds):
             self.rounds.append(round_num + 1)
+
+    def get_current_attack(self, current_round) -> str:
+        """
+        Get the attack scheduled for specified round.
+        """
+        return self.attack_plan[current_round - 1]
 
     def add_history_entry(
             self,

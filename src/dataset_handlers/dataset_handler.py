@@ -19,6 +19,19 @@ class DatasetHandler:
         self.poisoned_client_ids = set()
         self.all_poisoned_img_snrs = []
 
+
+    def get_all_malicious_clients(self):
+        """
+        Get the information which clients are malicious at which round.
+        """
+
+        if self._strategy_config.attack_schedule:
+            pass
+        else:
+            pass
+
+
+
     def setup_dataset(self) -> None:
         """Copy the specified number of clients' subsets to runtime folder and perform poisoning"""
 
@@ -100,7 +113,6 @@ class DatasetHandler:
         ]
 
         for label in available_labels:
-
             old_dir = os.path.join(self.dst_dataset, client_dir, label)
             new_dir = os.path.join(self.dst_dataset, client_dir, label + "_old")
 
@@ -181,7 +193,6 @@ class DatasetHandler:
                 """
                 noise_power = signal_power / (10 ** (target_snr_db / 10))
 
-
                 # Generate Gaussian noise with mean 0 and variance 1
                 noise = np.random.normal(0, 1, image.shape).astype(np.float32)
 
@@ -210,7 +221,7 @@ class DatasetHandler:
         try:
             base_seed = 1337
             cid = int(client_dir.split("_")[1])
-            rng.seed(base_seed+cid)
+            rng.seed(base_seed + cid)
         except Exception:
             rng.seed()
         attack_ratio = getattr(self._strategy_config, "attack_ratio", 1.0)
@@ -227,7 +238,7 @@ class DatasetHandler:
             logging.warning(f"No JSON files found for NER poisoning in {client_path}")
             return
 
-        #Collect full label set from this client's files
+        # Collect full label set from this client's files
         label_set = set()
         for f in json_files:
             try:
@@ -246,7 +257,7 @@ class DatasetHandler:
             logging.warning(f"Insufficient label variety found in {client_path}; skipping flip.")
             return
 
-        #Rewrite each file with flipped labels
+        # Rewrite each file with flipped labels
         for f in json_files:
             try:
                 with open(f, "r", encoding="utf-8") as fp:
@@ -282,7 +293,7 @@ class DatasetHandler:
             except Exception as e:
                 logging.error(f"Failed poisoning {f}: {e}")
 
-        #Mark the client folder as poisoned
+        # Mark the client folder as poisoned
         try:
             os.rename(
                 os.path.join(self.dst_dataset, client_dir),
@@ -290,8 +301,6 @@ class DatasetHandler:
             )
         except Exception as e:
             logging.error(f"Failed to mark poisoned client folder: {e}")
-
-
 
     def _assign_poisoned_client_ids(
             self, bad_client_dirs: list
@@ -301,6 +310,7 @@ class DatasetHandler:
         for bad_client_dir in bad_client_dirs:
             try:
                 self.poisoned_client_ids.add(int(bad_client_dir.split("_")[1]))
+
             except Exception as e:
                 logging.error(f"Error while parsing client dataset folder: client id must be a number: {e}")
                 sys.exit(-1)
