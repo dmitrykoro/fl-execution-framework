@@ -97,7 +97,7 @@ class FedNGAStrategy(FedAvg):
         """
         # Current global model
         w_global = parameters_to_ndarrays(self.current_parameters)
-        
+
         # Compute client deltas
         # given parameter updates, need to change them back to client gradients
         deltas = []
@@ -122,6 +122,7 @@ class FedNGAStrategy(FedAvg):
         After obtaining client gradients, can perform Fed-NGA aggregation
         w^(t+1) = w^t - η^t∑_m∈M (a_m · (g_m^t / ||g_m^t||))
         """
+        time_start_calc = time.time_ns()
         
         # Normalize deltas (Fed-NGA core)
         # g_m^t / ||g_m^t||
@@ -163,6 +164,9 @@ class FedNGAStrategy(FedAvg):
             wg - eta_t * d
             for wg, d in zip(w_global, avg_delta)
         ]
+
+        time_end_calc = time.time_ns()
+        self.strategy_history.insert_round_history_entry(score_calculation_time_nanos=time_end_calc - time_start_calc)
 
         for i, (client_proxy, _) in enumerate(results):
             client_id = client_proxy.cid
