@@ -50,6 +50,7 @@ from src.simulation_strategies.trimmed_mean_based_removal_strategy import Trimme
 from src.simulation_strategies.multi_krum_strategy import MultiKrumStrategy
 from src.simulation_strategies.rfa_based_removal_strategy import RFABasedRemovalStrategy
 from src.simulation_strategies.bulyan_strategy import BulyanStrategy
+from src.simulation_strategies.fed_nga_strategy import FedNGAStrategy
 
 from src.data_models.simulation_strategy_config import StrategyConfig
 from src.data_models.simulation_strategy_history import SimulationStrategyHistory
@@ -399,6 +400,11 @@ class FederatedSimulation:
         elif aggregation_strategy_keyword == "bulyan":
             self._aggregation_strategy = BulyanStrategy(
                 num_krum_selections=self.strategy_config.num_krum_selections,
+                **common_kwargs
+            )
+
+        elif aggregation_strategy_keyword == "fed_nga":
+            self._aggregation_strategy = FedNGAStrategy(
                 **common_kwargs
             )
 
