@@ -1,14 +1,13 @@
 import logging
-
 import flwr as fl
 import numpy as np
 import torch
 
 from collections import OrderedDict
-from src.network_models.bert_model_definition import get_peft_model_state_dict, set_peft_model_state_dict
-from src.attack_utils.poisoning import should_poison_this_round, apply_poisoning_attack
-from src.utils.legacy.ner_metrics_medmentions import StrictMentionAndDocEvaluator
 
+from src.network_models.bert_model_definition import get_peft_model_state_dict, set_peft_model_state_dict
+from src.dataset_handlers.dataset_handler import apply_poisoning_attack, should_poison_this_round
+from src.utils.legacy.ner_metrics_medmentions import StrictMentionAndDocEvaluator
 from src.output_handlers import attack_snapshot_handler
 
 

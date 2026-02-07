@@ -7,7 +7,7 @@ from src.data_models.round_info import RoundsInfo
 from src.data_models.simulation_strategy_config import StrategyConfig
 
 from src.dataset_handlers.dataset_handler import DatasetHandler
-from src.attack_utils.poisoning import should_poison_this_round
+from src.dataset_handlers.dataset_handler import should_poison_this_round
 
 
 @dataclass
