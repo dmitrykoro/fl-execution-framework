@@ -25,7 +25,9 @@ class SimulationStrategyHistory:
             self._clients_dict[i] = ClientInfo(
                 client_id=i,
                 num_of_rounds=self.strategy_config.num_of_rounds,
-                is_malicious=False
+                is_malicious=False,
+                _attack_schedule=self.strategy_config.attack_schedule if self.strategy_config.attack_schedule else None,
+                _legacy_attack_type=self.strategy_config.attack_type if self.strategy_config.attack_type else None
             )
 
     def get_all_clients(self) -> list:

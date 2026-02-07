@@ -38,12 +38,12 @@ def should_poison_this_round(
                 is_match = True
 
         elif selection_strategy == "random":
-            targeted_clients = attack_entry.get("_selected_clients", [])
+            targeted_clients = attack_entry.get("malicious_client_ids", [])
             if client_id in targeted_clients:
                 is_match = True
 
         elif selection_strategy == "percentage":
-            targeted_clients = attack_entry.get("_selected_clients", [])
+            targeted_clients = attack_entry.get("malicious_client_ids", [])
             if client_id in targeted_clients:
                 is_match = True
 

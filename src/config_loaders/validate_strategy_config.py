@@ -326,7 +326,7 @@ def _validate_dependent_params(strategy_config: dict) -> None:
 
 def _populate_client_selection(config: dict) -> None:
     """
-    Populate _selected_clients for random and percentage selection strategies.
+    Populate malicious_client_ids for random and percentage selection strategies.
 
     For reproducibility, uses deterministic seeding:
     - If attack entry has 'random_seed': use it
@@ -378,7 +378,7 @@ def _populate_client_selection(config: dict) -> None:
             all_client_ids = list(range(num_of_clients))
             selected_clients = sorted(random.sample(all_client_ids, num_malicious))
 
-            entry["_selected_clients"] = selected_clients
+            entry["malicious_client_ids"] = selected_clients
 
             logging.debug(
                 f"attack_schedule entry {idx} ({selection_strategy}): "

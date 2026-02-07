@@ -45,7 +45,7 @@ def _get_client_attack_summary(client_id: int, attack_schedule: list) -> str:
             if client_id in entry.get("malicious_client_ids", []):
                 is_targeted = True
         elif selection == "random" or selection == "percentage":
-            if client_id in entry.get("_selected_clients", []):
+            if client_id in entry.get("malicious_client_ids", []):
                 is_targeted = True
 
         if is_targeted:

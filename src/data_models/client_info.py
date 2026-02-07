@@ -10,7 +10,10 @@ class ClientInfo:
     is_malicious: bool = None
     rounds: List[int] = None
 
-    attack_plan: List[str] = None
+    _attack_schedule: List[dict] = None
+    _legacy_attack_type: str = None
+
+    attack_plan: List[List[str]] = None
 
     removal_criterion_history: List[Union[float, None]] = None
     absolute_distance_history: List[Union[float, None]] = None
@@ -37,20 +40,42 @@ class ClientInfo:
         def _init_list(value=None):
             return [value] * self.num_of_rounds
 
+        def _create_attack_plan(attack_schedule: list, legacy_attack_type: str):
+            if legacy_attack_type:
+                self.attack_plan = _init_list([legacy_attack_type])
+                return
+            else:
+                self.attack_plan = _init_list([])
+
+            for attack_config in attack_schedule:
+                attack_type = attack_config["attack_type"]
+                malicious_client_ids = attack_config["malicious_client_ids"]
+                start_round = attack_config["start_round"]
+                end_round = attack_config["end_round"]
+
+                if self.client_id not in malicious_client_ids:
+                    continue
+
+                for idx, round_num in enumerate(range(1, self.num_of_rounds + 1)):
+                    if start_round <= round_num <= end_round:
+                        new_plan = list(self.attack_plan[idx])
+                        new_plan.append(attack_type)
+                        self.attack_plan[idx] = new_plan
+
         self.removal_criterion_history = _init_list()
         self.absolute_distance_history = _init_list()
         self.loss_history = _init_list()
         self.accuracy_history = _init_list()
         self.aggregation_participation_history = _init_list(value=1)
 
-        self.attack_plan = _init_list()
+        _create_attack_plan(self._attack_schedule, self._legacy_attack_type)
 
         self.rounds = []
 
         for round_num in range(self.num_of_rounds):
             self.rounds.append(round_num + 1)
 
-    def get_current_attack(self, current_round) -> str:
+    def get_current_attack(self, current_round) -> list:
         """
         Get the attack scheduled for specified round.
         """
