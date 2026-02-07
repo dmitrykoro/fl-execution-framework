@@ -96,8 +96,7 @@ class SimulationRunner:
         # Extend Ray worker timeout to ensure reliability in multi-strategy runs
         os.environ["RAY_worker_register_timeout_seconds"] = "60"
         logging.debug("Set RAY_worker_register_timeout_seconds=60 for multi-strategy reliability")
-   
-        
+
         executed_simulation_strategies = []
 
         for strategy_config_dict, strategy_number in zip(
