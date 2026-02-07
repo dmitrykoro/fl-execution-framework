@@ -60,7 +60,6 @@ class ConfigLoader:
                 for idx, entry in enumerate(attack_schedule):
                     if 'malicious_client_ids' in entry:
                         logging.info(
-                            f"attack_schedule entry {idx} ({entry.get('selection_strategy')}): "
                             f"Selected clients {entry['malicious_client_ids']} for {entry.get('attack_type')} attack"
                         )
 

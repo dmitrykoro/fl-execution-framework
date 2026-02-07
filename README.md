@@ -77,14 +77,13 @@ Defines the aggregation strategy. Options:
   - `start_round`: when the attack starts (1 to `num_of_rounds`).
   - `end_round`: when the attack ends (1 to `num_of_rounds`).
   - `attack_type`: type of attack (`label_flipping` or `gaussian_noise`).
-  - `selection_strategy`: how to select malicious clients (`specific`, `random`, or `percentage`).
   - **Attack parameters:**
     - `label_flipping`: no additional parameters required.
     - `gaussian_noise`: `target_noise_snr` (dB, recommended) or `mean`/`std`, plus optional `attack_ratio` (0.0-1.0, defaults to 1.0).
-  - **Selection parameters:**
-    - `specific`: `malicious_client_ids` (array of client IDs).
-    - `random`: `malicious_client_count` (integer).
-    - `percentage`: `malicious_percentage` (0.0-1.0).
+  - **Malicious Clients Selection:**
+    - `num_malicious_clients`: specify number of malicious clients. Specific clients will be selected randomly.
+    - `proportion_malicious_clients`: specify proportion of malicious clients. Specific clients will be selected randomly.
+    - `specific_malicious_clients`: specify array of malicious client ids. 
 
 - `save_attack_snapshots`: save attack snapshots for analysis (`true`/`false`).
 - `attack_snapshot_format`: format for snapshots (`pickle`, `visual`, or `pickle_and_visual`).

@@ -1,4 +1,6 @@
 import logging
+import random
+
 from jsonschema import validate, ValidationError
 
 config_schema = {
@@ -218,15 +220,14 @@ config_schema = {
                         "type": "string",
                         "enum": ["label_flipping", "gaussian_noise"]
                     },
-                    "selection_strategy": {"type": "string", "enum": ["specific", "random", "percentage"]},
-                    "malicious_client_ids": {"type": "array", "items": {"type": "integer"}},
-                    "malicious_client_count": {"type": "integer", "minimum": 1},
-                    "malicious_percentage": {"type": "number", "minimum": 0.0, "maximum": 1.0},
+                    "num_malicious_clients": {"type": "integer", "items": {"type": "integer"}},
+                    "specific_malicious_clients": {"type": "array", "items": {"type": "integer"}},
+                    "proportion_malicious_clients": {"type": "number", "items": {"type": "integer"}},
                     "random_seed": {"type": "integer", "minimum": 0},
                     "target_noise_snr": {"type": "number"},
                     "attack_ratio": {"type": "number", "minimum": 0.0, "maximum": 1.0}
                 },
-                "required": ["start_round", "end_round", "attack_type", "selection_strategy"]
+                "required": ["start_round", "end_round", "attack_type"]
             }
         },
 
@@ -335,56 +336,59 @@ def _populate_client_selection(config: dict) -> None:
     Research-backed approach: Fixed client selection per attack window
     (not re-randomized each round) for reproducibility.
     """
-    import random
 
     schedule = config.get("attack_schedule", [])
     num_of_clients = config.get("num_of_clients")
 
     for idx, entry in enumerate(schedule):
-        selection_strategy = entry.get("selection_strategy")
 
-        if selection_strategy == "specific":
-            # Already has explicit malicious_client_ids, nothing to do
+        num_malicious_clients = entry.get("num_malicious_clients", None)
+        proportion_malicious_clients = entry.get("proportion_malicious_clients", None)
+        specific_malicious_clients = entry.get("specific_malicious_clients", None)
+
+        if specific_malicious_clients:
+            entry["malicious_client_ids"] = specific_malicious_clients
             continue
 
-        elif selection_strategy in ("random", "percentage"):
-            if "random_seed" in entry:
-                seed = entry["random_seed"]
-            else:
-                # Auto-generate seed from attack parameters for reproducibility
-                seed_string = f"{entry.get('attack_type')}_{entry.get('start_round')}_{entry.get('end_round')}_{idx}"
-                seed = hash(seed_string) % (2 ** 32)
-
+        if "random_seed" in entry:
+            seed = entry["random_seed"]
+        else:
+            # Auto-generate seed from attack parameters for reproducibility
+            seed_string = f"{entry.get('attack_type')}_{entry.get('start_round')}_{entry.get('end_round')}_{idx}"
+            seed = hash(seed_string) % (2 ** 32)
             random.seed(seed)
 
-            if selection_strategy == "random":
-                num_malicious = entry.get("malicious_client_count")
-            else:
-                malicious_percentage = entry.get("malicious_percentage")
-                num_malicious = int(num_of_clients * malicious_percentage)
+        if proportion_malicious_clients:
+            num_malicious_clients = int(num_of_clients * proportion_malicious_clients)
 
-            if num_malicious > num_of_clients:
-                raise ValidationError(
-                    f"attack_schedule entry {idx}: Cannot select {num_malicious} clients "
-                    f"when only {num_of_clients} clients exist"
-                )
+        if specific_malicious_clients:
+            num_malicious_clients = len(specific_malicious_clients)
 
-            if num_malicious <= 0:
-                raise ValidationError(
+        if num_malicious_clients > num_of_clients:
+            raise ValidationError(
+                f"attack_schedule entry {idx}: Cannot select {num_malicious_clients} clients "
+                f"when only {num_of_clients} clients exist"
+            )
+
+        if num_malicious_clients <= 0:
+            raise ValidationError(
                     f"attack_schedule entry {idx}: Must select at least 1 malicious client "
-                    f"(got {num_malicious})"
-                )
+                    f"(got {num_malicious_clients})"
+            )
 
+        if specific_malicious_clients:
+            entry["malicious_client_ids"] = specific_malicious_clients
+
+        else:
             all_client_ids = list(range(num_of_clients))
-            selected_clients = sorted(random.sample(all_client_ids, num_malicious))
+            selected_clients = sorted(random.sample(all_client_ids, num_malicious_clients))
 
             entry["malicious_client_ids"] = selected_clients
 
-            logging.debug(
-                f"attack_schedule entry {idx} ({selection_strategy}): "
+        logging.debug(
                 f"Selected clients {selected_clients} for {entry.get('attack_type')} attack "
                 f"(seed={seed})"
-            )
+        )
 
 
 def _validate_attack_schedule(config: dict) -> None:
@@ -427,27 +431,6 @@ def _validate_attack_schedule(config: dict) -> None:
             if "attack_ratio" not in entry:
                 raise ValidationError(
                     f"{entry_desc}: gaussian_noise attack requires 'attack_ratio' parameter"
-                )
-
-        # Validate selection strategy requirements
-        selection_strategy = entry.get("selection_strategy")
-
-        if selection_strategy == "specific":
-            if "malicious_client_ids" not in entry:
-                raise ValidationError(
-                    f"{entry_desc}: 'specific' selection strategy requires 'malicious_client_ids' list"
-                )
-
-        elif selection_strategy == "random":
-            if "malicious_client_count" not in entry:
-                raise ValidationError(
-                    f"{entry_desc}: 'random' selection strategy requires 'malicious_client_count' integer"
-                )
-
-        elif selection_strategy == "percentage":
-            if "malicious_percentage" not in entry:
-                raise ValidationError(
-                    f"{entry_desc}: 'percentage' selection strategy requires 'malicious_percentage' (0.0-1.0)"
                 )
 
     # Check for overlapping rounds (attack stacking)
