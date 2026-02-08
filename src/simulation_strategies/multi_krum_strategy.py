@@ -150,10 +150,6 @@ class MultiKrumStrategy(fl.server.strategy.FedAvg):
 
         self.current_round += 1
 
-        # Update client.is_malicious based on attack_schedule for dynamic attacks
-        if self.strategy_history:
-            self.strategy_history.update_client_malicious_status(server_round)
-
         # clustering
         clustering_param_data = []
         for client_proxy, fit_res in results:

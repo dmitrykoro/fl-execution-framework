@@ -134,19 +134,27 @@ class RoundsInfo:
             )
 
             # precision: tp / (tp + fp)
-            precision = round_tp / (round_tp + round_fp)
-            self.removal_precision_history.append(precision)
+            try:
+                precision = round_tp / (round_tp + round_fp)
+                self.removal_precision_history.append(precision)
+            except ZeroDivisionError:
+                self.removal_precision_history.append(
+                    f"impossible to calculate precision tp / (tp + fp): {round_tp} / ({round_tp + round_fp})"
+                )
 
             # recall: tp / (tp + fn)
             recall = round_tp / (round_tp + round_fn)
             self.removal_recall_history.append(recall)
 
             # f1: 2 * precision * recall / (precision + recall)
-            f1 = (
-                2 * precision * recall / (precision + recall)
-                if (precision + recall) > 0
-                else 0.0
-            )
-            self.removal_f1_history.append(f1)
+            try:
+                f1 = (
+                    2 * precision * recall / (precision + recall)
+                    if (precision + recall) > 0
+                    else 0.0
+                )
+                self.removal_f1_history.append(f1)
+            except UnboundLocalError:
+                self.removal_f1_history.append("Impossible to calculate")
 
             self.total_fp_and_fn_history.append(round_fp + round_fn)

@@ -7,7 +7,6 @@ from src.data_models.round_info import RoundsInfo
 from src.data_models.simulation_strategy_config import StrategyConfig
 
 from src.dataset_handlers.dataset_handler import DatasetHandler
-from src.attack_utils.poisoning import should_poison_this_round
 
 
 @dataclass
@@ -16,6 +15,7 @@ class SimulationStrategyHistory:
     strategy_config: StrategyConfig
     dataset_handler: DatasetHandler
     rounds_history: RoundsInfo = field(init=False)
+    total_malicious_clients: int = 0
     _clients_dict: dict = field(default_factory=dict)
 
     def __post_init__(self):
@@ -25,13 +25,26 @@ class SimulationStrategyHistory:
             self._clients_dict[i] = ClientInfo(
                 client_id=i,
                 num_of_rounds=self.strategy_config.num_of_rounds,
-                is_malicious=False
+                is_malicious=False,
+                _attack_schedule=self.strategy_config.attack_schedule if self.strategy_config.attack_schedule else None,
+                _legacy_attack_type=self.strategy_config.attack_type if self.strategy_config.attack_type else None
             )
 
-    def get_all_clients(self) -> list:
-        """Get list of all ClientInfo instances"""
+        for client in self._clients_dict.values():
+            if client.is_malicious:
+                self.total_malicious_clients += 1
 
+    def get_all_clients(self) -> list:
+        """
+        Get list of all ClientInfo instances
+        """
         return [client for client in self._clients_dict.values()]
+
+    def get_client_by_id(self, client_id: int) -> ClientInfo:
+        """
+        Get ClientInfo by ID.
+        """
+        return self._clients_dict.get(client_id)
 
     def insert_single_client_history_entry(
             self,
@@ -85,17 +98,6 @@ class SimulationStrategyHistory:
                 aggregation_participation=0
             )
 
-    def update_client_malicious_status(self, current_round: int) -> None:
-        """Update client.is_malicious flag based on static and dynamic poisoning."""
-        for client_id in range(self.strategy_config.num_of_clients):
-            is_statically_poisoned = client_id in self.dataset_handler.poisoned_client_ids
-            is_dynamically_poisoned, _ = should_poison_this_round(
-                current_round=current_round,
-                client_id=client_id,
-                attack_schedule=self.strategy_config.attack_schedule
-            )
-            self._clients_dict[client_id].is_malicious = is_statically_poisoned or is_dynamically_poisoned
-
     def calculate_additional_rounds_data(self) -> None:
         """
         The primary data that is collected during the simulation is as follows:
@@ -132,14 +134,7 @@ class SimulationStrategyHistory:
             round_client_accuracies = []
 
             for client_info in self.get_all_clients():
-
-                is_statically_poisoned = client_info.client_id in self.dataset_handler.poisoned_client_ids
-                is_dynamically_poisoned, _ = should_poison_this_round(
-                    current_round=round_num + 1,
-                    client_id=client_info.client_id,
-                    attack_schedule=self.strategy_config.attack_schedule
-                )
-                client_is_malicious = is_statically_poisoned or is_dynamically_poisoned
+                client_is_malicious = client_info.get_current_attack_keywords(round_num)
                 client_was_aggregated = client_info.aggregation_participation_history[round_num] == 1
 
                 if self.strategy_config.remove_clients:
@@ -160,6 +155,7 @@ class SimulationStrategyHistory:
                 if client_was_aggregated:
                     num_aggregated_clients += 1
                     accuracy = client_info.accuracy_history[round_num]
+
                     if accuracy is not None:
                         sum_aggregated_accuracies += accuracy
                         round_client_accuracies.append(accuracy)

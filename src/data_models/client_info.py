@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import List, Union, Optional
 
 
@@ -9,6 +9,12 @@ class ClientInfo:
     num_of_rounds: int
     is_malicious: bool = None
     rounds: List[int] = None
+
+    _attack_schedule: List[dict] = None
+    _legacy_attack_type: str = None
+
+    attack_plan_keywords: List[List[str]] = None
+    attack_plan_configs: List[dict] = field(default_factory=list)
 
     removal_criterion_history: List[Union[float, None]] = None
     absolute_distance_history: List[Union[float, None]] = None
@@ -35,16 +41,57 @@ class ClientInfo:
         def _init_list(value=None):
             return [value] * self.num_of_rounds
 
+        def _create_attack_plan(attack_schedule: list, legacy_attack_type: str):
+            if legacy_attack_type:
+                self.attack_plan_keywords = _init_list([legacy_attack_type])
+                return
+
+            else:
+                self.attack_plan_keywords = _init_list([])
+
+            for attack_config in attack_schedule:
+                malicious_client_ids = attack_config["malicious_client_ids"]
+
+                if self.client_id not in malicious_client_ids:
+                    continue
+
+                self.is_malicious = True
+                self.attack_plan_configs.append(attack_config)
+
+                attack_type = attack_config["attack_type"]
+                start_round = attack_config["start_round"]
+                end_round = attack_config["end_round"]
+
+                for idx, round_num in enumerate(range(1, self.num_of_rounds + 1)):
+                    if start_round <= round_num <= end_round:
+                        new_plan = list(self.attack_plan_keywords[idx])
+                        new_plan.append(attack_type)
+                        self.attack_plan_keywords[idx] = new_plan
+
         self.removal_criterion_history = _init_list()
         self.absolute_distance_history = _init_list()
         self.loss_history = _init_list()
         self.accuracy_history = _init_list()
         self.aggregation_participation_history = _init_list(value=1)
 
+        _create_attack_plan(self._attack_schedule, self._legacy_attack_type)
+
         self.rounds = []
 
         for round_num in range(self.num_of_rounds):
             self.rounds.append(round_num + 1)
+
+    def get_current_attack_keywords(self, current_round) -> list:
+        """
+        Get the attack scheduled for specified round.
+        """
+        return self.attack_plan_keywords[current_round - 1]
+
+    def get_client_attack_configs(self) -> list:
+        """
+        Get configs for these attacks.
+        """
+        return self.attack_plan_configs
 
     def add_history_entry(
             self,

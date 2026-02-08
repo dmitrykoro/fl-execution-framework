@@ -40,10 +40,6 @@ class RFABasedRemovalStrategy(FedAvg):
         # Increment the current round counter.
         self.current_round += 1
 
-        # Update client.is_malicious based on attack_schedule for dynamic attacks
-        if self.strategy_history:
-            self.strategy_history.update_client_malicious_status(server_round)
-
         aggregate_clients = []
 
         # Filter clients that have not been removed.

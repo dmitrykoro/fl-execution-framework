@@ -466,6 +466,7 @@ class FederatedSimulation:
             experiment_info=experiment_info,
             strategy_number=self.strategy_config.strategy_number,
             tokenizer=tokenizer,
+            strategy_history=self.strategy_history
         ).to_client()
 
     @staticmethod
