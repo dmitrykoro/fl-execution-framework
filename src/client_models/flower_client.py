@@ -241,16 +241,22 @@ class FlowerClient(fl.client.NumPyClient):
                 # Default fallback
                 num_classes = 10
 
+            client_instance = self.strategy_history.get_client_by_id(self.client_id)
+            attack_keywords_list = client_instance.get_current_attack_keywords(current_round)
+            attack_configs_list = client_instance.get_client_attack_configs()
+
             with torch.no_grad():
                 for images, labels in testloader:
-                    should_poison, attack_configs = should_poison_this_round(
-                        current_round, self.client_id, self.attacks_schedule
-                    )
 
-                    if should_poison and attack_configs:
-                        #Apply all attacks sequentially
-                        for attack_config in attack_configs:
-                            images, labels = apply_poisoning_attack(images, lables, attack_config, tokenizer=self.tokenizer, num_classes=num_classes)
+                    for attack_type, attack_config in zip(attack_keywords_list, attack_configs_list):
+                        images, labels = apply_poisoning_attack(
+                            data=images,
+                            labels=labels,
+                            attack_type=attack_type,
+                            attack_config=attack_config,
+                            tokenizer=self.tokenizer,
+                            num_classes=num_classes
+                        )
 
                     images, labels = images.to(self.training_device), labels.to(self.training_device)
                     outputs = net(images)
