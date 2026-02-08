@@ -341,7 +341,6 @@ def _populate_client_selection(config: dict) -> None:
     num_of_clients = config.get("num_of_clients")
 
     for idx, entry in enumerate(schedule):
-
         num_malicious_clients = entry.get("num_malicious_clients", None)
         proportion_malicious_clients = entry.get("proportion_malicious_clients", None)
         specific_malicious_clients = entry.get("specific_malicious_clients", None)

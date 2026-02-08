@@ -101,7 +101,7 @@ class ClientAtRound(Base):
     round_number = Column(Integer, default=1, nullable=False)
     client_is_malicious = Column(Boolean, default=False)
     client_is_aggregated = Column(Boolean, default=True)
-    attack_type = Column(Text, nullable=False)
+    attack_type = Column(Text, nullable=True)
 
 
 class MetricInfo(Base):

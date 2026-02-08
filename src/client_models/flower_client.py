@@ -6,7 +6,7 @@ import torch
 from collections import OrderedDict
 
 from src.network_models.bert_model_definition import get_peft_model_state_dict, set_peft_model_state_dict
-from src.dataset_handlers.dataset_handler import apply_poisoning_attack, should_poison_this_round
+from src.dataset_handlers.dataset_handler import apply_poisoning_attack
 from src.utils.legacy.ner_metrics_medmentions import StrictMentionAndDocEvaluator
 from src.output_handlers import attack_snapshot_handler
 
@@ -31,6 +31,7 @@ class FlowerClient(fl.client.NumPyClient):
             experiment_info=None,
             strategy_number=0,
             tokenizer=None,
+            strategy_history=None,
     ):
         self.client_id = client_id
         self.net = net
@@ -49,6 +50,7 @@ class FlowerClient(fl.client.NumPyClient):
         self.experiment_info = experiment_info
         self.strategy_number = strategy_number
         self.tokenizer = tokenizer
+        self.strategy_history=strategy_history
 
     def _to_device_only_tensors(self, batch):
         """Helper to move only tensor values to device, leaving non-tensors (like lists) as-is."""
@@ -75,6 +77,14 @@ class FlowerClient(fl.client.NumPyClient):
         """Train the network on the training set with optional dynamic poisoning."""
         current_round = config.get("server_round", 1) if config else 1
 
+        client_instance = self.strategy_history.get_client_by_id(self.client_id)
+        attack_keywords_list = client_instance.get_current_attack_keywords(current_round)
+        attack_configs_list = client_instance.get_client_attack_configs()
+
+        print(f"Attack keywords for client_{self.client_id} at round {current_round}: {attack_keywords_list}")
+        print(f"Attack configs for client_{self.client_id}: {attack_configs_list}")
+        print(f"is_dynamic_attack for client_{self.client_id}: {is_dynamic_attack}")
+
         if self.model_type == "cnn":
             criterion = torch.nn.CrossEntropyLoss()
             optimizer = torch.optim.Adam(net.parameters())
@@ -89,27 +99,26 @@ class FlowerClient(fl.client.NumPyClient):
                 # Default fallback
                 num_classes = 10
 
-            should_poison, attack_configs = should_poison_this_round(
-                current_round, self.client_id, self.attacks_schedule
-            )
-
             for epoch in range(epochs):
                 correct, total, epoch_loss = 0, 0, 0.0
 
                 for batch_idx, (images, labels) in enumerate(trainloader):
+                    for attack_type, attack_config in zip(attack_keywords_list, attack_configs_list):
 
-                    if should_poison and attack_configs:
-                        original_images = images.clone()
-                        original_labels = labels.clone()
-
-                        # Apply all attacks sequentially
-                        for attack_config in attack_configs:
-                            images, labels = apply_poisoning_attack(
-                                images, labels, attack_config, tokenizer=self.tokenizer, num_classes=num_classes
-                            )
+                        images, labels = apply_poisoning_attack(
+                            data=images,
+                            labels=labels,
+                            attack_type=attack_type,
+                            attack_config=attack_config,
+                            tokenizer=self.tokenizer,
+                            num_classes=num_classes
+                        )
 
                         # Save snapshot after all attacks applied
                         if epoch == 0 and batch_idx == 0:
+                            original_images = images.clone()
+                            original_labels = labels.clone()
+
                             attack_snapshot_handler.save_attack_snapshots(
                                 attack_snapshot_format=self.attack_snapshot_format,
                                 tokenizer=self.tokenizer,
@@ -122,7 +131,7 @@ class FlowerClient(fl.client.NumPyClient):
                                 experiment_info=self.experiment_info,
                                 strategy_number=self.strategy_number,
                                 current_round=current_round,
-                                attack_configs=attack_configs,
+                                attack_configs=attack_configs_list,
                                 data_sample=images,
                                 labels_sample=labels,
                                 original_data_sample=original_images,
@@ -161,31 +170,14 @@ class FlowerClient(fl.client.NumPyClient):
                 correct, total = 0, 0
 
                 for batch_idx, batch in enumerate(trainloader):
-                    should_poison, attack_configs = should_poison_this_round(
-                        current_round, self.client_id, self.attacks_schedule
-                    )
-                    if should_poison and attack_configs:
-                        # Capture original data before poisoning
-                        original_input_ids = batch["input_ids"].clone()
-                        original_labels = batch["labels"].clone()
-
-                        # Save snapshot after all attacks applied
-                        if epoch == 0 and batch_idx == 0:
-                            attack_snapshot_handler.save_attack_snapshots(
-                                current_round=current_round,
-                                attack_configs=attack_configs,
-                                data_sample=batch["input_ids"],
-                                labels_sample=batch["labels"],
-                                original_data_sample=original_input_ids,
-                                original_labels_sample=original_labels,
-                            )
-
                     batch = self._to_device_only_tensors(batch)
+
                     model_inputs = {
                         "input_ids": batch["input_ids"],
                         "attention_mask": batch.get("attention_mask"),
                         "labels": batch["labels"],
                     }
+
                     outputs = net(**model_inputs)
                     loss = outputs.loss
 

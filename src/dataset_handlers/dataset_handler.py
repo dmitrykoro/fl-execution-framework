@@ -108,22 +108,12 @@ def apply_gaussian_noise(
 def apply_poisoning_attack(
         data: torch.Tensor,
         labels: torch.Tensor,
+        attack_type: str,
         attack_config: dict,
         tokenizer=None,
         num_classes: int = None,
 ) -> Tuple[torch.Tensor, torch.Tensor]:
     """Apply poisoning attack based on config. Supports label_flipping and gaussian_noise."""
-
-    if "params" in attack_config or (
-            "type" in attack_config and "attack_type" not in attack_config
-    ):
-        raise ValueError(
-            "Detected old nested attack config format. "
-            "Please use flat attack_schedule format instead. "
-            "Example: {'attack_type': 'label_flipping'} "
-        )
-
-    attack_type = attack_config.get("attack_type")
 
     if attack_type == "label_flipping":
         if num_classes is None:

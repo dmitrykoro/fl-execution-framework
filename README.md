@@ -109,7 +109,7 @@ Defines the aggregation strategy. Options:
   - **Lora settings**
     - `lora_rank`: rank/size of the low-rank matrices used in lora
     - `lora_alpha`: scaling factor for lora updates
-    - `lora_dropout`: droput rate applied during training
+    - `lora_dropout`: dropout rate applied during training
     - `lora_target_modules`: list of model layers where lora should be applied
 
 #### Strategy-specific parameters

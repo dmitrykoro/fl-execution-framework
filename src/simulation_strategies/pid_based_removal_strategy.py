@@ -168,10 +168,6 @@ class PIDBasedRemovalStrategy(fl.server.strategy.FedAvg):
 
         self.current_round += 1
 
-        # Update client.is_malicious based on attack_schedule for dynamic attacks
-        if self.strategy_history:
-            self.strategy_history.update_client_malicious_status(server_round)
-
         # Handle empty results
         if not results:
             return super().aggregate_fit(server_round, results, failures)
