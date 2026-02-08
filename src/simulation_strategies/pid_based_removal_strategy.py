@@ -176,14 +176,14 @@ class PIDBasedRemovalStrategy(fl.server.strategy.FedAvg):
         if not results:
             return super().aggregate_fit(server_round, results, failures)
 
-        aggregate_clients = []
+        """aggregate_clients = []
 
         for result in results:
             client_id = result[0].cid
             if client_id not in self.removed_client_ids:
                 aggregate_clients.append(result)
 
-        aggregated_parameters, aggregated_metrics = super().aggregate_fit(server_round, aggregate_clients, failures)
+        aggregated_parameters, aggregated_metrics = super().aggregate_fit(server_round, aggregate_clients, failures)"""
 
         # clustering
         clustering_param_data = []
@@ -218,7 +218,17 @@ class PIDBasedRemovalStrategy(fl.server.strategy.FedAvg):
             new_PID = pids[i]
             self.client_pids[client_id] = new_PID
 
-            if not client_id in self.removed_client_ids:
+            
+            """
+            NOTE 
+            Change: 
+                Keep clients with new PID higher than previous threshold
+                    out of calculation for next threshold.
+            """          
+            if (self.current_threshold is None 
+                or self.client_pids[client_id] <= self.current_threshold 
+                and not client_id in self.removed_client_ids):
+            #if not client_id in self.removed_client_ids:
                 counted_pids.append(new_PID)
                 counted_dist.append(curr_dist)
 
@@ -242,9 +252,22 @@ class PIDBasedRemovalStrategy(fl.server.strategy.FedAvg):
 
         # use pid-based threshold if self.aggregation_strategy_keyword is pid or pid_standardized_score_based
         if self.aggregation_strategy_keyword in ("pid", "pid_standardized_score_based"):
-            pid_avg = np.mean(counted_pids)
-            pid_std = np.std(counted_pids)
-            self.current_threshold = pid_avg + (self.num_std_dev * pid_std) if len(counted_pids) > 1 else 0
+            #pid_avg = np.mean(counted_pids)
+            #pid_std = np.std(counted_pids)
+            #self.current_threshold = pid_avg + (self.num_std_dev * pid_std) if len(counted_pids) > 1 else 0
+            """
+            NOTE
+            Change:
+                Use meadian instead of mean for calculating threshold
+            """
+            median_pid = np.median(counted_pids)
+            mad = np.median(np.abs(counted_pids - median_pid))
+
+            scaled_mad = 1.4826 * mad
+            if mad < 1e-12:
+                self.current_threshold = median_pid
+            else:
+                self.current_threshold = median_pid + 2.5 * scaled_mad
 
         # use distance-based threshold for pid_scaled and pid_standardized
         elif self.aggregation_strategy_keyword in ("pid_scaled", "pid_standardized"):
@@ -255,6 +278,24 @@ class PIDBasedRemovalStrategy(fl.server.strategy.FedAvg):
         self.strategy_history.insert_round_history_entry(removal_threshold=self.current_threshold)
 
         self.logger.info(f"REMOVAL THRESHOLD: {self.current_threshold}")
+
+        """
+        NOTE
+        Change:
+            Move aggregation from beginning to the end.
+            Add check to only aggregate clients with PID less
+                than updated threshold.
+        """
+        aggregate_clients = []
+
+        for result in results:
+            client_id = result[0].cid
+            if (self.client_pids[client_id] <= self.current_threshold 
+                and client_id not in self.removed_client_ids):
+                aggregate_clients.append(result)
+
+        aggregated_parameters, aggregated_metrics = super().aggregate_fit(server_round, aggregate_clients, failures)
+
 
         return aggregated_parameters, aggregated_metrics
 
@@ -268,6 +309,13 @@ class PIDBasedRemovalStrategy(fl.server.strategy.FedAvg):
             return [(client, fit_ins) for client in available_clients.values()]
 
         client_pids = {client_id: self.client_pids.get(client_id, 0) for client_id in available_clients.keys()}
+
+        """
+        NOTE
+        Change:
+            reset removed clients to empty set at the beginning of each round
+        """
+        self.removed_client_ids = set()
 
         if self.remove_clients:
             # in the first round after warmup, remove the client with the highest PID
