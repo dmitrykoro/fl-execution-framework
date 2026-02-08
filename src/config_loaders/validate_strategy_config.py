@@ -274,7 +274,7 @@ config_schema = {
         "training_subset_fraction", "training_device", "cpus_per_client",
         "gpus_per_client", "min_fit_clients", "min_evaluate_clients",
         "min_available_clients", "evaluate_metrics_aggregation_fn",
-        "num_of_client_epochs", "batch_size", "attack_schedule"
+        "num_of_client_epochs", "batch_size"
     ]
 }
 

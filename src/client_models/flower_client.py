@@ -83,7 +83,6 @@ class FlowerClient(fl.client.NumPyClient):
 
         print(f"Attack keywords for client_{self.client_id} at round {current_round}: {attack_keywords_list}")
         print(f"Attack configs for client_{self.client_id}: {attack_configs_list}")
-        print(f"is_dynamic_attack for client_{self.client_id}: {is_dynamic_attack}")
 
         if self.model_type == "cnn":
             criterion = torch.nn.CrossEntropyLoss()
