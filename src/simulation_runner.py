@@ -116,29 +116,7 @@ class SimulationRunner:
 
                 strategy_config = StrategyConfig.from_dict(strategy_config_dict)
                 setattr(strategy_config, "strategy_number", strategy_number)
-                # ------------------ DB: persist executed config ------------------
-                seed_metric_info(session)
 
-                executed_config = create_executed_config(
-                    session=session,
-                    strategy_config=strategy_config,
-                )
-
-                # Hardware info (you can improve this later)
-                hardware = get_or_create_hardware(
-                    session,
-                    cpu=os.uname().machine,
-                    arch=os.uname().sysname,
-                    ram=str(os.sysconf("SC_PAGE_SIZE") * os.sysconf("SC_PHYS_PAGES")),
-                )
-
-                experiment_event = create_experiment_event(
-                    session=session,
-                    executed_config=executed_config,
-                    hardware=hardware,
-                )
-               
-                
                 self._directory_handler.assign_dataset_dir(strategy_number)
 
                 dataset_handler = DatasetHandler(
@@ -148,15 +126,6 @@ class SimulationRunner:
                 )
                 dataset_handler.setup_dataset()
 
-                clients, experiment_client_id_map = create_clients(
-                    session=session,
-                    experiment_event=experiment_event,
-                    num_clients=strategy_config.num_of_clients,
-                    malicious_ids=dataset_handler.poisoned_client_ids,
-                )
-                session.commit()
-
-
                 simulation_strategy = FederatedSimulation(
                     strategy_config=strategy_config,
                     dataset_dir=self._directory_handler.dataset_dir,
@@ -165,13 +134,36 @@ class SimulationRunner:
                 )
                 simulation_strategy.run_simulation()
 
-
                 executed_simulation_strategies.append(simulation_strategy)
 
                 # generate per-client plots
                 new_plot_handler.show_plots_within_strategy(simulation_strategy, self._directory_handler)
 
                 simulation_strategy.strategy_history.calculate_additional_rounds_data()
+
+                # ------------------ DB: persist executed config ------------------
+                seed_metric_info(session)
+
+                # Hardware info (you can improve this later)
+                hardware = get_or_create_hardware(
+                    session,
+                    cpu=os.uname().machine,
+                    arch=os.uname().sysname,
+                    ram=str(os.sysconf("SC_PAGE_SIZE") * os.sysconf("SC_PHYS_PAGES")),
+                )
+
+                executed_config = create_executed_config(
+                    session=session,
+                    strategy_config=strategy_config,
+                    num_of_malicious_clients=simulation_strategy.strategy_history.total_malicious_clients
+                )
+
+                experiment_event = create_experiment_event(
+                    session=session,
+                    executed_config=executed_config,
+                    hardware=hardware,
+                )
+
                 cl = simulation_strategy.strategy_history.get_all_clients()
 
                 # ------------------ DB: persist round metrics ------------------
@@ -179,6 +171,14 @@ class SimulationRunner:
                     session=session,
                     experiment_event=experiment_event,
                     rounds_info=simulation_strategy.strategy_history.rounds_history,
+                )
+                session.commit()
+
+                clients, experiment_client_id_map = create_clients(
+                    session=session,
+                    experiment_event=experiment_event,
+                    num_clients=strategy_config.num_of_clients,
+                    malicious_ids=dataset_handler.poisoned_client_ids,  # TODO: pass strategy_history
                 )
                 session.commit()
 

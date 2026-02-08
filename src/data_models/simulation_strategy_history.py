@@ -7,7 +7,6 @@ from src.data_models.round_info import RoundsInfo
 from src.data_models.simulation_strategy_config import StrategyConfig
 
 from src.dataset_handlers.dataset_handler import DatasetHandler
-from src.dataset_handlers.dataset_handler import should_poison_this_round
 
 
 @dataclass
@@ -16,6 +15,7 @@ class SimulationStrategyHistory:
     strategy_config: StrategyConfig
     dataset_handler: DatasetHandler
     rounds_history: RoundsInfo = field(init=False)
+    total_malicious_clients: int = 0
     _clients_dict: dict = field(default_factory=dict)
 
     def __post_init__(self):
@@ -29,6 +29,10 @@ class SimulationStrategyHistory:
                 _attack_schedule=self.strategy_config.attack_schedule if self.strategy_config.attack_schedule else None,
                 _legacy_attack_type=self.strategy_config.attack_type if self.strategy_config.attack_type else None
             )
+
+        for client in self._clients_dict.values():
+            if client.is_malicious:
+                self.total_malicious_clients += 1
 
     def get_all_clients(self) -> list:
         """

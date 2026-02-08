@@ -55,6 +55,7 @@ class ClientInfo:
                 if self.client_id not in malicious_client_ids:
                     continue
 
+                self.is_malicious = True
                 self.attack_plan_configs.append(attack_config)
 
                 attack_type = attack_config["attack_type"]

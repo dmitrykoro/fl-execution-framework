@@ -14,14 +14,14 @@ from src.data_models.round_info import RoundsInfo
 # Executed Config
 # -----------------------------
 
-def create_executed_config(session: Session, strategy_config) -> ExecutedConfig:
+def create_executed_config(session: Session, strategy_config, num_of_malicious_clients) -> ExecutedConfig:
     cfg = ExecutedConfig(
         json=strategy_config.to_json(),
         aggregation_strategy_keyword=strategy_config.aggregation_strategy_keyword,
         dataset_keyword=strategy_config.dataset_keyword,
         num_rounds=strategy_config.num_of_rounds,
         num_clients=strategy_config.num_of_clients,
-        num_malicious_clients=strategy_config.num_of_malicious_clients,
+        num_malicious_clients=num_of_malicious_clients,
     )
     session.add(cfg)
     session.flush()
@@ -87,7 +87,7 @@ def create_clients(
         client = ExperimentClient(
             experiment_event_id=experiment_event.id,
             client_number=i,
-            was_ever_malicious=i in malicious_ids,
+            was_ever_malicious=i in malicious_ids, # TODO: determine based on strategy_history
         )
         session.add(client)
         clients.append(client)
@@ -201,7 +201,7 @@ def persist_clients_at_round(
                     experiment_event_id=experiment_event.id,
                     experiment_client_id=experiment_client_db_id,  # ✅ DB PK
                     round_number=round_number,
-                    client_is_malicious=client.is_malicious,
+                    client_is_malicious=client.is_malicious, # TODO: determine based on client_info.attack_plan_keywords
                     client_is_aggregated=client.aggregation_participation_history[i],
                     attack_type=attack_type if client.is_malicious else "none",  # NOT NULL safe
                 )

@@ -11,50 +11,6 @@ import torch
 from typing import Tuple, Optional
 
 
-def should_poison_this_round(
-        current_round: int,
-        client_id: int,
-        attack_schedule: Optional[list]
-) -> Tuple[bool, list]:
-    """Check if client should be dynamically poisoned this round based on attack_schedule."""
-    if not attack_schedule:
-        return False, []
-
-    attacks_by_type = {}
-
-    for attack_entry in attack_schedule:
-        start_round = attack_entry.get("start_round", 1)
-        end_round = attack_entry.get("end_round", float("inf"))
-
-        if not (start_round <= current_round <= end_round):
-            continue
-
-        selection_strategy = attack_entry.get("selection_strategy", "specific")
-        is_match = False
-
-        if selection_strategy == "specific":
-            malicious_client_ids = attack_entry.get("malicious_client_ids", [])
-            if client_id in malicious_client_ids:
-                is_match = True
-
-        elif selection_strategy == "random":
-            targeted_clients = attack_entry.get("malicious_client_ids", [])
-            if client_id in targeted_clients:
-                is_match = True
-
-        elif selection_strategy == "percentage":
-            targeted_clients = attack_entry.get("malicious_client_ids", [])
-            if client_id in targeted_clients:
-                is_match = True
-
-        if is_match:
-            attack_type = attack_entry.get("attack_type")
-            if attack_type and attack_type not in attacks_by_type:
-                attacks_by_type[attack_type] = attack_entry
-
-    return len(attacks_by_type) > 0, list(attacks_by_type.values())
-
-
 def apply_label_flipping(
         labels: torch.Tensor,
         num_classes: int,
