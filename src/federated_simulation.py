@@ -50,6 +50,7 @@ from src.simulation_strategies.trimmed_mean_based_removal_strategy import Trimme
 from src.simulation_strategies.multi_krum_strategy import MultiKrumStrategy
 from src.simulation_strategies.rfa_based_removal_strategy import RFABasedRemovalStrategy
 from src.simulation_strategies.bulyan_strategy import BulyanStrategy
+from src.simulation_strategies.pid_based_removal_strategy_with_median import PIDBasedRemovalStrategyWithMedian
 
 from src.data_models.simulation_strategy_config import StrategyConfig
 from src.data_models.simulation_strategy_history import SimulationStrategyHistory
@@ -358,6 +359,17 @@ class FederatedSimulation:
             )
         elif aggregation_strategy_keyword in ("pid", "pid_scaled", "pid_standardized", "pid_standardized_score_based"):
             self._aggregation_strategy = PIDBasedRemovalStrategy(
+                ki=self.strategy_config.Ki,
+                kp=self.strategy_config.Kp,
+                kd=self.strategy_config.Kd,
+                num_std_dev=self.strategy_config.num_std_dev,
+                network_model=self._network_model,
+                aggregation_strategy_keyword=aggregation_strategy_keyword,
+                use_lora=True if self.strategy_config.use_llm and self.strategy_config.llm_finetuning == "lora" else False,
+                **common_kwargs
+            )
+        elif aggregation_strategy_keyword == "pid_median_standardized_score_based":
+            self._aggregation_strategy = PIDBasedRemovalStrategyWithMedian(
                 ki=self.strategy_config.Ki,
                 kp=self.strategy_config.Kp,
                 kd=self.strategy_config.Kd,
