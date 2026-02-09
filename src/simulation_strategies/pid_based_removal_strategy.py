@@ -264,7 +264,9 @@ class PIDBasedRemovalStrategy(fl.server.strategy.FedAvg):
             mad = np.median(np.abs(counted_pids - median_pid))
 
             scaled_mad = 1.4826 * mad
-            if mad < 1e-12:
+            if len(counted_pids) <= 1:
+                self.current_threshold = 0
+            elif mad < 1e-12:
                 self.current_threshold = median_pid
             else:
                 self.current_threshold = median_pid + 2.5 * scaled_mad
