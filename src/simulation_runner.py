@@ -105,7 +105,6 @@ class SimulationRunner:
         ):
             dataset_handler = None
             simulation_strategy = None
-            session = SessionLocal()
 
             try:
                 logging.info(
@@ -141,8 +140,8 @@ class SimulationRunner:
 
                 simulation_strategy.strategy_history.calculate_additional_rounds_data()
 
-                # ------------------ DB: persist executed config ------------------
-                seed_metric_info(session)
+
+                """seed_metric_info(session)
 
                 # Hardware info (you can improve this later)
                 hardware = get_or_create_hardware(
@@ -162,12 +161,15 @@ class SimulationRunner:
                     session=session,
                     executed_config=executed_config,
                     hardware=hardware,
-                )
+                )"""
 
                 cl = simulation_strategy.strategy_history.get_all_clients()
+                for c in cl:
+                    print(c, "\n")
 
+                self._directory_handler.save_csv_and_config(simulation_strategy.strategy_history)
                 # ------------------ DB: persist round metrics ------------------
-                persist_round_metrics(
+                """persist_round_metrics(
                     session=session,
                     experiment_event=experiment_event,
                     rounds_info=simulation_strategy.strategy_history.rounds_history,
@@ -178,7 +180,7 @@ class SimulationRunner:
                     session=session,
                     experiment_event=experiment_event,
                     num_clients=strategy_config.num_of_clients,
-                    malicious_ids=dataset_handler.poisoned_client_ids,  # TODO: pass strategy_history
+                    malicious_ids=simulation_strategy.strategy_history.get_malicious_client_id(),  # TODO: pass strategy_history
                 )
                 session.commit()
 
@@ -190,8 +192,8 @@ class SimulationRunner:
                     attack_type=simulation_strategy.strategy_config.attack_type,
                 )
 
-                session.commit()
-                self._directory_handler.save_csv_and_config(simulation_strategy.strategy_history)
+                session.commit()"""
+                database_logger(simulation_strategy, strategy_config)
 
             except Exception as e:  # noqa
                 raise
@@ -225,8 +227,6 @@ class SimulationRunner:
                 # Force garbage collection to free memory
                 gc.collect()
                 logging.debug("Garbage collection completed")
-                if session:
-                    session.close()
 
 
         # after all strategies are executed, show comparison averaging plots
@@ -239,6 +239,65 @@ class SimulationRunner:
         except Exception as e:
             logging.warning(f"Failed to generate main dashboard: {e}")
 
+
+def database_logger(strategy: FederatedSimulation, config):
+    session = SessionLocal()
+
+
+    try:
+        seed_metric_info(session)
+        # ------------------ DB: persist executed config ------------------
+        # Hardware info (you can improve this later)
+        hardware = get_or_create_hardware(
+            session,
+            cpu=os.uname().machine,
+            arch=os.uname().sysname,
+            ram=str(os.sysconf("SC_PAGE_SIZE") * os.sysconf("SC_PHYS_PAGES")),
+        )
+
+        executed_config = create_executed_config(
+            session=session,
+            strategy_config=config,
+            num_of_malicious_clients=strategy.strategy_history.total_malicious_clients
+        )
+
+        experiment_event = create_experiment_event(
+            session=session,
+            executed_config=executed_config,
+            hardware=hardware,
+        )
+
+        # ------------------ DB: persist round metrics ------------------
+        persist_round_metrics(
+            session=session,
+            experiment_event=experiment_event,
+            rounds_info=strategy.strategy_history.rounds_history,
+        )
+        session.commit()
+
+        clients, experiment_client_id_map = create_clients(
+            session=session,
+            experiment_event=experiment_event,
+            num_clients=strategy.strategy_config.num_of_clients,
+            malicious_ids=strategy.strategy_history.get_malicious_client_id(),  # TODO: pass strategy_history
+        )
+        session.commit()
+
+        persist_clients_at_round(
+            session=session,
+            experiment_event=experiment_event,
+            round_clients_info=strategy.strategy_history.get_all_clients(),
+            experiment_client_id_map=experiment_client_id_map,
+            attack_type=strategy.strategy_config.attack_type,
+        )
+
+        session.commit()
+        experiment_event.is_successful = True
+        session.commit()
+    except Exception as e:
+        raise e
+    finally:
+        session.close()
 
 if __name__ == "__main__":
     """Run simulation with config file in command line args or default example."""

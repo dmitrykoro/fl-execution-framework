@@ -1,4 +1,6 @@
 from sqlalchemy.orm import Session
+from sqlalchemy.sql.elements import Null
+
 from src.experiment_database.models import (
     ExecutedConfig,
     ExperimentEvent,
@@ -64,7 +66,7 @@ def create_experiment_event(
     event = ExperimentEvent(
         executed_config_id=executed_config.id,
         hardware_id=hardware.id if hardware else None,
-        is_successful=True,
+        is_successful=False,
     )
     session.add(event)
     session.flush()
@@ -196,13 +198,13 @@ def persist_clients_at_round(
         experiment_client_db_id = experiment_client_id_map[client.client_id]
 
         for i, round_number in enumerate(client.rounds):
+
             session.add(
                 ClientAtRound(
                     experiment_event_id=experiment_event.id,
                     experiment_client_id=experiment_client_db_id,  # ✅ DB PK
                     round_number=round_number,
-                    client_is_malicious=client.is_malicious, # TODO: determine based on client_info.attack_plan_keywords
                     client_is_aggregated=client.aggregation_participation_history[i],
-                    attack_type=attack_type if client.is_malicious else "none",  # NOT NULL safe
+                    attack_type=client.get_current_attack_keywords(round_number) or None,  # NOT NULL safe
                 )
             )
