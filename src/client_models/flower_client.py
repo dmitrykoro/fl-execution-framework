@@ -195,7 +195,12 @@ class FlowerClient(fl.client.NumPyClient):
                 if verbose:
                     print(f"Epoch {epoch + 1}: train loss {epoch_loss}, accuracy {epoch_acc}")
 
-            return float(epoch_loss), float(epoch_acc)
+                # calculate local client learning rate
+                optimizer_lr = optimizer.param_groups[0]["lr"]
+                num_steps = epochs * len(trainloader)
+                eta_eff = optimizer_lr * num_steps
+
+            return float(epoch_loss), float(epoch_acc), float(eta_eff)
 
         elif self.model_type == "transformer":
             optimizer = torch.optim.AdamW(net.parameters(), lr=5e-5)
@@ -268,7 +273,7 @@ class FlowerClient(fl.client.NumPyClient):
                 if verbose:
                     print(f"Epoch {epoch + 1}: train loss {epoch_loss}, accuracy {epoch_acc}")
 
-            return float(epoch_loss), float(epoch_acc)
+            return float(epoch_loss), float(epoch_acc), 0.0
 
         else:
             raise ValueError(f"Unsupported model type: {self.model_type}. Supported types are 'cnn' and 'mlm'.")
@@ -380,13 +385,13 @@ class FlowerClient(fl.client.NumPyClient):
             global_params = [torch.tensor(p, device=self.training_device) for p in self.get_parameters(config=None)]
 
         logging.debug(f"[Client {self.client_id}] Training for {self.num_of_client_epochs} epoch(s) with {len(self.trainloader)} batches")
-        epoch_loss, epoch_acc = self.train(self.net, self.trainloader, epochs=self.num_of_client_epochs, global_params=global_params, config=config)
+        epoch_loss, epoch_acc, eta_eff = self.train(self.net, self.trainloader, epochs=self.num_of_client_epochs, global_params=global_params, config=config)
         logging.debug(f"[Client {self.client_id}] Training complete - Loss: {epoch_loss:.4f}, Accuracy: {epoch_acc:.4f}")
 
         if torch.cuda.is_available():
             torch.cuda.empty_cache()
 
-        return self.get_parameters(self.net), len(self.trainloader), {"loss": epoch_loss, "accuracy": epoch_acc}
+        return self.get_parameters(self.net), len(self.trainloader), {"loss": epoch_loss, "accuracy": epoch_acc, "eta_eff": eta_eff}
 
     def evaluate(self, parameters, config):
         self.set_parameters(self.net, parameters)
