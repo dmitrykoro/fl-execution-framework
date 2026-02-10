@@ -170,8 +170,9 @@ class PIDBasedRemovalStrategyWithMedian(fl.server.strategy.FedAvg):
 
             # Client PID used in threshold calculation if not already in removed
             #   client set and new PID is less than previous calculated threshold          
-            if (self.current_threshold is None 
-                or self.client_pids[client_id] <= self.current_threshold 
+            if (not self.remove_clients
+                or (self.current_threshold is None 
+                    or self.client_pids[client_id] <= self.current_threshold) 
                 and not client_id in self.removed_client_ids):
                 counted_pids.append(new_PID)
                 counted_dist.append(curr_dist)
@@ -215,7 +216,8 @@ class PIDBasedRemovalStrategyWithMedian(fl.server.strategy.FedAvg):
 
         for result in results:
             client_id = result[0].cid
-            if (self.client_pids[client_id] <= self.current_threshold 
+            if (not self.remove_clients
+                or self.client_pids[client_id] <= self.current_threshold 
                 and client_id not in self.removed_client_ids):
                 aggregate_clients.append(result)
 
