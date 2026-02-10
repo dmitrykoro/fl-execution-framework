@@ -72,36 +72,6 @@ class PIDBasedRemovalStrategyWithMedian(fl.server.strategy.FedAvg):
         self.logger.addHandler(console_handler)
         self.logger.propagate = False
 
-    def calculate_single_client_pid_scaled(self, client_id, distance):
-        """Calculate pid."""
-
-        p = distance * self.kp
-
-        if self.current_round == 1:
-            return p
-        else:
-            curr_sum = self.client_distance_sums.get(client_id, 0)
-            i = curr_sum * self.ki
-            prev_distance = self.client_distances.get(client_id, 0)
-            d = self.kd * (distance - prev_distance)
-
-            i_scaled = i / (self.current_round)
-            return p + i_scaled + d
-
-    def calculate_single_client_pid(self, client_id, distance):
-        """ Old PID calculation without scaling or standardization."""
-        p = distance * self.kp
-
-        if self.current_round == 1:
-            return p
-
-        else:
-            curr_sum = self.client_distance_sums.get(client_id, 0)
-            i = curr_sum * self.ki
-            prev_distance = self.client_distances.get(client_id, 0)
-            d = self.kd * (distance - prev_distance)
-
-            return p + i + d
 
     def calculate_single_client_pid_standardized(self, client_id, distance, avg_sum, sum_std_dev=0):
         """Calculate pid with standardized distance."""
@@ -122,27 +92,16 @@ class PIDBasedRemovalStrategyWithMedian(fl.server.strategy.FedAvg):
     def calculate_all_pid_scores(self, results, normalized_distances, standardized=False, scaled=False) -> List[float]:
         pid_scores = []
 
-        if self.aggregation_strategy_keyword == "pid_scaled":
-            scaled = True
-        elif self.aggregation_strategy_keyword in ("pid_standardized", "pid_median_standardized_score_based"):
-            standardized = True
-
-        if standardized:
-            all_sums = sum(self.client_distance_sums.values())
-            avg_sum = all_sums / len(self.client_distance_sums) if self.client_distance_sums else 0
-            sum_dev = np.std(list(self.client_distance_sums.values())) if self.client_distance_sums else 0
+        # needed for standardizing
+        all_sums = sum(self.client_distance_sums.values())
+        avg_sum = all_sums / len(self.client_distance_sums) if self.client_distance_sums else 0
+        sum_dev = np.std(list(self.client_distance_sums.values())) if self.client_distance_sums else 0
 
         for i, (client_proxy, _) in enumerate(results):
             client_id = client_proxy.cid
             curr_dist = normalized_distances[i][0]
 
-            if standardized:
-                new_PID = self.calculate_single_client_pid_standardized(client_id, curr_dist, avg_sum, sum_dev)
-            elif scaled:
-                new_PID = self.calculate_single_client_pid_scaled(client_id, curr_dist)
-            else:
-                new_PID = self.calculate_single_client_pid(client_id, curr_dist)
-                # print(f"PID for client {client_id} is {new_PID}")
+            new_PID = self.calculate_single_client_pid_standardized(client_id, curr_dist, avg_sum, sum_dev)
 
             self.client_pids[client_id] = new_PID
             pid_scores.append(new_PID)
@@ -235,29 +194,16 @@ class PIDBasedRemovalStrategyWithMedian(fl.server.strategy.FedAvg):
                 f'Normalized Distance: {normalized_distances[i][0]} '
             )
 
-        # use pid-based threshold if self.aggregation_strategy_keyword is pid or pid_standardized_score_based
-        if self.aggregation_strategy_keyword == "pid_median_standardized_score_based":
-            median_pid = np.median(counted_pids)
-            mad = np.median(np.abs(counted_pids - median_pid))
+        # pid-based threshold for pid_median_standardized_score_based
+        median_pid = np.median(counted_pids)
+        mad = np.median(np.abs(counted_pids - median_pid))
 
-            # σ ≈  1.4826 x MAD
-            scaled_mad = 1.4826 * mad
-            if mad < 1e-12:
-                self.current_threshold = median_pid if len(counted_pids) > 1 else 0
-            else:
-                self.current_threshold = median_pid + (self.num_mad * scaled_mad) if len(counted_pids) > 1 else 0
-
-        # use distance-based threshold for pid_scaled and pid_standardized
-        elif False and self.aggregation_strategy_keyword in ("pid_scaled", "pid_standardized"):
-            median_dist = np.median(list(self.client_distances.values())) if self.client_distances else 0
-            mad = np.median(np.abs(list(self.client_distances.values()) - median_dist)) if self.client_distances else 0
-
-            # σ ≈  1.4826 x MAD
-            scaled_mad = 1.4826 * mad
-            if mad < 1e-12:
-                self.current_threshold = median_pid if len(counted_pids) > 1 else 0
-            else:
-                self.current_threshold = median_dist + (self.num_mad * scaled_mad) if len(counted_pids) > 1 else 0
+        # σ ≈  1.4826 x MAD
+        scaled_mad = 1.4826 * mad
+        if mad < 1e-12:
+            self.current_threshold = median_pid if len(counted_pids) > 1 else 0
+        else:
+            self.current_threshold = median_pid + (self.num_mad * scaled_mad) if len(counted_pids) > 1 else 0
 
         self.strategy_history.insert_round_history_entry(removal_threshold=self.current_threshold)
 
