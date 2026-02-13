@@ -16,6 +16,7 @@ class SimulationStrategyHistory:
     dataset_handler: DatasetHandler
     rounds_history: RoundsInfo = field(init=False)
     total_malicious_clients: int = 0
+    malicious_clients_ids: set = field(default_factory=set)
     _clients_dict: dict = field(default_factory=dict)
 
     def __post_init__(self):
@@ -33,6 +34,7 @@ class SimulationStrategyHistory:
         for client in self._clients_dict.values():
             if client.is_malicious:
                 self.total_malicious_clients += 1
+                self.malicious_clients_ids.add(client.client_id)
 
     def get_all_clients(self) -> list:
         """

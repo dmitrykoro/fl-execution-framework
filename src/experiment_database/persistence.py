@@ -89,7 +89,7 @@ def create_clients(
         client = ExperimentClient(
             experiment_event_id=experiment_event.id,
             client_number=i,
-            was_ever_malicious=i in malicious_ids, # TODO: determine based on strategy_history
+            was_ever_malicious=i in malicious_ids,
         )
         session.add(client)
         clients.append(client)
@@ -107,11 +107,11 @@ def create_clients(
 # -----------------------------
 
 METRICS = [
-    ("average_accuracy", "round_global", "Mean accuracy per round"),
-    ("aggregated_loss", "round_global", "Aggregated loss"),
-    ("tp", "round_global", "True positives"),
-    ("fp", "round_global", "False positives"),
-    ("removal_f1", "round_global", "Removal F1 score"),
+    ("average_accuracy", "per_round", "Mean accuracy per round"),
+    ("aggregated_loss", "per_round", "Aggregated loss"),
+    ("tp", "per_round", "Client exclusion True Positives: a good client was aggregated"),
+    ("fp", "per_round", "Client exclusion False Positives: a good client was not aggregated"),
+    ("removal_f1", "per_round", "Client Exclusion F1 score"),
 ]
 
 def seed_metric_info(session):
@@ -147,7 +147,7 @@ def persist_round_metrics(
         if metric_name not in metric_info_map:
             mi = MetricInfo(
                 name=metric_name,
-                type="round_global",
+                type="per_round",
                 desc=f"{metric_name} recorded per round",
             )
             session.add(mi)

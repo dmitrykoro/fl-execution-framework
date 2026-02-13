@@ -6,6 +6,7 @@ import time
 import torch
 import gc
 import ray
+import sqlalchemy
 
 # Suppress joblib CPU count warnings
 os.environ["LOKY_MAX_CPU_COUNT"] = str(os.cpu_count() or 1)
@@ -21,7 +22,7 @@ from src.output_handlers import new_plot_handler
 from src.federated_simulation import FederatedSimulation
 from src.data_models.simulation_strategy_config import StrategyConfig
 from src.dataset_handlers.dataset_handler import DatasetHandler
-from src.experiment_database.session import SessionLocal
+from src.experiment_database.session import LocalDatabaseSession
 from src.experiment_database.persistence import (
     create_executed_config,
     get_or_create_hardware,
@@ -241,7 +242,7 @@ class SimulationRunner:
 
 
 def database_logger(strategy: FederatedSimulation, config):
-    session = SessionLocal()
+    session = LocalDatabaseSession()
 
 
     try:
@@ -279,7 +280,7 @@ def database_logger(strategy: FederatedSimulation, config):
             session=session,
             experiment_event=experiment_event,
             num_clients=strategy.strategy_config.num_of_clients,
-            malicious_ids=strategy.strategy_history.get_malicious_client_id(),  # TODO: pass strategy_history
+            malicious_ids=strategy.strategy_history.malicious_clients_ids
         )
         session.commit()
 
@@ -294,8 +295,13 @@ def database_logger(strategy: FederatedSimulation, config):
         session.commit()
         experiment_event.is_successful = True
         session.commit()
-    except Exception as e:
-        raise e
+
+    except sqlalchemy.exc.OperationalError as e:
+        logging.error(f"Error while trying to insert experiment metrics to the database: {e}")
+
+    except Exception as e:  # noqa
+        logging.error(f"Unhandled error while trying to insert experiment metrics to the database: {e}")
+
     finally:
         session.close()
 

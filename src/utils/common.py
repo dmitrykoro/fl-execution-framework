@@ -1,7 +1,7 @@
 import os
 import json
 
-from dotenv import load_dotenv
+from dotenv import dotenv_values
 from pathlib import Path
 
 
@@ -9,20 +9,27 @@ def obtain_env_var(var_key: str):
     """
     Check if .env value exists; if not, prompt user to enter through shell.
     """
-    env_path = Path(".env")
 
-    if env_path.exists():
-        load_dotenv(dotenv_path=env_path)
-        var_value = os.getenv(var_key)
+    shared_path = Path(".env.public")
+    private_path = Path(".env.private")
 
-        if var_value:
-            return var_value
+    full_env_config = {
+        **(dotenv_values(shared_path) if shared_path.exists() else {}),
+        **(dotenv_values(private_path) if private_path.exists() else {}),
+        ** os.environ,
+    }
 
-    new_value = input(f"Please enter {var_key}: ").strip()
-    with open(env_path, "a") as f:
-        f.write(f"\n{var_key}={new_value}\n")
+    var_value = full_env_config.get(var_key)
+    if var_value not in (None, ""):
+        return var_value
 
-    return new_value
+    var_value = input(f"Please enter {var_key}: ").strip()
+    private_path.touch(exist_ok=True)
+
+    with private_path.open("a") as f:
+        f.write(f"\n{var_key}={var_value}\n")
+
+    return var_value
 
 
 def load_json_as_str(filepath: str) -> str:
