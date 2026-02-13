@@ -17,7 +17,7 @@ from src.data_models.simulation_strategy_history import SimulationStrategyHistor
 from src.utils.medmentions_strategy_helper import aggregate_strict_medmentions_metrics
 
 
-class PIDBasedPerRoundRemovalStrategy(fl.server.strategy.FedAvg):
+class PIDBasedStatelessRemovalStrategy(fl.server.strategy.FedAvg):
     def __init__(
             self,
             remove_clients: bool,
@@ -200,13 +200,13 @@ class PIDBasedPerRoundRemovalStrategy(fl.server.strategy.FedAvg):
                 f'Normalized Distance: {normalized_distances[i][0]} '
             )
 
-        # pid-based threshold with mean for pid_v5_mean_standard_score_based
-        if self.aggregation_strategy_keyword == "pid_v5_mean_standard_score_based":
+        # pid-based threshold with mean for pid_v5_stateless_mean_based
+        if self.aggregation_strategy_keyword == "pid_v5_stateless_mean_based":
             pid_avg = np.mean(counted_pids)
             pid_std = np.std(counted_pids)
             self.current_threshold = pid_avg + (self.num_dev * pid_std) if len(counted_pids) > 1 else 0
-        # pid-based threshold with median for pid_v5_median_standard_score_based
-        elif self.aggregation_strategy_keyword == "pid_v5_median_standard_score_based":
+        # pid-based threshold with median for pid_v5_stateless_median_based
+        elif self.aggregation_strategy_keyword == "pid_v5_stateless_median_based":
             median_pid = np.median(counted_pids)
             mad = np.median(np.abs(counted_pids - median_pid))
 
