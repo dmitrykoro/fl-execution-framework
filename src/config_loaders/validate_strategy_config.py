@@ -9,7 +9,8 @@ config_schema = {
             "type": "string",
             "enum": ["trust", "pid", "pid_scaled", "pid_standardized", "pid_standardized_score_based",
                     "multi-krum", "krum", "multi-krum-based", "trimmed_mean",
-                    "rfa", "bulyan", "pid_median_standardized_score_based", "fed_nga"]
+                    "rfa", "bulyan", "fed_nga", "pid_v5_mean_standard_score_based",
+                    "pid_v5_median_standard_score_based"]
         },
         "strict_mode": {
             "type": "string",

@@ -17,7 +17,7 @@ from src.data_models.simulation_strategy_history import SimulationStrategyHistor
 from src.utils.medmentions_strategy_helper import aggregate_strict_medmentions_metrics
 
 
-class PIDBasedRemovalStrategyWithMedian(fl.server.strategy.FedAvg):
+class PIDBasedPerRoundRemovalStrategy(fl.server.strategy.FedAvg):
     def __init__(
             self,
             remove_clients: bool,
@@ -46,7 +46,7 @@ class PIDBasedRemovalStrategyWithMedian(fl.server.strategy.FedAvg):
         self.ki = ki
         self.kd = kd
         self.kp = kp
-        self.num_mad = num_std_dev
+        self.num_dev = num_std_dev
 
         self.current_threshold = None
 
@@ -200,16 +200,27 @@ class PIDBasedRemovalStrategyWithMedian(fl.server.strategy.FedAvg):
                 f'Normalized Distance: {normalized_distances[i][0]} '
             )
 
-        # pid-based threshold for pid_median_standardized_score_based
-        median_pid = np.median(counted_pids)
-        mad = np.median(np.abs(counted_pids - median_pid))
+        # pid-based threshold with mean for pid_v5_mean_standard_score_based
+        if self.aggregation_strategy_keyword == "pid_v5_mean_standard_score_based":
+            pid_avg = np.mean(counted_pids)
+            pid_std = np.std(counted_pids)
+            self.current_threshold = pid_avg + (self.num_dev * pid_std) if len(counted_pids) > 1 else 0
+        # pid-based threshold with median for pid_v5_median_standard_score_based
+        elif self.aggregation_strategy_keyword == "pid_v5_median_standard_score_based":
+            median_pid = np.median(counted_pids)
+            mad = np.median(np.abs(counted_pids - median_pid))
 
-        # σ ≈  1.4826 x MAD
-        scaled_mad = 1.4826 * mad
-        if mad < 1e-12:
-            self.current_threshold = median_pid if len(counted_pids) > 1 else 0
-        else:
-            self.current_threshold = median_pid + (self.num_mad * scaled_mad) if len(counted_pids) > 1 else 0
+            """
+            Median absolute deviation isn't equivalent to standard deviation.
+            std_dev can be estimated by multiplying MAD by 1.4826.
+            This estimation allows for stimilar num_std_dev for both mean and median.
+            """
+            # σ ≈  1.4826 x MAD
+            scaled_mad = 1.4826 * mad
+            if mad < 1e-12:
+                self.current_threshold = median_pid if len(counted_pids) > 1 else 0
+            else:
+                self.current_threshold = median_pid + (self.num_dev * scaled_mad) if len(counted_pids) > 1 else 0
 
         self.strategy_history.insert_round_history_entry(removal_threshold=self.current_threshold)
 
