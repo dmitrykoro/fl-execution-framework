@@ -305,7 +305,7 @@ class FlowerClient(fl.client.NumPyClient):
                     if should_poison and attack_configs:
                         #Apply all attacks sequentially
                         for attack_config in attack_configs:
-                            images, labels = apply_poisoning_attack(images, lables, attack_config, tokenizer=self.tokenizer, num_classes=num_classes)
+                            images, labels = apply_poisoning_attack(images, labels, attack_config, tokenizer=self.tokenizer, num_classes=num_classes)
 
                     images, labels = images.to(self.training_device), labels.to(self.training_device)
                     outputs = net(images)
