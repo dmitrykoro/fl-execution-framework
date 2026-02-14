@@ -30,6 +30,7 @@ from src.experiment_database.persistence import (
     persist_clients_at_round,
     persist_round_metrics,
     seed_metric_info,
+    persist_client_round_metrics, load_metric_info_map
 )
 
 def _serialize_config_for_logging(config_dict: dict) -> str:
@@ -131,8 +132,9 @@ class SimulationRunner:
                     dataset_handler=dataset_handler,
                     directory_handler=self._directory_handler,
                 )
+                start_time = time.time()
                 simulation_strategy.run_simulation()
-
+                endtime = time.time() - start_time
                 executed_simulation_strategies.append(simulation_strategy)
 
                 # generate per-client plots
@@ -140,60 +142,12 @@ class SimulationRunner:
 
                 simulation_strategy.strategy_history.calculate_additional_rounds_data()
 
-
-                """seed_metric_info(session)
-
-                # Hardware info (you can improve this later)
-                hardware = get_or_create_hardware(
-                    session,
-                    cpu=os.uname().machine,
-                    arch=os.uname().sysname,
-                    ram=str(os.sysconf("SC_PAGE_SIZE") * os.sysconf("SC_PHYS_PAGES")),
-                )
-
-                executed_config = create_executed_config(
-                    session=session,
-                    strategy_config=strategy_config,
-                    num_of_malicious_clients=simulation_strategy.strategy_history.total_malicious_clients
-                )
-
-                experiment_event = create_experiment_event(
-                    session=session,
-                    executed_config=executed_config,
-                    hardware=hardware,
-                )"""
-
                 cl = simulation_strategy.strategy_history.get_all_clients()
                 for c in cl:
                     print(c, "\n")
 
                 self._directory_handler.save_csv_and_config(simulation_strategy.strategy_history)
-                # ------------------ DB: persist round metrics ------------------
-                """persist_round_metrics(
-                    session=session,
-                    experiment_event=experiment_event,
-                    rounds_info=simulation_strategy.strategy_history.rounds_history,
-                )
-                session.commit()
-
-                clients, experiment_client_id_map = create_clients(
-                    session=session,
-                    experiment_event=experiment_event,
-                    num_clients=strategy_config.num_of_clients,
-                    malicious_ids=simulation_strategy.strategy_history.get_malicious_client_id(),  # TODO: pass strategy_history
-                )
-                session.commit()
-
-                persist_clients_at_round(
-                    session=session,
-                    experiment_event=experiment_event,
-                    round_clients_info=cl,
-                    experiment_client_id_map=experiment_client_id_map,
-                    attack_type=simulation_strategy.strategy_config.attack_type,
-                )
-
-                session.commit()"""
-                database_logger(simulation_strategy, strategy_config)
+                database_logger(simulation_strategy, strategy_config, endtime)
 
             except Exception as e:  # noqa
                 raise
@@ -240,14 +194,13 @@ class SimulationRunner:
             logging.warning(f"Failed to generate main dashboard: {e}")
 
 
-def database_logger(strategy: FederatedSimulation, config):
+def database_logger(strategy: FederatedSimulation, config, etime):
     session = SessionLocal()
-
-
+    experiment_event = None
     try:
         seed_metric_info(session)
-        # ------------------ DB: persist executed config ------------------
-        # Hardware info (you can improve this later)
+
+        # ------------------ Hardware ------------------
         hardware = get_or_create_hardware(
             session,
             cpu=os.uname().machine,
@@ -255,6 +208,7 @@ def database_logger(strategy: FederatedSimulation, config):
             ram=str(os.sysconf("SC_PAGE_SIZE") * os.sysconf("SC_PHYS_PAGES")),
         )
 
+        # ------------------ Config ------------------
         executed_config = create_executed_config(
             session=session,
             strategy_config=config,
@@ -267,37 +221,55 @@ def database_logger(strategy: FederatedSimulation, config):
             hardware=hardware,
         )
 
-        # ------------------ DB: persist round metrics ------------------
+        # ------------------ Global Round Metrics ------------------
         persist_round_metrics(
             session=session,
             experiment_event=experiment_event,
             rounds_info=strategy.strategy_history.rounds_history,
         )
-        session.commit()
 
+        # ------------------ Clients ------------------
         clients, experiment_client_id_map = create_clients(
             session=session,
             experiment_event=experiment_event,
             num_clients=strategy.strategy_config.num_of_clients,
-            malicious_ids=strategy.strategy_history.get_malicious_client_id(),  # TODO: pass strategy_history
+            malicious_ids=strategy.strategy_history.get_malicious_client_id(),
         )
-        session.commit()
 
+        # ------------------ Client Participation ------------------
         persist_clients_at_round(
             session=session,
             experiment_event=experiment_event,
-            round_clients_info=strategy.strategy_history.get_all_clients(),
+            clients_info=strategy.strategy_history.get_all_clients(),
             experiment_client_id_map=experiment_client_id_map,
-            attack_type=strategy.strategy_config.attack_type,
         )
+        # ------------------ Client Metrics ------------------
+        persist_client_round_metrics(
+            session=session,
+            experiment_event=experiment_event,
+            clients_info=strategy.strategy_history.get_all_clients(),
+            experiment_client_id_map=experiment_client_id_map,
+        )
+        experiment_event.is_successful = True
+        experiment_event.total_exec_time = etime
 
         session.commit()
-        experiment_event.is_successful = True
-        session.commit()
+
     except Exception as e:
+        if experiment_event is not None:
+            try:
+                experiment_event.error_message = str(e)
+                experiment_event.is_successful = False
+                experiment_event.total_exec_time = etime
+                session.add(experiment_event)
+                session.commit()
+            except Exception:
+                pass
+
         raise e
     finally:
         session.close()
+
 
 if __name__ == "__main__":
     """Run simulation with config file in command line args or default example."""

@@ -3,7 +3,7 @@ import torch
 import numpy as np
 import pickle
 import json
-import datetime
+from datetime import datetime
 
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Union

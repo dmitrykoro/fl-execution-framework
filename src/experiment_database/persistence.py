@@ -107,12 +107,17 @@ def create_clients(
 # -----------------------------
 
 METRICS = [
+    # global
     ("average_accuracy", "round_global", "Mean accuracy per round"),
     ("aggregated_loss", "round_global", "Aggregated loss"),
-    ("tp", "round_global", "True positives"),
-    ("fp", "round_global", "False positives"),
-    ("removal_f1", "round_global", "Removal F1 score"),
+
+    # client round metrics
+    ("client_loss", "client_round", "Client loss per round"),
+    ("client_accuracy", "client_round", "Client accuracy per round"),
+    ("removal_criterion", "client_round", "Removal criterion per round"),
+    ("absolute_distance", "client_round", "Absolute distance per round"),
 ]
+
 
 def seed_metric_info(session):
     for name, type_, desc in METRICS:
@@ -174,37 +179,104 @@ def persist_round_metrics(
 # Clients at Round
 # -----------------------------
 
-# -----------------------------
-# persist_clients_at_round
-# -----------------------------
-def persist_clients_at_round(
-    session: Session,
+def persist_client_round_metrics(
+    session,
     experiment_event,
-    round_clients_info: list,
+    clients_info,
+    experiment_client_id_map,
+):
+    metric_info_map = load_metric_info_map(session)
+    for client in clients_info:
+        experiment_client_db_id = experiment_client_id_map[client.client_id]
+
+        metrics = {
+            "client_accuracy": client.accuracy_history,
+            "client_loss": client.loss_history,
+            "removal_criterion": client.removal_criterion_history,
+            "absolute_distance": client.absolute_distance_history,
+        }
+
+        for metric_name, values in metrics.items():
+            mi = metric_info_map[metric_name]
+            for r, value in enumerate(values):
+                session.add(
+                    MetricEntry(
+                        experiment_event_id=experiment_event.id,
+                        client_id=experiment_client_db_id,
+                        metric_info_id=mi.id,
+                        round_number=r + 1,
+                        value=float(value),
+                    )
+                )
+    session.flush()
+
+
+def persist_clients_at_round(
+    session,
+    experiment_event,
+    clients_info: list,
     experiment_client_id_map: dict[int, str],
-    attack_type: str,
 ):
     """
-    Persist ClientAtRound rows for all clients in a round.
+    Persist ClientAtRound rows for every client across all rounds.
+    Stores ONLY participation + attack metadata.
+    Metrics are written separately into MetricEntry.
     """
 
-    for client in round_clients_info:
-        # get the DB PK using the simulation client_id
+    for client in clients_info:
+
         if client.client_id not in experiment_client_id_map:
             raise RuntimeError(
-                f"Simulation client_id {client.client_id} not found in DB mapping"
+                f"Simulation client_id {client.client_id} missing from experiment_client_id_map"
             )
 
         experiment_client_db_id = experiment_client_id_map[client.client_id]
 
-        for i, round_number in enumerate(client.rounds):
+        for r, round_number in enumerate(client.rounds):
+
+            participated = (
+                client.aggregation_participation_history[r]
+                if r < len(client.aggregation_participation_history)
+                else 0
+            )
+
+            attack_keywords = None
+            if r < len(client.attack_plan_keywords):
+                keywords = client.attack_plan_keywords[r]
+                attack_keywords = ",".join(keywords) if keywords else None
 
             session.add(
                 ClientAtRound(
                     experiment_event_id=experiment_event.id,
-                    experiment_client_id=experiment_client_db_id,  # ✅ DB PK
+                    experiment_client_id=experiment_client_db_id,
                     round_number=round_number,
-                    client_is_aggregated=client.aggregation_participation_history[i],
-                    attack_type=client.get_current_attack_keywords(round_number) or None,  # NOT NULL safe
+                    client_is_aggregated=participated,
+                    attack_type=attack_keywords,
                 )
             )
+
+    session.flush()
+
+
+
+
+CLIENT_METRICS = [
+    "accuracy",
+    "loss",
+    "removal_criterion",
+    "absolute_distance",
+]
+
+
+def ensure_client_metric_info(session):
+    for name in CLIENT_METRICS:
+        exists = session.query(MetricInfo).filter_by(name=name).first()
+        if not exists:
+            session.add(
+                MetricInfo(
+                    name=name,
+                    type="client_round",
+                    desc=f"{name} per client per round",
+                )
+            )
+    session.flush()
