@@ -56,6 +56,14 @@ def parse_arguments() -> argparse.Namespace:
     )
 
     parser.add_argument(
+        "output_dirname",
+        type=str,
+        nargs="?",
+        default="",
+        help="Optional custom name for output directory (for UI integration)"
+    )
+
+    parser.add_argument(
         "--log-level",
         type=str,
         choices=["DEBUG", "INFO", "WARNING", "ERROR"],
@@ -70,6 +78,7 @@ class SimulationRunner:
     def __init__(
             self,
             config_filepath: str,
+            output_dirname: str = None,
             log_level: str = "INFO"
     ) -> None:
 
@@ -84,12 +93,14 @@ class SimulationRunner:
         flwr_logger = logging.getLogger("flwr")
         flwr_logger.propagate = False
 
+        self.output_dirname = output_dirname
+
         self._config_loader = ConfigLoader(
             usecase_config_path=f"{config_filepath}"
         )
         self._simulation_strategy_config_dicts = self._config_loader.get_usecase_config_list()
         self._dataset_config_list = self._config_loader.get_dataset_config_list()
-        self._directory_handler = DirectoryHandler()
+        self._directory_handler = DirectoryHandler(custom_dirname=self.output_dirname)
 
     def run(self):
         """Run simulations according to the specified usecase config"""
@@ -309,5 +320,5 @@ if __name__ == "__main__":
     """Run simulation with config file in command line args or default example."""
     args = parse_arguments()
 
-    simulation_runner = SimulationRunner(args.config_filepath, args.log_level)
+    simulation_runner = SimulationRunner(args.config_filepath, args.output_dirname, args.log_level)
     simulation_runner.run()

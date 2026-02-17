@@ -9,9 +9,9 @@ set -eu
 
 log_info() {
     if [ -n "${LOG_FILE:-}" ]; then
-        echo "✅ $1" | tee -a "$LOG_FILE"
+        echo "$1" | tee -a "$LOG_FILE"
     else
-        echo "✅ $1"
+        echo "$1"
     fi
 }
 
@@ -39,7 +39,7 @@ setup_logging_with_file() {
     LOG_FILE="$_log_dir/${_log_prefix}_$(date +%Y%m%d_%H%M%S).log"
     : > "$LOG_FILE"
 
-    log_info "📝 Logging to: $LOG_FILE"
+    log_info "Logging to: $LOG_FILE"
 
     export LOG_FILE
     LOG_DIR="$_log_dir"
@@ -110,7 +110,7 @@ find_python_interpreter() {
         return 0
     fi
 
-    log_info "🔍 Searching for a compatible Python interpreter..."
+    log_info "Searching for a compatible Python interpreter..."
     for version in python3.11 python3.10 python3.9 python3 python; do
         if command_exists "$version"; then
             if "$version" -c "import sys; sys.exit(not (sys.version_info >= (3, 9) and sys.version_info < (3, 12)))" 2>/dev/null; then
@@ -118,7 +118,7 @@ find_python_interpreter() {
                 export PYTHON_CMD
                 PYTHON_ARGS=""
                 export PYTHON_ARGS
-                log_info "Found compatible Python: $PYTHON_CMD"
+                log_info "[✔] Found compatible Python: $PYTHON_CMD"
                 return 0
             fi
         fi
@@ -131,7 +131,7 @@ find_python_interpreter() {
                 export PYTHON_CMD
                 PYTHON_ARGS="$py_version"
                 export PYTHON_ARGS
-                log_info "Found compatible Python via 'py' launcher: $PYTHON_CMD $PYTHON_ARGS"
+                log_info "[✔] Found compatible Python via 'py' launcher: $PYTHON_CMD $PYTHON_ARGS"
                 return 0
             fi
         done
@@ -153,7 +153,7 @@ setup_virtual_environment() {
         sleep 1
     fi
 
-    log_info "🔌 Searching for virtual environment..."
+    log_info "Searching for virtual environment..."
     venv_path=""
     if [ -d "venv" ]; then
         venv_path="venv"
@@ -223,7 +223,7 @@ setup_joblib_env() {
 install_requirements() {
     requirements_file="${1:-requirements.txt}"
     if [ -f "$requirements_file" ]; then
-        log_info "📦 Installing requirements from $requirements_file..."
+        log_info "Installing requirements from $requirements_file..."
         if pip install -r "$requirements_file"; then
             log_info "Requirements installed successfully."
         else
@@ -307,13 +307,13 @@ show_simulation_output_info() {
         fi
     fi
 
-    log_info "🎉 Simulation completed successfully!"
+    log_info "[✔] Simulation completed successfully!"
 
     if [ -n "$latest_dir" ]; then
-        log_info "📁 Results saved to: $latest_dir"
-        log_info "📊 Contains: plots, CSV data, configs, datasets, logs"
+        log_info "Results saved to: $latest_dir"
+        log_info "Contains: plots, CSV data, configs, datasets, logs"
     else
-        log_info "📁 Results saved to: $rel_output_dir"
+        log_info "Results saved to: $rel_output_dir"
     fi
 }
 

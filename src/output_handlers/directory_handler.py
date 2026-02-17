@@ -3,6 +3,7 @@ import datetime
 import json
 import csv
 import numpy as np
+import logging
 
 from src.data_models.simulation_strategy_history import SimulationStrategyHistory
 
@@ -12,10 +13,10 @@ class DirectoryHandler:
     new_plots_dirname = dirname
     new_csv_dirname = dirname + "/csv"
 
-    def __init__(self):
+    def __init__(self, custom_dirname: str = None):
 
         self.simulation_strategy_history = None
-        self.dirname = DirectoryHandler.dirname
+        self.dirname = custom_dirname if custom_dirname != "" else DirectoryHandler.dirname
         self.new_plots_dirname = DirectoryHandler.new_plots_dirname
         self.dataset_dir = None
 
