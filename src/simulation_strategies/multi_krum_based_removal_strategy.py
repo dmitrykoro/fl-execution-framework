@@ -30,6 +30,7 @@ class MultiKrumBasedRemovalStrategy(Krum):
             num_krum_selections: int,
             begin_removing_from_round: int,
             strategy_history: SimulationStrategyHistory,
+            output_dirname,
             *args,
             **kwargs
     ):
@@ -49,7 +50,7 @@ class MultiKrumBasedRemovalStrategy(Krum):
         self.logger.setLevel(logging.INFO)  # Set the logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL)
 
         # Create handlers
-        out_dir = DirectoryHandler.dirname
+        out_dir = output_dirname
         os.makedirs(out_dir, exist_ok=True)
         file_handler = logging.FileHandler(f"{out_dir}/output.log")
         console_handler = logging.StreamHandler()

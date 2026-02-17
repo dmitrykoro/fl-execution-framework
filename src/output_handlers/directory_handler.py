@@ -9,15 +9,14 @@ from src.data_models.simulation_strategy_history import SimulationStrategyHistor
 
 
 class DirectoryHandler:
-    dirname = f'out/{str(datetime.datetime.now().strftime("%m-%d-%Y_%H-%M-%S"))}'
-    new_plots_dirname = dirname
-    new_csv_dirname = dirname + "/csv"
-
     def __init__(self, custom_dirname: str = None):
-
         self.simulation_strategy_history = None
-        self.dirname = custom_dirname if custom_dirname != "" else DirectoryHandler.dirname
-        self.new_plots_dirname = DirectoryHandler.new_plots_dirname
+        self.dirname = (
+            f"out/{custom_dirname}" if custom_dirname != ""
+            else f'out/{str(datetime.datetime.now().strftime("%m-%d-%Y_%H-%M-%S"))}'
+        )
+        self.new_plots_dirname = self.dirname
+        self.new_csv_dirname = self.dirname + "/csv"
         self.dataset_dir = None
 
         os.makedirs(self.dirname, exist_ok=True)
