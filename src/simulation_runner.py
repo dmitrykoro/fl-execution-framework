@@ -6,6 +6,7 @@ import time
 import torch
 import gc
 import ray
+import sqlalchemy
 
 # Suppress joblib CPU count warnings
 os.environ["LOKY_MAX_CPU_COUNT"] = str(os.cpu_count() or 1)
@@ -21,7 +22,7 @@ from src.output_handlers import new_plot_handler
 from src.federated_simulation import FederatedSimulation
 from src.data_models.simulation_strategy_config import StrategyConfig
 from src.dataset_handlers.dataset_handler import DatasetHandler
-from src.experiment_database.session import SessionLocal
+from src.experiment_database.session import LocalDatabaseSession
 from src.experiment_database.persistence import (
     create_executed_config,
     get_or_create_hardware,
@@ -56,6 +57,14 @@ def parse_arguments() -> argparse.Namespace:
     )
 
     parser.add_argument(
+        "output_dirname",
+        type=str,
+        nargs="?",
+        default="",
+        help="Optional custom name for output directory (for UI integration)"
+    )
+
+    parser.add_argument(
         "--log-level",
         type=str,
         choices=["DEBUG", "INFO", "WARNING", "ERROR"],
@@ -70,6 +79,7 @@ class SimulationRunner:
     def __init__(
             self,
             config_filepath: str,
+            output_dirname: str = None,
             log_level: str = "INFO"
     ) -> None:
 
@@ -84,12 +94,14 @@ class SimulationRunner:
         flwr_logger = logging.getLogger("flwr")
         flwr_logger.propagate = False
 
+        self.output_dirname = output_dirname
+
         self._config_loader = ConfigLoader(
             usecase_config_path=f"{config_filepath}"
         )
         self._simulation_strategy_config_dicts = self._config_loader.get_usecase_config_list()
         self._dataset_config_list = self._config_loader.get_dataset_config_list()
-        self._directory_handler = DirectoryHandler()
+        self._directory_handler = DirectoryHandler(custom_dirname=self.output_dirname)
 
     def run(self):
         """Run simulations according to the specified usecase config"""
@@ -194,8 +206,8 @@ class SimulationRunner:
             logging.warning(f"Failed to generate main dashboard: {e}")
 
 
-def database_logger(strategy: FederatedSimulation, config, etime):
-    session = SessionLocal()
+def database_logger(strategy: FederatedSimulation, config):
+    session = LocalDatabaseSession()
     experiment_event = None
     try:
         seed_metric_info(session)
@@ -255,6 +267,9 @@ def database_logger(strategy: FederatedSimulation, config, etime):
 
         session.commit()
 
+    except sqlalchemy.exc.OperationalError as e:
+        logging.error(f"Error while trying to insert experiment metrics to the database: {e}")
+
     except Exception as e:
         if experiment_event is not None:
             try:
@@ -275,5 +290,5 @@ if __name__ == "__main__":
     """Run simulation with config file in command line args or default example."""
     args = parse_arguments()
 
-    simulation_runner = SimulationRunner(args.config_filepath, args.log_level)
+    simulation_runner = SimulationRunner(args.config_filepath, args.output_dirname, args.log_level)
     simulation_runner.run()

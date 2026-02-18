@@ -29,3 +29,9 @@ dist/
 local/
 logs/
 /.venv-wsl
+node_modules
+dist
+.vite
+*.log
+.env
+.env.*

@@ -349,6 +349,7 @@ class FederatedSimulation:
             remove_clients=self.strategy_config.remove_clients,
             begin_removing_from_round=self.strategy_config.begin_removing_from_round,
             strategy_history=self.strategy_history,
+            output_dirname=self.directory_handler.dirname
         )
 
         if aggregation_strategy_keyword == "trust":

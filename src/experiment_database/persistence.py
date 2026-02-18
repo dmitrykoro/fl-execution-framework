@@ -89,7 +89,7 @@ def create_clients(
         client = ExperimentClient(
             experiment_event_id=experiment_event.id,
             client_number=i,
-            was_ever_malicious=i in malicious_ids, # TODO: determine based on strategy_history
+            was_ever_malicious=i in malicious_ids,
         )
         session.add(client)
         clients.append(client)
@@ -113,7 +113,6 @@ METRICS = [
     ("removal_criterion", "client_round", "Removal criterion per round"),
     ("absolute_distance", "client_round", "Absolute distance per round"),
 ]
-
 
 def seed_metric_info(session):
     for name, type_, desc in METRICS:

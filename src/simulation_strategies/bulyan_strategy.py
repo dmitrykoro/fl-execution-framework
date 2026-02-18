@@ -43,6 +43,7 @@ class BulyanStrategy(fl.server.strategy.FedAvg):
         num_bulyan_benign_clients: int, # n - f
         begin_removing_from_round: int,
         strategy_history: SimulationStrategyHistory,
+        output_dirname,
         *args,
         **kwargs,
     ):
@@ -62,7 +63,7 @@ class BulyanStrategy(fl.server.strategy.FedAvg):
         # --- Logger (matches MultiKrum style) -------------------------
         self.logger = logging.getLogger(f"bulyan_{id(self)}")
         self.logger.setLevel(logging.INFO)
-        out_dir = DirectoryHandler.dirname
+        out_dir = output_dirname
         os.makedirs(out_dir, exist_ok=True)
         file_handler = logging.FileHandler(f"{out_dir}/output.log")
         console_handler = logging.StreamHandler()

@@ -35,8 +35,8 @@ if [ ! -d "datasets/bloodmnist" ]; then
   cd "$_orig_dir" || exit 1
 fi
 
-log_info "🚀 Initializing simulation..."
-if run_python -m src.simulation_runner; then
+log_info "Initializing simulation..."
+if run_python -m src.simulation_runner "$@"; then
     echo ""
     show_simulation_output_info "out/"
 else

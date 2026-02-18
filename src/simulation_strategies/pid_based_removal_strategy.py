@@ -30,6 +30,7 @@ class PIDBasedRemovalStrategy(fl.server.strategy.FedAvg):
             network_model,
             use_lora,
             aggregation_strategy_keyword: str,
+            output_dirname,
             *args,
             **kwargs
     ):
@@ -62,7 +63,7 @@ class PIDBasedRemovalStrategy(fl.server.strategy.FedAvg):
         self.logger.setLevel(logging.INFO)  # Set the logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL)
 
         # Create handlers
-        out_dir = DirectoryHandler.dirname
+        out_dir = output_dirname
         os.makedirs(out_dir, exist_ok=True)
         file_handler = logging.FileHandler(f"{out_dir}/output.log")
         console_handler = logging.StreamHandler()
