@@ -1,5 +1,5 @@
 from sqlalchemy.orm import Session
-from sqlalchemy.sql.elements import Null
+
 
 from src.experiment_database.models import (
     ExecutedConfig,
@@ -107,10 +107,6 @@ def create_clients(
 # -----------------------------
 
 METRICS = [
-    # global
-    ("average_accuracy", "round_global", "Mean accuracy per round"),
-    ("aggregated_loss", "round_global", "Aggregated loss"),
-
     # client round metrics
     ("client_loss", "client_round", "Client loss per round"),
     ("client_accuracy", "client_round", "Client accuracy per round"),
@@ -205,7 +201,7 @@ def persist_client_round_metrics(
                         client_id=experiment_client_db_id,
                         metric_info_id=mi.id,
                         round_number=r + 1,
-                        value=float(value),
+                        value=float(value) if value is not None else 0.0,
                     )
                 )
     session.flush()
@@ -244,16 +240,27 @@ def persist_clients_at_round(
             if r < len(client.attack_plan_keywords):
                 keywords = client.attack_plan_keywords[r]
                 attack_keywords = ",".join(keywords) if keywords else None
-
-            session.add(
-                ClientAtRound(
-                    experiment_event_id=experiment_event.id,
-                    experiment_client_id=experiment_client_db_id,
-                    round_number=round_number,
-                    client_is_aggregated=participated,
-                    attack_type=attack_keywords,
+            if attack_keywords is None:
+                session.add(
+                    ClientAtRound(
+                        experiment_event_id=experiment_event.id,
+                        experiment_client_id=experiment_client_db_id,
+                        round_number=round_number,
+                        client_is_aggregated=participated,
+                        attack_type=attack_keywords,
+                    )
                 )
-            )
+            else:
+                for key in keywords:
+                    session.add(
+                        ClientAtRound(
+                            experiment_event_id=experiment_event.id,
+                            experiment_client_id=experiment_client_db_id,
+                            round_number=round_number,
+                            client_is_aggregated=participated,
+                            attack_type=key,
+                        )
+                    )
 
     session.flush()
 
@@ -266,17 +273,3 @@ CLIENT_METRICS = [
     "removal_criterion",
     "absolute_distance",
 ]
-
-
-def ensure_client_metric_info(session):
-    for name in CLIENT_METRICS:
-        exists = session.query(MetricInfo).filter_by(name=name).first()
-        if not exists:
-            session.add(
-                MetricInfo(
-                    name=name,
-                    type="client_round",
-                    desc=f"{name} per client per round",
-                )
-            )
-    session.flush()
