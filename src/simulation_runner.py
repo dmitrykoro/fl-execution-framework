@@ -206,9 +206,10 @@ class SimulationRunner:
             logging.warning(f"Failed to generate main dashboard: {e}")
 
 
-def database_logger(strategy: FederatedSimulation, config):
+def database_logger(strategy: FederatedSimulation, config, etime):
     session = LocalDatabaseSession()
     experiment_event = None
+
     try:
         seed_metric_info(session)
 
