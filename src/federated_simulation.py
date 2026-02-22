@@ -1,4 +1,5 @@
 import logging
+import time
 from pathlib import Path
 import sys
 
@@ -115,9 +116,11 @@ class FederatedSimulation:
 
         self._assign_all_properties()
 
+        self.etime = None
+
     def run_simulation(self) -> None:
         """Start federated simulation"""
-
+        t = time.perf_counter()
         flwr.simulation.start_simulation(
             client_fn=self.client_fn,
             num_clients=self.strategy_config.num_of_clients,
@@ -141,12 +144,17 @@ class FederatedSimulation:
                     generate_snapshot_index(output_dir, run_config, self.strategy_config.strategy_number)
                 except Exception as e:
                     logging.warning(f"Failed to generate attack snapshot index/summary: {e}")
+        self.etime = (time.perf_counter() - t) / 60
 
     def _assign_all_properties(self) -> None:
         """Assign simulation properties based on strategy_dict"""
 
         self._assign_dataset_loaders_and_network_model()
         self._assign_aggregation_strategy()
+
+    def get_time(self):
+        return self.etime
+
 
     def _assign_dataset_loaders_and_network_model(self) -> None:
         """Assign dataset loader and the corresponding network model"""

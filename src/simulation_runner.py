@@ -30,8 +30,7 @@ from src.experiment_database.persistence import (
     create_clients,
     persist_clients_at_round,
     persist_round_metrics,
-    seed_metric_info,
-    persist_client_round_metrics, load_metric_info_map
+    persist_client_round_metrics,
 )
 
 def _serialize_config_for_logging(config_dict: dict) -> str:
@@ -144,9 +143,7 @@ class SimulationRunner:
                     dataset_handler=dataset_handler,
                     directory_handler=self._directory_handler,
                 )
-                start_time = time.time()
                 simulation_strategy.run_simulation()
-                endtime = time.time() - start_time
                 executed_simulation_strategies.append(simulation_strategy)
 
                 # generate per-client plots
@@ -154,12 +151,8 @@ class SimulationRunner:
 
                 simulation_strategy.strategy_history.calculate_additional_rounds_data()
 
-                cl = simulation_strategy.strategy_history.get_all_clients()
-                for c in cl:
-                    print(c, "\n")
-
                 self._directory_handler.save_csv_and_config(simulation_strategy.strategy_history)
-                database_logger(simulation_strategy, strategy_config, endtime)
+                database_logger(simulation_strategy)
 
             except Exception as e:  # noqa
                 raise
@@ -206,12 +199,12 @@ class SimulationRunner:
             logging.warning(f"Failed to generate main dashboard: {e}")
 
 
-def database_logger(strategy: FederatedSimulation, config, etime):
+def database_logger(strategy: FederatedSimulation):
     session = LocalDatabaseSession()
     experiment_event = None
 
     try:
-        seed_metric_info(session)
+
 
         # ------------------ Hardware ------------------
         hardware = get_or_create_hardware(
@@ -220,11 +213,10 @@ def database_logger(strategy: FederatedSimulation, config, etime):
             arch=os.uname().sysname,
             ram=str(os.sysconf("SC_PAGE_SIZE") * os.sysconf("SC_PHYS_PAGES")),
         )
-
         # ------------------ Config ------------------
         executed_config = create_executed_config(
             session=session,
-            strategy_config=config,
+            strategy_config=strategy.strategy_config,
             num_of_malicious_clients=strategy.strategy_history.total_malicious_clients
         )
 
@@ -264,7 +256,7 @@ def database_logger(strategy: FederatedSimulation, config, etime):
             experiment_client_id_map=experiment_client_id_map,
         )
         experiment_event.is_successful = True
-        experiment_event.total_exec_time = etime
+        experiment_event.total_exec_time = strategy.get_time()
 
         session.commit()
 
@@ -276,7 +268,7 @@ def database_logger(strategy: FederatedSimulation, config, etime):
             try:
                 experiment_event.error_message = str(e)
                 experiment_event.is_successful = False
-                experiment_event.total_exec_time = etime
+                experiment_event.total_exec_time = strategy.get_time()
                 session.add(experiment_event)
                 session.commit()
             except Exception:

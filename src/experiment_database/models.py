@@ -109,7 +109,6 @@ class MetricInfo(Base):
     id = Column(Integer, primary_key=True, autoincrement=True)
     name = Column(Text, nullable=False)
     type = Column(Text, nullable=False)
-    desc = Column(Text, nullable=False)
 
     metric_entries = relationship("MetricEntry", back_populates="metric_info")
 

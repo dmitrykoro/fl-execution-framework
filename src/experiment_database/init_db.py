@@ -1,5 +1,5 @@
-from session import engine
-from models import Base
+from src.experiment_database.session import engine
+from src.experiment_database.models import Base
 
 def init_db():
     Base.metadata.drop_all(bind=engine)

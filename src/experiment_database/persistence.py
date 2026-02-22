@@ -106,29 +106,6 @@ def create_clients(
 # Metrics
 # -----------------------------
 
-METRICS = [
-    # client round metrics
-    ("client_loss", "client_round", "Client loss per round"),
-    ("client_accuracy", "client_round", "Client accuracy per round"),
-    ("removal_criterion", "client_round", "Removal criterion per round"),
-    ("absolute_distance", "client_round", "Absolute distance per round"),
-]
-
-def seed_metric_info(session):
-    for name, type_, desc in METRICS:
-        exists = session.query(MetricInfo).filter_by(name=name).first()
-        if not exists:
-            session.add(
-                MetricInfo(
-                    name=name,
-                    type=type_,
-                    desc=desc,
-                )
-            )
-    session.commit()
-
-
-
 def load_metric_info_map(session: Session) -> dict[str, MetricInfo]:
     return {mi.name: mi for mi in session.query(MetricInfo).all()}
 
@@ -138,9 +115,6 @@ def persist_round_metrics(
     experiment_event: ExperimentEvent,
     rounds_info: RoundsInfo,
 ):
-    if not isinstance(rounds_info, RoundsInfo):
-        raise TypeError("Expected RoundsInfo instance")
-
     metric_info_map = load_metric_info_map(session)
 
     for metric_name in rounds_info.savable_metrics:
@@ -148,7 +122,6 @@ def persist_round_metrics(
             mi = MetricInfo(
                 name=metric_name,
                 type="round_global",
-                desc=f"{metric_name} recorded per round",
             )
             session.add(mi)
             session.flush()
@@ -184,22 +157,24 @@ def persist_client_round_metrics(
     for client in clients_info:
         experiment_client_db_id = experiment_client_id_map[client.client_id]
 
-        metrics = {
-            "client_accuracy": client.accuracy_history,
-            "client_loss": client.loss_history,
-            "removal_criterion": client.removal_criterion_history,
-            "absolute_distance": client.absolute_distance_history,
-        }
+        for metric_name in client.savable_metrics:
+            if metric_name not in metric_info_map:
+                mi = MetricInfo(
+                    name=metric_name,
+                    type="client_round",
+                )
+                session.add(mi)
+                session.flush()
+                metric_info_map[metric_name] = mi
 
-        for metric_name, values in metrics.items():
-            mi = metric_info_map[metric_name]
-            for r, value in enumerate(values):
+            values = getattr(client, metric_name)
+            for round_number, value in enumerate(values, start=1):
                 session.add(
                     MetricEntry(
                         experiment_event_id=experiment_event.id,
                         client_id=experiment_client_db_id,
-                        metric_info_id=mi.id,
-                        round_number=r + 1,
+                        metric_info_id=metric_info_map[metric_name].id,
+                        round_number=round_number,
                         value=float(value) if value is not None else 0.0,
                     )
                 )
@@ -265,10 +240,3 @@ def persist_clients_at_round(
 
 
 
-
-CLIENT_METRICS = [
-    "accuracy",
-    "loss",
-    "removal_criterion",
-    "absolute_distance",
-]

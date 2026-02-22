@@ -49,7 +49,7 @@ class SimulationStrategyHistory:
         return self._clients_dict.get(client_id)
 
     def get_malicious_client_id(self) -> set[int]:
-        return self.malicious_client_id
+        return self.malicious_clients_ids
 
     def insert_single_client_history_entry(
             self,
