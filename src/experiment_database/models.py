@@ -40,7 +40,7 @@ class ExperimentEvent(Base):
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
-    wamdb_url = Column(String(500), nullable=True)
+    wandb_url = Column(String(500), nullable=True)
     is_successful = Column(Boolean, default=True)
     error_message = Column(Text, nullable=True)
     total_exec_time = Column(Text, nullable=True)

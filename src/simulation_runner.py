@@ -7,11 +7,15 @@ import torch
 import gc
 import ray
 import sqlalchemy
+import aiohttp
+import asyncio
+from dotenv import load_dotenv
+load_dotenv(".env.private")
 
 # Suppress joblib CPU count warnings
 os.environ["LOKY_MAX_CPU_COUNT"] = str(os.cpu_count() or 1)
 os.environ["OMP_NUM_THREADS"] = str(os.cpu_count() or 1)
-
+EXPERIMENT_SERVER_URL = os.environ.get("EXPERIMENT_SERVER_URL")
 # Set HuggingFace cache directory to avoid API rate limits
 os.environ["HF_HOME"] = "./cache/huggingface"
 
@@ -22,7 +26,7 @@ from src.output_handlers import new_plot_handler
 from src.federated_simulation import FederatedSimulation
 from src.data_models.simulation_strategy_config import StrategyConfig
 from src.dataset_handlers.dataset_handler import DatasetHandler
-from src.experiment_database.session import LocalDatabaseSession
+from src.experiment_database.session import LocalDatabaseSession, NeonDatabaseSession
 from src.experiment_database.persistence import (
     create_executed_config,
     get_or_create_hardware,
@@ -200,55 +204,79 @@ class SimulationRunner:
 
 
 def database_logger(strategy: FederatedSimulation):
-    session = LocalDatabaseSession()
+    sessions = [LocalDatabaseSession]
+    #if NeonDatabaseSession is not None:
+        #sessions.append(NeonDatabaseSession)
+    
+    #for SessionFactory in sessions:
+    _write_to_database(strategy, LocalDatabaseSession)
+    
+    experiment_server_url = os.environ.get("EXPERIMENT_SERVER_URL")
+    if experiment_server_url:
+        asyncio.run(_send_to_server(strategy, experiment_server_url))
+
+
+async def _send_to_server(strategy: FederatedSimulation, server_url: str):
+    payload = {
+        "strategy_history": strategy.strategy_history.to_dict(),
+        "total_exec_time": strategy.get_time(),
+        "cpu": os.uname().machine,
+        "arch": os.uname().sysname,
+        "ram": str(os.sysconf("SC_PAGE_SIZE") * os.sysconf("SC_PHYS_PAGES")),
+    }
+    print("DEBUG payload keys:", payload["strategy_history"].keys())  # add this
+    try:
+        async with aiohttp.ClientSession() as session:
+            async with session.post(
+                f"{server_url}/experiments",
+                json=payload,
+                timeout=aiohttp.ClientTimeout(total=30)
+            ) as resp:
+                if resp.status != 201:
+                    logging.error(f"Server rejected experiment data ({resp.status}): {await resp.text()}")
+                else:
+                    logging.info("Experiment data sent to remote server successfully")
+    except Exception as e:
+        logging.error(f"Failed to send experiment data to remote server: {e}")
+        
+def _write_to_database(strategy: FederatedSimulation, SessionFactory):
+    session = SessionFactory()
     experiment_event = None
 
     try:
-
-
-        # ------------------ Hardware ------------------
         hardware = get_or_create_hardware(
             session,
             cpu=os.uname().machine,
             arch=os.uname().sysname,
             ram=str(os.sysconf("SC_PAGE_SIZE") * os.sysconf("SC_PHYS_PAGES")),
         )
-        # ------------------ Config ------------------
         executed_config = create_executed_config(
             session=session,
             strategy_config=strategy.strategy_config,
             num_of_malicious_clients=strategy.strategy_history.total_malicious_clients
         )
-
         experiment_event = create_experiment_event(
             session=session,
             executed_config=executed_config,
             hardware=hardware,
         )
-
-        # ------------------ Global Round Metrics ------------------
         persist_round_metrics(
             session=session,
             experiment_event=experiment_event,
             rounds_info=strategy.strategy_history.rounds_history,
         )
-
-        # ------------------ Clients ------------------
         clients, experiment_client_id_map = create_clients(
             session=session,
             experiment_event=experiment_event,
             num_clients=strategy.strategy_config.num_of_clients,
             malicious_ids=strategy.strategy_history.get_malicious_client_id(),
         )
-
-        # ------------------ Client Participation ------------------
         persist_clients_at_round(
             session=session,
             experiment_event=experiment_event,
             clients_info=strategy.strategy_history.get_all_clients(),
             experiment_client_id_map=experiment_client_id_map,
         )
-        # ------------------ Client Metrics ------------------
         persist_client_round_metrics(
             session=session,
             experiment_event=experiment_event,
@@ -257,7 +285,6 @@ def database_logger(strategy: FederatedSimulation):
         )
         experiment_event.is_successful = True
         experiment_event.total_exec_time = strategy.get_time()
-
         session.commit()
 
     except sqlalchemy.exc.OperationalError as e:
@@ -273,8 +300,8 @@ def database_logger(strategy: FederatedSimulation):
                 session.commit()
             except Exception:
                 pass
-
         raise e
+
     finally:
         session.close()
 

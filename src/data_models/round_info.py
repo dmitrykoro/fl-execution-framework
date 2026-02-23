@@ -158,3 +158,36 @@ class RoundsInfo:
                 self.removal_f1_history.append("Impossible to calculate")
 
             self.total_fp_and_fn_history.append(round_fp + round_fn)
+
+    def to_dict(self) -> dict:
+        return {
+            "score_calculation_time_nanos_history": self.score_calculation_time_nanos_history,
+            "removal_threshold_history": self.removal_threshold_history,
+            "aggregated_loss_history": self.aggregated_loss_history,
+            "average_accuracy_history": self.average_accuracy_history,
+            "average_accuracy_std_history": self.average_accuracy_std_history,
+            "tp_history": self.tp_history,
+            "tn_history": self.tn_history,
+            "fp_history": self.fp_history,
+            "fn_history": self.fn_history,
+            "total_fp_and_fn_history": self.total_fp_and_fn_history,
+            "removal_accuracy_history": self.removal_accuracy_history,
+            "removal_precision_history": self.removal_precision_history,
+            "removal_recall_history": self.removal_recall_history,
+            "removal_f1_history": self.removal_f1_history,
+            "mention_precision_history": self.mention_precision_history,
+            "mention_recall_history": self.mention_recall_history,
+            "mention_f1_history": self.mention_f1_history,
+            "document_precision_history": self.document_precision_history,
+            "document_recall_history": self.document_recall_history,
+            "document_f1_history": self.document_f1_history,
+        }
+
+    @classmethod
+    def from_dict(cls, data: dict, strategy_config: StrategyConfig) -> "RoundsInfo":
+        obj = cls.__new__(cls)
+        obj.simulation_strategy_config = strategy_config
+        obj.__post_init__()  # sets up plottable_metrics etc.
+        for key, value in data.items():
+            setattr(obj, key, value)
+        return obj

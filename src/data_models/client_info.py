@@ -128,3 +128,25 @@ class ClientInfo:
         """Get single plottable or savable metric values by name"""
 
         return getattr(self, metric)
+
+    def to_dict(self) -> dict:
+        return {
+            "client_id": self.client_id,
+            "num_of_rounds": self.num_of_rounds,
+            "is_malicious": self.is_malicious,
+            "attack_plan_keywords": self.attack_plan_keywords,
+            "attack_plan_configs": self.attack_plan_configs,
+            "removal_criterion_history": self.removal_criterion_history,
+            "absolute_distance_history": self.absolute_distance_history,
+            "loss_history": self.loss_history,
+            "accuracy_history": self.accuracy_history,
+            "aggregation_participation_history": self.aggregation_participation_history,
+        }
+
+    @classmethod
+    def from_dict(cls, data: dict) -> "ClientInfo":
+        obj = cls.__new__(cls)
+        for key, value in data.items():
+            setattr(obj, key, value)
+        obj.rounds = list(range(1, obj.num_of_rounds + 1))
+        return obj

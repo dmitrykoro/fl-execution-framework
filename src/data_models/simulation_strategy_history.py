@@ -1,5 +1,5 @@
 import numpy as np
-
+from dataclasses import asdict
 from dataclasses import dataclass, field
 
 from src.data_models.client_info import ClientInfo
@@ -176,3 +176,25 @@ class SimulationStrategyHistory:
 
         if self.strategy_config.remove_clients:
             self.rounds_history.calculate_additional_metrics()
+
+    def to_dict(self) -> dict:
+        return {
+            "strategy_config": vars(self.strategy_config),
+            "total_malicious_clients": self.total_malicious_clients,
+            "malicious_clients_ids": list(self.malicious_clients_ids),
+            "rounds_history": self.rounds_history.to_dict(),
+            "clients": [c.to_dict() for c in self._clients_dict.values()],
+        }
+
+    @classmethod
+    def from_dict(cls, data: dict) -> "SimulationStrategyHistory":
+        strategy_config = StrategyConfig.from_dict(data["strategy_config"])
+        obj = cls.__new__(cls)
+        obj.strategy_config = strategy_config
+        obj.total_malicious_clients = data["total_malicious_clients"]
+        obj.malicious_clients_ids = set(data["malicious_clients_ids"])
+        obj.rounds_history = RoundsInfo.from_dict(data["rounds_history"], strategy_config)
+        obj._clients_dict = {
+            c["client_id"]: ClientInfo.from_dict(c) for c in data["clients"]
+        }
+        return obj

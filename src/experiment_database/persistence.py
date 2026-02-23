@@ -62,11 +62,13 @@ def create_experiment_event(
     session: Session,
     executed_config: ExecutedConfig,
     hardware: HostHardwareSpec | None = None,
+    wandb_url=None,
 ) -> ExperimentEvent:
     event = ExperimentEvent(
         executed_config_id=executed_config.id,
         hardware_id=hardware.id if hardware else None,
         is_successful=False,
+        wandb_url=wandb_url,
     )
     session.add(event)
     session.flush()
