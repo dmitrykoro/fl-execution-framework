@@ -204,12 +204,12 @@ class SimulationRunner:
 
 
 def database_logger(strategy: FederatedSimulation):
-    sessions = [LocalDatabaseSession]
+    #sessions = [LocalDatabaseSession]
     #if NeonDatabaseSession is not None:
         #sessions.append(NeonDatabaseSession)
     
     #for SessionFactory in sessions:
-    _write_to_database(strategy, LocalDatabaseSession)
+    #_write_to_database(strategy, LocalDatabaseSession)
     
     experiment_server_url = os.environ.get("EXPERIMENT_SERVER_URL")
     if experiment_server_url:
