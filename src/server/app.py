@@ -89,6 +89,75 @@ async def post_experiment(request: web.Request) -> web.Response:
         session.close()
 
 
+async def get_experiments(request: web.Request) -> web.Response:
+    session = LocalDatabaseSession()
+    try:
+        from src.experiment_database.models import ExperimentEvent
+
+        experiments = session.query(ExperimentEvent).order_by(ExperimentEvent.id.desc()).limit(20).all()
+
+        result = []
+        for exp in experiments:
+            result.append({
+                "id": exp.id,
+                "created_at": exp.created_at.isoformat() if exp.created_at else None,
+                "is_successful": exp.is_successful,
+                "total_exec_time": exp.total_exec_time,
+                "error_message": exp.error_message,
+                "config": {
+                    "strategy": exp.executed_config.aggregation_strategy_keyword if exp.executed_config else None,
+                    "dataset": exp.executed_config.dataset_keyword if exp.executed_config else None,
+                    "num_rounds": exp.executed_config.num_rounds if exp.executed_config else None,
+                    "num_clients": exp.executed_config.num_clients if exp.executed_config else None,
+                    "num_malicious_clients": exp.executed_config.num_malicious_clients if exp.executed_config else None,
+                },
+                "hardware": {
+                    "cpu": exp.hardware.cpu_name if exp.hardware else None,
+                    "arch": exp.hardware.cpu_arch if exp.hardware else None,
+                    "ram": exp.hardware.ram_amount if exp.hardware else None,
+                },
+                "clients_at_round": [
+                    {
+                        "round_number": c.round_number,
+                        "client_number": c.client.client_number if c.client else None,
+                        "is_aggregated": c.client_is_aggregated,
+                        "attack_type": c.attack_type,
+                    }
+                    for c in (exp.clients_at_round[:20] if exp.clients_at_round else [])
+                ],
+                "metric_entries": [
+                    {
+                        "round_number": m.round_number,
+                        "metric_name": m.metric_info.name if m.metric_info else None,
+                        "metric_type": m.metric_info.type if m.metric_info else None,
+                        "value": m.value,
+                        "tolerance": m.tolerance,
+                        "client_number": m.client.client_number if m.client else None,
+                    }
+                    for m in (exp.metric_entries[:20] if exp.metric_entries else [])
+                ],
+            })
+
+        return web.json_response({"count": len(result), "experiments": result})
+    except Exception as e:
+        logging.exception("Failed to fetch experiments")
+        return web.json_response({"error": str(e)}, status=500)
+    finally:
+        session.close()
+
+
+async def get_summary(request: web.Request) -> web.Response:
+    session = LocalDatabaseSession()
+    try:
+        from src.experiment_database.models import ExecutedConfig
+        count = session.query(ExecutedConfig).count()
+        return web.json_response({"experiment_configs": count})
+    except Exception as e:
+        logging.exception("Failed to fetch summary")
+        return web.json_response({"error": str(e)}, status=500)
+    finally:
+        session.close()
+
 async def health(request: web.Request) -> web.Response:
     return web.json_response({"status": "healthy"})
 
@@ -96,7 +165,8 @@ async def health(request: web.Request) -> web.Response:
 app = web.Application()
 app.router.add_post("/experiments", post_experiment)
 app.router.add_get("/health", health)
-
+app.router.add_get("/experiments", get_experiments)
+app.router.add_get("/", get_summary)
 if __name__ == "__main__":
     port = int(os.environ.get("SERVER_PORT", 8080))
     logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")

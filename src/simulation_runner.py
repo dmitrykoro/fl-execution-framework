@@ -205,9 +205,9 @@ class SimulationRunner:
 
 def database_logger(strategy: FederatedSimulation):
     #sessions = [LocalDatabaseSession]
-    #if NeonDatabaseSession is not None:
+    if NeonDatabaseSession is not None:
         #sessions.append(NeonDatabaseSession)
-    
+        _write_to_database(strategy, NeonDatabaseSession)
     #for SessionFactory in sessions:
     #_write_to_database(strategy, LocalDatabaseSession)
     
