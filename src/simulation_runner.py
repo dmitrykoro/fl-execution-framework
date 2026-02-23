@@ -204,18 +204,13 @@ class SimulationRunner:
 
 
 def database_logger(strategy: FederatedSimulation):
-    #sessions = [LocalDatabaseSession]
     if NeonDatabaseSession is not None:
-        #sessions.append(NeonDatabaseSession)
         _write_to_database(strategy, NeonDatabaseSession)
-    #for SessionFactory in sessions:
-    #_write_to_database(strategy, LocalDatabaseSession)
     
     experiment_server_url = os.environ.get("EXPERIMENT_SERVER_URL")
     if experiment_server_url:
         asyncio.run(_send_to_server(strategy, experiment_server_url))
-
-
+        
 async def _send_to_server(strategy: FederatedSimulation, server_url: str):
     payload = {
         "strategy_history": strategy.strategy_history.to_dict(),

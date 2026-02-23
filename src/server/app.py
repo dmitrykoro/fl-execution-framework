@@ -110,6 +110,7 @@ async def get_experiments(request: web.Request) -> web.Response:
                     "num_rounds": exp.executed_config.num_rounds if exp.executed_config else None,
                     "num_clients": exp.executed_config.num_clients if exp.executed_config else None,
                     "num_malicious_clients": exp.executed_config.num_malicious_clients if exp.executed_config else None,
+                    "json": exp.executed_config.json if exp.executed_config else None,
                 },
                 "hardware": {
                     "cpu": exp.hardware.cpu_name if exp.hardware else None,
@@ -131,10 +132,9 @@ async def get_experiments(request: web.Request) -> web.Response:
                         "metric_name": m.metric_info.name if m.metric_info else None,
                         "metric_type": m.metric_info.type if m.metric_info else None,
                         "value": m.value,
-                        "tolerance": m.tolerance,
                         "client_number": m.client.client_number if m.client else None,
                     }
-                    for m in (exp.metric_entries[:20] if exp.metric_entries else [])
+                    for m in (exp.metric_entries[:200] if exp.metric_entries else [])
                 ],
             })
 
