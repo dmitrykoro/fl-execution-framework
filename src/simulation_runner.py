@@ -9,6 +9,7 @@ import ray
 import sqlalchemy
 import aiohttp
 import asyncio
+from src.utils.common import obtain_env_var
 from dotenv import load_dotenv
 load_dotenv(".env.private")
 
@@ -221,6 +222,7 @@ async def _send_to_server(strategy: FederatedSimulation, server_url: str):
         "gpu_name": strategy.strategy_history.training_device_name,
         "gpu_ram": strategy.strategy_history.training_device_ram,
         "is_executed_on": strategy.strategy_history.training_device_type,
+        "username":os.environ.get("USERNAME")
     }
     print("DEBUG payload keys:", payload["strategy_history"].keys())  # add this
     try:
@@ -255,19 +257,19 @@ def _write_to_database(strategy: FederatedSimulation, SessionFactory):
             session=session,
             strategy_config=strategy.strategy_config,
             num_of_malicious_clients=strategy.strategy_history.total_malicious_clients
-            username=obtain_env_var("USERNAME")
         )
         experiment_event = create_experiment_event(
             session=session,
             executed_config=executed_config,
             hardware=hardware,
+            username=obtain_env_var("USERNAME")
         )
         persist_round_metrics(
             session=session,
             experiment_event=experiment_event,
             rounds_info=strategy.strategy_history.rounds_history,
         )
-        clients, experiment_client_id_map = create_clients(
+        _, experiment_client_id_map = create_clients(
             session=session,
             experiment_event=experiment_event,
             num_clients=strategy.strategy_config.num_of_clients,

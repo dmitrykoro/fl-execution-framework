@@ -18,6 +18,7 @@ from src.data_models.simulation_strategy_history import SimulationStrategyHistor
 async def post_experiment(request: web.Request) -> web.Response:
     try:
         data = await request.json()
+        print(data)
     except Exception:
         return web.json_response({"error": "Invalid JSON"}, status=400)
 
@@ -46,13 +47,14 @@ async def post_experiment(request: web.Request) -> web.Response:
             session=session,
             executed_config=executed_config,
             hardware=hardware,
+            username=data.get("username")
         )
         persist_round_metrics(
             session=session,
             experiment_event=experiment_event,
             rounds_info=history.rounds_history,
         )
-        clients, experiment_client_id_map = create_clients(
+        _, experiment_client_id_map = create_clients(
             session=session,
             experiment_event=experiment_event,
             num_clients=history.strategy_config.num_of_clients,
@@ -107,6 +109,7 @@ async def get_experiments(request: web.Request) -> web.Response:
                 "is_successful": exp.is_successful,
                 "total_exec_time": exp.total_exec_time,
                 "error_message": exp.error_message,
+                "username": exp.username,
                 "config": {
                     "strategy": exp.executed_config.aggregation_strategy_keyword if exp.executed_config else None,
                     "dataset": exp.executed_config.dataset_keyword if exp.executed_config else None,

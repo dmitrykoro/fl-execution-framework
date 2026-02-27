@@ -29,7 +29,7 @@ class SimulationStrategyHistory:
     training_device_arch: str = None
     host_cpu: str = None
     host_ram: str = None
-
+    
 
     def __post_init__(self):
         self.rounds_history = RoundsInfo(simulation_strategy_config=self.strategy_config)

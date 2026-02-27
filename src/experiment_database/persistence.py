@@ -16,15 +16,14 @@ from src.data_models.round_info import RoundsInfo
 # Executed Config
 # -----------------------------
 
-def create_executed_config(session: Session, strategy_config, num_of_malicious_clients, username) -> ExecutedConfig:
+def create_executed_config(session: Session, strategy_config, num_of_malicious_clients) -> ExecutedConfig:
     cfg = ExecutedConfig(
         json=strategy_config.to_json(),
         aggregation_strategy_keyword=strategy_config.aggregation_strategy_keyword,
         dataset_keyword=strategy_config.dataset_keyword,
         num_rounds=strategy_config.num_of_rounds,
         num_clients=strategy_config.num_of_clients,
-        num_malicious_clients=num_of_malicious_clients,
-        username=username
+        num_malicious_clients=num_of_malicious_clients
     )
     session.add(cfg)
     session.flush()
@@ -71,12 +70,14 @@ def create_experiment_event(
     executed_config: ExecutedConfig,
     hardware: HostHardwareSpec | None = None,
     wandb_url=None,
+    username=None
 ) -> ExperimentEvent:
     event = ExperimentEvent(
         executed_config_id=executed_config.id,
         hardware_id=hardware.id if hardware else None,
         is_successful=False,
         wandb_url=wandb_url,
+        username=username
     )
     session.add(event)
     session.flush()
