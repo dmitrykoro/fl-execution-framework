@@ -3,7 +3,7 @@
     "strict_mode": "false",
     "aggregation_strategy_keyword": "pid_standardized_score_based",
     "remove_clients": "true",
-    "dataset_keyword": "lung_photos",
+    "dataset_keyword": "femnist_iid",
     "use_llm": "false",
     "num_of_rounds": 5,
     "num_of_clients": 4,

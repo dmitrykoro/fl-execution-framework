@@ -16,7 +16,7 @@ from src.data_models.round_info import RoundsInfo
 # Executed Config
 # -----------------------------
 
-def create_executed_config(session: Session, strategy_config, num_of_malicious_clients) -> ExecutedConfig:
+def create_executed_config(session: Session, strategy_config, num_of_malicious_clients, username) -> ExecutedConfig:
     cfg = ExecutedConfig(
         json=strategy_config.to_json(),
         aggregation_strategy_keyword=strategy_config.aggregation_strategy_keyword,
@@ -24,6 +24,7 @@ def create_executed_config(session: Session, strategy_config, num_of_malicious_c
         num_rounds=strategy_config.num_of_rounds,
         num_clients=strategy_config.num_of_clients,
         num_malicious_clients=num_of_malicious_clients,
+        username=username
     )
     session.add(cfg)
     session.flush()
@@ -34,20 +35,27 @@ def create_executed_config(session: Session, strategy_config, num_of_malicious_c
 # Hardware
 # -----------------------------
 
-def get_or_create_hardware(session: Session, cpu: str, arch: str, ram: str) -> HostHardwareSpec:
+def get_or_create_hardware(session: Session, cpu: str, arch: str, ram: str, gpu_name: str, is_executed_on: str, gpu_ram: str) -> HostHardwareSpec:
+    #We make sure this hardware is not already in the server
     hw = session.query(HostHardwareSpec).filter_by(
         cpu_name=cpu,
         cpu_arch=arch,
         ram_amount=ram,
+        gpu_name=gpu_name if is_executed_on == "gpu" else None,
+        gpu_ram=gpu_ram if is_executed_on == "gpu" else None,
+        is_executed_on=is_executed_on
     ).one_or_none()
-
+    #if it is, return the homework
     if hw:
         return hw
-
+    #if not, then we create a new entity for this hardware
     hw = HostHardwareSpec(
         cpu_name=cpu,
         cpu_arch=arch,
         ram_amount=ram,
+        gpu_name=gpu_name if is_executed_on == "gpu" else None,
+        gpu_ram=gpu_ram if is_executed_on == "gpu" else None,
+        is_executed_on=is_executed_on,
     )
     session.add(hw)
     session.flush()

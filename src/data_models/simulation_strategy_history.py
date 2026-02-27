@@ -1,4 +1,9 @@
 import numpy as np
+import torch
+import platform
+import psutil
+import os
+
 from dataclasses import asdict
 from dataclasses import dataclass, field
 
@@ -18,6 +23,13 @@ class SimulationStrategyHistory:
     total_malicious_clients: int = 0
     malicious_clients_ids: set = field(default_factory=set)
     _clients_dict: dict = field(default_factory=dict)
+    training_device_type: str = "cpu"  
+    training_device_name: str = "cpu"
+    training_device_ram: str = None
+    training_device_arch: str = None
+    host_cpu: str = None
+    host_ram: str = None
+
 
     def __post_init__(self):
         self.rounds_history = RoundsInfo(simulation_strategy_config=self.strategy_config)
@@ -35,6 +47,28 @@ class SimulationStrategyHistory:
             if client.is_malicious:
                 self.total_malicious_clients += 1
                 self.malicious_clients_ids.add(client.client_id)
+        
+        # ── Host hardware info ────────────────────────────────────────────────
+        self.host_cpu: str = platform.processor() or os.uname().machine
+        self.host_ram: str = str(os.sysconf("SC_PAGE_SIZE") * os.sysconf("SC_PHYS_PAGES"))
+        self.training_device_arch:  str = os.uname().sysname
+
+
+        device = self.strategy_config.training_device  # torch.device or string
+        device_type = str(device).split(":")[0]
+        if device_type == "cuda" and torch.cuda.is_available():
+            props = torch.cuda.get_device_properties(device)
+            self.training_device_type = "gpu"
+            self.training_device_name = props.name
+            self.training_device_ram = f"{props.total_memory / (1024 ** 3):.1f} GB"
+            self.training_device_arch = f"sm_{props.major}{props.minor}"
+        else:
+            self.training_device_type = "cpu"
+            self.training_device_name = "cpu"
+            self.training_device_ram = None
+            
+        self.host_cpu = platform.processor() or platform.machine()   
+        self.host_ram = str(psutil.virtual_memory().total)           
 
     def get_all_clients(self) -> list:
         """
@@ -184,6 +218,11 @@ class SimulationStrategyHistory:
             "malicious_clients_ids": list(self.malicious_clients_ids),
             "rounds_history": self.rounds_history.to_dict(),
             "clients": [c.to_dict() for c in self._clients_dict.values()],
+            "training_device_arch": self.training_device_arch,
+            "training_device_ram": self.training_device_ram,
+            "training_device_arch": self.training_device_arch,
+            "host_cpu": self.host_cpu,
+            "host_ram": self.host_ram,  
         }
 
     @classmethod
@@ -197,4 +236,10 @@ class SimulationStrategyHistory:
         obj._clients_dict = {
             c["client_id"]: ClientInfo.from_dict(c) for c in data["clients"]
         }
+        obj.training_device_type = data.get("training_device_type", "cpu")
+        obj.training_device_name = data.get("training_device_name", "cpu")
+        obj.training_device_ram = data.get("training_device_ram", None)
+        obj.training_device_arch = data.get("training_device_arch", None)
+        obj.host_cpu = data.get("host_cpu", None)
+        obj.host_ram = data.get("host_ram", None)
         return obj

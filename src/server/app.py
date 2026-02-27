@@ -30,9 +30,12 @@ async def post_experiment(request: web.Request) -> web.Response:
 
         hardware = get_or_create_hardware(
             session,
-            cpu=data.get("cpu", "unknown"),
-            arch=data.get("arch", "unknown"),
-            ram=data.get("ram", "unknown"),
+            cpu=history.host_cpu,
+            arch=history.training_device_arch,
+            ram=history.host_ram,
+            gpu_name=history.training_device_name,
+            gpu_ram=history.training_device_ram,
+            is_executed_on=history.training_device_type,
         )
         executed_config = create_executed_config(
             session=session,
@@ -116,6 +119,9 @@ async def get_experiments(request: web.Request) -> web.Response:
                     "cpu": exp.hardware.cpu_name if exp.hardware else None,
                     "arch": exp.hardware.cpu_arch if exp.hardware else None,
                     "ram": exp.hardware.ram_amount if exp.hardware else None,
+                    "gpu_name": exp.hardware.gpu_name if exp.hardware else None,       
+                    "gpu_ram": exp.hardware.gpu_ram if exp.hardware else None,         
+                    "is_executed_on": exp.hardware.is_executed_on if exp.hardware else None,  
                 },
                 "clients_at_round": [
                     {

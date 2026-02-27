@@ -215,9 +215,12 @@ async def _send_to_server(strategy: FederatedSimulation, server_url: str):
     payload = {
         "strategy_history": strategy.strategy_history.to_dict(),
         "total_exec_time": strategy.get_time(),
-        "cpu": os.uname().machine,
-        "arch": os.uname().sysname,
-        "ram": str(os.sysconf("SC_PAGE_SIZE") * os.sysconf("SC_PHYS_PAGES")),
+        "cpu": strategy.strategy_history.host_cpu,
+        "arch": strategy.strategy_history.training_device_arch,
+        "ram": strategy.strategy_history.host_ram,
+        "gpu_name": strategy.strategy_history.training_device_name,
+        "gpu_ram": strategy.strategy_history.training_device_ram,
+        "is_executed_on": strategy.strategy_history.training_device_type,
     }
     print("DEBUG payload keys:", payload["strategy_history"].keys())  # add this
     try:
@@ -241,14 +244,18 @@ def _write_to_database(strategy: FederatedSimulation, SessionFactory):
     try:
         hardware = get_or_create_hardware(
             session,
-            cpu=os.uname().machine,
-            arch=os.uname().sysname,
-            ram=str(os.sysconf("SC_PAGE_SIZE") * os.sysconf("SC_PHYS_PAGES")),
+            cpu=strategy.strategy_history.host_cpu,
+            arch=strategy.strategy_history.training_device_arch,
+            ram=strategy.strategy_history.host_ram,
+            gpu_name=strategy.strategy_history.training_device_name,
+            gpu_ram=strategy.strategy_history.training_device_ram,
+            is_executed_on=strategy.strategy_history.training_device_type,
         )
         executed_config = create_executed_config(
             session=session,
             strategy_config=strategy.strategy_config,
             num_of_malicious_clients=strategy.strategy_history.total_malicious_clients
+            username=obtain_env_var("USERNAME")
         )
         experiment_event = create_experiment_event(
             session=session,
