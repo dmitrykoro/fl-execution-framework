@@ -222,7 +222,7 @@ async def _send_to_server(strategy: FederatedSimulation, server_url: str):
         "gpu_name": strategy.strategy_history.training_device_name,
         "gpu_ram": strategy.strategy_history.training_device_ram,
         "is_executed_on": strategy.strategy_history.training_device_type,
-        "username":os.environ.get("USERNAME")
+        "username":obtain_env_var("FL_USERNAME")
     }
     print("DEBUG payload keys:", payload["strategy_history"].keys())  # add this
     try:
@@ -262,7 +262,7 @@ def _write_to_database(strategy: FederatedSimulation, SessionFactory):
             session=session,
             executed_config=executed_config,
             hardware=hardware,
-            username=obtain_env_var("USERNAME")
+            username=obtain_env_var("FL_USERNAME")
         )
         persist_round_metrics(
             session=session,

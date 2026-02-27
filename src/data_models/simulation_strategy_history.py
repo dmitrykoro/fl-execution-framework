@@ -29,7 +29,7 @@ class SimulationStrategyHistory:
     training_device_arch: str = None
     host_cpu: str = None
     host_ram: str = None
-    
+
 
     def __post_init__(self):
         self.rounds_history = RoundsInfo(simulation_strategy_config=self.strategy_config)
@@ -49,9 +49,9 @@ class SimulationStrategyHistory:
                 self.malicious_clients_ids.add(client.client_id)
         
         # ── Host hardware info ────────────────────────────────────────────────
-        self.host_cpu: str = platform.processor() or os.uname().machine
-        self.host_ram: str = str(os.sysconf("SC_PAGE_SIZE") * os.sysconf("SC_PHYS_PAGES"))
-        self.training_device_arch:  str = os.uname().sysname
+        self.host_cpu: str = platform.processor() or platform.machine()
+        self.host_ram: str = str(psutil.virtual_memory().total)
+        self.training_device_arch: str = platform.system()
 
 
         device = self.strategy_config.training_device  # torch.device or string
@@ -66,9 +66,7 @@ class SimulationStrategyHistory:
             self.training_device_type = "cpu"
             self.training_device_name = "cpu"
             self.training_device_ram = None
-            
-        self.host_cpu = platform.processor() or platform.machine()   
-        self.host_ram = str(psutil.virtual_memory().total)           
+                   
 
     def get_all_clients(self) -> list:
         """

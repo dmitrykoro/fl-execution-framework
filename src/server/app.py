@@ -18,7 +18,6 @@ from src.data_models.simulation_strategy_history import SimulationStrategyHistor
 async def post_experiment(request: web.Request) -> web.Response:
     try:
         data = await request.json()
-        print(data)
     except Exception:
         return web.json_response({"error": "Invalid JSON"}, status=400)
 
