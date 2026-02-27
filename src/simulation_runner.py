@@ -6,17 +6,13 @@ import time
 import torch
 import gc
 import ray
-import sqlalchemy
-import aiohttp
-import asyncio
 from src.utils.common import obtain_env_var
 from dotenv import load_dotenv
-load_dotenv(".env.private")
+load_dotenv()
 
 # Suppress joblib CPU count warnings
 os.environ["LOKY_MAX_CPU_COUNT"] = str(os.cpu_count() or 1)
 os.environ["OMP_NUM_THREADS"] = str(os.cpu_count() or 1)
-EXPERIMENT_SERVER_URL = os.environ.get("EXPERIMENT_SERVER_URL")
 # Set HuggingFace cache directory to avoid API rate limits
 os.environ["HF_HOME"] = "./cache/huggingface"
 
@@ -27,16 +23,8 @@ from src.output_handlers import new_plot_handler
 from src.federated_simulation import FederatedSimulation
 from src.data_models.simulation_strategy_config import StrategyConfig
 from src.dataset_handlers.dataset_handler import DatasetHandler
-from src.experiment_database.session import LocalDatabaseSession, NeonDatabaseSession
-from src.experiment_database.persistence import (
-    create_executed_config,
-    get_or_create_hardware,
-    create_experiment_event,
-    create_clients,
-    persist_clients_at_round,
-    persist_round_metrics,
-    persist_client_round_metrics,
-)
+from src.experiment_database.implement_database import database_logger
+
 
 def _serialize_config_for_logging(config_dict: dict) -> str:
     """Serialize config dict to JSON, converting torch.device to string."""
@@ -204,110 +192,7 @@ class SimulationRunner:
             logging.warning(f"Failed to generate main dashboard: {e}")
 
 
-def database_logger(strategy: FederatedSimulation):
-    if NeonDatabaseSession is not None:
-        _write_to_database(strategy, NeonDatabaseSession)
-    
-    experiment_server_url = os.environ.get("EXPERIMENT_SERVER_URL")
-    if experiment_server_url:
-        asyncio.run(_send_to_server(strategy, experiment_server_url))
-        
-async def _send_to_server(strategy: FederatedSimulation, server_url: str):
-    payload = {
-        "strategy_history": strategy.strategy_history.to_dict(),
-        "total_exec_time": strategy.get_time(),
-        "cpu": strategy.strategy_history.host_cpu,
-        "arch": strategy.strategy_history.training_device_arch,
-        "ram": strategy.strategy_history.host_ram,
-        "gpu_name": strategy.strategy_history.training_device_name,
-        "gpu_ram": strategy.strategy_history.training_device_ram,
-        "is_executed_on": strategy.strategy_history.training_device_type,
-        "username":obtain_env_var("FL_USERNAME")
-    }
-    print("DEBUG payload keys:", payload["strategy_history"].keys())  # add this
-    try:
-        async with aiohttp.ClientSession() as session:
-            async with session.post(
-                f"{server_url}/experiments",
-                json=payload,
-                timeout=aiohttp.ClientTimeout(total=30)
-            ) as resp:
-                if resp.status != 201:
-                    logging.error(f"Server rejected experiment data ({resp.status}): {await resp.text()}")
-                else:
-                    logging.info("Experiment data sent to remote server successfully")
-    except Exception as e:
-        logging.error(f"Failed to send experiment data to remote server: {e}")
-        
-def _write_to_database(strategy: FederatedSimulation, SessionFactory):
-    session = SessionFactory()
-    experiment_event = None
 
-    try:
-        hardware = get_or_create_hardware(
-            session,
-            cpu=strategy.strategy_history.host_cpu,
-            arch=strategy.strategy_history.training_device_arch,
-            ram=strategy.strategy_history.host_ram,
-            gpu_name=strategy.strategy_history.training_device_name,
-            gpu_ram=strategy.strategy_history.training_device_ram,
-            is_executed_on=strategy.strategy_history.training_device_type,
-        )
-        executed_config = create_executed_config(
-            session=session,
-            strategy_config=strategy.strategy_config,
-            num_of_malicious_clients=strategy.strategy_history.total_malicious_clients
-        )
-        experiment_event = create_experiment_event(
-            session=session,
-            executed_config=executed_config,
-            hardware=hardware,
-            username=obtain_env_var("FL_USERNAME")
-        )
-        persist_round_metrics(
-            session=session,
-            experiment_event=experiment_event,
-            rounds_info=strategy.strategy_history.rounds_history,
-        )
-        _, experiment_client_id_map = create_clients(
-            session=session,
-            experiment_event=experiment_event,
-            num_clients=strategy.strategy_config.num_of_clients,
-            malicious_ids=strategy.strategy_history.get_malicious_client_id(),
-        )
-        persist_clients_at_round(
-            session=session,
-            experiment_event=experiment_event,
-            clients_info=strategy.strategy_history.get_all_clients(),
-            experiment_client_id_map=experiment_client_id_map,
-        )
-        persist_client_round_metrics(
-            session=session,
-            experiment_event=experiment_event,
-            clients_info=strategy.strategy_history.get_all_clients(),
-            experiment_client_id_map=experiment_client_id_map,
-        )
-        experiment_event.is_successful = True
-        experiment_event.total_exec_time = strategy.get_time()
-        session.commit()
-
-    except sqlalchemy.exc.OperationalError as e:
-        logging.error(f"Error while trying to insert experiment metrics to the database: {e}")
-
-    except Exception as e:
-        if experiment_event is not None:
-            try:
-                experiment_event.error_message = str(e)
-                experiment_event.is_successful = False
-                experiment_event.total_exec_time = strategy.get_time()
-                session.add(experiment_event)
-                session.commit()
-            except Exception:
-                pass
-        raise e
-
-    finally:
-        session.close()
 
 
 if __name__ == "__main__":

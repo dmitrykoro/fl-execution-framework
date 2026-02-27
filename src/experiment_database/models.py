@@ -1,7 +1,16 @@
 import uuid
 from datetime import datetime, timezone
+
 from sqlalchemy import (
-    Column, Integer, String, Boolean, DateTime, ForeignKey, Text, JSON, Float
+    Boolean,
+    Column,
+    DateTime,
+    Float,
+    ForeignKey,
+    Integer,
+    JSON,
+    String,
+    Text,
 )
 from sqlalchemy.orm import declarative_base, relationship
 
@@ -19,7 +28,6 @@ class ExecutedConfig(Base):
     num_clients = Column(Text, nullable=False)
     num_malicious_clients = Column(Text, nullable=False)
 
-    # relationships
     experiment_events = relationship("ExperimentEvent", back_populates="executed_config")
 
 
@@ -34,7 +42,6 @@ class HostHardwareSpec(Base):
     gpu_ram = Column(Text, nullable=True)
     is_executed_on = Column(Text, nullable=False)
 
-    # relationships
     experiment_events = relationship("ExperimentEvent", back_populates="hardware")
 
 
@@ -49,13 +56,16 @@ class ExperimentEvent(Base):
     error_message = Column(Text, nullable=True)
     total_exec_time = Column(Text, nullable=True)
 
-    executed_config_id = Column(String(36), ForeignKey("executed_config.id"), nullable=False)
+    executed_config_id = Column(
+        String(36), ForeignKey("executed_config.id"), nullable=False
+    )
     executed_config = relationship("ExecutedConfig", back_populates="experiment_events")
 
-    hardware_id = Column(String(36), ForeignKey("host_hardware_spec.id"), nullable=True)
+    hardware_id = Column(
+        String(36), ForeignKey("host_hardware_spec.id"), nullable=True
+    )
     hardware = relationship("HostHardwareSpec", back_populates="experiment_events")
 
-    # relationships
     clients = relationship("ExperimentClient", back_populates="experiment_event")
     metric_entries = relationship("MetricEntry", back_populates="experiment_event")
     clients_at_round = relationship("ClientAtRound", back_populates="experiment_event")
@@ -66,39 +76,37 @@ class ExperimentClient(Base):
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     client_number = Column(Integer, nullable=False)
-
     was_ever_malicious = Column(Boolean, default=False)
 
     experiment_event_id = Column(
         Integer,
         ForeignKey("experiment_event.id", ondelete="CASCADE"),
-        nullable=False
+        nullable=False,
     )
-    
-    experiment_event = relationship(
-        "ExperimentEvent",
-        back_populates="clients"
-    )
-
+    experiment_event = relationship("ExperimentEvent", back_populates="clients")
     metric_entries = relationship(
         "MetricEntry",
         back_populates="client",
-        cascade="all, delete-orphan"
+        cascade="all, delete-orphan",
     )
-
     rounds = relationship(
         "ClientAtRound",
         back_populates="client",
-        cascade="all, delete-orphan"
+        cascade="all, delete-orphan",
     )
+
 
 class ClientAtRound(Base):
     __tablename__ = "client_at_round"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
 
-    experiment_event_id = Column(Integer, ForeignKey("experiment_event.id"), nullable=False)
-    experiment_client_id = Column(String(36), ForeignKey("experiment_client.id"), nullable=False)
+    experiment_event_id = Column(
+        Integer, ForeignKey("experiment_event.id"), nullable=False
+    )
+    experiment_client_id = Column(
+        String(36), ForeignKey("experiment_client.id"), nullable=False
+    )
 
     experiment_event = relationship("ExperimentEvent", back_populates="clients_at_round")
     client = relationship("ExperimentClient", back_populates="rounds")
@@ -126,7 +134,9 @@ class MetricEntry(Base):
     metric_info_id = Column(Integer, ForeignKey("metric_info.id"), nullable=False)
     metric_info = relationship("MetricInfo", back_populates="metric_entries")
 
-    experiment_event_id = Column(Integer, ForeignKey("experiment_event.id"), nullable=False)
+    experiment_event_id = Column(
+        Integer, ForeignKey("experiment_event.id"), nullable=False
+    )
     experiment_event = relationship("ExperimentEvent", back_populates="metric_entries")
 
     client_id = Column(String(36), ForeignKey("experiment_client.id"), nullable=True)
