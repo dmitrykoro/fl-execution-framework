@@ -2,6 +2,7 @@
 .vscode
 .DS_store
 .venv
+.venv-win
 ITS_USECASE/
 FLAIR_USECASE/
 __pycache__
