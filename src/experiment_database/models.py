@@ -44,7 +44,7 @@ class ExperimentEvent(Base):
     id = Column(Integer, primary_key=True, autoincrement=True)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     wandb_url = Column(String(500), nullable=True)
-    user_name = Column(String(500), nullable=True)
+    username = Column(String(500), nullable=True)
     is_successful = Column(Boolean, default=True)
     error_message = Column(Text, nullable=True)
     total_exec_time = Column(Text, nullable=True)
@@ -74,7 +74,7 @@ class ExperimentClient(Base):
         ForeignKey("experiment_event.id", ondelete="CASCADE"),
         nullable=False
     )
-    username=Column(String, nullabel=True)
+    
     experiment_event = relationship(
         "ExperimentEvent",
         back_populates="clients"
