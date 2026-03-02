@@ -36,7 +36,7 @@ if [ ! -d "datasets/bloodmnist" ]; then
 fi
 
 log_info "🚀 Initializing simulation..."
-if run_python -m src.simulation_runner; then
+if run_python -m src.simulation_runner table_viii_gradient_scaling/pneumoniamnist.json; then
     echo ""
     show_simulation_output_info "out/"
 else

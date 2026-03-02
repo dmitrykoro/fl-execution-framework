@@ -79,15 +79,19 @@ Defines the aggregation strategy. Options:
 - **`attack_schedule`**: array of attack configurations for round-based attacks. Each entry requires:
   - `start_round`: when the attack starts (1 to `num_of_rounds`).
   - `end_round`: when the attack ends (1 to `num_of_rounds`).
-  - `attack_type`: type of attack (`label_flipping` or `gaussian_noise`).
+  - `attack_type`: type of attack. Two categories are supported:
+    - **Data poisoning** (applied to training data before local training): `label_flipping`, `gaussian_noise`.
+    - **Model poisoning** (applied to model weights after local training, before sending to server): `gradient_scaling`.
   - `selection_strategy`: how to select malicious clients (`specific`, `random`, or `percentage`).
   - **Attack parameters:**
     - `label_flipping`: no additional parameters required.
     - `gaussian_noise`: `target_noise_snr` (dB, recommended) or `mean`/`std`, plus optional `attack_ratio` (0.0-1.0, defaults to 1.0).
+    - `gradient_scaling`: `scale_factor` (number > 0). The local weight update delta `(local - global)` is multiplied by this factor before being sent to the server. A value greater than 1 amplifies the update; a value between 0 and 1 dampens it. For example, `scale_factor: 10.0` makes the malicious client's update 10× larger than its honest counterpart.
   - **Selection parameters:**
     - `specific`: `malicious_client_ids` (array of client IDs).
     - `random`: `malicious_client_count` (integer).
     - `percentage`: `malicious_percentage` (0.0-1.0).
+  - **Note:** `preserve_dataset: true` is incompatible with data poisoning attacks (`label_flipping`, `gaussian_noise`) but is allowed alongside `gradient_scaling` since model poisoning does not modify the local dataset.
 
 - `save_attack_snapshots`: save attack snapshots for analysis (`true`/`false`).
 - `attack_snapshot_format`: format for snapshots (`pickle`, `visual`, or `pickle_and_visual`).

@@ -5,6 +5,7 @@ Utility functions for applying poisoning attacks to datasets.
 import logging
 from typing import Optional, Tuple
 
+import numpy as np
 import torch
 
 
@@ -144,3 +145,33 @@ def apply_poisoning_attack(
             )
 
     return data, labels
+
+
+def is_model_poisoning_attack(attack_type: str) -> bool:
+    """Return True if attack_type is a model-level (post-training) attack."""
+    return attack_type == "gradient_scaling"
+
+
+def apply_gradient_scaling(
+    local_weights: list[np.ndarray],
+    global_weights: list[np.ndarray],
+    scale_factor: float,
+) -> list[np.ndarray]:
+    """Scale the weight update delta by scale_factor before sending to server."""
+    return [
+        global_w + scale_factor * (local_w - global_w)
+        for local_w, global_w in zip(local_weights, global_weights)
+    ]
+
+
+def apply_model_poisoning_attack(
+    local_weights: list[np.ndarray],
+    global_weights: list[np.ndarray],
+    attack_config: dict,
+) -> list[np.ndarray]:
+    """Dispatcher for model poisoning attacks (post-training weight manipulation)."""
+    attack_type = attack_config.get("attack_type")
+    if attack_type == "gradient_scaling":
+        scale_factor = attack_config.get("scale_factor")
+        return apply_gradient_scaling(local_weights, global_weights, scale_factor)
+    return local_weights  # Unknown type: no-op
