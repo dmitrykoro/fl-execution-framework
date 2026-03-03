@@ -98,73 +98,71 @@ async def post_experiment(request: web.Request) -> web.Response:
 
 async def get_experiments(request: web.Request) -> web.Response:
     """Return the 20 most recent experiment events with config, hardware, and metrics."""
-    session = LocalDatabaseSession()
-    try:
-        experiments = (
-            session.query(ExperimentEvent)
-            .order_by(ExperimentEvent.id.desc())
-            .limit(20)
-            .all()
-        )
-
-        result = []
-        for exp in experiments:
-            cfg = exp.executed_config
-            hw = exp.hardware
-            result.append(
-                {
-                    "id": exp.id,
-                    "created_at": exp.created_at.isoformat() if exp.created_at else None,
-                    "is_successful": exp.is_successful,
-                    "total_exec_time": exp.total_exec_time,
-                    "error_message": exp.error_message,
-                    "username": exp.username,
-                    "config": {
-                        "strategy": cfg.aggregation_strategy_keyword if cfg else None,
-                        "dataset": cfg.dataset_keyword if cfg else None,
-                        "num_rounds": cfg.num_rounds if cfg else None,
-                        "num_clients": cfg.num_clients if cfg else None,
-                        "num_malicious_clients": cfg.num_malicious_clients if cfg else None,
-                        "json": cfg.json if cfg else None,
-                    },
-                    "hardware": {
-                        "cpu": hw.cpu_name if hw else None,
-                        "arch": hw.cpu_arch if hw else None,
-                        "ram": hw.ram_amount if hw else None,
-                        "gpu_name": hw.gpu_name if hw else None,
-                        "gpu_ram": hw.gpu_ram if hw else None,
-                        "is_executed_on": hw.is_executed_on if hw else None,
-                    },
-                    "clients_at_round": [
-                        {
-                            "round_number": c.round_number,
-                            "client_number": c.client.client_number if c.client else None,
-                            "is_aggregated": c.client_is_aggregated,
-                            "attack_type": c.attack_type,
-                        }
-                        for c in (exp.clients_at_round[:20] if exp.clients_at_round else [])
-                    ],
-                    "metric_entries": [
-                        {
-                            "round_number": m.round_number,
-                            "metric_name": m.metric_info.name if m.metric_info else None,
-                            "metric_type": m.metric_info.type if m.metric_info else None,
-                            "value": m.value,
-                            "client_number": m.client.client_number if m.client else None,
-                        }
-                        for m in (exp.metric_entries[:200] if exp.metric_entries else [])
-                    ],
-                }
+    with get_db() as session:
+        try:
+            experiments = (
+                session.query(ExperimentEvent)
+                .order_by(ExperimentEvent.id.desc())
+                .limit(20)
+                .all()
             )
 
-        return web.json_response({"count": len(result), "experiments": result})
+            result = []
+            for exp in experiments:
+                cfg = exp.executed_config
+                hw = exp.hardware
+                result.append(
+                    {
+                        "id": exp.id,
+                        "created_at": exp.created_at.isoformat() if exp.created_at else None,
+                        "is_successful": exp.is_successful,
+                        "total_exec_time": exp.total_exec_time,
+                        "error_message": exp.error_message,
+                        "username": exp.username,
+                        "config": {
+                            "strategy": cfg.aggregation_strategy_keyword if cfg else None,
+                            "dataset": cfg.dataset_keyword if cfg else None,
+                            "num_rounds": cfg.num_rounds if cfg else None,
+                            "num_clients": cfg.num_clients if cfg else None,
+                            "num_malicious_clients": cfg.num_malicious_clients if cfg else None,
+                            "json": cfg.json if cfg else None,
+                        },
+                        "hardware": {
+                            "cpu": hw.cpu_name if hw else None,
+                            "arch": hw.cpu_arch if hw else None,
+                            "ram": hw.ram_amount if hw else None,
+                            "gpu_name": hw.gpu_name if hw else None,
+                            "gpu_ram": hw.gpu_ram if hw else None,
+                            "is_executed_on": hw.is_executed_on if hw else None,
+                        },
+                        "clients_at_round": [
+                            {
+                                "round_number": c.round_number,
+                                "client_number": c.client.client_number if c.client else None,
+                                "is_aggregated": c.client_is_aggregated,
+                                "attack_type": c.attack_type,
+                            }
+                            for c in (exp.clients_at_round[:20] if exp.clients_at_round else [])
+                        ],
+                        "metric_entries": [
+                            {
+                                "round_number": m.round_number,
+                                "metric_name": m.metric_info.name if m.metric_info else None,
+                                "metric_type": m.metric_info.type if m.metric_info else None,
+                                "value": m.value,
+                                "client_number": m.client.client_number if m.client else None,
+                            }
+                            for m in (exp.metric_entries[:200] if exp.metric_entries else [])
+                        ],
+                    }
+                )
 
-    except Exception as e:
-        logging.exception("Failed to fetch experiments")
-        return web.json_response({"error": str(e)}, status=500)
+            return web.json_response({"count": len(result), "experiments": result})
 
-    finally:
-        session.close()
+        except Exception as e:
+            logging.exception("Failed to fetch experiments")
+            return web.json_response({"error": str(e)}, status=500)
+
 
 
 async def get_summary(request: web.Request) -> web.Response:
