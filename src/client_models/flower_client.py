@@ -274,9 +274,94 @@ class FlowerClient(fl.client.NumPyClient):
                     print(f"Epoch {epoch + 1}: train loss {epoch_loss}, accuracy {epoch_acc}")
 
             return float(epoch_loss), float(epoch_acc), 0.0
+        
+        elif self.model_type == "linear_regression":
+            #TODO: Consider changing to something more robust, L1Loss for MAE or HuberLoss
+            criterion = torch.nn.MSELoss()
+            optimizer = torch.optim.Adam(net.parameters())
+            net.train()
+
+            for epoch in range(epochs):
+                total, epoch_loss = 0, 0.0
+                # For R^2 calcualtion
+                ss_res, sum_y, sum_y_sq = 0.0, 0.0, 0.0
+
+                for batch_idx, (features, targets) in enumerate(trainloader):
+                    #TODO: when poisoning attack is implemented for regression, make sure it works here
+                    should_poison, attack_configs = should_poison_this_round(
+                        current_round, self.client_id, self.attacks_schedule
+                    )
+
+                    if should_poison and attack_configs:
+                        original_features = features.clone()
+                        original_targets = targets.clone()
+
+                        # Apply all attacks sequentially
+                        for attack_config in attack_configs:
+                            features, targets = apply_poisoning_attack(features, targets, attack_config)
+
+                        # Save snapshot after all attacks applied
+                        if epoch == 0 and batch_idx == 0:
+                            self._save_attack_snapshots(
+                                current_round=current_round,
+                                attack_configs=attack_configs,
+                                data_sample=features,
+                                labels_sample=targets,
+                                original_data_sample=original_features,
+                                original_labels_sample=original_targets
+                            )
+
+                    features = features.to(self.training_device)
+                    targets = targets.to(self.training_device).float()
+                    optimizer.zero_grad()
+                    outputs = net(features)
+
+                    # Ensure targets is the same shape as outputs
+                    if outputs.shape != targets.shape:
+                        targets = targets.view_as(outputs)
+
+                    loss=criterion(outputs, targets)
+                    loss.backward()
+                    optimizer.step()
+
+                    # Metrics
+                    epoch_loss += loss.item() * features.size(0)
+
+                    # denormalize for metrics
+                    y_mean = trainloader.dataset.y_mean
+                    y_std = trainloader.dataset.y_std
+                    y_std = y_std.to(self.training_device)
+                    y_mean = y_mean.to(self.training_device)
+
+                    outputs_real = outputs * y_std + y_mean
+                    targets_real = targets * y_std + y_mean
+                    
+                    ss_res += torch.sum((targets_real-outputs_real)**2).item()
+                    sum_y += torch.sum(targets_real).item()
+                    sum_y_sq += torch.sum(targets_real**2).item()
+
+                    total += features.size(0)
+
+                    # Free intermediate tensors
+                    del outputs, loss
+                
+                epoch_loss /= total if total > 0 else 1
+                y_mean = sum_y / total
+                ss_tot = sum_y_sq - total * (y_mean**2)
+                epoch_r2 = 1-(ss_res/ss_tot) if ss_tot > 0 else 0.0
+                if verbose:
+                    print(f"Epoch {epoch + 1}: train MSE {epoch_loss}")
+
+                # calculate local client learning rate
+                optimizer_lr = optimizer.param_groups[0]["lr"]
+                num_steps = epochs * len(trainloader)
+                eta_eff = optimizer_lr * num_steps
+
+            #TODO: Right now returning MSE, maybe use RMSE for more interprebility or MAE
+            return float(epoch_loss), float(epoch_r2), float(eta_eff)  
 
         else:
-            raise ValueError(f"Unsupported model type: {self.model_type}. Supported types are 'cnn' and 'mlm'.")
+            raise ValueError(f"Unsupported model type: {self.model_type}. Supported types are 'cnn', 'mlm' and 'linear_regression'.")
 
     def test(self, net, testloader, config=None):
         """Evaluate the network on the entire test set with optional dynamic poisoning."""
@@ -371,9 +456,61 @@ class FlowerClient(fl.client.NumPyClient):
             else:
                 # fall back to old two-tuple result for non-NER transformer tasks
                 return loss, accuracy
+            
+        elif self.model_type == "linear_regression":
+            criterion = torch.nn.MSELoss(reduction="sum") # sum to compute SS_res directly
+            net.eval()
+
+            total, loss_sum, ss_res, ss_tot, y_true_sum, y_true_sq_sum = 0, 0.0, 0.0, 0.0, 0.0, 0.0
+
+            with torch.no_grad():
+                for features, targets in testloader:
+                    #TODO: when poisoning attack is implemented for regression, make sure it works here
+                    should_poison, attack_configs = should_poison_this_round(
+                        current_round, self.client_id, self.attacks_schedule
+                    )
+
+                    if should_poison and attack_configs:
+                        #Apply all attacks sequentially
+                        for attack_config in attack_configs:
+                            features, targets = apply_poisoning_attack(features, targets, attack_config)
+
+                    features, targets = features.to(self.training_device), targets.to(self.training_device)
+                    outputs = net(features)
+
+                    # denormalize for metrics
+                    y_mean = testloader.dataset.y_mean
+                    y_std = testloader.dataset.y_std
+                    y_mean = y_mean.to(self.training_device)
+                    y_std = y_std.to(self.training_device)
+
+                    outputs_real = outputs * y_std + y_mean
+                    targets_real = targets * y_std + y_mean
+
+                    # Sum squared errors
+                    batch_ss_res = torch.sum((targets_real-outputs_real)**2).item()
+                    ss_res += batch_ss_res
+
+                    # For SS_tot: sum of squares around mean
+                    y_true_sum += torch.sum(targets_real).item()
+                    y_true_sq_sum += torch.sum(targets_real**2).item()
+
+                    # MSE loss for reporting
+                    loss_sum += batch_ss_res
+                    total += targets.size(0)
+            
+            # Normalize loss to per-sample MSE
+            loss = loss_sum / total if total > 0 else 0.0
+
+            # Compute total sum of squares
+            mean_y = y_true_sum / total if total > 0 else 0.0
+            ss_tot = y_true_sq_sum - total * (mean_y**2)
+            r2 = 1-(ss_res/ss_tot) if ss_tot != 0 else 0.0
+
+            return loss, ss_res, ss_tot, r2
 
         else:
-            raise ValueError(f"Unsupported model type: {self.model_type}. Supported types are 'cnn' and 'mlm'.")
+            raise ValueError(f"Unsupported model type: {self.model_type}. Supported types are 'cnn', 'mlm' and 'linear_regression'.")
 
     def fit(self, parameters, config):
         logging.debug(f"[Client {self.client_id}] Starting fit() - Setting parameters and beginning training")
@@ -391,7 +528,13 @@ class FlowerClient(fl.client.NumPyClient):
         if torch.cuda.is_available():
             torch.cuda.empty_cache()
 
-        return self.get_parameters(self.net), len(self.trainloader), {"loss": epoch_loss, "accuracy": epoch_acc, "eta_eff": eta_eff}
+        # for Flower summary purposes
+        if self.model_type == "linear_regression":
+            metrics =  {"loss": epoch_loss, "r2": epoch_acc, "eta_eff": eta_eff}
+        else:
+            metrics =  {"loss": epoch_loss, "accuracy": epoch_acc, "eta_eff": eta_eff}
+
+        return self.get_parameters(self.net), len(self.trainloader), metrics
 
     def evaluate(self, parameters, config):
         self.set_parameters(self.net, parameters)
@@ -422,6 +565,27 @@ class FlowerClient(fl.client.NumPyClient):
                 torch.cuda.empty_cache()
 
             return float(loss), len(self.valloader), metrics
+        
+        elif self.model_type == "linear_regression":
+            out = self.test(self.net, self.valloader)
+
+            # for linear_regression, test() returns (loss, ss_res, ss_tot, r2)
+            if isinstance(out, tuple) and len(out) == 4:
+                loss, ss_res, ss_tot, r2 = out
+                metrics = {
+                    "ss_res": float(ss_res),
+                    "ss_tot": float(ss_tot),
+                    "r2": float(r2)
+                }
+            # should never get to else
+            else:
+                loss, accuracy = out
+                metrics = {}
+                
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
+            
+            return float(loss), len(self.valloader.dataset), metrics 
 
         else:
             loss, accuracy = self.test(self.net, self.valloader)

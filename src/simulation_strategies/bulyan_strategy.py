@@ -241,13 +241,24 @@ class BulyanStrategy(fl.server.strategy.FedAvg):
 
         for cp, ev in results:
             cid = cp.cid
-            acc_metrics = dict(ev.metrics)
-            acc_metrics["cid"] = cid
-            self.strategy_history.insert_single_client_history_entry(
-                client_id=int(cid),
-                current_round=self.current_round,
-                accuracy=acc_metrics.get("accuracy"),
-            )
+            metrics = dict(ev.metrics)
+            metrics["cid"] = cid
+            if "accuracy" in metrics:
+                # For classification tasks
+                self.strategy_history.insert_single_client_history_entry(
+                    client_id=int(cid),
+                    current_round=self.current_round,
+                    accuracy=metrics['accuracy']
+                )
+            elif "ss_res" in metrics and "ss_tot" in metrics and "r2" in metrics:
+                # For regression tasks
+                self.strategy_history.insert_single_client_history_entry(
+                    client_id=int(cid),
+                    current_round=self.current_round,
+                    ss_res=metrics["ss_res"],
+                    ss_tot=metrics["ss_tot"],
+                    r2=metrics["r2"]
+                )
 
         if not results:
             return None, {}

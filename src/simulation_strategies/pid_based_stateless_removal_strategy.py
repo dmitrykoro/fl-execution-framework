@@ -239,6 +239,15 @@ class PIDBasedStatelessRemovalStrategy(fl.server.strategy.FedAvg):
                 or self.client_pids[client_id] <= self.current_threshold 
                 and client_id not in self.removed_client_ids):
                 aggregate_clients.append(result)
+            # Update any client that won't participate in aggregation
+            elif (self.remove_clients
+                  and self.client_pids[client_id] > self.current_threshold 
+                  and client_id not in self.removed_client_ids):
+                self.removed_client_ids.add(client_id)
+            
+        self.strategy_history.update_client_participation(
+            current_round=server_round, removed_client_ids=self.removed_client_ids
+        )
 
         aggregated_parameters, aggregated_metrics = super().aggregate_fit(server_round, aggregate_clients, failures)
 
@@ -301,14 +310,25 @@ class PIDBasedStatelessRemovalStrategy(fl.server.strategy.FedAvg):
         self.logger.info('\n' + '-' * 50 + f'AGGREGATION ROUND {server_round}' + '-' * 50)
         for client_result in results:
             cid = client_result[0].cid
-            accuracy_matrix = client_result[1].metrics
-            accuracy_matrix['cid'] = cid
+            metrics = client_result[1].metrics
+            metrics['cid'] = cid
 
-            self.strategy_history.insert_single_client_history_entry(
-                client_id=int(cid),
-                current_round=self.current_round,
-                accuracy=accuracy_matrix['accuracy']
-            )
+            if "accuracy" in metrics:
+                # For classification tasks
+                self.strategy_history.insert_single_client_history_entry(
+                    client_id=int(cid),
+                    current_round=self.current_round,
+                    accuracy=metrics['accuracy']
+                )
+            elif "ss_res" in metrics and "ss_tot" in metrics and "r2" in metrics:
+                # For regression tasks
+                self.strategy_history.insert_single_client_history_entry(
+                    client_id=int(cid),
+                    current_round=self.current_round,
+                    ss_res=metrics["ss_res"],
+                    ss_tot=metrics["ss_tot"],
+                    r2=metrics["r2"]
+                )
 
         if not results:
             return None, {}

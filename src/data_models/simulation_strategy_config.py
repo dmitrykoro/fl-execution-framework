@@ -24,6 +24,9 @@ class StrategyConfig:
     cpus_per_client: float = None
     gpus_per_client: float = None
 
+    model_type: str = None
+    target_gas: str = None
+
     trust_threshold: float = None
     beta_value: float = None
     num_of_clusters: int = None

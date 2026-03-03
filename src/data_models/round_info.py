@@ -31,6 +31,8 @@ class RoundsInfo:
     document_recall_history: List[float] = field(default_factory=list)
     document_f1_history: List[float] = field(default_factory=list)
 
+    average_r2_history: List[float] = field(default_factory=list)
+
     plottable_metrics = []
     barable_metrics = []
     savable_metrics = []
@@ -40,6 +42,7 @@ class RoundsInfo:
             "score_calculation_time_nanos_history",
             "aggregated_loss_history",
             "average_accuracy_history",
+            "average_r2_history"
         ]
 
         self.barable_metrics = [
@@ -56,6 +59,7 @@ class RoundsInfo:
             "aggregated_loss_history",
             "average_accuracy_history",
             "average_accuracy_std_history",
+            "average_r2_history"
         ]
 
         self.statsable_metrics = [

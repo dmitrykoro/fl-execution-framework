@@ -40,12 +40,13 @@ config_schema = {
                 "tissuemnist",
                 "organamnist",
                 "organcmnist",
-                "organsmnist"
+                "organsmnist",
+                "air_quality_uci"
             ]
         },
         "model_type": {
             "type": "string",
-            "enum": ["cnn", "transformer"]
+            "enum": ["cnn", "transformer", "linear_regression"]
         },
         "num_of_rounds": {
             "type": "integer"
@@ -158,6 +159,14 @@ config_schema = {
         },
         "batch_size": {
             "type": "integer"
+        },
+
+        # Dataset specific parameters
+
+        # AirQualityUCI
+        "target_gas": {
+            "type": "string",
+            "enum": ["CO", "C6H6", "NOx", "NO2"]
         },
 
         # Strategy specific parameters
@@ -285,6 +294,14 @@ def _validate_dependent_params(strategy_config: dict) -> None:
         if "trim_ratio" not in strategy_config:
             raise ValidationError(
                 f"Missing parameter trim_ratio for trimmed mean aggregation {aggregation_strategy_keyword}"
+            )
+        
+    dataset_keyword = strategy_config["dataset_keyword"]
+
+    if dataset_keyword == "air_quality_uci":
+        if "target_gas" not in strategy_config:
+            raise ValidationError(
+                f"Missing parameter target_gas for UCI Air Quality dataset {dataset_keyword}"
             )
 
 

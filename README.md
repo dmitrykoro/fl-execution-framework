@@ -65,6 +65,7 @@ Defines the aggregation strategy. Options:
   - `organcmnist`: coronal view CT scans of abdominal organs, 11 classes, 40 clients.
   - `organsmnist`: sagittal view CT scans of abdominal organs, 11 classes, 40 clients.
   - `medmentions`: PubMed extracts with NER labels, 10 clients (can manually generate more clients using the script in `src/utils/make_medmentions.py`)
+  - `air_quality_uci`: Hourly responses averages of a gas multisensor device along with gas concentrations references from a certified analyzer, 12 clients, 4 targets for gas concentration prediction. Source: https://doi.org/10.24432/C59K5F
 
 - `num_of_rounds`: total aggregation rounds.
 - `num_of_clients`: number of clients (limited to available dataset clients).
@@ -74,7 +75,7 @@ Defines the aggregation strategy. Options:
 - `save_csv`: Save metrics as `.csv` files in `out/` directory (`true`/`false`).
 - `preserve_dataset`: save poisoned dataset for verification (`true`/`false`).
 - `training_subset_fraction`: fraction of each client's dataset for training (e.g., `0.9` for 90% training, 10% evaluation).
-- `model_type`: type of model being trained (e.g., `cnn`).
+- `model_type`: type of model being trained (e.g., `cnn`, `linear_regression`).
 
 - **`attack_schedule`**: array of attack configurations for round-based attacks. Each entry requires:
   - `start_round`: when the attack starts (1 to `num_of_rounds`).
@@ -115,6 +116,11 @@ Defines the aggregation strategy. Options:
     - `lora_alpha`: scaling factor for lora updates
     - `lora_dropout`: droput rate applied during training
     - `lora_target_modules`: list of model layers where lora should be applied
+
+#### Dataset-specific parameters
+
+**For `air_quality_uci` dataset**:
+- `target_gas`: gas concentration to predict (CO, C6H6, NOx, or NO2)
 
 #### Strategy-specific parameters
 

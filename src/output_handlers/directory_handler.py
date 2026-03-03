@@ -72,7 +72,16 @@ class DirectoryHandler:
             writer = csv.writer(client_csv)
 
             csv_headers = ["round"]
-            savable_metrics = self.simulation_strategy_history.get_all_clients()[0].savable_metrics
+            savable_metrics = self.simulation_strategy_history.get_all_clients()[0].savable_metrics.copy()
+
+            # remove metrics not needed depending on Classificaiton or Regression task
+            # TODO: Come back and fix this so that it is generalized for Classificaiton and Regression
+            if (self.simulation_strategy_history.strategy_config.model_type == "linear_regression"):
+                if ("accuracy_history" in savable_metrics):
+                    savable_metrics.remove("accuracy_history")
+            elif (self.simulation_strategy_history.strategy_config.model_type != "linear_regression"):
+                if ("r2_history" in savable_metrics):
+                    savable_metrics.remove("r2_history")
 
             for metric_name in savable_metrics:
                 for client_info in self.simulation_strategy_history.get_all_clients():
@@ -103,7 +112,19 @@ class DirectoryHandler:
         with open(csv_filepath, mode="w", newline="") as round_csv:
             writer = csv.writer(round_csv)
 
-            savable_metrics = self.simulation_strategy_history.rounds_history.savable_metrics
+            savable_metrics = self.simulation_strategy_history.rounds_history.savable_metrics.copy()
+
+            # remove metrics not needed depending on Classificaiton or Regression task
+            # TODO: Come back and fix this so that it is generalized for Classificaiton and Regression
+            if (self.simulation_strategy_history.strategy_config.model_type == "linear_regression"):
+                if ("average_accuracy_history" in savable_metrics):
+                    savable_metrics.remove("average_accuracy_history")
+                if ("average_accuracy_std_history" in savable_metrics):
+                    savable_metrics.remove("average_accuracy_std_history")
+            elif (self.simulation_strategy_history.strategy_config.model_type != "linear_regression"):
+                if ("average_r2_history" in savable_metrics):
+                    savable_metrics.remove("average_r2_history")
+
 
             csv_headers = ["round"] + [metric_name for metric_name in savable_metrics]
             writer.writerow(csv_headers)
@@ -138,7 +159,13 @@ class DirectoryHandler:
         with open(csv_filepath, mode="w", newline="") as exec_stats:
             writer = csv.writer(exec_stats)
 
-            statsable_metrics = self.simulation_strategy_history.rounds_history.statsable_metrics
+            statsable_metrics = self.simulation_strategy_history.rounds_history.statsable_metrics.copy()
+
+            # remove metrics not needed depending on Classificaiton or Regression task
+            # TODO: Come back and fix this so that it is generalized for Classificaiton and Regression
+            if (self.simulation_strategy_history.strategy_config.model_type == "linear_regression"):
+                if ("average_accuracy_history" in statsable_metrics):
+                    statsable_metrics.remove("average_accuracy_history")
 
             csv_headers = [f"mean_{metric_name}" for metric_name in statsable_metrics]
             writer.writerow(csv_headers)

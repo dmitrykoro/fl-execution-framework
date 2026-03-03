@@ -28,6 +28,7 @@ class DatasetHandler:
             return
 
         self._copy_dataset(self._strategy_config.num_of_clients)
+        # TODO: Determine how to and implement poisoning for regression datasets
         self._poison_clients(self._strategy_config.attack_type, self._strategy_config.num_of_malicious_clients)
 
     def teardown_dataset(self) -> None:

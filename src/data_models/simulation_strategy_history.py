@@ -41,6 +41,9 @@ class SimulationStrategyHistory:
             absolute_distance: float = None,
             loss: float = None,
             accuracy: float = None,
+            ss_res: float = None,
+            ss_tot: float = None,
+            r2: float = None,
             aggregation_participation: int = None
     ) -> None:
         """Insert history entry for a single client. Only those values provided will be updated."""
@@ -53,6 +56,9 @@ class SimulationStrategyHistory:
             absolute_distance,
             loss,
             accuracy,
+            ss_res,
+            ss_tot,
+            r2,
             aggregation_participation
         )
 
@@ -126,6 +132,9 @@ class SimulationStrategyHistory:
             round_fp_count = 0
             round_fn_count = 0
 
+            round_ss_res = 0
+            round_ss_tot = 0
+
             num_aggregated_clients = 0
             sum_aggregated_accuracies = 0
 
@@ -156,13 +165,19 @@ class SimulationStrategyHistory:
                     if client_is_malicious and client_was_aggregated:
                         round_fn_count += 1
 
-                # sum of accuracies of aggregated clients
+                # sum of accuracies and R^2 of aggregated clients
                 if client_was_aggregated:
                     num_aggregated_clients += 1
                     accuracy = client_info.accuracy_history[round_num]
                     if accuracy is not None:
                         sum_aggregated_accuracies += accuracy
                         round_client_accuracies.append(accuracy)
+
+                    ss_res = client_info.ss_res_history[round_num]
+                    ss_tot = client_info.ss_tot_history[round_num]
+                    if ss_res is not None and ss_tot is not None:
+                        round_ss_res += ss_res
+                        round_ss_tot += ss_tot
 
             self.rounds_history.append_tp_tn_fp_fn(round_tp_count, round_tn_count, round_fp_count, round_fn_count)
             self.rounds_history.average_accuracy_history.append(
@@ -172,6 +187,10 @@ class SimulationStrategyHistory:
             self.rounds_history.average_accuracy_std_history.append(
                 float(f"{np.std(round_client_accuracies) * 100:.2f}") if len(round_client_accuracies) > 1 else 0.00
             )
+
+            # calculate aggregate R^2 for the round
+            global_r2 = 1 - (round_ss_res / round_ss_tot) if round_ss_tot > 0 else 0.0
+            self.rounds_history.average_r2_history.append(global_r2)
 
         if self.strategy_config.remove_clients:
             self.rounds_history.calculate_additional_metrics()
