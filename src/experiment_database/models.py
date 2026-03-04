@@ -35,12 +35,12 @@ class HostHardwareSpec(Base):
     __tablename__ = "host_hardware_spec"
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    cpu_name = Column(Text, nullable=False)
-    cpu_arch = Column(Text, nullable=False)
-    ram_amount = Column(Text, nullable=False)
+    cpu_name = Column(Text, nullable=True)
+    cpu_arch = Column(Text, nullable=True)
+    ram_amount = Column(Text, nullable=True)
     gpu_name = Column(Text, nullable=True)
     gpu_ram = Column(Text, nullable=True)
-    is_executed_on = Column(Text, nullable=False)
+    is_executed_on = Column(Text, nullable=True)
 
     experiment_events = relationship("ExperimentEvent", back_populates="hardware")
 

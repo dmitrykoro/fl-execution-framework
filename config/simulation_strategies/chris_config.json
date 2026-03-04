@@ -5,7 +5,7 @@
     "remove_clients": "true",
     "dataset_keyword": "femnist_iid",
     "use_llm": "false",
-    "num_of_rounds": 50,
+    "num_of_rounds": 10,
     "num_of_clients": 20,
     "attack_ratio": 1.0,
     "target_noise_snr": 5,
@@ -48,7 +48,7 @@
         "attack_type": "label_flipping",
         "flip_fraction": 1.0,
         "start_round": 1,
-        "end_round": 49,
+        "end_round": 10,
         "specific_malicious_clients": [0,18,14]
       }
     ]
