@@ -139,10 +139,29 @@ async def health(request: web.Request) -> web.Response:
 
 async def homepage(request: web.Request) -> web.Response:
     """Simple homepage to confirm the server is running."""
-    return web.Response(
-        text="InteFL experiment database server is running.",
-        content_type="text/plain"
-    )
+    html = """
+    <html>
+        <head>
+            <title>InteFL Experiment Server</title>
+            <style>
+                body {
+                    margin: 0;
+                    height: 100vh;
+                    display: flex;
+                    justify-content: center;
+                    align-items: center;
+                    font-family: Arial, sans-serif;
+                    font-size: 48px;
+                    background-color: #ffffff;
+                }
+            </style>
+        </head>
+        <body>
+            Experiment Database Server is running.
+        </body>
+    </html>
+    """
+    return web.Response(text=html, content_type="text/html")
 
 
 app = web.Application(middlewares=[auth_middleware])
