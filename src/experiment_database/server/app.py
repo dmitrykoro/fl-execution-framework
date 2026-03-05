@@ -181,7 +181,7 @@ async def homepage(request: web.Request) -> web.Response:
 
             if last_exp:
                 cfg = last_exp.executed_config  # relationship
-                last_author = mask_author(last_exp.username)  # or last_exp.full_author_name if you store it there
+                last_author = mask_author(last_exp.full_author_name)  # or last_exp.full_author_name if you store it there
                 last_dataset = cfg.dataset_keyword if cfg else None
                 last_created_at = last_exp.created_at.isoformat() if last_exp.created_at else None
                 last_strategy = cfg.aggregation_strategy_keyword if cfg else None
