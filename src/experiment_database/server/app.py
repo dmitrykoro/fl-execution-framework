@@ -1,6 +1,7 @@
 import logging
 
 from aiohttp import web
+from sqlalchemy import text
 
 from src.data_models.simulation_strategy_history import SimulationStrategyHistory
 from src.experiment_database.models import ExecutedConfig, ExperimentEvent
@@ -142,10 +143,18 @@ async def homepage(request: web.Request) -> web.Response:
 
     with get_db() as session:
         try:
-            count = session.query(ExperimentEvent).count()
+            experiment_count = session.query(ExperimentEvent).count()
 
-        except Exception as e:
-            count = "INTERNAL DATABASE ERROR"
+            # PostgreSQL database size in bytes
+            result = session.execute(
+                text("SELECT pg_database_size(current_database())")
+            ).scalar()
+
+            db_size_gb = round(result / (1024 ** 3), 3)
+
+        except Exception:
+            experiment_count = "INTERNAL DATABASE ERROR"
+            db_size_gb = "unknown"
 
     html = f"""
     <html>
@@ -164,17 +173,19 @@ async def homepage(request: web.Request) -> web.Response:
                 }}
                 .title {{
                     font-size: 48px;
-                    margin-bottom: 20px;
+                    margin-bottom: 30px;
                 }}
-                .count {{
-                    font-size: 32px;
-                    color: #555;
+                .info {{
+                    font-size: 28px;
+                    color: #444;
+                    margin: 5px;
                 }}
             </style>
         </head>
         <body>
-            <div class="title">InteFL Experiment Database Server is running.</div>
-            <div class="count">Stored experiments: {count}</div>
+            <div class="title">InteFL Experiment Database Server</div>
+            <div class="info">Stored experiments: {experiment_count}</div>
+            <div class="info">Database size: {db_size_gb} GB</div>
         </body>
     </html>
     """

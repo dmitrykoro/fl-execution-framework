@@ -92,7 +92,7 @@ class DatabaseHandler:
         try:
             async with aiohttp.ClientSession() as session:
                 async with session.post(
-                        f"{self.EXPERIMENT_SERVER_URL}:{self.EXPERIMENT_SERVER_PORT}/experiments",
+                        f"{self.EXPERIMENT_SERVER_URL}/experiments",
                         json=payload,
                         headers=self._auth_headers(),
                         timeout=aiohttp.ClientTimeout(total=30),
