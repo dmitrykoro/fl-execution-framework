@@ -1,6 +1,7 @@
 from sqlalchemy.orm import Session
 
 from src.data_models.round_info import RoundsInfo
+from src.data_models.simulation_strategy_history import SimulationStrategyHistory
 from src.experiment_database.models import (
     ClientAtRound,
     ExecutedConfig,
@@ -28,6 +29,7 @@ def create_executed_config(
     )
     session.add(cfg)
     session.flush()
+
     return cfg
 
 
@@ -71,7 +73,8 @@ def create_experiment_event(
     executed_config: ExecutedConfig,
     hardware: HostHardwareSpec | None = None,
     wandb_url=None,
-    username=None,
+    full_author_name=None,
+    author_email=None
 ) -> ExperimentEvent:
     """Create an ExperimentEvent row linking a config and hardware spec to a single run."""
     event = ExperimentEvent(
@@ -79,7 +82,8 @@ def create_experiment_event(
         hardware_id=hardware.id if hardware else None,
         is_successful=False,
         wandb_url=wandb_url,
-        username=username,
+        full_author_name=full_author_name.upper(),
+        author_email=author_email.upper()
     )
     session.add(event)
     session.flush()
@@ -128,7 +132,7 @@ def persist_round_metrics(
 
     for metric_name in rounds_info.savable_metrics:
         if metric_name not in metric_info_map:
-            mi = MetricInfo(name=metric_name, type="round_global")
+            mi = MetricInfo(name=metric_name, type="per_round")
             session.add(mi)
             session.flush()
             metric_info_map[metric_name] = mi
@@ -162,7 +166,7 @@ def persist_client_round_metrics(
 
         for metric_name in client.savable_metrics:
             if metric_name not in metric_info_map:
-                mi = MetricInfo(name=metric_name, type="client_round")
+                mi = MetricInfo(name=metric_name, type="per_client")
                 session.add(mi)
                 session.flush()
                 metric_info_map[metric_name] = mi
@@ -241,3 +245,57 @@ def persist_clients_at_round(
                     )
 
     session.flush()
+
+
+def fill_all_tables(session, strategy_history: SimulationStrategyHistory, total_exec_time, full_author_name, author_email):
+    """
+    Fill tables with full experiment information.
+    """
+
+    hardware = get_or_create_hardware(
+        session,
+        cpu=strategy_history.host_cpu,
+        arch=strategy_history.training_device_arch,
+        ram=strategy_history.host_ram,
+        gpu_name=strategy_history.training_device_name,
+        gpu_ram=strategy_history.training_device_ram,
+        is_executed_on=strategy_history.training_device_type,
+    )
+    executed_config = create_executed_config(
+        session=session,
+        strategy_config=strategy_history.strategy_config,
+        num_of_malicious_clients=strategy_history.total_malicious_clients,
+    )
+    experiment_event = create_experiment_event(
+        session=session,
+        executed_config=executed_config,
+        hardware=hardware,
+        full_author_name=full_author_name,
+        author_email=author_email
+    )
+    persist_round_metrics(
+        session=session,
+        experiment_event=experiment_event,
+        rounds_info=strategy_history.rounds_history,
+    )
+    _, experiment_client_id_map = create_clients(
+        session=session,
+        experiment_event=experiment_event,
+        num_clients=strategy_history.strategy_config.num_of_clients,
+        malicious_ids=strategy_history.get_malicious_client_ids(),
+    )
+    persist_clients_at_round(
+        session=session,
+        experiment_event=experiment_event,
+        clients_info=strategy_history.get_all_clients(),
+        experiment_client_id_map=experiment_client_id_map,
+    )
+    persist_client_round_metrics(
+        session=session,
+        experiment_event=experiment_event,
+        clients_info=strategy_history.get_all_clients(),
+        experiment_client_id_map=experiment_client_id_map,
+    )
+    experiment_event.is_successful = True
+    experiment_event.total_exec_time = total_exec_time
+    session.commit()

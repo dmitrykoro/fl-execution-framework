@@ -8,6 +8,7 @@ import gc
 import ray
 from src.utils.common import obtain_env_var
 from dotenv import load_dotenv
+
 load_dotenv()
 
 # Suppress joblib CPU count warnings
@@ -23,7 +24,7 @@ from src.output_handlers import new_plot_handler
 from src.federated_simulation import FederatedSimulation
 from src.data_models.simulation_strategy_config import StrategyConfig
 from src.dataset_handlers.dataset_handler import DatasetHandler
-from src.experiment_database.implement_database import database_logger
+from src.experiment_database.database_handler import DatabaseHandler
 
 
 def _serialize_config_for_logging(config_dict: dict) -> str:
@@ -94,6 +95,7 @@ class SimulationRunner:
         self._simulation_strategy_config_dicts = self._config_loader.get_usecase_config_list()
         self._dataset_config_list = self._config_loader.get_dataset_config_list()
         self._directory_handler = DirectoryHandler(custom_dirname=self.output_dirname)
+        self.database_handler = DatabaseHandler()
 
     def run(self):
         """Run simulations according to the specified usecase config"""
@@ -145,7 +147,9 @@ class SimulationRunner:
                 simulation_strategy.strategy_history.calculate_additional_rounds_data()
 
                 self._directory_handler.save_csv_and_config(simulation_strategy.strategy_history)
-                database_logger(simulation_strategy)
+
+                # update database with experiment results
+                self.database_handler.update_database(simulation_strategy)
 
             except Exception as e:  # noqa
                 raise
@@ -180,7 +184,6 @@ class SimulationRunner:
                 gc.collect()
                 logging.debug("Garbage collection completed")
 
-
         # after all strategies are executed, show comparison averaging plots
         new_plot_handler.show_inter_strategy_plots(executed_simulation_strategies, self._directory_handler)
 
@@ -190,9 +193,6 @@ class SimulationRunner:
                 generate_main_dashboard(output_dir)
         except Exception as e:
             logging.warning(f"Failed to generate main dashboard: {e}")
-
-
-
 
 
 if __name__ == "__main__":

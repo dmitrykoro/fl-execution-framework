@@ -1,5 +1,7 @@
 import os
 import json
+import logging
+import asyncio
 
 from dotenv import dotenv_values
 from pathlib import Path
@@ -27,7 +29,7 @@ def obtain_env_var(var_key: str):
     private_path.touch(exist_ok=True)
 
     with private_path.open("a") as f:
-        f.write(f"\n{var_key}={var_value}\n")
+        f.write(f"{var_key}={var_value}\n")
 
     return var_value
 
@@ -51,5 +53,29 @@ def load_json_as_str(filepath: str) -> str:
         data = json.load(f)
 
     return json.dumps(data, indent=2)
+
+
+def run_async_from_sync(coroutine) -> None:
+    """
+    Run an async coroutine from sync code.
+    - If a loop is running: schedule it with create_task
+    - If no loop is running: run it to completion with asyncio.run
+    """
+    try:
+        loop = asyncio.get_running_loop()
+    except RuntimeError:
+        # No running loop in this thread -> run synchronously
+        asyncio.run(coroutine)
+        return
+
+    task = loop.create_task(coroutine)
+
+    def _log_result(t: asyncio.Task):
+        try:
+            t.result()
+        except Exception:
+            logging.exception("Async task failed")
+
+    task.add_done_callback(_log_result)
 
 
