@@ -6,7 +6,7 @@ from src.data_models.simulation_strategy_history import SimulationStrategyHistor
 from src.experiment_database.models import ExecutedConfig, ExperimentEvent
 from src.experiment_database.persistence import fill_all_tables
 from src.experiment_database.session import get_db
-from utils.common import obtain_env_var
+from src.utils.common import obtain_env_var
 from src.experiment_database.server.middleware import auth_middleware
 
 
