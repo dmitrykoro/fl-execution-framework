@@ -1,7 +1,7 @@
 #!/bin/sh
 # Runs the simulation, setting up the environment if needed
 
-. "$(dirname "$0")/tests/scripts/common.sh"
+. "$(dirname "$0")/shell_scripts/common.sh"
 
 if ! ensure_virtual_environment; then
     log_warning "Running reinstall_requirements.sh to create 'venv'..."
