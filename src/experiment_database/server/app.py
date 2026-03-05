@@ -138,23 +138,66 @@ async def health(request: web.Request) -> web.Response:
     return web.json_response({"status": "healthy"})
 
 
+def mask_author(full_name: str | None) -> str:
+    """
+    DMITRII KOROBEINIKOV -> DMI*** ***KOV
+    Works for any 'First ... Last' name; uses first token + last token.
+    """
+    if not full_name or not full_name.strip():
+        return "unknown"
+
+    parts = [p for p in full_name.strip().split() if p]
+    if len(parts) == 1:
+        s = parts[0].upper()
+        return f"{s[:3]}***" if len(s) >= 3 else "***"
+
+    first = parts[0].upper()
+    last = parts[-1].upper()
+    first3 = first[:3] if len(first) >= 3 else first
+    last3 = last[-3:] if len(last) >= 3 else last
+    return f"{first3}*** ***{last3}"
+
+
 async def homepage(request: web.Request) -> web.Response:
-    """Simple homepage to confirm the server is running."""
+    """Homepage with summary + DB size + last executed experiment."""
 
     with get_db() as session:
         try:
+            # Counts
             experiment_count = session.query(ExperimentEvent).count()
 
-            # PostgreSQL database size in bytes
-            result = session.execute(
+            # PostgreSQL DB size in bytes -> GB
+            db_bytes = session.execute(
                 text("SELECT pg_database_size(current_database())")
             ).scalar()
+            db_size_gb = round(db_bytes / (1024 ** 3), 3) if db_bytes is not None else "unknown"
 
-            db_size_gb = round(result / (1024 ** 3), 3)
+            # Last executed experiment (most recent)
+            last_exp = (
+                session.query(ExperimentEvent)
+                .order_by(ExperimentEvent.id.desc())
+                .first()
+            )
+
+            if last_exp:
+                cfg = last_exp.executed_config  # relationship
+                last_author = mask_author(last_exp.username)  # or last_exp.full_author_name if you store it there
+                last_dataset = cfg.dataset_keyword if cfg else None
+                last_created_at = last_exp.created_at.isoformat() if last_exp.created_at else None
+                last_strategy = cfg.aggregation_strategy_keyword if cfg else None
+            else:
+                last_author = "n/a"
+                last_dataset = "n/a"
+                last_created_at = "n/a"
+                last_strategy = "n/a"
 
         except Exception:
             experiment_count = "INTERNAL DATABASE ERROR"
             db_size_gb = "unknown"
+            last_author = "unknown"
+            last_dataset = "unknown"
+            last_created_at = "unknown"
+            last_strategy = "unknown"
 
     html = f"""
     <html>
@@ -170,15 +213,31 @@ async def homepage(request: web.Request) -> web.Response:
                     align-items: center;
                     font-family: Arial, sans-serif;
                     background-color: #ffffff;
+                    text-align: center;
                 }}
                 .title {{
                     font-size: 48px;
-                    margin-bottom: 30px;
+                    margin-bottom: 24px;
                 }}
                 .info {{
                     font-size: 28px;
                     color: #444;
-                    margin: 5px;
+                    margin: 6px 0;
+                }}
+                .section {{
+                    margin-top: 38px;
+                    padding-top: 18px;
+                    border-top: 1px solid #ddd;
+                    width: min(900px, 92vw);
+                }}
+                .section-title {{
+                    font-size: 32px;
+                    margin-bottom: 12px;
+                }}
+                .kv {{
+                    font-size: 26px;
+                    color: #333;
+                    margin: 6px 0;
                 }}
             </style>
         </head>
@@ -186,10 +245,17 @@ async def homepage(request: web.Request) -> web.Response:
             <div class="title">InteFL Experiment Database Server</div>
             <div class="info">Stored experiments: {experiment_count}</div>
             <div class="info">Database size: {db_size_gb} GB</div>
+
+            <div class="section">
+                <div class="section-title">Last executed experiment</div>
+                <div class="kv">Author: {last_author}</div>
+                <div class="kv">Dataset: {last_dataset or "unknown"}</div>
+                <div class="kv">Strategy: {last_strategy or "unknown"}</div>
+                <div class="kv">Executed at: {last_created_at}</div>
+            </div>
         </body>
     </html>
     """
-
     return web.Response(text=html, content_type="text/html")
 
 
