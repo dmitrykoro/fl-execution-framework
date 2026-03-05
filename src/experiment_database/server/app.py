@@ -142,7 +142,7 @@ async def homepage(request: web.Request) -> web.Response:
     html = """
     <html>
         <head>
-            <title>InteFL Experiment Server</title>
+            <title>InteFL Home</title>
             <style>
                 body {
                     margin: 0;
@@ -157,7 +157,7 @@ async def homepage(request: web.Request) -> web.Response:
             </style>
         </head>
         <body>
-            Experiment Database Server is running.
+            InteFL Experiment Database Server is running.
         </body>
     </html>
     """
