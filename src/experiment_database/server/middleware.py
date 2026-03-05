@@ -7,6 +7,9 @@ from src.experiment_database.session import get_db
 from src.experiment_database.models import AuthToken
 
 
+PUBLIC_ROUTES = {"/"}
+
+
 def _extract_bearer_token(request: web.Request) -> str | None:
     auth = request.headers.get("Authorization", "")
     if not auth.startswith("Bearer "):
@@ -42,6 +45,9 @@ def _is_token_valid(token_hash: str) -> bool:
 
 @web.middleware
 async def auth_middleware(request: web.Request, handler):
+    if request.path in PUBLIC_ROUTES:
+        return await handler(request)
+
     raw = _extract_bearer_token(request)
     if raw is None:
         return web.json_response({"error": "Missing or invalid Authorization header"}, status=401)
