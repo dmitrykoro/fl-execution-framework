@@ -139,28 +139,46 @@ async def health(request: web.Request) -> web.Response:
 
 async def homepage(request: web.Request) -> web.Response:
     """Simple homepage to confirm the server is running."""
-    html = """
+
+    with get_db() as session:
+        try:
+            count = session.query(ExperimentEvent).count()
+
+        except Exception as e:
+            count = "INTERNAL DATABASE ERROR"
+
+    html = f"""
     <html>
         <head>
             <title>InteFL Home</title>
             <style>
-                body {
+                body {{
                     margin: 0;
                     height: 100vh;
                     display: flex;
+                    flex-direction: column;
                     justify-content: center;
                     align-items: center;
                     font-family: Arial, sans-serif;
-                    font-size: 48px;
                     background-color: #ffffff;
-                }
+                }}
+                .title {{
+                    font-size: 48px;
+                    margin-bottom: 20px;
+                }}
+                .count {{
+                    font-size: 32px;
+                    color: #555;
+                }}
             </style>
         </head>
         <body>
-            InteFL Experiment Database Server is running.
+            <div class="title">InteFL Experiment Database Server is running.</div>
+            <div class="count">Stored experiments: {count}</div>
         </body>
     </html>
     """
+
     return web.Response(text=html, content_type="text/html")
 
 

@@ -22,7 +22,7 @@ class DatabaseHandler:
 
         elif EXPERIMENT_DB_MODE == "server":
             self.EXPERIMENT_SERVER_URL = obtain_env_var("EXPERIMENT_SERVER_URL")
-            self.EXPERIMENT_SERVER_PORT = obtain_env_var("EXPERIMENT_SERVER_PORT")
+            # self.EXPERIMENT_SERVER_PORT = obtain_env_var("EXPERIMENT_SERVER_PORT")
             self.EXPERIMENT_SERVER_TOKEN = obtain_env_var("EXPERIMENT_SERVER_TOKEN")
 
             if not self._ensure_token_valid():
@@ -31,7 +31,7 @@ class DatabaseHandler:
     def _ensure_token_valid(self) -> bool:
         """Try to fetch server status from /health with the provided token. Fail if token is invalid."""
 
-        url = f"{self.EXPERIMENT_SERVER_URL}:{self.EXPERIMENT_SERVER_PORT}/health"
+        url = f"{self.EXPERIMENT_SERVER_URL}/health"
 
         try:
             resp = requests.get(url, headers=self._auth_headers(), timeout=10)
