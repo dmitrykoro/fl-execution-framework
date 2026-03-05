@@ -191,8 +191,8 @@ async def homepage(request: web.Request) -> web.Response:
                 last_created_at = "n/a"
                 last_strategy = "n/a"
 
-        except Exception:
-            experiment_count = "INTERNAL DATABASE ERROR"
+        except Exception as e:
+            experiment_count = f"INTERNAL DATABASE ERROR: {e}"
             db_size_gb = "unknown"
             last_author = "unknown"
             last_dataset = "unknown"
