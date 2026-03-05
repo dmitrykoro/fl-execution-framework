@@ -140,41 +140,18 @@ async def health(request: web.Request) -> web.Response:
     return web.json_response({"status": "healthy"})
 
 
-def mask_author(full_name: str | None) -> str:
-    """
-    DMITRII KOROBEINIKOV -> DMI*** ***KOV
-    Works for any 'First ... Last' name; uses first token + last token.
-    """
-    if not full_name or not full_name.strip():
-        return "unknown"
-
-    parts = [p for p in full_name.strip().split() if p]
-    if len(parts) == 1:
-        s = parts[0].upper()
-        return f"{s[:3]}***" if len(s) >= 3 else "***"
-
-    first = parts[0].upper()
-    last = parts[-1].upper()
-    first3 = first[:3] if len(first) >= 3 else first
-    last3 = last[-3:] if len(last) >= 3 else last
-    return f"{first3}*** ***{last3}"
-
-
 async def homepage(request: web.Request) -> web.Response:
     """Homepage with summary + DB size + last executed experiment."""
 
     with get_db() as session:
         try:
-            # Counts
             experiment_count = session.query(ExperimentEvent).count()
 
-            # PostgreSQL DB size in bytes -> GB
             db_bytes = session.execute(
                 text("SELECT pg_database_size(current_database())")
             ).scalar()
             db_size_gb = round(db_bytes / (1024 ** 3), 3) if db_bytes is not None else "unknown"
 
-            # Last executed experiment (most recent)
             last_exp = (
                 session.query(ExperimentEvent)
                 .order_by(ExperimentEvent.id.desc())
@@ -183,22 +160,18 @@ async def homepage(request: web.Request) -> web.Response:
 
             if last_exp:
                 cfg = last_exp.executed_config  # relationship
-                last_author = mask_author(last_exp.full_author_name)  # or last_exp.full_author_name if you store it there
                 last_dataset = cfg.dataset_keyword if cfg else None
-                if last_exp and last_exp.created_at:
-                    dt = last_exp.created_at
+                full_author_name = last_exp.full_author_name
+                last_author = f"{full_author_name[:3]}*** ***{full_author_name[-3:]}"
 
-                    # assume DB time is UTC if naive
-                    if dt.tzinfo is None:
-                        dt = dt.replace(tzinfo=ZoneInfo("UTC"))
+                dt = last_exp.created_at
+                if dt.tzinfo is None:
+                    dt = dt.replace(tzinfo=ZoneInfo("UTC"))
+                dt = dt.astimezone(ZoneInfo("America/New_York"))
 
-                    dt = dt.astimezone(ZoneInfo("America/New_York"))
-
-                    last_created_at = dt.strftime("%B %-d, %Y %-I:%M%p %Z")
-                else:
-                    last_created_at = "n/a"
-
+                last_created_at = dt.strftime("%B %-d, %Y %-I:%M%p %Z")
                 last_strategy = cfg.aggregation_strategy_keyword if cfg else None
+
             else:
                 last_author = "n/a"
                 last_dataset = "n/a"
