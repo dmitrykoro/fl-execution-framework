@@ -137,11 +137,20 @@ async def health(request: web.Request) -> web.Response:
     return web.json_response({"status": "healthy"})
 
 
+async def homepage(request: web.Request) -> web.Response:
+    """Simple homepage to confirm the server is running."""
+    return web.Response(
+        text="InteFL experiment database server is running.",
+        content_type="text/plain"
+    )
+
+
 app = web.Application(middlewares=[auth_middleware])
 app.router.add_post("/experiments", post_experiment)
 app.router.add_get("/experiments", get_experiments)
 app.router.add_get("/health", health)
-app.router.add_get("/", get_summary)
+app.router.add_get("/get_summary", get_summary)
+app.router.add_get("/", homepage)
 
 
 if __name__ == "__main__":
