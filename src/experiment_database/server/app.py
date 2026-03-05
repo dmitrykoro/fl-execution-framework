@@ -2,6 +2,8 @@ import logging
 
 from aiohttp import web
 from sqlalchemy import text
+from datetime import datetime
+from zoneinfo import ZoneInfo
 
 from src.data_models.simulation_strategy_history import SimulationStrategyHistory
 from src.experiment_database.models import ExecutedConfig, ExperimentEvent
@@ -183,7 +185,19 @@ async def homepage(request: web.Request) -> web.Response:
                 cfg = last_exp.executed_config  # relationship
                 last_author = mask_author(last_exp.full_author_name)  # or last_exp.full_author_name if you store it there
                 last_dataset = cfg.dataset_keyword if cfg else None
-                last_created_at = last_exp.created_at.isoformat() if last_exp.created_at else None
+                if last_exp and last_exp.created_at:
+                    dt = last_exp.created_at
+
+                    # assume DB time is UTC if naive
+                    if dt.tzinfo is None:
+                        dt = dt.replace(tzinfo=ZoneInfo("UTC"))
+
+                    dt = dt.astimezone(ZoneInfo("America/New_York"))
+
+                    last_created_at = dt.strftime("%B %-d, %Y %-I:%M%p %Z")
+                else:
+                    last_created_at = "n/a"
+
                 last_strategy = cfg.aggregation_strategy_keyword if cfg else None
             else:
                 last_author = "n/a"
