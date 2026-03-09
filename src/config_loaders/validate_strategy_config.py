@@ -61,7 +61,7 @@ config_schema = {
         },
         "attack_type": {
             "type": "string",
-            "enum": ["label_flipping", "gaussian_noise", "ner_label_flipping"]
+            "enum": ["label_flipping", "gaussian_noise", "ner_label_flipping", "target_flipping"]
         },
         "attack_ratio": {
             "type": "number",
@@ -219,6 +219,7 @@ config_schema = {
                 "properties": {
                     "start_round": {"type": "integer", "minimum": 1},
                     "end_round": {"type": "integer", "minimum": 1},
+                    #TODO: Add new target_flipping attack here once dynmaic is implemented
                     "attack_type": {
                         "type": "string",
                         "enum": ["label_flipping", "gaussian_noise"]
@@ -276,7 +277,8 @@ def _validate_dependent_params(strategy_config: dict) -> None:
                 raise ValidationError(
                     f"Missing parameter {param} for trust aggregation {aggregation_strategy_keyword}"
                 )
-    elif aggregation_strategy_keyword in ("pid", "pid_scaled", "pid_standardized", "pid_standardized_score_based"):
+    elif aggregation_strategy_keyword in ("pid", "pid_scaled", "pid_standardized", "pid_standardized_score_based", 
+                                          "pid_v5_stateless_mean_based", "pid_v5_stateless_median_based"):
         pid_specific_parameters = [
             "num_std_dev", "Kp", "Ki", "Kd"
         ]
@@ -397,6 +399,8 @@ def _validate_attack_schedule(config: dict) -> None:
             raise ValidationError(
                 f"{entry_desc}: end_round ({end_round}) exceeds num_of_rounds ({num_of_rounds})"
             )
+
+        #TODO: Add new target_flipping attack here once dynmaic is implemented
 
         attack_type = entry.get("attack_type")
 

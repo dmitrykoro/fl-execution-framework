@@ -85,6 +85,7 @@ Defines the aggregation strategy. Options:
   - **Attack parameters:**
     - `label_flipping`: no additional parameters required.
     - `gaussian_noise`: `target_noise_snr` (dB, recommended) or `mean`/`std`, plus optional `attack_ratio` (0.0-1.0, defaults to 1.0).
+    - `target_flipping`: `attack_ratio` (0.0-1.0, defaults to 0.1). Flips the target values of a percentage of the data points in a clients dataset. Based on Flip attack described in DOI: 10.1109/PRDC50213.2020.00019
   - **Selection parameters:**
     - `specific`: `malicious_client_ids` (array of client IDs).
     - `random`: `malicious_client_count` (integer).

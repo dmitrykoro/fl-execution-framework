@@ -6,6 +6,8 @@ import sys
 import cv2
 import numpy as np
 import json
+import pandas as pd
+import math
 
 
 class DatasetHandler:
@@ -84,6 +86,8 @@ class DatasetHandler:
                 self._add_noise(client_dir)
             elif attack_type == "ner_label_flipping":
                 self._flip_ner_labels(client_dir)
+            elif attack_type == "target_flipping":
+                self._flip_targets(client_dir)
             else:
                 raise NotImplementedError(f"Not supported attack type: {attack_type}")
 
@@ -292,6 +296,80 @@ class DatasetHandler:
         except Exception as e:
             logging.error(f"Failed to mark poisoned client folder: {e}")
 
+
+    def _flip_targets(self, client_dir: str) -> None:
+        """Flip subset of target values based on FLIP attack strategy."""
+        
+        client_path = os.path.join(self.dst_dataset, client_dir)
+
+        try:
+            dataset_files = [
+                f for f in os.listdir(client_path)
+                if f.lower().endswith(".csv")
+            ]
+        except FileNotFoundError:
+            logging.error(f"Client directory not found: {client_path}")
+            return
+        
+        # TODO: Genralize this for any regression task
+        target_gas = self._strategy_config.target_gas + "(GT)"
+        substitute_fraction = 0.25  # Changing subset size doesn't change effectiveness of attack
+        degree_of_poisoning = self._strategy_config.attack_ratio if self._strategy_config.attack_ratio else 0.1
+
+        '''
+        At a minimum use 25% of the client dataset as the subset.
+        If user want a degree_of_poisoning that is greater than 25%,
+            set the subset size to the degree_of_poisoning that the user wants.
+        '''
+        if (degree_of_poisoning > substitute_fraction):
+            substitute_fraction = degree_of_poisoning
+
+        # Auto-generate seed from attack parameters for reproducibility
+        seed_string = sum([ord(char) for char in target_gas]) / (substitute_fraction * degree_of_poisoning) if (substitute_fraction * degree_of_poisoning) != 0 else sum([ord(char) for char in target_gas])
+        seed = math.ceil(seed_string) % (2 ** 32)
+        rng = random.Random(seed)
+
+        for dataset_file in dataset_files:
+            dataset_path = os.path.join(client_path, dataset_file)
+            dataset = pd.read_csv(dataset_path)
+
+            if dataset is None:
+                logging.error(f"Failed to load data: {dataset_path}")
+                continue
+
+            # Determine feasibility domain 
+            targets = dataset[target_gas]
+            min_target = min(targets)
+            max_target = max(targets)
+
+            # Take subset of dataset to poison from
+            dataset_size = len(dataset)
+            subset_size = int(math.ceil(dataset_size * substitute_fraction))
+            # Determine number of data points to poison of original dataset
+            # (must be size of subset or less)
+            num_of_poison_points = math.ceil(dataset_size * degree_of_poisoning) if math.ceil(dataset_size * degree_of_poisoning) <= subset_size else subset_size
+            random_indexes = rng.sample(range(dataset_size), subset_size)
+            sub_targets = [(i, dataset.iloc[i][target_gas]) for i in random_indexes]
+
+            # Begin Flip algorithm
+            distances = []
+            for i, target in sub_targets:
+                distance = max(target-min_target, max_target-target)
+                distances.append((i,distance))
+            sorted_distances = sorted(distances, key=lambda x: x[1], reverse=True)
+            poison_indexes = [i for i, _ in sorted_distances[:num_of_poison_points]]
+            
+            for i in poison_indexes:
+                if dataset.iloc[i][target_gas] > ((0.5*(max_target-min_target)) + min_target):
+                    dataset.at[i, target_gas] = min_target
+                else:
+                    dataset.at[i, target_gas] = max_target
+            
+            failure = dataset.to_csv(dataset_path, index=False)
+            if not failure:
+                logging.info(f"Flipped targets in: {dataset_path}")
+            else:
+                logging.error(f"Failed to write data: {dataset_path}")
 
 
     def _assign_poisoned_client_ids(
