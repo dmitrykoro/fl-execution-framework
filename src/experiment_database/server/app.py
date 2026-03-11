@@ -75,7 +75,8 @@ async def get_experiments(request: web.Request) -> web.Response:
                         "is_successful": exp.is_successful,
                         "total_exec_time": exp.total_exec_time,
                         "error_message": exp.error_message,
-                        "username": exp.username,
+                        "full_author_name": exp.author.full_author_name,
+                        "author_email": exp.author.author_email,
                         "config": {
                             "strategy": cfg.aggregation_strategy_keyword if cfg else None,
                             "dataset": cfg.dataset_keyword if cfg else None,
@@ -161,7 +162,8 @@ async def homepage(request: web.Request) -> web.Response:
             if last_exp:
                 cfg = last_exp.executed_config  # relationship
                 last_dataset = cfg.dataset_keyword if cfg else None
-                full_author_name = last_exp.full_author_name
+                author = last_exp.author
+                full_author_name = author.full_author_name
                 last_author = f"{full_author_name[:3]}*** ***{full_author_name[-3:]}"
 
                 dt = last_exp.created_at
