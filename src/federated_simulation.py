@@ -470,6 +470,7 @@ class FederatedSimulation:
         if self.strategy_config.model_type == "transformer" and hasattr(self._dataset_loader, 'tokenizer'):
             tokenizer = self._dataset_loader.tokenizer
 
+        # TODO: Generalize `target_gas` to be used by all regression tasks
         return FlowerClient(
             client_id=int(cid),
             net=net,
@@ -488,6 +489,7 @@ class FederatedSimulation:
             experiment_info=experiment_info,
             strategy_number=self.strategy_config.strategy_number,
             tokenizer=tokenizer,
+            target_gas=self.strategy_config.target_gas
         ).to_client()
 
     @staticmethod

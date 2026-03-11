@@ -76,11 +76,20 @@ class AirQualityUCIDatasetLoader:
             train_dataset = TensorDataset(X_train, y_train)
             val_dataset = TensorDataset(X_val, y_val)
 
-            # store target mean and std for client use in denormalization for metrics
+            # store feature and target mean and std for client use in denormalization for metrics
+            train_dataset.x_mean = x_mean
+            train_dataset.x_std = x_std
+            val_dataset.x_mean = x_mean
+            val_dataset.x_std = x_std
             train_dataset.y_mean = y_mean
             train_dataset.y_std = y_std
             val_dataset.y_mean = y_mean
             val_dataset.y_std = y_std
+
+            # store feature names for use in snapshot logging
+            feature_names = client_dataset.drop(columns=[self.target_gas]).columns.tolist()
+            train_dataset.feature_names = feature_names
+            val_dataset.feature_names = feature_names
 
             trainloaders.append(DataLoader(
                 train_dataset,

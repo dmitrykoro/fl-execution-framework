@@ -314,7 +314,6 @@ class PIDBasedRemovalStrategy(fl.server.strategy.FedAvg):
             cid = client_result[0].cid
             metrics = client_result[1].metrics
             metrics['cid'] = cid
-            #TODO: Make these changes to all aggregation strategies
             if "accuracy" in metrics:
                 # For classification tasks
                 self.strategy_history.insert_single_client_history_entry(

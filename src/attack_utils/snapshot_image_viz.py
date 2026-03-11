@@ -322,3 +322,51 @@ def save_image_grid(
 
     plt.savefig(filepath, dpi=150, bbox_inches="tight")
     plt.close()
+
+
+def save_scatter_plot(
+    targets: np.ndarray,
+    original_targets: np.ndarray,
+    filepath: Path,
+    attack_config: Optional[Union[dict, List[dict]]] = None,
+):
+    """
+    Save scatter plot visualization to file.
+
+    Creates a scatter plot of the target values to visualize the
+    differences between the poisoned targets and the clean targets.
+
+    Args:
+        targets: Poisoned targets array
+        original_targets: Original targets before attack
+        filepath: Output file path for the scatter plot visualization
+        attack_config: Attack configuration dict or list of dicts (optional)
+
+    Note:
+        Saves with tight layout and 150 DPI for clarity.
+    """
+    min_target = min(original_targets)[0]
+    max_target = max(original_targets)[0]
+
+    plt.scatter(original_targets[:len(targets)], targets, alpha=0.6)
+    plt.plot(
+        [min_target, max_target],
+        [min_target, max_target],
+        linestyle="--",
+        color="gray",
+        label="No change line"
+    )
+
+    plt.xlabel("Original Target")
+    plt.ylabel("Poisoned Target")
+    if attack_config:
+        attack_type = _extract_attack_type(attack_config)
+        if attack_type == "target_flipping":
+            plt_title = f"Target Flipping Attack"
+    else:
+        plt_title = f"Regression Attack"
+    plt.title(plt_title)
+
+    plt.savefig(filepath, dpi=150, bbox_inches="tight")
+    plt.close()
+    

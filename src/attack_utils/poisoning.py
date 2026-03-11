@@ -3,6 +3,8 @@ Utility functions for applying poisoning attacks to datasets.
 """
 
 import logging
+import random
+import math
 from typing import Optional, Tuple
 
 import torch
@@ -56,6 +58,55 @@ def apply_gaussian_noise(
 
     poisoned_images[indices] = torch.clamp(poisoned_images[indices] + noise, 0, 1)
     return poisoned_images
+
+
+# TODO: Genralize this for any regression task
+def apply_target_flipping(
+        targets: torch.Tensor,
+        degree_of_poisoning: float = 0.1,
+) -> torch.Tensor:
+    substitute_fraction = 0.25  # Changing subset size doesn't change effectiveness of attack
+    '''
+    At a minimum use 25% of the client dataset as the subset.
+    If user want a degree_of_poisoning that is greater than 25%,
+        set the subset size to the degree_of_poisoning that the user wants.
+    '''
+    if (degree_of_poisoning > substitute_fraction):
+        substitute_fraction = degree_of_poisoning
+
+    # Auto-generate seed from attack parameters for reproducibility
+    seed_string = substitute_fraction / degree_of_poisoning if degree_of_poisoning >= 0.01 else 123
+    seed = math.ceil(seed_string) % (2 ** 32)
+    rng = random.Random(seed)
+
+    # Determine feasibility domain 
+    min_target = targets.min()
+    max_target = targets.max()
+
+    # Take subset of dataset to poison from
+    dataset_size = len(targets)
+    subset_size = int(math.ceil(dataset_size * substitute_fraction))
+    # Determine number of data points to poison of original dataset
+    # (must be size of subset or less)
+    num_of_poison_points = math.ceil(dataset_size * degree_of_poisoning) if math.ceil(dataset_size * degree_of_poisoning) <= subset_size else subset_size
+    random_indexes = rng.sample(range(dataset_size), subset_size)
+    sub_targets = [(i, targets[i].item()) for i in random_indexes]
+
+    # Begin Flip algorithm
+    distances = []
+    for i, target in sub_targets:
+        distance = max(target-min_target.item(), max_target.item()-target)
+        distances.append((i,distance))
+    sorted_distances = sorted(distances, key=lambda x: x[1], reverse=True)
+    poison_indexes = [i for i, _ in sorted_distances[:num_of_poison_points]]
+    
+    for i in poison_indexes:
+        if targets[i] > ((0.5*(max_target-min_target)) + min_target):
+            targets[i] = min_target
+        else:
+            targets[i] = max_target
+    
+    return targets
 
 
 def should_poison_this_round(
@@ -142,5 +193,11 @@ def apply_poisoning_attack(
                 std=attack_config.get("std", 0.1),
                 attack_ratio=attack_ratio,
             )
+    
+    elif attack_type == "target_flipping":
+        degree_of_poisoing = attack_config.get("attack_ratio", 0.1)
+        labels = apply_target_flipping(
+            labels, degree_of_poisoing
+        )
 
     return data, labels

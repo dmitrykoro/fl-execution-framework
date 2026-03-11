@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import List, Optional, Union
 
 import numpy as np
+import math
 
 
 def _extract_attack_param(
@@ -209,3 +210,114 @@ def save_text_samples(
             f.write("=" * 40 + "\n")
             for i, (label, orig) in enumerate(zip(labels, original_labels)):
                 f.write(f"Sample {i}: {label} (was {orig})\n")
+
+
+#TODO: Generalize `target_gas` param for all regression tasks
+def save_regression_text_samples(
+    targets: np.ndarray,
+    original_targets: np.ndarray,
+    filepath: Path,
+    target_gas: str,
+    attack_config: Optional[Union[dict, List[dict]]] = None,
+    original_features: Optional[np.ndarray] = None,
+    feature_names: Optional[list] = None,
+):
+    """
+    Save text attack samples to a visualization file.
+
+    Creates a text file showing original vs poisoned feature and target values.
+
+    Args:
+        targets: Poisoned targets array
+        original_targets: Original targets before attack
+        filepath: Output file path for the text visualization
+        target_gas: Value that the model is predicting
+        attack_config: Attack configuration dict or list of dicts (optional)
+        original_features: Original features for comparison (optional)
+        feature_names: Names of the columns for the features in a regression task dataset (optional)
+
+    Note:
+        Skips sample where target was not attacked to reduce file size.
+    """
+    with open(filepath, "w", encoding="utf-8") as f:
+        f.write("=" * 80 + "\n")
+        f.write("REGRESSION ATTACK VISUALIZATION\n")
+        f.write("=" * 80 + "\n\n")
+
+        if attack_config:
+            attack_type = _extract_attack_type(attack_config)
+            f.write(f"Attack Type: {attack_type}\n")
+            #TODO: Generalize `target_gas` param for all regression tasks
+            f.write(f"Target Gas: {target_gas}\n")
+
+            if (
+                original_features is not None
+                and feature_names is not None
+            ):
+                f.write(f"Features:")
+                for i, feature in enumerate(feature_names):
+                    if i == 0:
+                        f.write(f" {feature}")
+                    else:
+                        f.write(f", {feature}")
+                f.write(f"\n")
+
+            if attack_type == "target_flipping":
+                degree_of_poisoning = _extract_attack_param(
+                    attack_config, "attack_ratio", default=0.1
+                )
+                substitute_fraction = 0.25
+                if degree_of_poisoning > substitute_fraction:
+                    substitute_fraction = degree_of_poisoning
+                
+                f.write(f"Substitute Fraction: {substitute_fraction}\n")
+                f.write(f"Degree of Poisoning: {degree_of_poisoning}\n")
+                f.write(f"Sample Dataset Size: {len(targets)}\n")
+                f.write(f"Poisoned Samples: {math.ceil(len(targets) * degree_of_poisoning)}\n")
+                f.write(f"Min Target: {min(original_targets)[0]}\n")
+                f.write(f"Max Target: {max(original_targets)[0]}\n")
+
+            f.write("\n" + "=" * 80 + "\n\n")
+        
+        samples_shown = 0
+        samples_skipped = 0
+
+        for i in range(len(targets)):
+            original_target = original_targets[i][0]
+            poisoned_target = targets[i][0]
+
+            if original_target == poisoned_target:
+                samples_skipped += 1
+                continue
+
+            f.write(f"--- Sample {i} ---\n\n")
+
+            if (
+                original_features is not None
+                and feature_names is not None
+            ):
+                f.write(f"Features:\n")
+                for j, feature in enumerate(feature_names):
+                    f.write(f"\t{feature}: {original_features[i][j]}\n")
+                f.write("\n")
+
+            f.write(f"Target:\n")
+            f.write(f"\tOriginal: {original_target}\n")
+            f.write(f"\tPoisoned: {poisoned_target}\n")
+
+            change = poisoned_target - original_target
+            if change > 0.0:
+                f.write(f"\tChange: +{abs(change)}\n")
+                f.write(f"\tDirection: MIN -> MAX\n")
+            else:
+                f.write(f"\tChange: -{abs(change)}\n")
+                f.write(f"\tDirection: MAX -> MIN\n")
+
+            samples_shown += 1
+            f.write("\n")
+        
+        f.write("=" * 80 + "\n")
+        f.write(
+            f"SUMMARY: {samples_shown} samples modified, {samples_skipped} samples unchanged (skipped)\n"
+        )
+        f.write("=" * 80 + "\n")

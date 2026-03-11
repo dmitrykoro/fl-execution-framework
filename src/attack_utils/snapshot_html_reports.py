@@ -64,6 +64,13 @@ def _extract_attack_params_for_display(attack_type: str, attack_config: dict) ->
             html_attack_params.append(f"strategy={strategy}")
         if prob is not None:
             html_attack_params.append(f"prob={prob}")
+    elif attack_type == "target_flipping":
+        degree_of_posoning = attack_config.get("attack_ratio", 0.1)
+        substitute_fraction = 0.25
+        if degree_of_posoning > substitute_fraction:
+            substitute_fraction = degree_of_posoning
+        html_attack_params.append(f"substitute={substitute_fraction}")
+        html_attack_params.append(f"poison={degree_of_posoning}")
     return html_attack_params
 
 
@@ -181,6 +188,10 @@ def generate_snapshot_index(
             client_id = metadata.get("client_id")
             round_num = metadata.get("round_num")
 
+            base_dir = Path(f"client_{client_id}") / f"round_{round_num}"
+
+            # TODO: If another attack is added for regression data, need to update the dictionary
+            #           that is added to snapshot_data
             if isinstance(attack_config, list) and len(attack_config) > 1:
                 attack_info_list = _split_composite_attack_info(
                     attack_type, attack_config
@@ -191,6 +202,15 @@ def generate_snapshot_index(
                 for info in attack_info_list:
                     if info["params"]:
                         all_params.extend(info["params"])
+
+                visuals = [
+                    {
+                        "path": (base_dir / f"{attack_type}_visual.png").as_posix(),
+                        "type": "image",
+                        "icon": "🖼️",
+                        "title": "View visual",
+                    }
+                ]
 
                 snapshot_data.append(
                     {
@@ -203,17 +223,8 @@ def generate_snapshot_index(
                         "pickle_path": snapshot_path.relative_to(
                             snapshots_dir
                         ).as_posix(),
-                        "visual_path": (
-                            Path(f"client_{client_id}")
-                            / f"round_{round_num}"
-                            / f"{attack_type}_visual.png"
-                        ).as_posix(),
-                        "visual_type": "image",
-                        "metadata_path": (
-                            Path(f"client_{client_id}")
-                            / f"round_{round_num}"
-                            / f"{attack_type}_metadata.json"
-                        ).as_posix(),
+                        "visuals": visuals,
+                        "metadata_path": (base_dir / f"{attack_type}_metadata.json")
                     }
                 )
             else:
@@ -224,12 +235,43 @@ def generate_snapshot_index(
                     attack_type, attack_config
                 )
 
+                visuals = []
+
                 if attack_type == "token_replacement":
-                    visual_filename = f"{attack_type}_samples.txt"
-                    visual_type = "text"
+                    visuals.append(
+                        {
+                            "path": (base_dir / f"{attack_type}_samples.txt").as_posix(),
+                            "type": "text",
+                            "icon": "📝",
+                            "title": "View text samples",
+                        }
+                    )
+                elif attack_type == "target_flipping":
+                    visuals.append(
+                        {
+                            "path": (base_dir / f"{attack_type}_samples.txt").as_posix(),
+                            "type": "text",
+                            "icon": "📝",
+                            "title": "View text samples",
+                        }
+                    )
+                    visuals.append(
+                        {
+                            "path": (base_dir / f"{attack_type}_scatter.png").as_posix(),
+                            "type": "image",
+                            "icon": "📊",
+                            "title": "View scatter plot",
+                        }
+                    )
                 else:
-                    visual_filename = f"{attack_type}_visual.png"
-                    visual_type = "image"
+                    visuals.append(
+                        {
+                            "path": (base_dir / f"{attack_type}_visual.png").as_posix(),
+                            "type": "image",
+                            "icon": "🖼️",
+                            "title": "View visual",
+                        }
+                    )
 
                 snapshot_data.append(
                     {
@@ -244,17 +286,8 @@ def generate_snapshot_index(
                         "pickle_path": snapshot_path.relative_to(
                             snapshots_dir
                         ).as_posix(),
-                        "visual_path": (
-                            Path(f"client_{client_id}")
-                            / f"round_{round_num}"
-                            / visual_filename
-                        ).as_posix(),
-                        "visual_type": visual_type,
-                        "metadata_path": (
-                            Path(f"client_{client_id}")
-                            / f"round_{round_num}"
-                            / f"{attack_type}_metadata.json"
-                        ).as_posix(),
+                        "visuals": visuals,
+                        "metadata_path": (base_dir / f"{attack_type}_metadata.json").as_posix(),
                     }
                 )
 
@@ -370,7 +403,7 @@ def generate_main_dashboard(output_dir: str) -> None:
 
     for plot in all_plots:
         name = plot.name
-        if any(x in name for x in ["accuracy", "loss", "average"]):
+        if any(x in name for x in ["accuracy", "loss", "average", "r2"]):
             plot_categories["Performance Metrics"].append(name)
         elif any(x in name for x in ["removal", "precision", "recall", "f1", "fp", "fn"]):
             plot_categories["Attack Detection"].append(name)

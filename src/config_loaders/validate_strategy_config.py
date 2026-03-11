@@ -219,10 +219,9 @@ config_schema = {
                 "properties": {
                     "start_round": {"type": "integer", "minimum": 1},
                     "end_round": {"type": "integer", "minimum": 1},
-                    #TODO: Add new target_flipping attack here once dynmaic is implemented
                     "attack_type": {
                         "type": "string",
-                        "enum": ["label_flipping", "gaussian_noise"]
+                        "enum": ["label_flipping", "gaussian_noise", "target_flipping"]
                     },
                     "selection_strategy": {"type": "string", "enum": ["specific", "random", "percentage"]},
                     "malicious_client_ids": {"type": "array", "items": {"type": "integer"}},
@@ -400,7 +399,6 @@ def _validate_attack_schedule(config: dict) -> None:
                 f"{entry_desc}: end_round ({end_round}) exceeds num_of_rounds ({num_of_rounds})"
             )
 
-        #TODO: Add new target_flipping attack here once dynmaic is implemented
 
         attack_type = entry.get("attack_type")
 
@@ -412,6 +410,11 @@ def _validate_attack_schedule(config: dict) -> None:
             if "attack_ratio" not in entry:
                 raise ValidationError(
                     f"{entry_desc}: gaussian_noise attack requires 'attack_ratio' parameter"
+                )
+        elif attack_type == "target_flipping":
+            if "attack_ratio" not in entry:
+                raise ValidationError(
+                    f"{entry_desc}: target_flipping attack requires 'attack_ratio' parameter"
                 )
 
         # Validate selection strategy requirements

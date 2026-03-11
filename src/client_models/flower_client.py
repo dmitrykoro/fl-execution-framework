@@ -5,6 +5,7 @@ import numpy as np
 import torch
 
 from collections import OrderedDict
+from torch.utils.data import TensorDataset, DataLoader
 from src.network_models.bert_model_definition import get_peft_model_state_dict, set_peft_model_state_dict
 from src.attack_utils.poisoning import should_poison_this_round, apply_poisoning_attack
 from src.attack_utils.attack_snapshots import save_attack_snapshot, save_visual_snapshot
@@ -12,6 +13,7 @@ from src.utils.legacy.ner_metrics_medmentions import StrictMentionAndDocEvaluato
 
 
 class FlowerClient(fl.client.NumPyClient):
+    #TODO: Generalize `target_gas` param for all regression tasks
     def __init__(
             self,
             client_id,
@@ -31,6 +33,7 @@ class FlowerClient(fl.client.NumPyClient):
             experiment_info=None,
             strategy_number=0,
             tokenizer=None,
+            target_gas="",
     ):
         self.client_id = client_id
         self.net = net
@@ -49,8 +52,9 @@ class FlowerClient(fl.client.NumPyClient):
         self.experiment_info = experiment_info
         self.strategy_number = strategy_number
         self.tokenizer = tokenizer
+        self.target_gas=target_gas
 
-    def _save_attack_snapshots(self, current_round, attack_configs, data_sample, labels_sample, original_data_sample=None, original_labels_sample=None):
+    def _save_attack_snapshots(self, current_round, attack_configs, data_sample, labels_sample, original_data_sample=None, original_labels_sample=None, dataset=None):
         """Helper method to save attack snapshots for both CNN and transformer models.
 
         Args:
@@ -58,8 +62,9 @@ class FlowerClient(fl.client.NumPyClient):
             attack_configs: List of attack configurations applied
             data_sample: Poisoned data (images for CNN, input_ids for transformer)
             labels_sample: Poisoned labels
-            original_data_sample: Original unpoisoned data (images for CNN, input_ids for transformer)
+            original_data_sample: Original unpoisoned data (images for CNN, input_ids for transformer, continuous values for linear_regression)
             original_labels_sample: Original unpoisoned labels (for label flipping)
+            dataset: Tensor dataset with saved attributes (for regression tasks)
         """
         if not (self.save_attack_snapshots and self.output_dir):
             return
@@ -90,6 +95,7 @@ class FlowerClient(fl.client.NumPyClient):
                     labels_sample=labels_sample.cpu().numpy(),
                     original_labels_sample=original_labels_sample.cpu().numpy() if original_labels_sample is not None else labels_sample.cpu().numpy(),
                     output_dir=self.output_dir,
+                    model_type=self.model_type,
                     experiment_info=self.experiment_info,
                     strategy_number=self.strategy_number,
                     original_data_sample=original_data_sample.cpu().numpy(),
@@ -103,11 +109,41 @@ class FlowerClient(fl.client.NumPyClient):
                     labels_sample=labels_sample.cpu().numpy(),
                     original_labels_sample=original_labels_sample.cpu().numpy() if original_labels_sample is not None else labels_sample.cpu().numpy(),
                     output_dir=self.output_dir,
+                    model_type=self.model_type,
                     experiment_info=self.experiment_info,
                     strategy_number=self.strategy_number,
                     tokenizer=self.tokenizer,
                     original_data_sample=original_data_sample.cpu().numpy(),
                 )
+            elif self.model_type == "linear_regression" and original_data_sample is not None and dataset is not None and self.target_gas != "":
+                # Unnormalize features and targets for intuitive values in the snapshots
+                x_mean = dataset.x_mean
+                x_std = dataset.x_std
+                y_mean = dataset.y_mean
+                y_std = dataset.y_std
+
+                features_real = data_sample * x_std + x_mean
+                targets_real = labels_sample * y_std + y_mean
+                orig_features_real = original_data_sample * x_std + x_mean
+                orig_targets_real = original_labels_sample * y_std + y_mean
+
+                save_visual_snapshot(
+                    client_id=self.client_id,
+                    round_num=current_round,
+                    attack_config=attack_configs,
+                    data_sample=features_real.cpu().numpy(),
+                    labels_sample=targets_real.cpu().numpy(),
+                    original_labels_sample=orig_targets_real.cpu().numpy() if original_labels_sample is not None else labels_sample.cpu().numpy(),
+                    output_dir=self.output_dir,
+                    model_type=self.model_type,
+                    max_samples=self.snapshot_max_samples,
+                    experiment_info=self.experiment_info,
+                    strategy_number=self.strategy_number,
+                    target_gas=self.target_gas,
+                    original_data_sample=orig_features_real.cpu().numpy(),
+                    feature_names=dataset.feature_names,
+                )
+
 
     def _to_device_only_tensors(self, batch):
         """Helper to move only tensor values to device, leaving non-tensors (like lists) as-is."""
@@ -281,36 +317,58 @@ class FlowerClient(fl.client.NumPyClient):
             optimizer = torch.optim.Adam(net.parameters())
             net.train()
 
+            # If poisoning should happen, poison the whole dataset rather than per batch
+            should_poison, attack_configs = should_poison_this_round(
+                current_round, self.client_id, self.attacks_schedule
+            )
+
+            active_loader = trainloader
+
+            if should_poison and attack_configs:
+                clean_features, clean_targets = trainloader.dataset[:]
+                original_features = clean_features.clone()
+                original_targets = clean_targets.clone()
+                features = clean_features.clone()
+                targets = clean_targets.clone()
+
+                # Apply all attacks sequentially
+                for attack_config in attack_configs:
+                    features, targets = apply_poisoning_attack(features, targets, attack_config)
+
+                # Save snapshot after all attacks applied
+                self._save_attack_snapshots(
+                    current_round=current_round,
+                    attack_configs=attack_configs,
+                    data_sample=features,
+                    labels_sample=targets,
+                    original_data_sample=original_features,
+                    original_labels_sample=original_targets,
+                    dataset=trainloader.dataset
+                )
+
+                # build new datast with poisoned features and targets
+                poisoned_dataset = TensorDataset(features, targets)
+                poisoned_dataset.y_mean = trainloader.dataset.y_mean
+                poisoned_dataset.y_std = trainloader.dataset.y_std
+                poisoned_dataset.x_mean = trainloader.dataset.x_mean
+                poisoned_dataset.x_std = trainloader.dataset.x_std
+
+                poisoned_loader = DataLoader(
+                    poisoned_dataset,
+                    batch_size=trainloader.batch_size,
+                    shuffle=True,
+                    num_workers=0,  # Avoid CUDA fork issues
+                    pin_memory=torch.cuda.is_available()  # Fast GPU transfer
+                )
+
+                active_loader = poisoned_loader
+
             for epoch in range(epochs):
                 total, epoch_loss = 0, 0.0
                 # For R^2 calcualtion
                 ss_res, sum_y, sum_y_sq = 0.0, 0.0, 0.0
 
-                for batch_idx, (features, targets) in enumerate(trainloader):
-                    #TODO: when poisoning attack is implemented for regression, make sure it works here
-                    should_poison, attack_configs = should_poison_this_round(
-                        current_round, self.client_id, self.attacks_schedule
-                    )
-
-                    if should_poison and attack_configs:
-                        original_features = features.clone()
-                        original_targets = targets.clone()
-
-                        # Apply all attacks sequentially
-                        for attack_config in attack_configs:
-                            features, targets = apply_poisoning_attack(features, targets, attack_config)
-
-                        # Save snapshot after all attacks applied
-                        if epoch == 0 and batch_idx == 0:
-                            self._save_attack_snapshots(
-                                current_round=current_round,
-                                attack_configs=attack_configs,
-                                data_sample=features,
-                                labels_sample=targets,
-                                original_data_sample=original_features,
-                                original_labels_sample=original_targets
-                            )
-
+                for batch_idx, (features, targets) in enumerate(active_loader):
                     features = features.to(self.training_device)
                     targets = targets.to(self.training_device).float()
                     optimizer.zero_grad()
@@ -328,8 +386,8 @@ class FlowerClient(fl.client.NumPyClient):
                     epoch_loss += loss.item() * features.size(0)
 
                     # denormalize for metrics
-                    y_mean = trainloader.dataset.y_mean
-                    y_std = trainloader.dataset.y_std
+                    y_mean = active_loader.dataset.y_mean
+                    y_std = active_loader.dataset.y_std
                     y_std = y_std.to(self.training_device)
                     y_mean = y_mean.to(self.training_device)
 
@@ -354,7 +412,7 @@ class FlowerClient(fl.client.NumPyClient):
 
                 # calculate local client learning rate
                 optimizer_lr = optimizer.param_groups[0]["lr"]
-                num_steps = epochs * len(trainloader)
+                num_steps = epochs * len(active_loader)
                 eta_eff = optimizer_lr * num_steps
 
             #TODO: Right now returning MSE, maybe use RMSE for more interprebility or MAE
@@ -463,24 +521,47 @@ class FlowerClient(fl.client.NumPyClient):
 
             total, loss_sum, ss_res, ss_tot, y_true_sum, y_true_sq_sum = 0, 0.0, 0.0, 0.0, 0.0, 0.0
 
+            # If poisoning should happen, poison the whole dataset rather than per batch
+            should_poison, attack_configs = should_poison_this_round(
+                current_round, self.client_id, self.attacks_schedule
+            )
+
+            active_loader = testloader
+
+            if should_poison and attack_configs:
+                clean_features, clean_targets = testloader.dataset[:]
+                features = clean_features.clone()
+                targets = clean_targets.clone()
+
+                # Apply all attacks sequentially
+                for attack_config in attack_configs:
+                    features, targets = apply_poisoning_attack(features, targets, attack_config)
+
+                # build new datast with poisoned features and targets
+                poisoned_dataset = TensorDataset(features, targets)
+                poisoned_dataset.y_mean = testloader.dataset.y_mean
+                poisoned_dataset.y_std = testloader.dataset.y_std
+                poisoned_dataset.x_mean = testloader.dataset.x_mean
+                poisoned_dataset.x_std = testloader.dataset.x_std
+
+                poisoned_loader = DataLoader(
+                    poisoned_dataset,
+                    batch_size=testloader.batch_size,
+                    shuffle=False,
+                    num_workers=0,
+                    pin_memory=torch.cuda.is_available()
+                )
+
+                active_loader = poisoned_loader
+
             with torch.no_grad():
-                for features, targets in testloader:
-                    #TODO: when poisoning attack is implemented for regression, make sure it works here
-                    should_poison, attack_configs = should_poison_this_round(
-                        current_round, self.client_id, self.attacks_schedule
-                    )
-
-                    if should_poison and attack_configs:
-                        #Apply all attacks sequentially
-                        for attack_config in attack_configs:
-                            features, targets = apply_poisoning_attack(features, targets, attack_config)
-
+                for features, targets in active_loader:
                     features, targets = features.to(self.training_device), targets.to(self.training_device)
                     outputs = net(features)
 
                     # denormalize for metrics
-                    y_mean = testloader.dataset.y_mean
-                    y_std = testloader.dataset.y_std
+                    y_mean = active_loader.dataset.y_mean
+                    y_std = active_loader.dataset.y_std
                     y_mean = y_mean.to(self.training_device)
                     y_std = y_std.to(self.training_device)
 

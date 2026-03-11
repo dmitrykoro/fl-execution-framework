@@ -12,8 +12,8 @@ from typing import Any, Dict, List, Optional, Union
 import numpy as np
 import torch
 
-from .snapshot_image_viz import save_image_grid
-from .snapshot_text_viz import save_text_samples
+from .snapshot_image_viz import save_image_grid, save_scatter_plot
+from .snapshot_text_viz import save_text_samples, save_regression_text_samples
 
 
 def _extract_attack_type(attack_config: Union[dict, List[dict]]) -> str:
@@ -331,6 +331,7 @@ def get_snapshot_summary(output_dir: str, strategy_number: int = 0) -> dict:
     return summary
 
 
+#TODO: Generalize `target_gas` param for all regression tasks
 def save_visual_snapshot(
     client_id: int,
     round_num: int,
@@ -339,10 +340,14 @@ def save_visual_snapshot(
     labels_sample: np.ndarray,
     original_labels_sample: np.ndarray,
     output_dir: str,
+    model_type: str,
+    max_samples: int = 5,
     experiment_info: Optional[Dict[str, Any]] = None,
     strategy_number: int = 0,
     tokenizer=None,
+    target_gas: str = "",
     original_data_sample: Optional[np.ndarray] = None,
+    feature_names: Optional[list] = None
 ) -> None:
     """Save visual snapshot of attack samples for inspection.
 
@@ -357,20 +362,24 @@ def save_visual_snapshot(
         labels_sample: Sample labels array
         original_labels_sample: Original labels array
         output_dir: Base output directory
+        model_type: Type of model being trained
+        max_samples: Maximum samples to include in snapshot (default: 5)
         experiment_info: Additional experiment metadata (optional)
         strategy_number: Strategy index for multi-strategy runs (default: 0)
         tokenizer: HuggingFace tokenizer for text visualization (optional)
+        target_gas: Target being predicted in regression task
         original_data_sample: Original data before poisoning for comparison (optional)
+        feature_names: Names of the columns for the features in a regression task dataset (optional)
 
     Note:
-        Automatically detects data type (images vs text) and uses appropriate
+        Automatically detects data type (images vs text vs continuous values) and uses appropriate
         visualization method.
     """
     attack_type = _extract_attack_type(attack_config)
     snapshot_dir = _get_snapshot_dir(output_dir, client_id, round_num, strategy_number)
 
     try:
-        if len(data_sample.shape) == 4:
+        if model_type == "cnn":
             filename = f"{attack_type}_visual.png"
             save_image_grid(
                 data_sample,
@@ -380,7 +389,7 @@ def save_visual_snapshot(
                 attack_config,
                 original_images=original_data_sample,
             )
-        else:
+        elif model_type == "transformer":
             filename = f"{attack_type}_samples.txt"
             save_text_samples(
                 labels_sample,
@@ -391,6 +400,26 @@ def save_visual_snapshot(
                 input_ids_original=original_data_sample,
                 input_ids_poisoned=data_sample,
             )
+        elif model_type == "linear_regression":
+            text_filename = f"{attack_type}_samples.txt"
+            labels_sample = labels_sample[:max_samples]
+            save_regression_text_samples(
+                targets=labels_sample,
+                original_targets=original_labels_sample,
+                filepath=snapshot_dir / text_filename,
+                target_gas=target_gas,
+                attack_config=attack_config,
+                original_features=original_data_sample,
+                feature_names=feature_names
+            )
+            plot_filename = f"{attack_type}_scatter.png"
+            save_scatter_plot(
+                targets=labels_sample,
+                original_targets=original_labels_sample,
+                filepath=snapshot_dir / plot_filename,
+                attack_config=attack_config
+            )
+
 
         logging.debug(
             f"Saved {attack_type} visual snapshot: client {client_id}, round {round_num} -> {snapshot_dir}"
