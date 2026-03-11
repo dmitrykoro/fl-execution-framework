@@ -53,8 +53,6 @@ class ExperimentEvent(Base):
     id = Column(Integer, primary_key=True, autoincrement=True)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     wandb_url = Column(String(500), nullable=True)
-    full_author_name = Column(String(500), nullable=True)
-    author_email = Column(String(500), nullable=True)
     is_successful = Column(Boolean, default=True)
     error_message = Column(Text, nullable=True)
     total_exec_time = Column(Text, nullable=True)
@@ -69,9 +67,28 @@ class ExperimentEvent(Base):
     )
     hardware = relationship("HostHardwareSpec", back_populates="experiment_events")
 
+    author_id = Column(
+        Integer, ForeignKey("experiment_author.id"), nullable=True
+    )
+    author = relationship("ExperimentAuthor", back_populates="experiment_events")
+
     clients = relationship("ExperimentClient", back_populates="experiment_event")
     metric_entries = relationship("MetricEntry", back_populates="experiment_event")
     clients_at_round = relationship("ClientAtRound", back_populates="experiment_event")
+
+
+class ExperimentAuthor(Base):
+    __tablename__ = "experiment_author"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    full_author_name = Column(String(500), nullable=False)
+    author_email = Column(String(500), nullable=False, unique=True)
+
+    experiment_events = relationship(
+        "ExperimentEvent",
+        back_populates="author",
+        cascade="all, save-update",
+    )
 
 
 class ExperimentClient(Base):

@@ -7,6 +7,7 @@ from src.experiment_database.models import (
     ExecutedConfig,
     ExperimentClient,
     ExperimentEvent,
+    ExperimentAuthor,
     HostHardwareSpec,
     MetricEntry,
     MetricInfo,
@@ -69,22 +70,46 @@ def get_or_create_hardware(
 
 
 def create_experiment_event(
-    session: Session,
-    executed_config: ExecutedConfig,
-    hardware: HostHardwareSpec | None = None,
-    wandb_url=None,
-    full_author_name=None,
-    author_email=None
+        session: Session,
+        executed_config: ExecutedConfig,
+        hardware: HostHardwareSpec | None = None,
+        wandb_url: str | None = None,
+        full_author_name: str | None = None,
+        author_email: str | None = None,
 ) -> ExperimentEvent:
-    """Create an ExperimentEvent row linking a config and hardware spec to a single run."""
+    """Create an ExperimentEvent row linking a config, hardware spec, and author to a single run."""
+
+    author = None
+
+    normalized_full_name = full_author_name.upper() if full_author_name else None
+    normalized_email = author_email.upper() if author_email else None
+
+    if normalized_email is not None:
+        author = (
+            session.query(ExperimentAuthor)
+            .filter(ExperimentAuthor.author_email == normalized_email)
+            .first()
+        )
+
+        if author is None:
+            author = ExperimentAuthor(
+                full_author_name=normalized_full_name,
+                author_email=normalized_email,
+            )
+            session.add(author)
+            session.flush()
+
+        elif normalized_full_name and author.full_author_name != normalized_full_name:
+            author.full_author_name = normalized_full_name
+
     event = ExperimentEvent(
         executed_config_id=executed_config.id,
         hardware_id=hardware.id if hardware else None,
+        author_id=author.id if author else None,
         is_successful=False,
         wandb_url=wandb_url,
-        full_author_name=full_author_name.upper(),
-        author_email=author_email.upper()
     )
+
     session.add(event)
     session.flush()
     return event
