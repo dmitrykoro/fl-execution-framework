@@ -81,9 +81,6 @@ class FlowerClient(fl.client.NumPyClient):
         attack_keywords_list = client_instance.get_current_attack_keywords(current_round)
         attack_configs_list = client_instance.get_client_attack_configs()
 
-        print(f"Attack keywords for client_{self.client_id} at round {current_round}: {attack_keywords_list}")
-        print(f"Attack configs for client_{self.client_id}: {attack_configs_list}")
-
         if self.model_type == "cnn":
             criterion = torch.nn.CrossEntropyLoss()
             optimizer = torch.optim.Adam(net.parameters())
@@ -155,7 +152,7 @@ class FlowerClient(fl.client.NumPyClient):
                 epoch_loss /= len(trainloader.dataset) if len(trainloader.dataset) > 0 else 1
                 epoch_acc = correct / total if total > 0 else 0.0
                 if verbose:
-                    print(f"Epoch {epoch + 1}: train loss {epoch_loss}, accuracy {epoch_acc}")
+                    logg(f"Epoch {epoch + 1}: train loss {epoch_loss}, accuracy {epoch_acc}")
 
             return float(epoch_loss), float(epoch_acc)
 
