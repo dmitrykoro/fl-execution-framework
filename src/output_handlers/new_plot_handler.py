@@ -114,13 +114,15 @@ def _add_attack_background_shading(
     ATTACK_COLORS = {
         "label_flipping": "#ff9999",  # Red
         "gaussian_noise": "#9999ff",  # Blue
-        "token_replacement": "#99ff99" # Green
+        "token_replacement": "#99ff99", # Green
+        "target_flipping":  "#e989fa",    # Pink
     }
 
     ATTACK_HATCHES = {
         "label_flipping": "////",  # Dense diagonal right
         "gaussian_noise": "\\\\\\\\",  # Dense diagonal left
         "token_replacement": "xxxx",  # Dense crosses
+        "target_flipping": "////",   # Dense diagonal right
     }
 
     # Track which attack periods we've already added to avoid duplicate labels
