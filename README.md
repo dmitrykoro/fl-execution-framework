@@ -29,13 +29,16 @@ Defines the aggregation strategy. Options:
   - `pid`: PID-based aggregation. Initial version of the formula.
   - `pid_scaled`: PID-based aggregation with Integral part divided by the number of current round, threshold is calculated based on client distances.
   - `pid_standardized`: PID-based aggregation with the Integral part standardized based on the distribution parameters of all Integral parts, threshold is calculated based on client distances.
-  - `pid_standardized_score_based`: Same as pid_standardized, but threshold is calculated based on pid scores. 
+  - `pid_standardized_score_based`: Same as pid_standardized, but threshold is calculated based on pid scores.
+  - `pid_v5_stateless_mean_based`: Same as pid_standardized_score_based, but removal is stateless: all clients are reevaluated each round, and removal decisions apply only to the current round rather than being permanently maintained.
+  - `pid_v5_stateless_median_based`: Same as pid_v5_stateless_mean_based, but threshold is calculated with median instead of mean.
   - `multi-krum`: Multi-Krum aggregation. Clients are removed from aggregation only in current round.
   - `krum`: Krum aggregation works like Multi-Krum, but uses only a single client. 
   - `multi-krum-based`: Multi-Krum-based aggregation where removed clients are excluded from aggregation permanently.
   - `rfa`: RFA (Robust Federated Averaging) aggregation strategy. Provides Byzantine fault tolerance through weighted median-based aggregation.
   - `trimmed_mean`: Trimmed-Mean aggregation strategy. Aggregates updates by removing a fixed fraction of the largest and smallest values for each parameter dimension before averaging. Robust against outliers and certain types of attacks.
   - `bulyan`: Bulyan aggregation strategy. Uses Multi-Krum as the first step of filtering and Trimmed-Mean as the second step to ensure robustness.
+  - `fed_nga`: Fed-NGA (Federated Normalized Gradients Algorithm) aggregation strategy. Performs normalization of client gradients before performing global aggregation to improve robustness against Byzantine faults and data heterogeneity. Fed-NGA paper: https://arxiv.org/pdf/2408.09539
 
 
 - **`strict_mode`**: ensures that Flower trains and aggregates all available clients at every round. When enabled (default), automatically sets `min_fit_clients`, `min_evaluate_clients`, and `min_available_clients` to equal `num_of_clients`. Options: `"true"`, `"false"`.
@@ -122,7 +125,7 @@ Defines the aggregation strategy. Options:
 - `beta_value`: constant for Trust & Reputation calculus.
 - `num_of_clusters`: number of clusters (must be `1`).
 
-**For `pid`, `pid_standardized`, `pid_scaled`, `pid_standardized_score_based` strategies**:
+**For `pid`, `pid_standardized`, `pid_scaled`, `pid_standardized_score_based`, `pid_v5_mean_standard_score_based`, `pid_v5_median_standard_score_based` strategies**:
 - `num_std_dev`: number of standard deviations used int he calculation of PiD threshold at each round. 
 - `Kp`, `Ki`, `Kd`: PID controller parameters.
 

@@ -152,9 +152,14 @@ class FlowerClient(fl.client.NumPyClient):
                 epoch_loss /= len(trainloader.dataset) if len(trainloader.dataset) > 0 else 1
                 epoch_acc = correct / total if total > 0 else 0.0
                 if verbose:
-                    logg(f"Epoch {epoch + 1}: train loss {epoch_loss}, accuracy {epoch_acc}")
+                    print(f"Epoch {epoch + 1}: train loss {epoch_loss}, accuracy {epoch_acc}")
 
-            return float(epoch_loss), float(epoch_acc)
+                # calculate local client learning rate
+                optimizer_lr = optimizer.param_groups[0]["lr"]
+                num_steps = epochs * len(trainloader)
+                eta_eff = optimizer_lr * num_steps
+
+            return float(epoch_loss), float(epoch_acc), float(eta_eff)
 
         elif self.model_type == "transformer":
             optimizer = torch.optim.AdamW(net.parameters(), lr=5e-5)
@@ -215,7 +220,7 @@ class FlowerClient(fl.client.NumPyClient):
                 if verbose:
                     print(f"Epoch {epoch + 1}: train loss {epoch_loss}, accuracy {epoch_acc}")
 
-            return float(epoch_loss), float(epoch_acc)
+            return float(epoch_loss), float(epoch_acc), 0.0
 
         else:
             raise ValueError(f"Unsupported model type: {self.model_type}. Supported types are 'cnn' and 'mlm'.")
@@ -345,7 +350,7 @@ class FlowerClient(fl.client.NumPyClient):
         if torch.cuda.is_available():
             torch.cuda.empty_cache()
 
-        return self.get_parameters(self.net), len(self.trainloader), {"loss": epoch_loss, "accuracy": epoch_acc}
+        return self.get_parameters(self.net), len(self.trainloader), {"loss": epoch_loss, "accuracy": epoch_acc, "eta_eff": eta_eff}
 
     def evaluate(self, parameters, config):
         self.set_parameters(self.net, parameters)
