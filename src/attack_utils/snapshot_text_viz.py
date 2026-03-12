@@ -273,9 +273,9 @@ def save_regression_text_samples(
                 f.write(f"Substitute Fraction: {substitute_fraction}\n")
                 f.write(f"Degree of Poisoning: {degree_of_poisoning}\n")
                 f.write(f"Sample Dataset Size: {len(targets)}\n")
-                f.write(f"Poisoned Samples: {math.ceil(len(targets) * degree_of_poisoning)}\n")
-                f.write(f"Min Target: {min(original_targets)[0]}\n")
-                f.write(f"Max Target: {max(original_targets)[0]}\n")
+                f.write(f"Estimated Poison Samples: {math.ceil(len(targets) * degree_of_poisoning)}\n")
+                f.write(f"Min Target: {min(original_targets)[0]:.4f}\n")
+                f.write(f"Max Target: {max(original_targets)[0]:.4f}\n")
 
             f.write("\n" + "=" * 80 + "\n\n")
         
@@ -298,19 +298,19 @@ def save_regression_text_samples(
             ):
                 f.write(f"Features:\n")
                 for j, feature in enumerate(feature_names):
-                    f.write(f"\t{feature}: {original_features[i][j]}\n")
+                    f.write(f"\t{feature}: {original_features[i][j]:.4f}\n")
                 f.write("\n")
 
             f.write(f"Target:\n")
-            f.write(f"\tOriginal: {original_target}\n")
-            f.write(f"\tPoisoned: {poisoned_target}\n")
+            f.write(f"\tOriginal: {original_target:.4f}\n")
+            f.write(f"\tPoisoned: {poisoned_target:.4f}\n")
 
             change = poisoned_target - original_target
             if change > 0.0:
-                f.write(f"\tChange: +{abs(change)}\n")
+                f.write(f"\tChange: +{abs(change):.4f}\n")
                 f.write(f"\tDirection: MIN -> MAX\n")
             else:
-                f.write(f"\tChange: -{abs(change)}\n")
+                f.write(f"\tChange: -{abs(change):.4f}\n")
                 f.write(f"\tDirection: MAX -> MIN\n")
 
             samples_shown += 1

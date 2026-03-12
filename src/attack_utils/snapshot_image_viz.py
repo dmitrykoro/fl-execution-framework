@@ -9,6 +9,7 @@ from typing import List, Optional, Union
 import matplotlib
 import numpy as np
 from matplotlib import pyplot as plt
+from matplotlib.lines import Line2D
 
 
 def _display_image(ax, image: np.ndarray) -> None:
@@ -324,10 +325,12 @@ def save_image_grid(
     plt.close()
 
 
+#TODO: Generalize `target_gas` param for all regression tasks
 def save_scatter_plot(
     targets: np.ndarray,
     original_targets: np.ndarray,
     filepath: Path,
+    target_gas: str,
     attack_config: Optional[Union[dict, List[dict]]] = None,
 ):
     """
@@ -340,6 +343,7 @@ def save_scatter_plot(
         targets: Poisoned targets array
         original_targets: Original targets before attack
         filepath: Output file path for the scatter plot visualization
+        target_gas: Value that the model is predicting
         attack_config: Attack configuration dict or list of dicts (optional)
 
     Note:
@@ -363,9 +367,36 @@ def save_scatter_plot(
         attack_type = _extract_attack_type(attack_config)
         if attack_type == "target_flipping":
             plt_title = f"Target Flipping Attack"
+            degree_of_poisoning = _extract_attack_param(
+                    attack_config, "attack_ratio", default=0.1
+                )
+            legend_title = f"Data Samples and Attack\nTarget: {target_gas}\nDegree of Poisoing: {degree_of_poisoning}\nMin: {min_target:.4f}\nMax: {max_target:.4f}"
     else:
         plt_title = f"Regression Attack"
+        legend_title = f"Data Samples and Attack\nTarget: {target_gas}\nMin: {min_target:.4f}\nMax: {max_target:.4f}"
     plt.title(plt_title)
+
+    legend_items = []
+
+    for i, (orig, poison) in enumerate(zip(original_targets[:len(targets)], targets)):
+        if orig == poison:
+            legend_items.append(Line2D([], [], color="none", label=f"Sample {i}: {orig.item():.4f}"))
+        else:
+            legend_items.append(Line2D([], [], color="none", label=f"Sample {i}: {orig.item():.4f} --> {poison.item():.4f}"))
+    
+    plt.legend(
+        title=legend_title,
+        handles=legend_items,
+        loc="center left",
+        bbox_to_anchor=(1.02, 0.5),   
+        frameon=True,
+        ncol=math.ceil(len(targets) / 20),
+        handlelength=0,
+        borderaxespad=0           
+    )
+ 
+    #for text in legend.get_texts():
+    #    text.set_ha("left")
 
     plt.savefig(filepath, dpi=150, bbox_inches="tight")
     plt.close()

@@ -417,6 +417,7 @@ def save_visual_snapshot(
                 targets=labels_sample,
                 original_targets=original_labels_sample,
                 filepath=snapshot_dir / plot_filename,
+                target_gas=target_gas,
                 attack_config=attack_config
             )
 
