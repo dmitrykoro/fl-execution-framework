@@ -1,0 +1,7 @@
+{
+  "vendor_keyword": "chatgpt",
+  "model": "gpt-5",
+  "preserve_generated_config": "true",
+  "correct_generated_configs_folder": "config/simulation_strategies/ai_generated/correct_configurations/",
+  "wrong_generated_configs_folder": "config/simulation_strategies/ai_generated/wrong_configurations/"
+}
