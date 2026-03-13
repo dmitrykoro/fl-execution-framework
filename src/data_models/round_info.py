@@ -1,5 +1,6 @@
 from dataclasses import dataclass, field
-from typing import List
+from typing import List, Any
+from numbers import Number
 
 from src.data_models.simulation_strategy_config import StrategyConfig
 
@@ -134,19 +135,90 @@ class RoundsInfo:
             )
 
             # precision: tp / (tp + fp)
-            precision = round_tp / (round_tp + round_fp)
-            self.removal_precision_history.append(precision)
+            try:
+                precision = round_tp / (round_tp + round_fp)
+                self.removal_precision_history.append(precision)
+            except ZeroDivisionError:
+                self.removal_precision_history.append(
+                    f"impossible to calculate precision tp / (tp + fp): {round_tp} / ({round_tp + round_fp})"
+                )
 
             # recall: tp / (tp + fn)
             recall = round_tp / (round_tp + round_fn)
             self.removal_recall_history.append(recall)
 
             # f1: 2 * precision * recall / (precision + recall)
-            f1 = (
-                2 * precision * recall / (precision + recall)
-                if (precision + recall) > 0
-                else 0.0
-            )
-            self.removal_f1_history.append(f1)
+            try:
+                f1 = (
+                    2 * precision * recall / (precision + recall)
+                    if (precision + recall) > 0
+                    else 0.0
+                )
+                self.removal_f1_history.append(f1)
+            except UnboundLocalError:
+                self.removal_f1_history.append("Impossible to calculate")
 
             self.total_fp_and_fn_history.append(round_fp + round_fn)
+
+    def _sanitize_numeric_value(self, value: Any) -> Any:
+        """
+        Rules:
+        - scalar numeric or numeric-convertible -> keep as float/int-compatible value
+        - scalar non-numeric -> None
+        - list/tuple -> list where each non-numeric element becomes None
+        """
+        if isinstance(value, (list, tuple)):
+            return [
+                item if self._is_number_like(item) else None
+                for item in value
+            ]
+
+        return value if self._is_number_like(value) else None
+
+    @staticmethod
+    def _is_number_like(value: Any) -> bool:
+        if value is None:
+            return False
+        if isinstance(value, bool):
+            return False
+        if isinstance(value, Number):
+            return True
+        try:
+            float(value)
+            return True
+
+        except (TypeError, ValueError):
+            return False
+
+    def to_dict(self) -> dict:
+        return {
+            "score_calculation_time_nanos_history": self._sanitize_numeric_value(self.score_calculation_time_nanos_history),
+            "removal_threshold_history": self._sanitize_numeric_value(self.removal_threshold_history),
+            "aggregated_loss_history": self._sanitize_numeric_value(self.aggregated_loss_history),
+            "average_accuracy_history": self._sanitize_numeric_value(self.average_accuracy_history),
+            "average_accuracy_std_history": self._sanitize_numeric_value(self.average_accuracy_std_history),
+            "tp_history": self._sanitize_numeric_value(self.tp_history),
+            "tn_history": self._sanitize_numeric_value(self.tn_history),
+            "fp_history": self._sanitize_numeric_value(self.fp_history),
+            "fn_history": self._sanitize_numeric_value(self.fn_history),
+            "total_fp_and_fn_history": self._sanitize_numeric_value(self.total_fp_and_fn_history),
+            "removal_accuracy_history": self._sanitize_numeric_value(self.removal_accuracy_history),
+            "removal_precision_history": self._sanitize_numeric_value(self.removal_precision_history),
+            "removal_recall_history": self._sanitize_numeric_value(self.removal_recall_history),
+            "removal_f1_history": self._sanitize_numeric_value(self.removal_f1_history),
+            "mention_precision_history": self._sanitize_numeric_value(self.mention_precision_history),
+            "mention_recall_history": self._sanitize_numeric_value(self.mention_recall_history),
+            "mention_f1_history": self._sanitize_numeric_value(self.mention_f1_history),
+            "document_precision_history": self._sanitize_numeric_value(self.document_precision_history),
+            "document_recall_history": self._sanitize_numeric_value(self.document_recall_history),
+            "document_f1_history": self._sanitize_numeric_value(self.document_f1_history),
+        }
+
+    @classmethod
+    def from_dict(cls, data: dict, strategy_config: StrategyConfig) -> "RoundsInfo":
+        obj = cls.__new__(cls)
+        obj.simulation_strategy_config = strategy_config
+        obj.__post_init__()  # sets up plottable_metrics etc.
+        for key, value in data.items():
+            setattr(obj, key, value)
+        return obj

@@ -38,15 +38,10 @@ def _get_client_attack_summary(client_id: int, attack_schedule: list) -> str:
     client_attacks = []
 
     for entry in attack_schedule:
-        selection = entry.get("selection_strategy")
         is_targeted = False
 
-        if selection == "specific":
-            if client_id in entry.get("malicious_client_ids", []):
-                is_targeted = True
-        elif selection == "random" or selection == "percentage":
-            if client_id in entry.get("_selected_clients", []):
-                is_targeted = True
+        if client_id in entry.get("malicious_client_ids", []):
+            is_targeted = True
 
         if is_targeted:
             attack_type = entry["attack_type"]
@@ -56,6 +51,7 @@ def _get_client_attack_summary(client_id: int, attack_schedule: list) -> str:
 
     if client_attacks:
         return f" ({', '.join(client_attacks)})"
+
     return ""
 
 
@@ -114,13 +110,9 @@ def _add_attack_background_shading(
 
     for entry in attack_schedule:
         if client_id is not None:
-            selection = entry.get("selection_strategy")
-            if selection == "specific":
-                if client_id not in entry.get("malicious_client_ids", []):
-                    continue
-            elif selection == "random":
-                # For random selection, show shading for all clients since any could be affected
-                pass
+
+            if client_id not in entry.get("malicious_client_ids", []):
+                continue
 
         attack_key = (entry["attack_type"], entry["start_round"], entry["end_round"])
 
