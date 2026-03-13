@@ -340,7 +340,7 @@ class FlowerClient(fl.client.NumPyClient):
         logging.debug(
             f"[Client {self.client_id}] Training for {self.num_of_client_epochs} epoch(s) with {len(self.trainloader)} batches"
         )
-        epoch_loss, epoch_acc = self.train(
+        epoch_loss, epoch_acc, eta_eff = self.train(
             self.net, self.trainloader, epochs=self.num_of_client_epochs, global_params=global_params, config=config
         )
         logging.debug(

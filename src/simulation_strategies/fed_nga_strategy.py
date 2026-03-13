@@ -28,6 +28,7 @@ class FedNGAStrategy(FedAvg):
         remove_clients: bool,
         begin_removing_from_round: int,
         strategy_history: SimulationStrategyHistory,
+        output_dirname,
         *args,
         **kwargs
     ):
@@ -46,7 +47,7 @@ class FedNGAStrategy(FedAvg):
         self.logger.setLevel(logging.INFO)  # Set the logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL)
 
         # Create handlers
-        out_dir = DirectoryHandler.dirname
+        out_dir = output_dirname
         os.makedirs(out_dir, exist_ok=True)
         file_handler = logging.FileHandler(f"{out_dir}/output.log")
         console_handler = logging.StreamHandler()
@@ -65,10 +66,6 @@ class FedNGAStrategy(FedAvg):
     ) -> Tuple[Optional[Parameters], Dict[str, Scalar]]:
         # Increment the current round counter.
         self.current_round += 1
-
-        # Update client.is_malicious based on attack_schedule for dynamic attacks
-        if self.strategy_history:
-            self.strategy_history.update_client_malicious_status(server_round)
 
         if not self.current_parameters:
             return super().aggregate_fit(server_round, results, failures)

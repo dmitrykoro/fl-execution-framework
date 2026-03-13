@@ -170,7 +170,7 @@ def persist_round_metrics(
                     experiment_event_id=experiment_event.id,
                     metric_info_id=metric_info_map[metric_name].id,
                     round_number=round_number,
-                    value=float(value),
+                    value=float(value) if value is not None else None,
                 )
             )
 
