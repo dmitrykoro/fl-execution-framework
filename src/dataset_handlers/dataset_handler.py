@@ -8,6 +8,150 @@ import numpy as np
 import json
 import pandas as pd
 import math
+import torch
+
+from typing import Tuple, Optional
+
+
+def apply_label_flipping(
+        labels: torch.Tensor,
+        num_classes: int,
+) -> torch.Tensor:
+    """Apply bijective label flipping (each class maps to exactly one other class)."""
+    perm = torch.randperm(num_classes).tolist()
+
+    # Ensure no class maps to itself
+    for i in range(num_classes):
+        if perm[i] == i:
+            swap_idx = (i + 1) % num_classes
+            perm[i], perm[swap_idx] = perm[swap_idx], perm[i]
+
+    modified_labels = labels.clone()
+    for src_class in range(num_classes):
+        modified_labels[labels == src_class] = perm[src_class]
+
+    return modified_labels
+
+
+def apply_gaussian_noise(
+        images: torch.Tensor,
+        mean: float = 0.0,
+        std: float = 0.1,
+        target_noise_snr: Optional[float] = None,
+        attack_ratio: float = 1.0,
+) -> torch.Tensor:
+    """Add Gaussian noise to images. Use target_noise_snr (dB) or mean/std."""
+    num_samples = images.shape[0]
+    num_to_poison = int(num_samples * attack_ratio)
+
+    if num_to_poison == 0:
+        return images
+
+    indices = torch.randperm(num_samples)[:num_to_poison]
+    poisoned_images = images.clone()
+
+    if target_noise_snr is not None:
+        signal_power = torch.mean(
+            poisoned_images[indices] ** 2, dim=(1, 2, 3), keepdim=True
+        )
+        noise_power = signal_power / (10 ** (target_noise_snr / 10))
+        noise = torch.randn_like(poisoned_images[indices]) * torch.sqrt(noise_power)
+    else:
+        noise = torch.randn_like(poisoned_images[indices]) * std + mean
+
+    poisoned_images[indices] = torch.clamp(poisoned_images[indices] + noise, 0, 1)
+    return poisoned_images
+
+
+# TODO: Genralize this for any regression task
+def apply_target_flipping(
+        targets: torch.Tensor,
+        degree_of_poisoning: float = 0.1,
+) -> torch.Tensor:
+    substitute_fraction = 0.25  # Changing subset size doesn't change effectiveness of attack
+    '''
+    At a minimum use 25% of the client dataset as the subset.
+    If user want a degree_of_poisoning that is greater than 25%,
+        set the subset size to the degree_of_poisoning that the user wants.
+    '''
+    if (degree_of_poisoning > substitute_fraction):
+        substitute_fraction = degree_of_poisoning
+
+    # Auto-generate seed from attack parameters for reproducibility
+    seed_string = substitute_fraction / degree_of_poisoning if degree_of_poisoning >= 0.01 else 123
+    seed = math.ceil(seed_string) % (2 ** 32)
+    rng = random.Random(seed)
+
+    # Determine feasibility domain 
+    min_target = targets.min()
+    max_target = targets.max()
+
+    # Take subset of dataset to poison from
+    dataset_size = len(targets)
+    subset_size = int(math.ceil(dataset_size * substitute_fraction))
+    # Determine number of data points to poison of original dataset
+    # (must be size of subset or less)
+    num_of_poison_points = math.ceil(dataset_size * degree_of_poisoning) if math.ceil(dataset_size * degree_of_poisoning) <= subset_size else subset_size
+    random_indexes = rng.sample(range(dataset_size), subset_size)
+    sub_targets = [(i, targets[i].item()) for i in random_indexes]
+
+    # Begin Flip algorithm
+    distances = []
+    for i, target in sub_targets:
+        distance = max(target-min_target.item(), max_target.item()-target)
+        distances.append((i,distance))
+    sorted_distances = sorted(distances, key=lambda x: x[1], reverse=True)
+    poison_indexes = [i for i, _ in sorted_distances[:num_of_poison_points]]
+    
+    for i in poison_indexes:
+        if targets[i] > ((0.5*(max_target-min_target)) + min_target):
+            targets[i] = min_target
+        else:
+            targets[i] = max_target
+    
+    return targets
+
+
+def apply_poisoning_attack(
+        data: torch.Tensor,
+        labels: torch.Tensor,
+        attack_type: str,
+        attack_config: dict,
+        tokenizer=None,
+        num_classes: int = None,
+) -> Tuple[torch.Tensor, torch.Tensor]:
+    """Apply poisoning attack based on config. Supports label_flipping and gaussian_noise."""
+
+    if attack_type == "label_flipping":
+        if num_classes is None:
+            raise ValueError(
+                "Label flipping attack requires 'num_classes' parameter to be provided."
+            )
+        labels = apply_label_flipping(labels, num_classes=num_classes)
+
+    elif attack_type == "gaussian_noise":
+        target_noise_snr = attack_config.get("target_noise_snr")
+        attack_ratio = attack_config.get("attack_ratio", 1.0)
+
+        if target_noise_snr is not None:
+            data = apply_gaussian_noise(
+                data, target_noise_snr=target_noise_snr, attack_ratio=attack_ratio
+            )
+        else:
+            data = apply_gaussian_noise(
+                data,
+                mean=attack_config.get("mean", 0.0),
+                std=attack_config.get("std", 0.1),
+                attack_ratio=attack_ratio,
+            )
+
+    elif attack_type == "target_flipping":
+        degree_of_poisoing = attack_config.get("attack_ratio", 0.1)
+        labels = apply_target_flipping(
+            labels, degree_of_poisoing
+        )
+
+    return data, labels
 
 
 class DatasetHandler:
@@ -20,6 +164,16 @@ class DatasetHandler:
 
         self.poisoned_client_ids = set()
         self.all_poisoned_img_snrs = []
+
+    def get_all_malicious_clients(self):
+        """
+        Get the information which clients are malicious at which round.
+        """
+
+        if self._strategy_config.attack_schedule:
+            pass
+        else:
+            pass
 
     def setup_dataset(self) -> None:
         """Copy the specified number of clients' subsets to runtime folder and perform poisoning"""
@@ -104,7 +258,6 @@ class DatasetHandler:
         ]
 
         for label in available_labels:
-
             old_dir = os.path.join(self.dst_dataset, client_dir, label)
             new_dir = os.path.join(self.dst_dataset, client_dir, label + "_old")
 
@@ -185,7 +338,6 @@ class DatasetHandler:
                 """
                 noise_power = signal_power / (10 ** (target_snr_db / 10))
 
-
                 # Generate Gaussian noise with mean 0 and variance 1
                 noise = np.random.normal(0, 1, image.shape).astype(np.float32)
 
@@ -214,7 +366,7 @@ class DatasetHandler:
         try:
             base_seed = 1337
             cid = int(client_dir.split("_")[1])
-            rng.seed(base_seed+cid)
+            rng.seed(base_seed + cid)
         except Exception:
             rng.seed()
         attack_ratio = getattr(self._strategy_config, "attack_ratio", 1.0)
@@ -231,7 +383,7 @@ class DatasetHandler:
             logging.warning(f"No JSON files found for NER poisoning in {client_path}")
             return
 
-        #Collect full label set from this client's files
+        # Collect full label set from this client's files
         label_set = set()
         for f in json_files:
             try:
@@ -250,7 +402,7 @@ class DatasetHandler:
             logging.warning(f"Insufficient label variety found in {client_path}; skipping flip.")
             return
 
-        #Rewrite each file with flipped labels
+        # Rewrite each file with flipped labels
         for f in json_files:
             try:
                 with open(f, "r", encoding="utf-8") as fp:
@@ -286,7 +438,7 @@ class DatasetHandler:
             except Exception as e:
                 logging.error(f"Failed poisoning {f}: {e}")
 
-        #Mark the client folder as poisoned
+        # Mark the client folder as poisoned
         try:
             os.rename(
                 os.path.join(self.dst_dataset, client_dir),
@@ -379,6 +531,7 @@ class DatasetHandler:
         for bad_client_dir in bad_client_dirs:
             try:
                 self.poisoned_client_ids.add(int(bad_client_dir.split("_")[1]))
+
             except Exception as e:
                 logging.error(f"Error while parsing client dataset folder: client id must be a number: {e}")
                 sys.exit(-1)

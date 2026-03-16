@@ -6,14 +6,52 @@ import sys
 from src.config_loaders.validate_strategy_config import validate_strategy_config
 
 
+def merge_and_validate_usecase_configs(config_path: str = None, config_dict: dict = None) -> list:
+    """Merge usecase JSON to create full config for each strategy"""
+    try:
+        if config_path:
+            with open(config_path) as f:
+                raw_config = json.load(f)
+                logging.info(f"Successfully loaded config for {config_path}.")
+
+        elif config_dict:
+            raw_config = config_dict
+            logging.info(f"Successfully received config from UI.")
+
+        shared_settings = raw_config['shared_settings']
+
+        for strategy in raw_config['simulation_strategies']:
+            strategy.update(shared_settings)
+
+        for strategy in raw_config['simulation_strategies']:
+            # Validate the strategy configuration
+            validate_strategy_config(strategy)
+            logging.info(f"Successfully validated config from {config_path}.")
+
+        # Log attack schedule info
+        if raw_config['simulation_strategies'] and raw_config['simulation_strategies'][0].get('attack_schedule'):
+            attack_schedule = raw_config['simulation_strategies'][0]['attack_schedule']
+            for idx, entry in enumerate(attack_schedule):
+                if 'malicious_client_ids' in entry:
+                    logging.info(
+                        f"Selected clients {entry['malicious_client_ids']} for {entry.get('attack_type')} attack"
+                    )
+
+        return raw_config["simulation_strategies"]
+
+    except Exception as e:
+        logging.error(f"Error while loading config from JSON: {e}")
+        raise
+
+
 class ConfigLoader:
     def __init__(
             self,
             usecase_config_path: str,
-            dataset_config_path: str
+            dataset_config_path: str = "config/dataset_keyword_to_dataset_dir.json"
     ) -> None:
         self.usecase_config_path = os.path.join(usecase_config_path)
-        self.usecase_config_list = self._merge_usecase_configs(self.usecase_config_path)
+        self.usecase_config_list = merge_and_validate_usecase_configs(config_path=self.usecase_config_path)
 
         self.dataset_config_path = os.path.join(dataset_config_path)
         self.dataset_config_list = self._set_config(self.dataset_config_path)
@@ -37,40 +75,6 @@ class ConfigLoader:
             sys.exit(-1)
 
     @staticmethod
-    def _merge_usecase_configs(config_path: str) -> list:
-        """Merge usecase JSON to create full config for each strategy"""
-        try:
-            with open(config_path) as f:
-                raw_config = json.load(f)
-                logging.info(f"Successfully loaded config for {config_path}.")
-
-            shared_settings = raw_config['shared_settings']
-
-            for strategy in raw_config['simulation_strategies']:
-                strategy.update(shared_settings)
-
-            for strategy in raw_config['simulation_strategies']:
-                # Validate the strategy configuration
-                validate_strategy_config(strategy)
-                logging.info(f"Successfully validated config from {config_path}.")
-
-            # Log attack schedule info
-            if raw_config['simulation_strategies'] and raw_config['simulation_strategies'][0].get('attack_schedule'):
-                attack_schedule = raw_config['simulation_strategies'][0]['attack_schedule']
-                for idx, entry in enumerate(attack_schedule):
-                    if '_selected_clients' in entry:
-                        logging.info(
-                            f"attack_schedule entry {idx} ({entry.get('selection_strategy')}): "
-                            f"Selected clients {entry['_selected_clients']} for {entry.get('attack_type')} attack"
-                        )
-
-            return raw_config["simulation_strategies"]
-
-        except Exception as e:
-            logging.error(f"Error while loading config from JSON: {e}")
-            sys.exit(-1)
-
-    @staticmethod
     def _set_config(config_path: str) -> dict:
         """Set config by loading it from the specified JSON file"""
         try:
@@ -82,4 +86,4 @@ class ConfigLoader:
 
         except Exception as e:
             logging.error(f"Error while loading config from JSON: {e}")
-            sys.exit(-1)
+            raise

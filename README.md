@@ -81,15 +81,14 @@ Defines the aggregation strategy. Options:
   - `start_round`: when the attack starts (1 to `num_of_rounds`).
   - `end_round`: when the attack ends (1 to `num_of_rounds`).
   - `attack_type`: type of attack (`label_flipping` or `gaussian_noise`).
-  - `selection_strategy`: how to select malicious clients (`specific`, `random`, or `percentage`).
   - **Attack parameters:**
     - `label_flipping`: no additional parameters required.
     - `gaussian_noise`: `target_noise_snr` (dB, recommended) or `mean`/`std`, plus optional `attack_ratio` (0.0-1.0, defaults to 1.0).
     - `target_flipping`: `attack_ratio` (0.0-1.0, defaults to 0.1). Flips the target values of a percentage of the data points in a clients dataset. Based on Flip attack described in DOI: 10.1109/PRDC50213.2020.00019
-  - **Selection parameters:**
-    - `specific`: `malicious_client_ids` (array of client IDs).
-    - `random`: `malicious_client_count` (integer).
-    - `percentage`: `malicious_percentage` (0.0-1.0).
+  - **Malicious Clients Selection:**
+    - `num_malicious_clients`: specify number of malicious clients. Specific clients will be selected randomly.
+    - `proportion_malicious_clients`: specify proportion of malicious clients. Specific clients will be selected randomly.
+    - `specific_malicious_clients`: specify array of malicious client ids. 
 
 - `save_attack_snapshots`: save attack snapshots for analysis (`true`/`false`).
 - `attack_snapshot_format`: format for snapshots (`pickle`, `visual`, or `pickle_and_visual`).
@@ -115,7 +114,7 @@ Defines the aggregation strategy. Options:
   - **Lora settings**
     - `lora_rank`: rank/size of the low-rank matrices used in lora
     - `lora_alpha`: scaling factor for lora updates
-    - `lora_dropout`: droput rate applied during training
+    - `lora_dropout`: dropout rate applied during training
     - `lora_target_modules`: list of model layers where lora should be applied
 
 #### Dataset-specific parameters
@@ -124,6 +123,8 @@ Defines the aggregation strategy. Options:
 - `target_gas`: gas concentration to predict (CO, C6H6, NOx, or NO2)
 
 #### Strategy-specific parameters
+
+**For `bulyan`, `krum`, `multi-krum-based`, `multi-krum`, `rfa`, `trimmed_mean`, `pid` strategies**: 
 
 **For `trust` strategy**:
 - `begin_removing_from_round`: start round for removing malicious clients.

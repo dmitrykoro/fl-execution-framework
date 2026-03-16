@@ -6,11 +6,14 @@ import time
 import torch
 import gc
 import ray
+from src.utils.common import obtain_env_var
+from dotenv import load_dotenv
+
+load_dotenv()
 
 # Suppress joblib CPU count warnings
 os.environ["LOKY_MAX_CPU_COUNT"] = str(os.cpu_count() or 1)
 os.environ["OMP_NUM_THREADS"] = str(os.cpu_count() or 1)
-
 # Set HuggingFace cache directory to avoid API rate limits
 os.environ["HF_HOME"] = "./cache/huggingface"
 
@@ -21,6 +24,7 @@ from src.output_handlers import new_plot_handler
 from src.federated_simulation import FederatedSimulation
 from src.data_models.simulation_strategy_config import StrategyConfig
 from src.dataset_handlers.dataset_handler import DatasetHandler
+from src.experiment_database.database_handler import DatabaseHandler
 
 
 def _serialize_config_for_logging(config_dict: dict) -> str:
@@ -38,11 +42,19 @@ def parse_arguments() -> argparse.Namespace:
     )
 
     parser.add_argument(
-        "config_filename",
+        "config_filepath",
         type=str,
         nargs="?",
-        default="example_strategy_config.json",
+        default="config/simulation_strategies/example_strategy_config.json",
         help="Config filename (default: example_strategy_config.json)"
+    )
+
+    parser.add_argument(
+        "output_dirname",
+        type=str,
+        nargs="?",
+        default="",
+        help="Optional custom name for output directory (for UI integration)"
     )
 
     parser.add_argument(
@@ -59,7 +71,8 @@ def parse_arguments() -> argparse.Namespace:
 class SimulationRunner:
     def __init__(
             self,
-            config_filename: str,
+            config_filepath: str,
+            output_dirname: str = None,
             log_level: str = "INFO"
     ) -> None:
 
@@ -74,13 +87,15 @@ class SimulationRunner:
         flwr_logger = logging.getLogger("flwr")
         flwr_logger.propagate = False
 
+        self.output_dirname = output_dirname
+
         self._config_loader = ConfigLoader(
-            usecase_config_path=f"config/simulation_strategies/{config_filename}",
-            dataset_config_path=f"config/dataset_keyword_to_dataset_dir.json"
+            usecase_config_path=f"{config_filepath}"
         )
         self._simulation_strategy_config_dicts = self._config_loader.get_usecase_config_list()
         self._dataset_config_list = self._config_loader.get_dataset_config_list()
-        self._directory_handler = DirectoryHandler()
+        self._directory_handler = DirectoryHandler(custom_dirname=self.output_dirname)
+        self.database_handler = DatabaseHandler()
 
     def run(self):
         """Run simulations according to the specified usecase config"""
@@ -124,14 +139,20 @@ class SimulationRunner:
                     directory_handler=self._directory_handler,
                 )
                 simulation_strategy.run_simulation()
-
                 executed_simulation_strategies.append(simulation_strategy)
 
                 # generate per-client plots
                 new_plot_handler.show_plots_within_strategy(simulation_strategy, self._directory_handler)
 
                 simulation_strategy.strategy_history.calculate_additional_rounds_data()
+
                 self._directory_handler.save_csv_and_config(simulation_strategy.strategy_history)
+
+                # update database with experiment results
+                self.database_handler.update_database(simulation_strategy)
+
+            except Exception as e:  # noqa
+                raise
 
             finally:
                 # Cleanup resources even if simulation crashes
@@ -165,6 +186,7 @@ class SimulationRunner:
 
         # after all strategies are executed, show comparison averaging plots
         new_plot_handler.show_inter_strategy_plots(executed_simulation_strategies, self._directory_handler)
+
         try:
             output_dir = getattr(self._directory_handler, 'dirname', None)
             if output_dir:
@@ -174,8 +196,8 @@ class SimulationRunner:
 
 
 if __name__ == "__main__":
-    """Run simulation with config file and optional log level."""
+    """Run simulation with config file in command line args or default example."""
     args = parse_arguments()
 
-    simulation_runner = SimulationRunner(args.config_filename, args.log_level)
+    simulation_runner = SimulationRunner(args.config_filepath, args.output_dirname, args.log_level)
     simulation_runner.run()

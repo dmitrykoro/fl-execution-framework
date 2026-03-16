@@ -9,7 +9,7 @@ import math
 
 
 def _extract_attack_param(
-    attack_config: Union[dict, List[dict]], *attack_parameters: str, default: any = "?"
+        attack_config: Union[dict, List[dict]], *attack_parameters: str, default: any = "?"
 ) -> any:
     """Extract attack parameter value from attack configuration.
 
@@ -65,13 +65,13 @@ def _extract_attack_type(attack_config: Union[dict, List[dict]]) -> str:
 
 
 def save_text_samples(
-    labels: np.ndarray,
-    original_labels: np.ndarray,
-    filepath: Path,
-    attack_config: Optional[Union[dict, List[dict]]] = None,
-    tokenizer=None,
-    input_ids_original: Optional[np.ndarray] = None,
-    input_ids_poisoned: Optional[np.ndarray] = None,
+        labels: np.ndarray,
+        original_labels: np.ndarray,
+        filepath: Path,
+        attack_config: Optional[Union[dict, List[dict]]] = None,
+        tokenizer=None,
+        input_ids_original: Optional[np.ndarray] = None,
+        input_ids_poisoned: Optional[np.ndarray] = None,
 ) -> None:
     """Save text attack samples to a visualization file.
 
@@ -94,9 +94,9 @@ def save_text_samples(
     """
     with open(filepath, "w", encoding="utf-8") as f:
         if (
-            tokenizer is not None
-            and input_ids_original is not None
-            and input_ids_poisoned is not None
+                tokenizer is not None
+                and input_ids_original is not None
+                and input_ids_poisoned is not None
         ):
             f.write("=" * 80 + "\n")
             f.write("TOKEN REPLACEMENT ATTACK VISUALIZATION\n")

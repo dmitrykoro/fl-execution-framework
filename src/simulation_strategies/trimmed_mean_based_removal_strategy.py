@@ -46,10 +46,6 @@ class TrimmedMeanBasedRemovalStrategy(FedAvg):
 
         self.current_round += 1
 
-        # Update client.is_malicious based on attack_schedule for dynamic attacks
-        if self.strategy_history:
-            self.strategy_history.update_client_malicious_status(server_round)
-
         if not results:
             return None, {}
 
@@ -92,6 +88,8 @@ class TrimmedMeanBasedRemovalStrategy(FedAvg):
         client_trim_counts = {cid: 0 for _, _, cid in weights_results}
         total_parameters = 0
 
+        time_start_calc = time.time_ns()
+
         for layer_weights in weights_by_layer:
             stacked = np.stack(layer_weights)  # Shape: (n_clients, layer_shape...)
 
@@ -121,6 +119,12 @@ class TrimmedMeanBasedRemovalStrategy(FedAvg):
                     client_trim_counts[cid] += 1
 
             aggregated.append(np.array(trimmed_layer).reshape(stacked.shape[1:]))
+
+        time_end_calc = time.time_ns()
+
+        self.strategy_history.insert_round_history_entry(
+            score_calculation_time_nanos=time_end_calc - time_start_calc
+        )
 
         # Calculate and store trim frequency as removal_criterion
         for cid in participating_clients:

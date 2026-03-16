@@ -1,4 +1,5 @@
 import logging
+import time
 from pathlib import Path
 import sys
 
@@ -118,9 +119,11 @@ class FederatedSimulation:
 
         self._assign_all_properties()
 
+        self.etime = None
+
     def run_simulation(self) -> None:
         """Start federated simulation"""
-
+        t = time.perf_counter()
         flwr.simulation.start_simulation(
             client_fn=self.client_fn,
             num_clients=self.strategy_config.num_of_clients,
@@ -144,12 +147,17 @@ class FederatedSimulation:
                     generate_snapshot_index(output_dir, run_config, self.strategy_config.strategy_number)
                 except Exception as e:
                     logging.warning(f"Failed to generate attack snapshot index/summary: {e}")
+        self.etime = (time.perf_counter() - t) / 60
 
     def _assign_all_properties(self) -> None:
         """Assign simulation properties based on strategy_dict"""
 
         self._assign_dataset_loaders_and_network_model()
         self._assign_aggregation_strategy()
+
+    def get_time(self):
+        return self.etime
+
 
     def _assign_dataset_loaders_and_network_model(self) -> None:
         """Assign dataset loader and the corresponding network model"""
@@ -359,6 +367,7 @@ class FederatedSimulation:
             remove_clients=self.strategy_config.remove_clients,
             begin_removing_from_round=self.strategy_config.begin_removing_from_round,
             strategy_history=self.strategy_history,
+            output_dirname=self.directory_handler.dirname
         )
 
         if aggregation_strategy_keyword == "trust":
@@ -420,7 +429,11 @@ class FederatedSimulation:
 
         elif aggregation_strategy_keyword == "bulyan":
             self._aggregation_strategy = BulyanStrategy(
-                num_krum_selections=self.strategy_config.num_krum_selections,
+                num_bulyan_benign_clients=self.strategy_config.num_bulyan_benign_clients,
+                **common_kwargs
+            )
+        elif aggregation_strategy_keyword == "fools_gold":
+            self._aggregation_strategy = FoolsGoldStrategy(
                 **common_kwargs
             )
 
@@ -489,7 +502,8 @@ class FederatedSimulation:
             experiment_info=experiment_info,
             strategy_number=self.strategy_config.strategy_number,
             tokenizer=tokenizer,
-            target_gas=self.strategy_config.target_gas
+            target_gas=self.strategy_config.target_gas,
+            strategy_history=self.strategy_history
         ).to_client()
 
     @staticmethod

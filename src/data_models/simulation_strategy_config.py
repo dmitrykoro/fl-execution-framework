@@ -28,6 +28,7 @@ class StrategyConfig:
     target_gas: str = None
 
     trust_threshold: float = None
+    reputation_threshold: float = None
     beta_value: float = None
     num_of_clusters: int = None
 
@@ -35,6 +36,8 @@ class StrategyConfig:
     Ki: float = None
     Kd: float = None
     num_std_dev: float = None
+
+    num_bulyan_benign_clients: int = None
 
     training_subset_fraction: float = None
     min_fit_clients: int = None
@@ -54,6 +57,12 @@ class StrategyConfig:
     strategy_number: int = None
 
     attack_schedule: list = None
+
+    config_is_ai_generated: bool = False
+    user_prompt_for_ai_generated: str = None
+    ai_agent_config_reasoning: str = None
+    ai_configuration_error: str = None
+    num_ai_config_corrections: int = None
 
     attack_type: str = None
     attack_ratio: float = None
