@@ -100,6 +100,20 @@ class ClientInfo:
         Get configs for these attacks.
         """
         return self.attack_plan_configs
+    
+    def get_current_attack_configs(self, current_round) -> list:
+        """
+        Get the attack configs scheduled for specified round based on current round attack keywords.
+        """
+        current_keywords = self.get_current_attack_keywords(current_round)
+        current_attack_configs = []
+        for attack_keyword in current_keywords:
+            for attack_config in self.attack_plan_configs:
+                if (attack_keyword == attack_config["attack_type"]
+                    and attack_config["start_round"] <= current_round <= attack_config["end_round"]):
+                    current_attack_configs.append(attack_config)
+        return current_attack_configs
+        
 
     def add_history_entry(
             self,
@@ -160,6 +174,9 @@ class ClientInfo:
             "absolute_distance_history": self.absolute_distance_history,
             "loss_history": self.loss_history,
             "accuracy_history": self.accuracy_history,
+            "ss_res_history": self.ss_res_history,
+            "ss_tot_history": self.ss_tot_history,
+            "r2_history": self.r2_history,
             "aggregation_participation_history": self.aggregation_participation_history,
         }
 

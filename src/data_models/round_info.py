@@ -201,6 +201,7 @@ class RoundsInfo:
             "aggregated_loss_history": self._sanitize_numeric_value(self.aggregated_loss_history),
             "average_accuracy_history": self._sanitize_numeric_value(self.average_accuracy_history),
             "average_accuracy_std_history": self._sanitize_numeric_value(self.average_accuracy_std_history),
+            "average_r2_history": self._sanitize_numeric_value(self.average_r2_history),
             "tp_history": self._sanitize_numeric_value(self.tp_history),
             "tn_history": self._sanitize_numeric_value(self.tn_history),
             "fp_history": self._sanitize_numeric_value(self.fp_history),

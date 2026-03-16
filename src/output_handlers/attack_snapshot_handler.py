@@ -8,30 +8,32 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Union
 
-from src.attack_utils.snapshot_image_viz import save_image_grid
-from src.attack_utils.snapshot_text_viz import save_text_samples
+from src.attack_utils.snapshot_image_viz import save_image_grid, save_scatter_plot
+from src.attack_utils.snapshot_text_viz import save_text_samples, save_regression_text_samples
 
 
+#TODO: Generalize `target_gas` param for all regression tasks
 def save_attack_snapshots(
         attack_snapshot_format,
-        tokenizer,
         model_type,
         save_attack_snapshots,
         client_id,
         output_dir,
         max_samples,
-        save_format,
         experiment_info,
         strategy_number,
         current_round,
         attack_configs,
         data_sample,
         labels_sample,
+        tokenizer=None,
+        target_gas="",
         original_data_sample=None,
-        original_labels_sample=None
+        original_labels_sample=None,
+        dataset=None
 ):
     """
-    Helper function to save attack snapshots for both CNN and transformer models.
+    Helper function to save attack snapshots for CNN, transformer, and linear regression models.
     """
 
     if not (save_attack_snapshots and output_dir):
@@ -47,7 +49,7 @@ def save_attack_snapshots(
         original_labels_sample=original_labels_sample,
         output_dir=output_dir,
         max_samples=max_samples,
-        save_format=save_format,
+        save_format=attack_snapshot_format,
         experiment_info=experiment_info,
         strategy_number=strategy_number,
     )
@@ -63,6 +65,7 @@ def save_attack_snapshots(
                 labels_sample=labels_sample.cpu().numpy(),
                 original_labels_sample=original_labels_sample.cpu().numpy() if original_labels_sample is not None else labels_sample.cpu().numpy(),
                 output_dir=output_dir,
+                model_type=model_type,
                 experiment_info=experiment_info,
                 strategy_number=strategy_number,
                 original_data_sample=original_data_sample.cpu().numpy(),
@@ -76,11 +79,40 @@ def save_attack_snapshots(
                 labels_sample=labels_sample.cpu().numpy(),
                 original_labels_sample=original_labels_sample.cpu().numpy() if original_labels_sample is not None else labels_sample.cpu().numpy(),
                 output_dir=output_dir,
+                model_type=model_type,
                 experiment_info=experiment_info,
                 strategy_number=strategy_number,
                 tokenizer=tokenizer,
                 original_data_sample=original_data_sample.cpu().numpy(),
             )
+        elif model_type == "linear_regression" and original_data_sample is not None and dataset is not None and target_gas != "":
+                # Unnormalize features and targets for intuitive values in the snapshots
+                x_mean = dataset.x_mean
+                x_std = dataset.x_std
+                y_mean = dataset.y_mean
+                y_std = dataset.y_std
+
+                features_real = data_sample * x_std + x_mean
+                targets_real = labels_sample * y_std + y_mean
+                orig_features_real = original_data_sample * x_std + x_mean
+                orig_targets_real = original_labels_sample * y_std + y_mean
+
+                save_visual_snapshot(
+                    client_id=client_id,
+                    round_num=current_round,
+                    attack_config=attack_configs,
+                    data_sample=features_real.cpu().numpy(),
+                    labels_sample=targets_real.cpu().numpy(),
+                    original_labels_sample=orig_targets_real.cpu().numpy() if original_labels_sample is not None else labels_sample.cpu().numpy(),
+                    output_dir=output_dir,
+                    model_type=model_type,
+                    max_samples=max_samples,
+                    experiment_info=experiment_info,
+                    strategy_number=strategy_number,
+                    target_gas=target_gas,
+                    original_data_sample=orig_features_real.cpu().numpy(),
+                    feature_names=dataset.feature_names,
+                )
 
 
 def save_attack_snapshot(
@@ -161,6 +193,7 @@ def save_attack_snapshot(
         logging.warning(f"Failed to save attack snapshot for client {client_id}: {e}")
 
 
+#TODO: Generalize `target_gas` param for all regression tasks
 def save_visual_snapshot(
         client_id: int,
         round_num: int,
@@ -169,10 +202,14 @@ def save_visual_snapshot(
         labels_sample: np.ndarray,
         original_labels_sample: np.ndarray,
         output_dir: str,
+        model_type: str,
+        max_samples: int = 5,
         experiment_info: Optional[Dict[str, Any]] = None,
         strategy_number: int = 0,
         tokenizer=None,
+        target_gas: str = "",
         original_data_sample: Optional[np.ndarray] = None,
+        feature_names: Optional[list] = None
 ) -> None:
     """Save visual snapshot of attack samples for inspection.
 
@@ -187,10 +224,14 @@ def save_visual_snapshot(
         labels_sample: Sample labels array
         original_labels_sample: Original labels array
         output_dir: Base output directory
+        model_type: Type of model being trained
+        max_samples: Maximum samples to include in snapshot (default: 5)
         experiment_info: Additional experiment metadata (optional)
         strategy_number: Strategy index for multi-strategy runs (default: 0)
         tokenizer: HuggingFace tokenizer for text visualization (optional)
+        target_gas: Target being predicted in regression task
         original_data_sample: Original data before poisoning for comparison (optional)
+        feature_names: Names of the columns for the features in a regression task dataset (optional)
 
     Note:
         Automatically detects data type (images vs text) and uses appropriate
@@ -200,7 +241,7 @@ def save_visual_snapshot(
     snapshot_dir = _get_snapshot_dir(output_dir, client_id, round_num, strategy_number)
 
     try:
-        if len(data_sample.shape) == 4:
+        if model_type == "cnn":
             filename = f"{attack_type}_visual.png"
             save_image_grid(
                 data_sample,
@@ -210,7 +251,7 @@ def save_visual_snapshot(
                 attack_config,
                 original_images=original_data_sample,
             )
-        else:
+        elif model_type == "transformer":
             filename = f"{attack_type}_samples.txt"
             save_text_samples(
                 labels_sample,
@@ -220,6 +261,26 @@ def save_visual_snapshot(
                 tokenizer=tokenizer,
                 input_ids_original=original_data_sample,
                 input_ids_poisoned=data_sample,
+            )
+        elif model_type == "linear_regression":
+            text_filename = f"{attack_type}_samples.txt"
+            labels_sample = labels_sample[:max_samples]
+            save_regression_text_samples(
+                targets=labels_sample,
+                original_targets=original_labels_sample,
+                filepath=snapshot_dir / text_filename,
+                target_gas=target_gas,
+                attack_config=attack_config,
+                original_features=original_data_sample,
+                feature_names=feature_names
+            )
+            plot_filename = f"{attack_type}_scatter.png"
+            save_scatter_plot(
+                targets=labels_sample,
+                original_targets=original_labels_sample,
+                filepath=snapshot_dir / plot_filename,
+                target_gas=target_gas,
+                attack_config=attack_config
             )
 
         logging.debug(
