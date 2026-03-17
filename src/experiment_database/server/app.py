@@ -30,8 +30,13 @@ async def post_experiment(request: web.Request) -> web.Response:
             total_exec_time = data.get("total_exec_time")
             full_author_name = data.get("full_author_name")
             author_email = data.get("author_email")
-
-            fill_all_tables(session, strategy_history, total_exec_time, full_author_name, author_email)
+            created_at = data.get("created_at")
+            
+            if created_at:
+                from datetime import datetime, timezone
+                created_at = datetime.fromisoformat(created_at)
+            
+            fill_all_tables(session, strategy_history, total_exec_time, full_author_name, author_email, created_at=created_at)
 
             return web.json_response({"status": "ok"}, status=201)
 

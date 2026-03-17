@@ -76,6 +76,7 @@ def create_experiment_event(
         wandb_url: str | None = None,
         full_author_name: str | None = None,
         author_email: str | None = None,
+        created_at=None,
 ) -> ExperimentEvent:
     """Create an ExperimentEvent row linking a config, hardware spec, and author to a single run."""
 
@@ -109,7 +110,8 @@ def create_experiment_event(
         is_successful=False,
         wandb_url=wandb_url,
     )
-
+    if created_at is not None:
+        event.created_at = created_at
     session.add(event)
     session.flush()
     return event
@@ -272,7 +274,7 @@ def persist_clients_at_round(
     session.flush()
 
 
-def fill_all_tables(session, strategy_history: SimulationStrategyHistory, total_exec_time, full_author_name, author_email):
+def fill_all_tables(session, strategy_history: SimulationStrategyHistory, total_exec_time, full_author_name, author_email, created_at=None):
     """
     Fill tables with full experiment information.
     """
@@ -296,7 +298,8 @@ def fill_all_tables(session, strategy_history: SimulationStrategyHistory, total_
         executed_config=executed_config,
         hardware=hardware,
         full_author_name=full_author_name,
-        author_email=author_email
+        author_email=author_email,
+        created_at=created_at,
     )
     persist_round_metrics(
         session=session,
