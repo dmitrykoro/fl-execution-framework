@@ -162,7 +162,7 @@ class MetricEntry(Base):
     client_id = Column(String(36), ForeignKey("experiment_client.id"), nullable=True)
     client = relationship("ExperimentClient", back_populates="metric_entries")
 
-    value = Column(Float, nullable=False)
+    value = Column(Float, nullable=True)
     tolerance = Column(Float, nullable=True)
     round_number = Column(Integer, nullable=True)
 

@@ -51,6 +51,123 @@ async def post_experiment(request: web.Request) -> web.Response:
         finally:
             session.close()
 
+async def post_experiment_import(request: web.Request) -> web.Response:
+    """
+    Import a pre-parsed experiment from CSV/JSON files.
+
+    Expects a flat payload (as produced by upload.py) rather than
+    the SimulationStrategyHistory format used by the live FL runner.
+    """
+    try:
+        data = await request.json()
+    except Exception:
+        return web.json_response({"error": "Invalid JSON"}, status=400)
+
+    with get_db() as session:
+        try:
+            cfg_data = data["executed_config"]
+            created_at_raw = data.get("created_at")
+            created_at = (
+                datetime.fromisoformat(created_at_raw)
+                if created_at_raw
+                else datetime.now(timezone.utc)
+            )
+
+            # ExecutedConfig
+            executed_config = ExecutedConfig(
+                id=str(uuid.uuid4()),
+                json=cfg_data.get("json"),
+                aggregation_strategy_keyword=cfg_data["aggregation_strategy_keyword"],
+                dataset_keyword=cfg_data["dataset_keyword"],
+                num_rounds=str(cfg_data["num_rounds"]),
+                num_clients=str(cfg_data["num_clients"]),
+                num_malicious_clients=str(cfg_data["num_malicious_clients"]),
+            )
+            session.add(executed_config)
+            session.flush()
+
+            # ExperimentEvent
+            experiment_event = ExperimentEvent(
+                created_at=created_at,
+                full_author_name=data.get("full_author_name"),
+                author_email=data.get("author_email"),
+                is_successful=data.get("is_successful", True),
+                executed_config_id=executed_config.id,
+                hardware_id=None,
+                total_exec_time=None,
+            )
+            session.add(experiment_event)
+            session.flush()
+
+            # ExperimentClients
+            client_number_to_id = {}
+            for client_data in data.get("clients", []):
+                client = ExperimentClient(
+                    id=str(uuid.uuid4()),
+                    client_number=client_data["client_number"],
+                    was_ever_malicious=client_data.get("was_ever_malicious", False),
+                    experiment_event_id=experiment_event.id,
+                )
+                session.add(client)
+                session.flush()
+                client_number_to_id[client_data["client_number"]] = client.id
+
+            # ClientAtRound
+            for car in data.get("clients_at_round", []):
+                client_id = client_number_to_id.get(car["client_number"])
+                session.add(
+                    ClientAtRound(
+                        experiment_event_id=experiment_event.id,
+                        experiment_client_id=client_id,
+                        round_number=car["round_number"],
+                        client_is_aggregated=car.get("is_aggregated", True),
+                        attack_type=car.get("attack_type"),
+                    )
+                )
+
+            # MetricInfo + MetricEntry
+            for entry in data.get("metric_entries", []):
+                metric_name = entry["metric_name"]
+                metric_type = entry["metric_type"]
+
+                metric_info = (
+                    session.query(MetricInfo)
+                    .filter_by(name=metric_name, type=metric_type)
+                    .first()
+                )
+                if not metric_info:
+                    metric_info = MetricInfo(name=metric_name, type=metric_type)
+                    session.add(metric_info)
+                    session.flush()
+
+                client_number = entry.get("client_number")
+                client_id = (
+                    client_number_to_id.get(client_number)
+                    if client_number is not None
+                    else None
+                )
+
+                session.add(
+                    MetricEntry(
+                        id=str(uuid.uuid4()),
+                        metric_info_id=metric_info.id,
+                        experiment_event_id=experiment_event.id,
+                        client_id=client_id,
+                        value=entry["value"],
+                        round_number=entry.get("round_number"),
+                    )
+                )
+
+            session.commit()
+            return web.json_response(
+                {"status": "ok", "experiment_event_id": experiment_event.id},
+                status=201,
+            )
+
+        except Exception as e:
+            logging.exception("Failed to import experiment")
+            return web.json_response({"error": str(e)}, status=500)
+
 
 async def get_experiments(request: web.Request) -> web.Response:
     """Return the 20 most recent experiment events with config, hardware, and metrics."""
