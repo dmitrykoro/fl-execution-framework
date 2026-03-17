@@ -1,5 +1,6 @@
 import uuid
 from datetime import datetime, timezone
+from dateutil.relativedelta import relativedelta
 
 from sqlalchemy import (
     Boolean,
@@ -11,6 +12,7 @@ from sqlalchemy import (
     JSON,
     String,
     Text,
+    Index
 )
 from sqlalchemy.orm import declarative_base, relationship
 
@@ -51,7 +53,6 @@ class ExperimentEvent(Base):
     id = Column(Integer, primary_key=True, autoincrement=True)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     wandb_url = Column(String(500), nullable=True)
-    username = Column(String(500), nullable=True)
     is_successful = Column(Boolean, default=True)
     error_message = Column(Text, nullable=True)
     total_exec_time = Column(Text, nullable=True)
@@ -66,9 +67,28 @@ class ExperimentEvent(Base):
     )
     hardware = relationship("HostHardwareSpec", back_populates="experiment_events")
 
+    author_id = Column(
+        Integer, ForeignKey("experiment_author.id"), nullable=True
+    )
+    author = relationship("ExperimentAuthor", back_populates="experiment_events")
+
     clients = relationship("ExperimentClient", back_populates="experiment_event")
     metric_entries = relationship("MetricEntry", back_populates="experiment_event")
     clients_at_round = relationship("ClientAtRound", back_populates="experiment_event")
+
+
+class ExperimentAuthor(Base):
+    __tablename__ = "experiment_author"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    full_author_name = Column(String(500), nullable=False)
+    author_email = Column(String(500), nullable=False, unique=True)
+
+    experiment_events = relationship(
+        "ExperimentEvent",
+        back_populates="author",
+        cascade="all, save-update",
+    )
 
 
 class ExperimentClient(Base):
@@ -145,3 +165,16 @@ class MetricEntry(Base):
     value = Column(Float, nullable=False)
     tolerance = Column(Float, nullable=True)
     round_number = Column(Integer, nullable=True)
+
+
+class AuthToken(Base):
+    __tablename__ = "auth_token"
+
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    expires_at = Column(DateTime(timezone=True), nullable=False)
+    created_at = Column(DateTime(timezone=True), nullable=False)
+    token_hash = Column(String(64), nullable=False, unique=True, index=True)
+
+    __table_args__ = (
+        Index("ix_auth_token_expires_at", "expires_at"),
+    )
