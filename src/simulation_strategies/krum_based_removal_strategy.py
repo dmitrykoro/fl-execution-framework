@@ -31,6 +31,7 @@ class KrumBasedRemovalStrategy(Krum):
             *args,
             **kwargs
     ):
+        kwargs.pop('output_dirname', None)
         super().__init__(*args, **kwargs)
         self.client_scores = {}
         self.removed_client_ids = set()

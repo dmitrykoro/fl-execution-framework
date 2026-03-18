@@ -24,6 +24,7 @@ class RFABasedRemovalStrategy(FedAvg):
             *args, **kwargs
     ):
         self.strategy_history = kwargs.pop('strategy_history', None)
+        kwargs.pop('output_dirname', None)
         super().__init__(*args, **kwargs)
 
         self.remove_clients = remove_clients

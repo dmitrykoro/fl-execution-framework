@@ -30,6 +30,7 @@ class TrustBasedRemovalStrategy(fl.server.strategy.FedAvg):
             *args,
             **kwargs
     ):
+        kwargs.pop('output_dirname', None)
         super().__init__(*args, **kwargs)
 
         self.client_reputations = {}
