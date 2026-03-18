@@ -27,6 +27,7 @@ class TrimmedMeanBasedRemovalStrategy(FedAvg):
             *args,
             **kwargs
     ):
+        kwargs.pop('output_dirname', None)
         super().__init__(*args, **kwargs)
         self.remove_clients = remove_clients
         self.begin_removing_from_round = begin_removing_from_round
