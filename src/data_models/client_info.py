@@ -1,5 +1,6 @@
 from dataclasses import dataclass, field
-from typing import List, Union, Optional
+from typing import List, Union, Optional, Any
+import numpy as np
 
 
 @dataclass
@@ -119,6 +120,15 @@ class ClientInfo:
                     current_attack_configs.append(attack_config)
         return current_attack_configs
         
+    @staticmethod
+    def _to_python_number(value: Any) -> Any:
+        """
+        Convert value to python number to allow for later database upload.
+        Catches np.float32, np.float64, etc. which are not json serializable.
+        """
+        if isinstance(value, np.generic):
+            return value.item()
+        return value
 
     def add_history_entry(
             self,
@@ -147,19 +157,19 @@ class ClientInfo:
         """
 
         if removal_criterion is not None:
-            self.removal_criterion_history[current_round - 1] = removal_criterion
+            self.removal_criterion_history[current_round - 1] = self._to_python_number(removal_criterion)
         if absolute_distance is not None:
-            self.absolute_distance_history[current_round - 1] = absolute_distance
+            self.absolute_distance_history[current_round - 1] = self._to_python_number(absolute_distance)
         if loss is not None:
-            self.loss_history[current_round - 1] = loss
+            self.loss_history[current_round - 1] = self._to_python_number(loss)
         if accuracy is not None:
-            self.accuracy_history[current_round - 1] = accuracy
+            self.accuracy_history[current_round - 1] = self._to_python_number(accuracy)
         if ss_res is not None:
-            self.ss_res_history[current_round - 1] = ss_res
+            self.ss_res_history[current_round - 1] = self._to_python_number(ss_res)
         if ss_tot is not None:
-            self.ss_tot_history[current_round - 1] = ss_tot
+            self.ss_tot_history[current_round - 1] = self._to_python_number(ss_tot)
         if r2 is not None:
-            self.r2_history[current_round - 1] = r2
+            self.r2_history[current_round - 1] = self._to_python_number(r2)
         if aggregation_participation is not None:
             self.aggregation_participation_history[current_round - 1] = aggregation_participation
 
