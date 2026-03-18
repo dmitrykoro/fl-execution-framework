@@ -12,6 +12,7 @@ class ClientInfo:
 
     _attack_schedule: List[dict] = None
     _legacy_attack_type: str = None
+    _poisoned_client_ids: Optional[set[int]] = None
 
     attack_plan_keywords: List[List[str]] = None
     attack_plan_configs: List[dict] = field(default_factory=list)
@@ -43,7 +44,11 @@ class ClientInfo:
 
         def _create_attack_plan(attack_schedule: list, legacy_attack_type: str):
             if legacy_attack_type:
-                self.attack_plan_keywords = _init_list([legacy_attack_type])
+                if self._poisoned_client_ids and self.client_id in self._poisoned_client_ids:
+                    self.attack_plan_keywords = _init_list([legacy_attack_type])
+                    self.is_malicious = True
+                else:
+                    self.attack_plan_keywords = _init_list([])
                 return
 
             else:

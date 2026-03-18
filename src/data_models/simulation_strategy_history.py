@@ -48,6 +48,7 @@ class SimulationStrategyHistory:
                     if self.strategy_config.attack_type
                     else None
                 ),
+                 _poisoned_client_ids=self.dataset_handler.poisoned_client_ids,
             )
 
         for client in self._clients_dict.values():
