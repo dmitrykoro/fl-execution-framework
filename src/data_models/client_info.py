@@ -1,5 +1,6 @@
 from dataclasses import dataclass, field
-from typing import List, Union, Optional
+from typing import List, Union, Optional, Any
+import numpy as np
 
 
 @dataclass
@@ -97,6 +98,16 @@ class ClientInfo:
         Get configs for these attacks.
         """
         return self.attack_plan_configs
+    
+    @staticmethod
+    def _to_python_number(value: Any) -> Any:
+        """
+        Convert value to python number to allow for later database upload.
+        Catches np.float32, np.float64, etc. which are not json serializable.
+        """
+        if isinstance(value, np.generic):
+            return value.item()
+        return value
 
     def add_history_entry(
             self,
@@ -119,13 +130,13 @@ class ClientInfo:
         """
 
         if removal_criterion is not None:
-            self.removal_criterion_history[current_round - 1] = removal_criterion
+            self.removal_criterion_history[current_round - 1] = self._to_python_number(removal_criterion)
         if absolute_distance is not None:
-            self.absolute_distance_history[current_round - 1] = absolute_distance
+            self.absolute_distance_history[current_round - 1] = self._to_python_number(absolute_distance)
         if loss is not None:
-            self.loss_history[current_round - 1] = loss
+            self.loss_history[current_round - 1] = self._to_python_number(loss)
         if accuracy is not None:
-            self.accuracy_history[current_round - 1] = accuracy
+            self.accuracy_history[current_round - 1] = self._to_python_number(accuracy)
         if aggregation_participation is not None:
             self.aggregation_participation_history[current_round - 1] = aggregation_participation
 

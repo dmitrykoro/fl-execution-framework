@@ -1,6 +1,7 @@
 from dataclasses import dataclass, field
 from typing import List, Any
 from numbers import Number
+import numpy as np
 
 from src.data_models.simulation_strategy_config import StrategyConfig
 
@@ -86,6 +87,18 @@ class RoundsInfo:
         if self.simulation_strategy_config.remove_clients:
             self.savable_metrics += self.statsable_metrics
 
+
+    @staticmethod
+    def _to_python_number(value: Any) -> Any:
+        """
+        Convert value to python number to allow for later database upload.
+        Catches np.float32, np.float64, etc. which are not json serializable.
+        """
+        if isinstance(value, np.generic):
+            return value.item()
+        return value    
+
+
     def add_history_entry(
             self,
             score_calculation_time_nanos: int,
@@ -103,9 +116,9 @@ class RoundsInfo:
         """
 
         self.score_calculation_time_nanos_history.append(score_calculation_time_nanos)
-        self.removal_threshold_history.append(removal_threshold)
-        self.aggregated_loss_history.append(aggregated_loss)
-        self.average_accuracy_history.append(average_accuracy)
+        self.removal_threshold_history.append(self._to_python_number(removal_threshold))
+        self.aggregated_loss_history.append(self._to_python_number(aggregated_loss))
+        self.average_accuracy_history.append(self._to_python_number(average_accuracy))
 
     def get_metric_by_name(self, metric: str) -> List:
         """Get single plottable metric values by name"""
