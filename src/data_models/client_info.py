@@ -98,6 +98,16 @@ class ClientInfo:
         Get configs for these attacks.
         """
         return self.attack_plan_configs
+
+    def get_current_attack_configs(self, current_round) -> list:
+        """
+        Get the attack configs scheduled for specified round.
+        """
+        current_attack_configs = []
+        for attack_config in self.attack_plan_configs:
+            if (attack_config["start_round"] <= current_round <= attack_config["end_round"]):
+                current_attack_configs.append(attack_config)
+        return current_attack_configs
     
     @staticmethod
     def _to_python_number(value: Any) -> Any:
