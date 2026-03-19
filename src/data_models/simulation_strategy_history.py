@@ -5,6 +5,7 @@ import numpy as np
 import psutil
 import torch
 from dataclasses import asdict, dataclass, field
+from typing import Any
 
 from src.data_models.client_info import ClientInfo
 from src.data_models.round_info import RoundsInfo
@@ -48,6 +49,7 @@ class SimulationStrategyHistory:
                     if self.strategy_config.attack_type
                     else None
                 ),
+                 _poisoned_client_ids=self.dataset_handler.poisoned_client_ids,
             )
 
         for client in self._clients_dict.values():
@@ -83,6 +85,16 @@ class SimulationStrategyHistory:
     def get_malicious_client_ids(self) -> set[int]:
         return self.malicious_clients_ids
 
+    @staticmethod
+    def _to_python_number(value: Any) -> Any:
+        """
+        Convert value to python number to allow for later database upload.
+        Catches np.float32, np.float64, etc. which are not json serializable.
+        """
+        if value is not None and isinstance(value, np.generic):
+            return value.item()
+        return value  
+
     def insert_single_client_history_entry(
         self,
         client_id: int,
@@ -100,10 +112,10 @@ class SimulationStrategyHistory:
         updating_client: ClientInfo = self._clients_dict[client_id]
         updating_client.add_history_entry(
             current_round,
-            removal_criterion,
-            absolute_distance,
-            loss,
-            accuracy,
+            self._to_python_number(removal_criterion),
+            self._to_python_number(absolute_distance),
+            self._to_python_number(loss),
+            self._to_python_number(accuracy),
             aggregation_participation,
         )
 
@@ -119,9 +131,9 @@ class SimulationStrategyHistory:
                 score_calculation_time_nanos
             )
         if removal_threshold is not None:
-            self.rounds_history.removal_threshold_history.append(removal_threshold)
+            self.rounds_history.removal_threshold_history.append(self._to_python_number(removal_threshold))
         if loss_aggregated is not None:
-            self.rounds_history.aggregated_loss_history.append(loss_aggregated)
+            self.rounds_history.aggregated_loss_history.append(self._to_python_number(loss_aggregated))
 
     def update_client_participation(
         self,

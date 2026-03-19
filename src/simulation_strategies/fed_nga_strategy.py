@@ -43,7 +43,7 @@ class FedNGAStrategy(FedAvg):
         self.current_parameters = None
 
         # Create a logger
-        self.logger = logging.getLogger(f"pid_strategy_{id(self)}")
+        self.logger = logging.getLogger(f"fed_nga_{id(self)}")
         self.logger.setLevel(logging.INFO)  # Set the logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL)
 
         # Create handlers
