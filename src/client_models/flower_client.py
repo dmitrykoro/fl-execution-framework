@@ -99,6 +99,9 @@ class FlowerClient(fl.client.NumPyClient):
                 correct, total, epoch_loss = 0, 0, 0.0
 
                 for batch_idx, (images, labels) in enumerate(trainloader):
+                    if epoch == 0 and batch_idx == 0:
+                            original_images = images.clone()
+                            original_labels = labels.clone()
                     for attack_type, attack_config in zip(attack_keywords_list, current_round_attack_configs):
 
                         images, labels = apply_poisoning_attack(
@@ -112,8 +115,6 @@ class FlowerClient(fl.client.NumPyClient):
 
                         # Save snapshot after all attacks applied
                         if epoch == 0 and batch_idx == 0:
-                            original_images = images.clone()
-                            original_labels = labels.clone()
 
                             attack_snapshot_handler.save_attack_snapshots(
                                 attack_snapshot_format=self.attack_snapshot_format,
