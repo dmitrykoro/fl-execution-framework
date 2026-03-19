@@ -4,6 +4,7 @@ import torch
 import math as m
 import logging
 import time
+import os
 
 from typing import Dict, List, Optional, Tuple, Union
 
@@ -27,10 +28,10 @@ class TrustBasedRemovalStrategy(fl.server.strategy.FedAvg):
             trust_threshold: float,
             begin_removing_from_round: int,
             strategy_history: SimulationStrategyHistory,
+            output_dirname,
             *args,
             **kwargs
     ):
-        kwargs.pop('output_dirname', None)
         super().__init__(*args, **kwargs)
 
         self.client_reputations = {}
@@ -44,6 +45,21 @@ class TrustBasedRemovalStrategy(fl.server.strategy.FedAvg):
         self.begin_removing_from_round = begin_removing_from_round
 
         self.strategy_history = strategy_history
+
+        # Create a logger
+        self.logger = logging.getLogger(f"trust_removal_{id(self)}")
+        self.logger.setLevel(logging.INFO)  # Set the logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL)
+
+        # Create handlers
+        out_dir = output_dirname
+        os.makedirs(out_dir, exist_ok=True)
+        file_handler = logging.FileHandler(f"{out_dir}/output.log")
+        console_handler = logging.StreamHandler()
+
+        # Add the handlers to the logger
+        self.logger.addHandler(file_handler)
+        self.logger.addHandler(console_handler)
+        self.logger.propagate = False
 
     def calculate_reputation(self, client_id, truth_value):
         """Calculate initial reputation."""
@@ -187,7 +203,7 @@ class TrustBasedRemovalStrategy(fl.server.strategy.FedAvg):
             # in the first round after warmup, remove the client with the lowest TRUST
             if self.current_round == self.begin_removing_from_round:
                 client_id = min(client_trusts, key=client_trusts.get)
-                logging.info(f"Removing client with lowest TRUST: {client_id}")
+                self.logger.info(f"Removing client with lowest TRUST: {client_id}")
                 # add this client to the removed_clients list
                 self.removed_client_ids.add(client_id)
                 # add to history
@@ -195,11 +211,11 @@ class TrustBasedRemovalStrategy(fl.server.strategy.FedAvg):
                 # remove clients with trust lower than threshold.
                 for client_id, trust in client_trusts.items():
                     if trust < self.trust_threshold and client_id not in self.removed_client_ids:
-                        logging.info(f"Removing client with TRUST less than Threshold: {client_id}")
+                        self.logger.info(f"Removing client with TRUST less than Threshold: {client_id}")
                         # add this client to the removed_clients list
                         self.removed_client_ids.add(client_id)
 
-            logging.info(f"removed clients are : {self.removed_client_ids}")
+            self.logger.info(f"removed clients are : {self.removed_client_ids}")
 
         # select clients based on updated TRUSTS and available clients
         sorted_client_ids = sorted(client_trusts, key=client_trusts.get, reverse=True)
@@ -221,7 +237,7 @@ class TrustBasedRemovalStrategy(fl.server.strategy.FedAvg):
             failures: List[Tuple[Union[ClientProxy, EvaluateRes], BaseException]]
     ) -> Tuple[Optional[float], Dict[str, Scalar]]:
 
-        logging.info('\n' + '-' * 50 + f'AGGREGATION ROUND {server_round}' + '-' * 50)
+        self.logger.info('\n' + '-' * 50 + f'AGGREGATION ROUND {server_round}' + '-' * 50)
         for client_result in results:
             cid = client_result[0].cid
             accuracy_matrix = client_result[1].metrics
@@ -268,7 +284,7 @@ class TrustBasedRemovalStrategy(fl.server.strategy.FedAvg):
             strategy_history=self.strategy_history
         )
 
-        logging.info(
+        self.logger.info(
             f'Round: {server_round} '
             f'Number of aggregated clients: {number_of_clients_in_loss_calc} '
             f'Aggregated loss: {loss_aggregated} '

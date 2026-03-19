@@ -2,6 +2,7 @@ import time
 import numpy as np
 import flwr as fl
 import logging
+import os
 
 from typing import Dict, List, Optional, Tuple, Union, Set
 
@@ -23,11 +24,11 @@ class TrimmedMeanBasedRemovalStrategy(FedAvg):
             remove_clients: bool,
             begin_removing_from_round: int,
             strategy_history: SimulationStrategyHistory,
+            output_dirname,
             trim_ratio: float = 0.1,
             *args,
             **kwargs
     ):
-        kwargs.pop('output_dirname', None)
         super().__init__(*args, **kwargs)
         self.remove_clients = remove_clients
         self.begin_removing_from_round = begin_removing_from_round
@@ -37,6 +38,21 @@ class TrimmedMeanBasedRemovalStrategy(FedAvg):
         self.removed_client_ids = set()
 
         self.strategy_history = strategy_history
+
+         # Create a logger
+        self.logger = logging.getLogger(f"trimmed_mean_removal_{id(self)}")
+        self.logger.setLevel(logging.INFO)  # Set the logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL)
+
+        # Create handlers
+        out_dir = output_dirname
+        os.makedirs(out_dir, exist_ok=True)
+        file_handler = logging.FileHandler(f"{out_dir}/output.log")
+        console_handler = logging.StreamHandler()
+
+        # Add the handlers to the logger
+        self.logger.addHandler(file_handler)
+        self.logger.addHandler(console_handler)
+        self.logger.propagate = False
 
     def aggregate_fit(
             self,
@@ -145,7 +161,7 @@ class TrimmedMeanBasedRemovalStrategy(FedAvg):
             removed_client_ids=set()
         )
 
-        logging.info(f"clients with trimmed parameters this round: {trimmed_clients}")
+        self.logger.info(f"clients with trimmed parameters this round: {trimmed_clients}")
 
         return ndarrays_to_parameters(aggregated), {}
 
@@ -185,7 +201,7 @@ class TrimmedMeanBasedRemovalStrategy(FedAvg):
             failures: List[Tuple[Union[ClientProxy, EvaluateRes], BaseException]]
     ) -> Tuple[Optional[float], Dict[str, Scalar]]:
 
-        logging.info('\n' + '-' * 50 + f'AGGREGATION ROUND {server_round}' + '-' * 50)
+        self.logger.info('\n' + '-' * 50 + f'AGGREGATION ROUND {server_round}' + '-' * 50)
 
         for client_result in results:
             cid = client_result[0].cid
@@ -234,7 +250,7 @@ class TrimmedMeanBasedRemovalStrategy(FedAvg):
             strategy_history=self.strategy_history
         )
 
-        logging.info(
+        self.logger.info(
             f'Round: {server_round} '
             f'Number of aggregated clients: {number_of_clients_in_loss_calc} '
             f'Aggregated loss: {loss_aggregated} '
