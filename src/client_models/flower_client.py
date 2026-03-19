@@ -82,11 +82,6 @@ class FlowerClient(fl.client.NumPyClient):
 
         client_instance = self.strategy_history.get_client_by_id(self.client_id)
         attack_keywords_list = client_instance.get_current_attack_keywords(current_round)
-        attack_configs_list = client_instance.get_client_attack_configs()
-        # NOTE: Need to use current_round_attack_confgs instead of attack_configs_list in the zip()
-        #        for each model type.
-        #       There is a logic bug with using zip(attack_keywords_list, attack_configs_list)
-        #       because each list might not be the same size or in the same order.
         current_round_attack_configs = client_instance.get_current_attack_configs(current_round)
 
         if self.model_type == "cnn":
@@ -107,7 +102,7 @@ class FlowerClient(fl.client.NumPyClient):
                 correct, total, epoch_loss = 0, 0, 0.0
 
                 for batch_idx, (images, labels) in enumerate(trainloader):
-                    for attack_type, attack_config in zip(attack_keywords_list, attack_configs_list):
+                    for attack_type, attack_config in zip(attack_keywords_list, current_round_attack_configs):
 
                         images, labels = apply_poisoning_attack(
                             data=images,
@@ -134,7 +129,7 @@ class FlowerClient(fl.client.NumPyClient):
                                 experiment_info=self.experiment_info,
                                 strategy_number=self.strategy_number,
                                 current_round=current_round,
-                                attack_configs=attack_configs_list,
+                                attack_configs=current_round_attack_configs,
                                 data_sample=images,
                                 labels_sample=labels,
                                 original_data_sample=original_images,
@@ -372,11 +367,6 @@ class FlowerClient(fl.client.NumPyClient):
 
         client_instance = self.strategy_history.get_client_by_id(self.client_id)
         attack_keywords_list = client_instance.get_current_attack_keywords(current_round)
-        attack_configs_list = client_instance.get_client_attack_configs()
-        # NOTE: Need to use current_round_attack_confgs instead of attack_configs_list in the zip()
-        #        for each model type.
-        #       There is a logic bug with using zip(attack_keywords_list, attack_configs_list)
-        #       because each list might not be the same size or in the same order.
         current_round_attack_configs = client_instance.get_current_attack_configs(current_round)
 
         if self.model_type == "cnn":
@@ -400,7 +390,7 @@ class FlowerClient(fl.client.NumPyClient):
             with torch.no_grad():
                 for images, labels in testloader:
 
-                    for attack_type, attack_config in zip(attack_keywords_list, attack_configs_list):
+                    for attack_type, attack_config in zip(attack_keywords_list, current_round_attack_configs):
                         images, labels = apply_poisoning_attack(
                             data=images,
                             labels=labels,

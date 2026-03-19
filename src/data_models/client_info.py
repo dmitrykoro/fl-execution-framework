@@ -109,15 +109,12 @@ class ClientInfo:
     
     def get_current_attack_configs(self, current_round) -> list:
         """
-        Get the attack configs scheduled for specified round based on current round attack keywords.
+        Get the attack configs scheduled for specified round.
         """
-        current_keywords = self.get_current_attack_keywords(current_round)
         current_attack_configs = []
-        for attack_keyword in current_keywords:
-            for attack_config in self.attack_plan_configs:
-                if (attack_keyword == attack_config["attack_type"]
-                    and attack_config["start_round"] <= current_round <= attack_config["end_round"]):
-                    current_attack_configs.append(attack_config)
+        for attack_config in self.attack_plan_configs:
+            if (attack_config["start_round"] <= current_round <= attack_config["end_round"]):
+                current_attack_configs.append(attack_config)
         return current_attack_configs
         
     @staticmethod
