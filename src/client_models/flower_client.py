@@ -384,10 +384,6 @@ class FlowerClient(fl.client.NumPyClient):
                 # Default fallback
                 num_classes = 10
 
-            """client_instance = self.strategy_history.get_client_by_id(self.client_id)
-            attack_keywords_list = client_instance.get_current_attack_keywords(current_round)
-            attack_configs_list = client_instance.get_client_attack_configs()"""
-
             with torch.no_grad():
                 for images, labels in testloader:
 
