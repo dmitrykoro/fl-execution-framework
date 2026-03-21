@@ -79,7 +79,7 @@ class FlowerClient(fl.client.NumPyClient):
 
         client_instance = self.strategy_history.get_client_by_id(self.client_id)
         attack_keywords_list = client_instance.get_current_attack_keywords(current_round)
-        attack_configs_list = client_instance.get_client_attack_configs()
+        current_round_attack_configs = client_instance.get_current_attack_configs(current_round)
 
         if self.model_type == "cnn":
             criterion = torch.nn.CrossEntropyLoss()
@@ -99,7 +99,10 @@ class FlowerClient(fl.client.NumPyClient):
                 correct, total, epoch_loss = 0, 0, 0.0
 
                 for batch_idx, (images, labels) in enumerate(trainloader):
-                    for attack_type, attack_config in zip(attack_keywords_list, attack_configs_list):
+                    if epoch == 0 and batch_idx == 0:
+                            original_images = images.clone()
+                            original_labels = labels.clone()
+                    for attack_type, attack_config in zip(attack_keywords_list, current_round_attack_configs):
 
                         images, labels = apply_poisoning_attack(
                             data=images,
@@ -112,8 +115,6 @@ class FlowerClient(fl.client.NumPyClient):
 
                         # Save snapshot after all attacks applied
                         if epoch == 0 and batch_idx == 0:
-                            original_images = images.clone()
-                            original_labels = labels.clone()
 
                             attack_snapshot_handler.save_attack_snapshots(
                                 attack_snapshot_format=self.attack_snapshot_format,
@@ -127,7 +128,7 @@ class FlowerClient(fl.client.NumPyClient):
                                 experiment_info=self.experiment_info,
                                 strategy_number=self.strategy_number,
                                 current_round=current_round,
-                                attack_configs=attack_configs_list,
+                                attack_configs=current_round_attack_configs,
                                 data_sample=images,
                                 labels_sample=labels,
                                 original_data_sample=original_images,
@@ -152,9 +153,14 @@ class FlowerClient(fl.client.NumPyClient):
                 epoch_loss /= len(trainloader.dataset) if len(trainloader.dataset) > 0 else 1
                 epoch_acc = correct / total if total > 0 else 0.0
                 if verbose:
-                    logg(f"Epoch {epoch + 1}: train loss {epoch_loss}, accuracy {epoch_acc}")
+                    print(f"Epoch {epoch + 1}: train loss {epoch_loss}, accuracy {epoch_acc}")
 
-            return float(epoch_loss), float(epoch_acc)
+                # calculate local client learning rate
+                optimizer_lr = optimizer.param_groups[0]["lr"]
+                num_steps = epochs * len(trainloader)
+                eta_eff = optimizer_lr * num_steps
+
+            return float(epoch_loss), float(epoch_acc), float(eta_eff)
 
         elif self.model_type == "transformer":
             optimizer = torch.optim.AdamW(net.parameters(), lr=5e-5)
@@ -215,7 +221,7 @@ class FlowerClient(fl.client.NumPyClient):
                 if verbose:
                     print(f"Epoch {epoch + 1}: train loss {epoch_loss}, accuracy {epoch_acc}")
 
-            return float(epoch_loss), float(epoch_acc)
+            return float(epoch_loss), float(epoch_acc), 0.0
 
         else:
             raise ValueError(f"Unsupported model type: {self.model_type}. Supported types are 'cnn' and 'mlm'.")
@@ -223,6 +229,10 @@ class FlowerClient(fl.client.NumPyClient):
     def test(self, net, testloader, config=None):
         """Evaluate the network on the entire test set with optional dynamic poisoning."""
         current_round = config.get("server_round", 1) if config else 1
+
+        client_instance = self.strategy_history.get_client_by_id(self.client_id)
+        attack_keywords_list = client_instance.get_current_attack_keywords(current_round)
+        current_round_attack_configs = client_instance.get_current_attack_configs(current_round)
 
         if self.model_type == "cnn":
             criterion = torch.nn.CrossEntropyLoss()
@@ -238,14 +248,10 @@ class FlowerClient(fl.client.NumPyClient):
                 # Default fallback
                 num_classes = 10
 
-            client_instance = self.strategy_history.get_client_by_id(self.client_id)
-            attack_keywords_list = client_instance.get_current_attack_keywords(current_round)
-            attack_configs_list = client_instance.get_client_attack_configs()
-
             with torch.no_grad():
                 for images, labels in testloader:
 
-                    for attack_type, attack_config in zip(attack_keywords_list, attack_configs_list):
+                    for attack_type, attack_config in zip(attack_keywords_list, current_round_attack_configs):
                         images, labels = apply_poisoning_attack(
                             data=images,
                             labels=labels,
@@ -335,7 +341,7 @@ class FlowerClient(fl.client.NumPyClient):
         logging.debug(
             f"[Client {self.client_id}] Training for {self.num_of_client_epochs} epoch(s) with {len(self.trainloader)} batches"
         )
-        epoch_loss, epoch_acc = self.train(
+        epoch_loss, epoch_acc, eta_eff = self.train(
             self.net, self.trainloader, epochs=self.num_of_client_epochs, global_params=global_params, config=config
         )
         logging.debug(
@@ -345,7 +351,7 @@ class FlowerClient(fl.client.NumPyClient):
         if torch.cuda.is_available():
             torch.cuda.empty_cache()
 
-        return self.get_parameters(self.net), len(self.trainloader), {"loss": epoch_loss, "accuracy": epoch_acc}
+        return self.get_parameters(self.net), len(self.trainloader), {"loss": epoch_loss, "accuracy": epoch_acc, "eta_eff": eta_eff}
 
     def evaluate(self, parameters, config):
         self.set_parameters(self.net, parameters)

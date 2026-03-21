@@ -1,5 +1,7 @@
 from dataclasses import dataclass, field
-from typing import List
+from typing import List, Any
+from numbers import Number
+import numpy as np
 
 from src.data_models.simulation_strategy_config import StrategyConfig
 
@@ -85,6 +87,18 @@ class RoundsInfo:
         if self.simulation_strategy_config.remove_clients:
             self.savable_metrics += self.statsable_metrics
 
+
+    @staticmethod
+    def _to_python_number(value: Any) -> Any:
+        """
+        Convert value to python number to allow for later database upload.
+        Catches np.float32, np.float64, etc. which are not json serializable.
+        """
+        if isinstance(value, np.generic):
+            return value.item()
+        return value    
+
+
     def add_history_entry(
             self,
             score_calculation_time_nanos: int,
@@ -102,9 +116,9 @@ class RoundsInfo:
         """
 
         self.score_calculation_time_nanos_history.append(score_calculation_time_nanos)
-        self.removal_threshold_history.append(removal_threshold)
-        self.aggregated_loss_history.append(aggregated_loss)
-        self.average_accuracy_history.append(average_accuracy)
+        self.removal_threshold_history.append(self._to_python_number(removal_threshold))
+        self.aggregated_loss_history.append(self._to_python_number(aggregated_loss))
+        self.average_accuracy_history.append(self._to_python_number(average_accuracy))
 
     def get_metric_by_name(self, metric: str) -> List:
         """Get single plottable metric values by name"""
@@ -159,28 +173,58 @@ class RoundsInfo:
 
             self.total_fp_and_fn_history.append(round_fp + round_fn)
 
+    def _sanitize_numeric_value(self, value: Any) -> Any:
+        """
+        Rules:
+        - scalar numeric or numeric-convertible -> keep as float/int-compatible value
+        - scalar non-numeric -> None
+        - list/tuple -> list where each non-numeric element becomes None
+        """
+        if isinstance(value, (list, tuple)):
+            return [
+                item if self._is_number_like(item) else None
+                for item in value
+            ]
+
+        return value if self._is_number_like(value) else None
+
+    @staticmethod
+    def _is_number_like(value: Any) -> bool:
+        if value is None:
+            return False
+        if isinstance(value, bool):
+            return False
+        if isinstance(value, Number):
+            return True
+        try:
+            float(value)
+            return True
+
+        except (TypeError, ValueError):
+            return False
+
     def to_dict(self) -> dict:
         return {
-            "score_calculation_time_nanos_history": self.score_calculation_time_nanos_history,
-            "removal_threshold_history": self.removal_threshold_history,
-            "aggregated_loss_history": self.aggregated_loss_history,
-            "average_accuracy_history": self.average_accuracy_history,
-            "average_accuracy_std_history": self.average_accuracy_std_history,
-            "tp_history": self.tp_history,
-            "tn_history": self.tn_history,
-            "fp_history": self.fp_history,
-            "fn_history": self.fn_history,
-            "total_fp_and_fn_history": self.total_fp_and_fn_history,
-            "removal_accuracy_history": self.removal_accuracy_history,
-            "removal_precision_history": self.removal_precision_history,
-            "removal_recall_history": self.removal_recall_history,
-            "removal_f1_history": self.removal_f1_history,
-            "mention_precision_history": self.mention_precision_history,
-            "mention_recall_history": self.mention_recall_history,
-            "mention_f1_history": self.mention_f1_history,
-            "document_precision_history": self.document_precision_history,
-            "document_recall_history": self.document_recall_history,
-            "document_f1_history": self.document_f1_history,
+            "score_calculation_time_nanos_history": self._sanitize_numeric_value(self.score_calculation_time_nanos_history),
+            "removal_threshold_history": self._sanitize_numeric_value(self.removal_threshold_history),
+            "aggregated_loss_history": self._sanitize_numeric_value(self.aggregated_loss_history),
+            "average_accuracy_history": self._sanitize_numeric_value(self.average_accuracy_history),
+            "average_accuracy_std_history": self._sanitize_numeric_value(self.average_accuracy_std_history),
+            "tp_history": self._sanitize_numeric_value(self.tp_history),
+            "tn_history": self._sanitize_numeric_value(self.tn_history),
+            "fp_history": self._sanitize_numeric_value(self.fp_history),
+            "fn_history": self._sanitize_numeric_value(self.fn_history),
+            "total_fp_and_fn_history": self._sanitize_numeric_value(self.total_fp_and_fn_history),
+            "removal_accuracy_history": self._sanitize_numeric_value(self.removal_accuracy_history),
+            "removal_precision_history": self._sanitize_numeric_value(self.removal_precision_history),
+            "removal_recall_history": self._sanitize_numeric_value(self.removal_recall_history),
+            "removal_f1_history": self._sanitize_numeric_value(self.removal_f1_history),
+            "mention_precision_history": self._sanitize_numeric_value(self.mention_precision_history),
+            "mention_recall_history": self._sanitize_numeric_value(self.mention_recall_history),
+            "mention_f1_history": self._sanitize_numeric_value(self.mention_f1_history),
+            "document_precision_history": self._sanitize_numeric_value(self.document_precision_history),
+            "document_recall_history": self._sanitize_numeric_value(self.document_recall_history),
+            "document_f1_history": self._sanitize_numeric_value(self.document_f1_history),
         }
 
     @classmethod

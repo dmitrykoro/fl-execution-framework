@@ -51,6 +51,8 @@ from src.simulation_strategies.trimmed_mean_based_removal_strategy import Trimme
 from src.simulation_strategies.multi_krum_strategy import MultiKrumStrategy
 from src.simulation_strategies.rfa_based_removal_strategy import RFABasedRemovalStrategy
 from src.simulation_strategies.bulyan_strategy import BulyanStrategy
+from src.simulation_strategies.pid_based_stateless_removal_strategy import PIDBasedStatelessRemovalStrategy
+from src.simulation_strategies.fed_nga_strategy import FedNGAStrategy
 
 from src.data_models.simulation_strategy_config import StrategyConfig
 from src.data_models.simulation_strategy_history import SimulationStrategyHistory
@@ -376,6 +378,17 @@ class FederatedSimulation:
                 use_lora=True if self.strategy_config.use_llm and self.strategy_config.llm_finetuning == "lora" else False,
                 **common_kwargs
             )
+        elif aggregation_strategy_keyword in ("pid_v5_stateless_mean_based", "pid_v5_stateless_median_based"):
+            self._aggregation_strategy = PIDBasedStatelessRemovalStrategy(
+                ki=self.strategy_config.Ki,
+                kp=self.strategy_config.Kp,
+                kd=self.strategy_config.Kd,
+                num_std_dev=self.strategy_config.num_std_dev,
+                network_model=self._network_model,
+                aggregation_strategy_keyword=aggregation_strategy_keyword,
+                use_lora=True if self.strategy_config.use_llm and self.strategy_config.llm_finetuning == "lora" else False,
+                **common_kwargs
+            )
         elif aggregation_strategy_keyword == "krum":
             self._aggregation_strategy = KrumBasedRemovalStrategy(
                 num_malicious_clients=self.strategy_config.num_of_malicious_clients,
@@ -412,6 +425,11 @@ class FederatedSimulation:
             )
         elif aggregation_strategy_keyword == "fools_gold":
             self._aggregation_strategy = FoolsGoldStrategy(
+                **common_kwargs
+            )
+
+        elif aggregation_strategy_keyword == "fed_nga":
+            self._aggregation_strategy = FedNGAStrategy(
                 **common_kwargs
             )
 

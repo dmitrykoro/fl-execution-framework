@@ -18,7 +18,6 @@ def merge_and_validate_usecase_configs(config_path: str = None, config_dict: dic
             raw_config = config_dict
             logging.info(f"Successfully received config from UI.")
 
-
         shared_settings = raw_config['shared_settings']
 
         for strategy in raw_config['simulation_strategies']:
