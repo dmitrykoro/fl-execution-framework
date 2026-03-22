@@ -1,9 +1,11 @@
 import logging
 import math
+import re
+import decimal
 
 from aiohttp import web
 from sqlalchemy import text
-from datetime import datetime
+from datetime import datetime, date
 from zoneinfo import ZoneInfo
 
 from src.data_models.simulation_strategy_history import SimulationStrategyHistory
@@ -32,8 +34,45 @@ def _query_int(
 
     if value < minimum:
         raise web.HTTPBadRequest(text=f"{name} must be >= {minimum}")
+
     if maximum is not None and value > maximum:
         raise web.HTTPBadRequest(text=f"{name} must be <= {maximum}")
+
+    return value
+
+
+READONLY_SQL_RE = re.compile(r"^\s*(with\b.+?\bselect\b|select\b)", re.IGNORECASE | re.DOTALL)
+FORBIDDEN_SQL_RE = re.compile(
+    r"\b(insert|update|delete|drop|alter|create|truncate|grant|revoke|copy|call|do|merge|comment|refresh|vacuum|analyze)\b",
+    re.IGNORECASE,
+)
+
+
+def _validate_readonly_sql(sql: str) -> str:
+    stripped = sql.strip()
+
+    if not stripped:
+        raise web.HTTPBadRequest(text="sql must not be empty")
+
+    if ";" in stripped.rstrip(";"):
+        raise web.HTTPBadRequest(text="Only a single SQL statement is allowed")
+
+    if not READONLY_SQL_RE.match(stripped):
+        raise web.HTTPBadRequest(text="Only read-only SELECT / WITH queries are allowed")
+
+    if FORBIDDEN_SQL_RE.search(stripped):
+        raise web.HTTPBadRequest(text="Data manipulation statements are not allowed")
+
+    return stripped
+
+
+def _json_safe_value(value):
+    if isinstance(value, (datetime, date)):
+        return value.isoformat()
+
+    if isinstance(value, decimal.Decimal):
+        return float(value)
+
     return value
 
 
@@ -178,6 +217,36 @@ async def get_summary(request: web.Request) -> web.Response:
             return web.json_response({"error": str(e)}, status=500)
 
 
+async def execute_query(request: web.Request) -> web.Response:
+    payload = await request.json()
+    sql = _validate_readonly_sql(str(payload.get("sql", "")))
+
+    with get_db() as session:
+        try:
+            result = session.execute(text(sql))
+            mappings = result.mappings().all()
+            columns = list(result.keys())
+            rows = [{key: _json_safe_value(value) for key, value in dict(row).items()} for row in mappings]
+
+            return web.json_response(
+                {
+                    "columns": columns,
+                    "rows": rows,
+                    "row_count": len(rows),
+                }
+            )
+
+        except web.HTTPException:
+            raise
+
+        except Exception as e:
+            logging.exception("Failed to execute read-only SQL query")
+            return web.json_response({"error": str(e)}, status=500)
+
+        finally:
+            session.close()
+
+
 async def health(request: web.Request) -> web.Response:
     """Return a simple health check response."""
     return web.json_response({"status": "healthy"})
@@ -293,6 +362,7 @@ async def homepage(request: web.Request) -> web.Response:
 app = web.Application(middlewares=[auth_middleware])
 app.router.add_post("/experiments", post_experiment)
 app.router.add_get("/experiments", get_experiments)
+app.router.add_post("/query", execute_query)
 app.router.add_get("/health", health)
 app.router.add_get("/get_summary", get_summary)
 app.router.add_get("/", homepage)

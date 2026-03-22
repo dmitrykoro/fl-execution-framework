@@ -2,7 +2,7 @@ import {useEffect, useId, useMemo, useRef, useState} from "react";
 
 /**
  * InteFL Research Framework – UI (API-backed)
- * Tabs: Run | Analyze | Docs | AI Settings | Config templates
+ * Tabs: Run | Analyze | Docs | AI Settings | Config Templates
  *
  * Key UX requirement: logs stay visible at the bottom regardless of tab.
  *
@@ -40,6 +40,44 @@ type ApiStartResponse = { run_id: string };
 type ApiLogsResponse = { lines: string[] };
 
 type ApiStatusResponse = { run_id: string; status: "RUNNING" | "EXITED" | "UNKNOWN"; exit_code?: number };
+
+type AgentPhase =
+    | "idle"
+    | "generating_config"
+    | "refining_config"
+    | "config_ready"
+    | "running_experiment"
+    | "analyzing_results"
+    | "completed"
+    | "error";
+
+type AgentPollResponse = {
+    session_id: string;
+    version: number;
+    phase: AgentPhase;
+    pending: boolean;
+    error?: string | null;
+    user_prompt?: string | null;
+    latest_config_text?: string | null;
+    latest_config_path?: string | null;
+    latest_reasoning?: string | null;
+    num_corrections?: number;
+    run_id?: string | null;
+    result_summary?: string | null;
+    result_summary_run_id?: string | null;
+    messages: ChatMessage[];
+};
+
+type AnalyzePollResponse = {
+    session_id: string;
+    version: number;
+    phase: string;
+    pending: boolean;
+    error?: string | null;
+    question?: string | null;
+    messages: ChatMessage[];
+    evidence: EvidenceItem[];
+};
 
 type ExperimentLink = { label: string; href: string };
 
@@ -377,35 +415,6 @@ const DEFAULT_JSON: JsonObject = {
 
 const EXPERIMENTS_PAGE_SIZE = 6;
 
-function suggestConfigFromText(text: string): JsonObject {
-    const lower = text.toLowerCase();
-
-    let dataset = "femnist";
-    if (lower.includes("medical") || lower.includes("pneumonia")) {
-        dataset = "pneumoniamnist";
-    } else if (lower.includes("traffic") || lower.includes("sign")) {
-        dataset = "its";
-    } else if (lower.includes("iid")) {
-        dataset = "femnist_iid";
-    } else if (lower.includes("non-iid") || lower.includes("niid")) {
-        dataset = "femnist_niid";
-    }
-
-    let strategy = "PID";
-    if (lower.includes("multikrum")) strategy = "MultiKrum";
-    if (lower.includes("trimmed")) strategy = "TrimmedMean";
-
-    const percentMatch = lower.match(/(\d+)\s*%/);
-    const badClients = percentMatch ? `${percentMatch[1]}%` : DEFAULT_JSON["bad clients"];
-
-    return {
-        ...DEFAULT_JSON,
-        dataset,
-        strategy,
-        "bad clients": badClients,
-    };
-}
-
 const DEFAULT_DOCS_MD = `# Configuration reference
 
 - **\`dataset_keyword\`**  
@@ -433,9 +442,9 @@ const DEFAULT_DOCS_MD = `# Configuration reference
 // UI components
 // --------------------
 
-function ShellCard({title, subtitle, right, children}: any) {
+function ShellCard({title, subtitle, right, children, className}: any) {
     return (
-        <div className="flex h-full flex-col rounded-2xl bg-white shadow-sm ring-1 ring-zinc-200">
+        <div className={cx("flex h-full min-h-0 flex-col overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-zinc-200", className)}>
             <div className="flex items-center justify-between border-b border-zinc-100 px-4 py-3">
                 <div>
                     <div className="text-sm font-semibold">{title}</div>
@@ -449,7 +458,7 @@ function ShellCard({title, subtitle, right, children}: any) {
 }
 
 function Tabs({active, setActive}: any) {
-    const tabs = ["Run", "Analyze", "Docs", "AI Settings", "Config templates"];
+    const tabs = ["Run", "Analyze", "Docs", "AI Settings", "Config Templates"];
     return (
         <div className="mt-6 flex w-full items-center gap-2 border-b border-zinc-200">
             {tabs.map((t) => {
@@ -472,11 +481,11 @@ function Tabs({active, setActive}: any) {
     );
 }
 
-function ChatPanel({title, subtitle, messages, draft, setDraft, onSend, placeholder, footerHint}: any) {
+function ChatPanel({title, subtitle, messages, draft, setDraft, onSend, placeholder, footerHint, loadingText, cardClassName}: any) {
     return (
-        <ShellCard title={title} subtitle={subtitle}>
-            <div className="flex flex-1 flex-col">
-            <div className="h-72 flex-1 overflow-auto px-4 py-3">
+        <ShellCard title={title} subtitle={subtitle} className={cardClassName}>
+            <div className="flex min-h-0 flex-1 flex-col">
+            <div className="h-72 min-h-0 flex-1 overflow-auto px-4 py-3">
                 {messages.map((m: ChatMessage, idx: number) => (
                     <div
                         key={idx}
@@ -492,17 +501,33 @@ function ChatPanel({title, subtitle, messages, draft, setDraft, onSend, placehol
                         </div>
                     </div>
                 ))}
+                {loadingText ? (
+                    <div className="mb-3 flex justify-start">
+                        <div className="max-w-[85%] rounded-2xl bg-zinc-100 px-3 py-2 text-sm text-zinc-700 animate-pulse">
+                            {loadingText}
+                        </div>
+                    </div>
+                ) : null}
             </div>
             <div className="mt-auto border-t border-zinc-100 px-4 py-3">
-                <div className="flex items-center gap-2">
-                    <input
+                <div className="flex items-end gap-2">
+                    <textarea
                         value={draft}
                         onChange={(e) => setDraft(e.target.value)}
+                        onInput={(e) => {
+                            const el = e.currentTarget;
+                            el.style.height = "0px";
+                            el.style.height = `${Math.min(el.scrollHeight, 160)}px`;
+                        }}
                         onKeyDown={(e) => {
-                            if (e.key === "Enter") onSend();
+                            if (e.key === "Enter" && !e.shiftKey) {
+                                e.preventDefault();
+                                onSend();
+                            }
                         }}
                         placeholder={placeholder}
-                        className="w-full rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-zinc-300"
+                        rows={1}
+                        className="max-h-40 min-h-[42px] w-full resize-none rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-zinc-300"
                     />
                     <button
                         onClick={onSend}
@@ -929,6 +954,12 @@ export default function App() {
         {role: "assistant", text: "Describe your use-case in natural language. I will propose a JSON config."},
     ]);
     const [runChatDraft, setRunChatDraft] = useState("");
+    const [agentSessionId, setAgentSessionId] = useState<string | null>(null);
+    const [agentVersion, setAgentVersion] = useState(0);
+    const [agentPending, setAgentPending] = useState(false);
+    const [agentPhase, setAgentPhase] = useState<AgentPhase>("idle");
+    const appliedAgentConfigRef = useRef<string | null>(null);
+    const requestedSummaryRunIdRef = useRef<string | null>(null);
 
     // RUN: JSON
     const [jsonText, setJsonText] = useState(prettyJson(DEFAULT_JSON));
@@ -992,6 +1023,9 @@ export default function App() {
         {role: "assistant", text: "Ask about experiment outcomes and I will summarize the retrieved evidence."},
     ]);
     const [anChatDraft, setAnChatDraft] = useState("");
+    const [analysisSessionId, setAnalysisSessionId] = useState<string | null>(null);
+    const [analysisVersion, setAnalysisVersion] = useState(0);
+    const [analysisPending, setAnalysisPending] = useState(false);
     const [evidence, setEvidence] = useState<EvidenceItem[]>([
         {
             title: "No evidence loaded yet",
@@ -1032,26 +1066,155 @@ export default function App() {
         refreshExperiments(experimentsPage);
     }, [experimentsPage]);
 
-    const onSendRunChat = () => {
+    useEffect(() => {
+        if (!analysisSessionId) return;
+
+        let cancelled = false;
+        let since = analysisVersion;
+
+        const loop = async () => {
+            while (!cancelled) {
+                try {
+                    const params = new URLSearchParams({
+                        session_id: analysisSessionId,
+                        since: String(since),
+                    });
+                    const snapshot = await apiJson<AnalyzePollResponse>(`/api/analyze_db/poll?${params.toString()}`);
+                    if (cancelled) return;
+
+                    since = snapshot.version;
+                    setAnalysisVersion(snapshot.version);
+                    setAnalysisPending(snapshot.pending);
+                    setAnChatMessages(snapshot.messages ?? []);
+                    setEvidence(
+                        snapshot.evidence && snapshot.evidence.length > 0
+                            ? snapshot.evidence
+                            : [{
+                                title: "No evidence loaded yet",
+                                body: "Run an analysis query to populate this panel with retrieved statistics.",
+                            }]
+                    );
+
+                    if (!snapshot.pending) {
+                        return;
+                    }
+                } catch (e: any) {
+                    if (cancelled) return;
+                    appendUiLog(`[ui] analysis poll error: ${e?.message || e}`);
+                    await new Promise((resolve) => window.setTimeout(resolve, 1500));
+                }
+            }
+        };
+
+        void loop();
+
+        return () => {
+            cancelled = true;
+        };
+    }, [analysisSessionId]);
+
+    useEffect(() => {
+        if (!agentSessionId) return;
+
+        let cancelled = false;
+        let since = agentVersion;
+
+        const loop = async () => {
+            while (!cancelled) {
+                try {
+                    const params = new URLSearchParams({
+                        session_id: agentSessionId,
+                        since: String(since),
+                    });
+                    const snapshot = await apiJson<AgentPollResponse>(`/api/agent/poll?${params.toString()}`);
+                    if (cancelled) return;
+
+                    since = snapshot.version;
+                    setAgentVersion(snapshot.version);
+                    setAgentPending(snapshot.pending);
+                    setAgentPhase(snapshot.phase);
+                    setRunChatMessages(snapshot.messages ?? []);
+
+                    if (
+                        snapshot.latest_config_text &&
+                        appliedAgentConfigRef.current !== snapshot.latest_config_text
+                    ) {
+                        appliedAgentConfigRef.current = snapshot.latest_config_text;
+                        setJsonText(snapshot.latest_config_text);
+                        setJsonStatus({ok: true, message: "AI-generated config validated"});
+                        appendUiLog("[ui] agent generated validated config");
+                    }
+
+                    if (snapshot.error) {
+                        appendUiLog(`[ui] agent error: ${snapshot.error}`);
+                    }
+                } catch (e: any) {
+                    if (cancelled) return;
+                    appendUiLog(`[ui] agent poll error: ${e?.message || e}`);
+                    await new Promise((resolve) => window.setTimeout(resolve, 1500));
+                }
+            }
+        };
+
+        void loop();
+
+        return () => {
+            cancelled = true;
+        };
+    }, [agentSessionId]);
+
+    useEffect(() => {
+        if (!runId || !agentSessionId || runStatus !== "EXITED") return;
+        if (requestedSummaryRunIdRef.current === runId) return;
+
+        requestedSummaryRunIdRef.current = runId;
+        setAgentPending(true);
+        setAgentPhase("analyzing_results");
+
+        void apiJson<AgentPollResponse>("/api/agent/analyze_results", {
+            method: "POST",
+            body: JSON.stringify({session_id: agentSessionId, run_id: runId}),
+        }).catch((e: any) => {
+            requestedSummaryRunIdRef.current = null;
+            setAgentPending(false);
+            appendUiLog(`[ui] agent result analysis error: ${e?.message || e}`);
+        });
+    }, [runId, runStatus, agentSessionId]);
+
+    const onSendRunChat = async () => {
         const text = runChatDraft.trim();
         if (!text) return;
-        setRunChatMessages((m) => [...m, {role: "user", text}]);
         setRunChatDraft("");
 
-        const suggested = suggestConfigFromText(text);
+        try {
+            if (!agentSessionId || (runId && runStatus === "EXITED")) {
+                requestedSummaryRunIdRef.current = null;
+                appliedAgentConfigRef.current = null;
+                const snapshot = await apiJson<AgentPollResponse>("/api/agent/start", {
+                    method: "POST",
+                    body: JSON.stringify({text}),
+                });
+                setAgentSessionId(snapshot.session_id);
+                setAgentVersion(snapshot.version);
+                setAgentPending(snapshot.pending);
+                setAgentPhase(snapshot.phase);
+                setRunChatMessages(snapshot.messages ?? []);
+                appendUiLog("[ui] agent generation started");
+                return;
+            }
 
-        setTimeout(() => {
-            setRunChatMessages((m) => [
-                ...m,
-                {
-                    role: "assistant",
-                    text: "Requested use-case is reflected in generated JSON:\n\n" + prettyJson(suggested),
-                },
-            ]);
-            setJsonText(prettyJson(suggested));
-            setJsonStatus({ok: true, message: "Not validated yet"});
-            appendUiLog(`[ui] agent suggested config for dataset=${suggested.dataset}`);
-        }, 200);
+            const snapshot = await apiJson<AgentPollResponse>("/api/agent/refine", {
+                method: "POST",
+                body: JSON.stringify({session_id: agentSessionId, text}),
+            });
+            setAgentVersion(snapshot.version);
+            setAgentPending(snapshot.pending);
+            setAgentPhase(snapshot.phase);
+            setRunChatMessages(snapshot.messages ?? []);
+            appendUiLog("[ui] agent refinement started");
+        } catch (e: any) {
+            appendUiLog(`[ui] agent request error: ${e?.message || e}`);
+        }
     };
 
     const onValidate = async () => {
@@ -1112,7 +1275,7 @@ export default function App() {
         try {
             const resp = await apiJson<ApiStartResponse>("/api/start_simulation_runner", {
                 method: "POST",
-                body: JSON.stringify({config: parsed.value, log_level: "INFO"}),
+                body: JSON.stringify({config: parsed.value, log_level: "INFO", agent_session_id: agentSessionId}),
             });
 
             setRunId(resp.run_id);
@@ -1154,7 +1317,7 @@ export default function App() {
 
         setTemplates((t) => [{id, name, config: parsed.value}, ...t]);
         appendUiLog(`[ui] template saved: ${name}`);
-        setActiveTab("Config templates");
+        setActiveTab("Config Templates");
     };
 
     const restoreConfig = (config: JsonObject, sourceLabel: string) => {
@@ -1164,31 +1327,26 @@ export default function App() {
         setActiveTab("Run");
     };
 
-    const onSendAnalyzeChat = () => {
+    const onSendAnalyzeChat = async () => {
         const text = anChatDraft.trim();
         if (!text) return;
-        setAnChatMessages((m) => [...m, {role: "user", text}]);
         setAnChatDraft("");
+        setAnalysisPending(true);
 
-        setTimeout(() => {
-            const answer =
-                text.toLowerCase().includes("best") && text.toLowerCase().includes("medical")
-                    ? "(mock) According to experimental database, it's PID."
-                    : "(mock) I can answer using the experiment database once connected.";
-
-            setAnChatMessages((m) => [...m, {role: "assistant", text: answer}]);
-
-            const newEvidence = {
-                title: "Retrieved statistics (mock)",
-                body:
-                    "• Query inferred from your question\n" +
-                    "• Example: top-1 aggregation by avg accuracy on medical datasets\n" +
-                    "• Evidence can include tables/plots/links once wired to backend",
-            };
-
-            setEvidence((ev) => [newEvidence, ...ev]);
-            appendUiLog(`[ui] analyze processed: \"${text}\"`);
-        }, 250);
+        try {
+            const snapshot = await apiJson<AnalyzePollResponse>("/api/analyze_db/start", {
+                method: "POST",
+                body: JSON.stringify({question: text}),
+            });
+            setAnalysisSessionId(snapshot.session_id);
+            setAnalysisVersion(snapshot.version);
+            setAnalysisPending(snapshot.pending);
+            setAnChatMessages(snapshot.messages ?? []);
+            appendUiLog(`[ui] analysis started: "${text}"`);
+        } catch (e: any) {
+            setAnalysisPending(false);
+            appendUiLog(`[ui] analysis request error: ${e?.message || e}`);
+        }
     };
 
     const clearAllLogs = () => {
@@ -1204,8 +1362,7 @@ export default function App() {
                     <div>
                         <h1 className="text-2xl font-semibold tracking-tight">InteFL Research Framework</h1>
                         <p className="mt-1 text-sm text-zinc-600">
-                            API-backed prototype: execution + analysis + docs (.md → selectable entries) + AI settings +
-                            templates.
+                            Configure Federated Learning based on quantitative evaluation of its performance on simulated target system
                         </p>
                     </div>
                     <div className="hidden sm:flex items-center gap-2">
@@ -1222,19 +1379,28 @@ export default function App() {
                     <div className="mt-6 overflow-x-auto pb-2">
                         <div className="grid min-w-[1560px] grid-cols-[360px_360px_320px_420px] gap-4">
                             <ChatPanel
-                                title="AI-assisted execution and analysis"
-                                subtitle="User describes use-case in natural language"
+                                cardClassName="h-[58rem]"
+                                title="AI-assisted configuration and analysis"
+                                subtitle="Describe FL use-case in natural language"
                                 messages={runChatMessages}
                                 draft={runChatDraft}
-                                setDraft={setRunChatDraft}
-                                onSend={onSendRunChat}
-                                placeholder='e.g., "Use femnist with 20% bad clients"'
-                                footerHint="Requested use-case is reflected in generated JSON."
-                            />
+                            setDraft={setRunChatDraft}
+                            onSend={onSendRunChat}
+                            placeholder='e.g., "femnist with 20% bad clients"'
+                            footerHint="Requested use-case is reflected in generated JSON."
+                            loadingText={
+                                agentPending
+                                    ? agentPhase === "analyzing_results"
+                                        ? "Agent is analyzing the run results..."
+                                        : "Agent is thinking..."
+                                    : undefined
+                            }
+                        />
 
                             <ShellCard
+                                className="h-[58rem]"
                                 title="Manual configuration: JSON"
-                                subtitle="User can manually adjust the JSON or configure it from scratch"
+                                subtitle="Manually adjust JSON comfiguration"
                                 right={
                                     <div
                                         className={cx(
@@ -1301,8 +1467,9 @@ export default function App() {
                             </ShellCard>
 
                             <ShellCard
+                                className="h-[58rem]"
                                 title="Experiments history"
-                                subtitle="Paginated experiment history retrieved from the database"
+                                subtitle="Previously executed experiments"
                                 right={
                                     <button
                                         onClick={() => refreshExperiments(experimentsPage)}
@@ -1331,7 +1498,6 @@ export default function App() {
                                                         key={exp.id}
                                                         onClick={() => {
                                                             setSelectedExpId(exp.id);
-                                                            appendUiLog(`[ui] history selected ${exp.id}`);
                                                         }}
                                                         className={cx(
                                                             "w-full rounded-2xl border px-3 py-3 text-left transition-colors",
@@ -1394,8 +1560,9 @@ export default function App() {
                             </ShellCard>
 
                             <ShellCard
+                                className="h-[58rem]"
                                 title="Experiment details"
-                                subtitle="Selected experiment summary, author details, and reference plots"
+                                subtitle="Key configuration and author details, reference plots"
                             >
                                 <div className="px-4 py-3">
                                     {!selectedExperiment ? (
@@ -1518,23 +1685,24 @@ export default function App() {
                     <div className="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-2">
                         <ChatPanel
                             title="AI-assisted statistical analysis"
-                            subtitle="(mock) Agent infers SQL request and presents findings"
+                            subtitle="Agent infers SQL queries from your question and presents findings"
                             messages={anChatMessages}
                             draft={anChatDraft}
                             setDraft={setAnChatDraft}
                             onSend={onSendAnalyzeChat}
                             placeholder='e.g., "What is the best-performing aggregation on medical images?"'
                             footerHint="Retrieved knowledge is displayed as evidence (explainability)."
+                            loadingText={analysisPending ? "Agent is querying and analyzing the database..." : undefined}
                         />
 
                         <ShellCard title="AI explainability: retrieved statistics"
-                                   subtitle="Possibly: plots, tables, numbers (mock)">
+                                   subtitle="Retrieved tables, numbers, and SQL evidence">
                             <div className="px-4 py-3">
                                 <div className="space-y-3">
                                     {evidence.map((e: any, i: number) => (
                                         <div key={i} className="rounded-xl border border-zinc-200 bg-white p-3">
                                             <div className="text-xs font-semibold text-zinc-800">{e.title}</div>
-                                            <div className="mt-1 whitespace-pre-wrap text-xs text-zinc-600">{e.body}</div>
+                                            <pre className="mt-1 whitespace-pre-wrap text-xs text-zinc-600">{e.body}</pre>
                                         </div>
                                     ))}
                                 </div>
@@ -1712,7 +1880,7 @@ export default function App() {
                 )}
 
                 {/* CONFIG TEMPLATES */}
-                {activeTab === "Config templates" && (
+                {activeTab === "Config Templates" && (
                     <div className="mt-6">
                         <ShellCard title="Saved Templates"
                                    subtitle="User can browse saved configs and restore them for execution">
