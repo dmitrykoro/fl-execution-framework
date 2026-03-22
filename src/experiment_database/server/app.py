@@ -1,4 +1,5 @@
 import logging
+import math
 
 from aiohttp import web
 from sqlalchemy import text
@@ -11,6 +12,29 @@ from src.experiment_database.persistence import fill_all_tables
 from src.experiment_database.session import get_db
 from src.utils.common import obtain_env_var
 from src.experiment_database.server.middleware import auth_middleware
+
+
+def _query_int(
+        request: web.Request,
+        name: str,
+        default: int,
+        minimum: int = 1,
+        maximum: int | None = None,
+) -> int:
+    raw = request.query.get(name)
+    if raw is None:
+        return default
+
+    try:
+        value = int(raw)
+    except (TypeError, ValueError):
+        raise web.HTTPBadRequest(text=f"{name} must be an integer")
+
+    if value < minimum:
+        raise web.HTTPBadRequest(text=f"{name} must be >= {minimum}")
+    if maximum is not None and value > maximum:
+        raise web.HTTPBadRequest(text=f"{name} must be <= {maximum}")
+    return value
 
 
 async def post_experiment(request: web.Request) -> web.Response:
@@ -53,14 +77,20 @@ async def post_experiment(request: web.Request) -> web.Response:
 
 
 async def get_experiments(request: web.Request) -> web.Response:
-    """Return the 20 most recent experiment events with config, hardware, and metrics."""
+    """Return paginated experiment events with config, hardware, and metrics."""
+
+    page = _query_int(request, "page", default=1, minimum=1)
+    page_size = _query_int(request, "page_size", default=8, minimum=1, maximum=50)
+    offset = (page - 1) * page_size
 
     with get_db() as session:
         try:
+            total_count = session.query(ExperimentEvent).count()
             experiments = (
                 session.query(ExperimentEvent)
                 .order_by(ExperimentEvent.id.desc())
-                .limit(20)
+                .offset(offset)
+                .limit(page_size)
                 .all()
             )
 
@@ -68,15 +98,17 @@ async def get_experiments(request: web.Request) -> web.Response:
             for exp in experiments:
                 cfg = exp.executed_config
                 hw = exp.hardware
+                author = exp.author
                 result.append(
                     {
                         "id": exp.id,
                         "created_at": exp.created_at.isoformat() if exp.created_at else None,
+                        "wandb_url": exp.wandb_url,
                         "is_successful": exp.is_successful,
                         "total_exec_time": exp.total_exec_time,
                         "error_message": exp.error_message,
-                        "full_author_name": exp.author.full_author_name,
-                        "author_email": exp.author.author_email,
+                        "full_author_name": author.full_author_name if author else None,
+                        "author_email": author.author_email if author else None,
                         "config": {
                             "strategy": cfg.aggregation_strategy_keyword if cfg else None,
                             "dataset": cfg.dataset_keyword if cfg else None,
@@ -115,7 +147,17 @@ async def get_experiments(request: web.Request) -> web.Response:
                     }
                 )
 
-            return web.json_response({"count": len(result), "experiments": result})
+            total_pages = math.ceil(total_count / page_size) if total_count else 0
+            return web.json_response(
+                {
+                    "count": len(result),
+                    "total": total_count,
+                    "page": page,
+                    "page_size": page_size,
+                    "pages": total_pages,
+                    "experiments": result,
+                }
+            )
 
         except Exception as e:
             logging.exception("Failed to fetch experiments")

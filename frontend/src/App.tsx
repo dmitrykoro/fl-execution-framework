@@ -1,4 +1,4 @@
-import {useEffect, useMemo, useRef, useState} from "react";
+import {useEffect, useId, useMemo, useRef, useState} from "react";
 
 /**
  * InteFL Research Framework – UI (API-backed)
@@ -56,17 +56,18 @@ type Experiment = {
 type BackendExperiment = {
     id: number | string;
     created_at: string | null;
+    wandb_url: string | null;
     is_successful: boolean | null;
-    total_exec_time: number | null;
+    total_exec_time: string | number | null;
     error_message: string | null;
     full_author_name: string | null;
     author_email: string | null;
     config: {
-        strategy: string | null;
-        dataset: string | null;
-        num_rounds: number | null;
-        num_clients: number | null;
-        num_malicious_clients: number | null;
+        strategy: string | number | null;
+        dataset: string | number | null;
+        num_rounds: string | number | null;
+        num_clients: string | number | null;
+        num_malicious_clients: string | number | null;
         json: JsonObject | string | null;
     } | null;
     hardware: {
@@ -92,7 +93,17 @@ type BackendExperiment = {
     }>;
 };
 
-type ApiExperimentsResponse = { count?: number; experiments?: BackendExperiment[]; items?: Experiment[] };
+type ApiExperimentsResponse = {
+    count?: number;
+    total?: number;
+    page?: number;
+    page_size?: number;
+    pages?: number;
+    experiments?: BackendExperiment[];
+    items?: Experiment[];
+};
+
+type MetricPoint = { round: number; value: number };
 
 type ChatMessage = { role: "user" | "assistant"; text: string };
 
@@ -171,6 +182,53 @@ function summarizeMetrics(metricEntries: BackendExperiment["metric_entries"]) {
     return latestByName;
 }
 
+function toMetricSeries(
+    metricEntries: BackendExperiment["metric_entries"],
+    preferredNames: string[],
+    fallbackPattern: RegExp
+): MetricPoint[] {
+    const preferred = new Set(preferredNames.map((name) => name.toLowerCase()));
+    const byRound = new Map<number, number>();
+
+    for (const entry of metricEntries ?? []) {
+        if (entry.metric_type !== "per_round") continue;
+        if (entry.client_number != null) continue;
+        if (entry.round_number == null || entry.value == null || !Number.isFinite(entry.value)) continue;
+
+        const metricName = String(entry.metric_name ?? "").toLowerCase();
+        if (!preferred.has(metricName) && !fallbackPattern.test(metricName)) continue;
+        byRound.set(entry.round_number, entry.value);
+    }
+
+    return Array.from(byRound.entries())
+        .sort((a, b) => a[0] - b[0])
+        .map(([round, value]) => ({round, value}));
+}
+
+function getUniqueAttackTypes(clientsAtRound: BackendExperiment["clients_at_round"]): string[] {
+    const values = new Set<string>();
+    for (const row of clientsAtRound ?? []) {
+        const raw = String(row.attack_type ?? "").trim();
+        if (!raw) continue;
+        for (const item of raw.split(/[,\s]+/)) {
+            const cleaned = item.trim();
+            if (cleaned) values.add(cleaned);
+        }
+    }
+    return Array.from(values).sort();
+}
+
+function formatValue(value: string | number | null | undefined) {
+    if (value == null || value === "") return "—";
+    return String(value);
+}
+
+function formatMetricValue(value: number | null | undefined) {
+    if (value == null || !Number.isFinite(value)) return "—";
+    if (Math.abs(value) >= 100 || Number.isInteger(value)) return String(Number(value.toFixed(0)));
+    return value.toFixed(3).replace(/\.?0+$/, "");
+}
+
 function mapBackendExperiment(exp: BackendExperiment): Experiment {
     const cfg = exp.config ?? null;
     const parsedJson = parseMaybeJson(cfg?.json ?? null);
@@ -193,11 +251,7 @@ function mapBackendExperiment(exp: BackendExperiment): Experiment {
         status,
         createdAt: formatCreatedAt(exp.created_at),
         config: mergedConfig,
-        links: [
-            {label: "Logs", href: "#"},
-            {label: "Config JSON", href: "#"},
-            {label: "Metrics", href: "#"},
-        ],
+        links: exp.wandb_url ? [{label: "Artifacts URL", href: exp.wandb_url}] : [],
         raw: exp as unknown as JsonObject,
     };
 }
@@ -332,6 +386,8 @@ const DEFAULT_JSON: JsonObject = {
     dataset: "femnist",
     "bad clients": "20%",
 };
+
+const EXPERIMENTS_PAGE_SIZE = 8;
 
 function suggestConfigFromText(text: string): JsonObject {
     const lower = text.toLowerCase();
@@ -659,6 +715,119 @@ function GlobalLogs({
     );
 }
 
+function MiniTrendCard({
+                           title,
+                           accentClass,
+                           points,
+                       }: {
+    title: string;
+    accentClass: string;
+    points: MetricPoint[];
+}) {
+    const gradientId = useId().replace(/:/g, "");
+    const width = 260;
+    const height = 92;
+    const padding = {top: 10, right: 10, bottom: 14, left: 10};
+
+    if (points.length === 0) {
+        return (
+            <div className="rounded-2xl border border-zinc-200 bg-white p-3">
+                <div className="text-xs font-semibold text-zinc-800">{title}</div>
+                <div className="mt-8 text-center text-xs text-zinc-500">No round metrics available.</div>
+            </div>
+        );
+    }
+
+    const values = points.map((point) => point.value);
+    const min = Math.min(...values);
+    const max = Math.max(...values);
+    const range = max - min || 1;
+    const chartWidth = width - padding.left - padding.right;
+    const chartHeight = height - padding.top - padding.bottom;
+    const colorClass = accentClass.includes("emerald") ? "text-emerald-500" : "text-amber-500";
+    const fillFrom = accentClass.includes("emerald") ? "#10b981" : "#f59e0b";
+    const fillTo = accentClass.includes("emerald") ? "#d1fae5" : "#fef3c7";
+
+    const chartPoints = points.map((point, index) => {
+        const x = points.length === 1
+            ? padding.left + chartWidth / 2
+            : padding.left + (index / (points.length - 1)) * chartWidth;
+        const y = padding.top + chartHeight - ((point.value - min) / range) * chartHeight;
+        return {...point, x, y};
+    });
+
+    const linePath = chartPoints
+        .map((point, index) => `${index === 0 ? "M" : "L"} ${point.x} ${point.y}`)
+        .join(" ");
+    const areaPath = `${linePath} L ${chartPoints[chartPoints.length - 1].x} ${padding.top + chartHeight} L ${chartPoints[0].x} ${padding.top + chartHeight} Z`;
+
+    const lastPoint = points[points.length - 1];
+
+    return (
+        <div className="rounded-2xl border border-zinc-200 bg-white p-3">
+            <div className="flex items-start justify-between gap-3">
+                <div>
+                    <div className="text-xs font-semibold text-zinc-800">{title}</div>
+                    <div className="mt-1 text-[11px] text-zinc-500">Rounds 1-{lastPoint.round}</div>
+                </div>
+                <div className={cx("rounded-full px-2 py-1 text-[11px] font-medium", accentClass)}>
+                    {formatMetricValue(lastPoint.value)}
+                </div>
+            </div>
+
+            <div className="mt-3 rounded-xl bg-zinc-50/80 p-2 ring-1 ring-zinc-100">
+                <svg viewBox={`0 0 ${width} ${height}`} className="h-20 w-full overflow-visible">
+                    <defs>
+                        <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="0%" stopColor={fillFrom} stopOpacity="0.22"/>
+                            <stop offset="100%" stopColor={fillTo} stopOpacity="0.03"/>
+                        </linearGradient>
+                    </defs>
+
+                    {[0.15, 0.5, 0.85].map((fraction) => {
+                        const y = padding.top + fraction * chartHeight;
+                        return (
+                            <line
+                                key={fraction}
+                                x1={padding.left}
+                                y1={y}
+                                x2={padding.left + chartWidth}
+                                y2={y}
+                                stroke="#ececf2"
+                                strokeDasharray="3 5"
+                            />
+                        );
+                    })}
+
+                    <path d={areaPath} fill={`url(#${gradientId})`}/>
+                    <path
+                        d={linePath}
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2.5"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        className={colorClass}
+                    />
+
+                    <text x={padding.left} y={height - 2} fontSize="10" fill="#71717a">
+                        R{chartPoints[0].round}
+                    </text>
+                    <text x={padding.left + chartWidth} y={height - 2} textAnchor="end" fontSize="10" fill="#71717a">
+                        R{lastPoint.round}
+                    </text>
+                    <text x={padding.left} y={10} fontSize="9" fill="#71717a">
+                        {formatMetricValue(max)}
+                    </text>
+                    <text x={padding.left} y={padding.top + chartHeight + 10} fontSize="9" fill="#a1a1aa">
+                        {formatMetricValue(min)}
+                    </text>
+                </svg>
+            </div>
+        </div>
+    );
+}
+
 // --------------------
 // Minimal dev tests (runs only in dev)
 // --------------------
@@ -782,6 +951,9 @@ export default function App() {
     // RUN: history (API-backed)
     const [experiments, setExperiments] = useState<Experiment[]>([]);
     const [experimentsLoading, setExperimentsLoading] = useState(false);
+    const [experimentsPage, setExperimentsPage] = useState(1);
+    const [experimentsTotal, setExperimentsTotal] = useState(0);
+    const [experimentsPages, setExperimentsPages] = useState(0);
     const [selectedExpId, setSelectedExpId] = useState<string | null>(null);
 
     const selectedExperiment = useMemo(() => {
@@ -789,21 +961,36 @@ export default function App() {
         return experiments.find((e) => e.id === selectedExpId) ?? null;
     }, [experiments, selectedExpId]);
 
-    const refreshExperiments = async () => {
+    const refreshExperiments = async (pageOverride = experimentsPage) => {
         setExperimentsLoading(true);
         try {
-            const data = await apiJson<ApiExperimentsResponse>("/api/get_experiments");
+            const params = new URLSearchParams({
+                page: String(pageOverride),
+                page_size: String(EXPERIMENTS_PAGE_SIZE),
+            });
+            const data = await apiJson<ApiExperimentsResponse>(`/api/get_experiments?${params.toString()}`);
             const mapped = Array.isArray(data.experiments)
                 ? data.experiments.map(mapBackendExperiment)
                 : Array.isArray(data.items)
                     ? data.items
                     : [];
 
-            setExperiments(mapped);
-            if (!selectedExpId && mapped.length > 0) {
-                setSelectedExpId(mapped[0].id);
+            const total = data.total ?? mapped.length;
+            const pages = data.pages ?? (total > 0 ? Math.ceil(total / EXPERIMENTS_PAGE_SIZE) : 0);
+
+            if (pages > 0 && pageOverride > pages) {
+                setExperimentsPage(pages);
+                return;
             }
-            appendUiLog(`[ui] loaded ${mapped.length} experiments from API`);
+
+            setExperiments(mapped);
+            setExperimentsTotal(total);
+            setExperimentsPages(pages);
+            setSelectedExpId((current) => {
+                if (current && mapped.some((experiment) => experiment.id === current)) return current;
+                return mapped[0]?.id ?? null;
+            });
+            appendUiLog(`[ui] loaded ${mapped.length} experiments from API (page ${pageOverride})`);
         } catch (e: any) {
             appendUiLog(`[ui] experiments fetch error: ${e?.message || e}`);
         } finally {
@@ -853,8 +1040,8 @@ export default function App() {
     }, [templates]);
 
     useEffect(() => {
-        refreshExperiments();
-    }, []);
+        refreshExperiments(experimentsPage);
+    }, [experimentsPage]);
 
     const onSendRunChat = () => {
         const text = runChatDraft.trim();
@@ -945,7 +1132,8 @@ export default function App() {
 
             // refresh experiments soon after start
             setTimeout(() => {
-                refreshExperiments();
+                setExperimentsPage(1);
+                refreshExperiments(1);
             }, 800);
 
         } catch (e: any) {
@@ -1022,7 +1210,7 @@ export default function App() {
     return (
         <div className="min-h-screen bg-zinc-50 text-zinc-900">
             {/* Content wrapper: add bottom padding so fixed logs never overlap content */}
-            <div className="mx-auto max-w-6xl px-4 pt-8 pb-60">
+            <div className="mx-auto w-full max-w-[1760px] px-4 pt-8 pb-60">
                 <div className="flex items-start justify-between gap-4">
                     <div>
                         <h1 className="text-2xl font-semibold tracking-tight">InteFL Research Framework</h1>
@@ -1042,229 +1230,315 @@ export default function App() {
 
                 {/* RUN */}
                 {activeTab === "Run" && (
-                    <div className="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-3">
-                        <ChatPanel
-                            title="AI-assisted execution and analysis"
-                            subtitle="User describes use-case in natural language"
-                            messages={runChatMessages}
-                            draft={runChatDraft}
-                            setDraft={setRunChatDraft}
-                            onSend={onSendRunChat}
-                            placeholder='e.g., "Use femnist with 20% bad clients"'
-                            footerHint="Requested use-case is reflected in generated JSON."
-                        />
+                    <div className="mt-6 overflow-x-auto pb-2">
+                        <div className="grid min-w-[1560px] grid-cols-[360px_360px_320px_420px] gap-4">
+                            <ChatPanel
+                                title="AI-assisted execution and analysis"
+                                subtitle="User describes use-case in natural language"
+                                messages={runChatMessages}
+                                draft={runChatDraft}
+                                setDraft={setRunChatDraft}
+                                onSend={onSendRunChat}
+                                placeholder='e.g., "Use femnist with 20% bad clients"'
+                                footerHint="Requested use-case is reflected in generated JSON."
+                            />
 
-                        <ShellCard
-                            title="Manual configuration: JSON"
-                            subtitle="User can manually adjust the JSON or configure it from scratch"
-                            right={
-                                <div
-                                    className={cx(
-                                        "text-[11px] rounded-full px-2 py-0.5",
-                                        jsonStatus.ok ? "bg-emerald-50 text-emerald-700" : "bg-rose-50 text-rose-700"
-                                    )}
-                                    title={jsonStatus.message}
-                                >
-                                    {apiBusy ? "Working…" : jsonStatus.ok ? "OK" : "Errors"}
-                                </div>
-                            }
-                        >
-                            <div className="px-4 py-3">
-                                <div className="rounded-xl border border-zinc-200 bg-zinc-50">
-                  <textarea
-                      value={jsonText}
-                      onChange={(e) => setJsonText(e.target.value)}
-                      className="h-64 w-full resize-none rounded-xl bg-transparent p-3 font-mono text-[12px] leading-5 outline-none"
-                  />
-                                </div>
+                            <ShellCard
+                                title="Manual configuration: JSON"
+                                subtitle="User can manually adjust the JSON or configure it from scratch"
+                                right={
+                                    <div
+                                        className={cx(
+                                            "text-[11px] rounded-full px-2 py-0.5",
+                                            jsonStatus.ok ? "bg-emerald-50 text-emerald-700" : "bg-rose-50 text-rose-700"
+                                        )}
+                                        title={jsonStatus.message}
+                                    >
+                                        {apiBusy ? "Working…" : jsonStatus.ok ? "OK" : "Errors"}
+                                    </div>
+                                }
+                            >
+                                <div className="px-4 py-3">
+                                    <div className="rounded-xl border border-zinc-200 bg-zinc-50">
+                      <textarea
+                          value={jsonText}
+                          onChange={(e) => setJsonText(e.target.value)}
+                          className="h-64 w-full resize-none rounded-xl bg-transparent p-3 font-mono text-[12px] leading-5 outline-none"
+                      />
+                                    </div>
 
-                                <div className="mt-3 grid grid-cols-2 gap-2">
+                                    <div className="mt-3 grid grid-cols-2 gap-2">
+                                        <button
+                                            onClick={onValidate}
+                                            disabled={apiBusy}
+                                            className={cx(
+                                                "rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm font-medium",
+                                                apiBusy ? "opacity-60 cursor-not-allowed" : "hover:bg-zinc-50"
+                                            )}
+                                        >
+                                            Validate
+                                        </button>
+                                        <button
+                                            onClick={onStart}
+                                            disabled={!jsonStatus.ok || apiBusy}
+                                            className={cx(
+                                                "rounded-xl px-3 py-2 text-sm font-medium",
+                                                jsonStatus.ok && !apiBusy
+                                                    ? "bg-zinc-900 text-white hover:bg-zinc-800"
+                                                    : "bg-zinc-200 text-zinc-500 cursor-not-allowed"
+                                            )}
+                                            title={jsonStatus.ok ? "Start experiment" : "Validate first"}
+                                        >
+                                            Start ▷
+                                        </button>
+                                    </div>
+
                                     <button
-                                        onClick={onValidate}
+                                        onClick={onSaveTemplate}
                                         disabled={apiBusy}
                                         className={cx(
-                                            "rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm font-medium",
+                                            "mt-2 w-full rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm font-medium",
                                             apiBusy ? "opacity-60 cursor-not-allowed" : "hover:bg-zinc-50"
                                         )}
+                                        title="Save this configuration for later reuse"
                                     >
-                                        Validate
+                                        Save as a template
                                     </button>
-                                    <button
-                                        onClick={onStart}
-                                        disabled={!jsonStatus.ok || apiBusy}
-                                        className={cx(
-                                            "rounded-xl px-3 py-2 text-sm font-medium",
-                                            jsonStatus.ok && !apiBusy
-                                                ? "bg-zinc-900 text-white hover:bg-zinc-800"
-                                                : "bg-zinc-200 text-zinc-500 cursor-not-allowed"
-                                        )}
-                                        title={jsonStatus.ok ? "Start experiment" : "Validate first"}
-                                    >
-                                        Start ▷
-                                    </button>
+
+                                    <div className="mt-2 text-xs text-zinc-500">{jsonStatus.message}</div>
                                 </div>
+                            </ShellCard>
 
-                                <button
-                                    onClick={onSaveTemplate}
-                                    disabled={apiBusy}
-                                    className={cx(
-                                        "mt-2 w-full rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm font-medium",
-                                        apiBusy ? "opacity-60 cursor-not-allowed" : "hover:bg-zinc-50"
-                                    )}
-                                    title="Save this configuration for later reuse"
-                                >
-                                    Save as a template
-                                </button>
+                            <ShellCard
+                                title="Experiments history"
+                                subtitle="Paginated experiment history retrieved from the database"
+                                right={
+                                    <button
+                                        onClick={() => refreshExperiments(experimentsPage)}
+                                        className={cx(
+                                            "rounded-xl border border-zinc-200 bg-white px-3 py-1.5 text-xs font-medium",
+                                            experimentsLoading ? "opacity-60 cursor-not-allowed" : "hover:bg-zinc-50"
+                                        )}
+                                        disabled={experimentsLoading}
+                                    >
+                                        {experimentsLoading ? "Refreshing…" : "Refresh"}
+                                    </button>
+                                }
+                            >
+                                <div className="flex h-full flex-col px-4 py-3">
+                                    <div className="space-y-2">
+                                        {experiments.length === 0 ? (
+                                            <div
+                                                className="rounded-xl border border-dashed border-zinc-300 bg-zinc-50 p-4 text-sm text-zinc-600">
+                                                No experiments returned yet.
+                                            </div>
+                                        ) : (
+                                            experiments.map((exp) => {
+                                                const active = exp.id === selectedExpId;
+                                                return (
+                                                    <button
+                                                        key={exp.id}
+                                                        onClick={() => {
+                                                            setSelectedExpId(exp.id);
+                                                            appendUiLog(`[ui] history selected ${exp.id}`);
+                                                        }}
+                                                        className={cx(
+                                                            "w-full rounded-2xl border px-3 py-3 text-left transition-colors",
+                                                            active ? "border-zinc-900 bg-zinc-50" : "border-zinc-200 bg-white hover:bg-zinc-50"
+                                                        )}
+                                                    >
+                                                        <div className="flex items-start justify-between gap-2">
+                                                            <div>
+                                                                <div className="text-sm font-medium text-zinc-900">
+                                                                    {String(exp.config.dataset ?? "Unknown dataset")}
+                                                                </div>
+                                                                <div className="mt-0.5 text-[11px] text-zinc-500">
+                                                                    {String(exp.config.strategy ?? "Unknown strategy")}
+                                                                </div>
+                                                            </div>
+                                                            <span className={badge(exp.status)}>{exp.status}</span>
+                                                        </div>
+                                                        <div className="mt-3 flex items-center justify-between gap-2 text-[11px] text-zinc-500">
+                                                            <span>{exp.createdAt}</span>
+                                                            <span>{String((exp.raw as BackendExperiment | undefined)?.full_author_name ?? "Unknown author")}</span>
+                                                        </div>
+                                                    </button>
+                                                );
+                                            })
+                                        )}
+                                    </div>
 
-                                <div className="mt-2 text-xs text-zinc-500">{jsonStatus.message}</div>
-                            </div>
-                        </ShellCard>
+                                    <div className="mt-4 flex items-center justify-between border-t border-zinc-100 pt-3 text-xs text-zinc-500">
+                                        <span>
+                                            {experimentsTotal === 0 ? "No experiments" : `Page ${experimentsPage} of ${Math.max(experimentsPages, 1)}`}
+                                        </span>
+                                        <div className="flex items-center gap-2">
+                                            <button
+                                                onClick={() => setExperimentsPage((page) => Math.max(1, page - 1))}
+                                                disabled={experimentsLoading || experimentsPage <= 1}
+                                                className={cx(
+                                                    "rounded-xl border border-zinc-200 bg-white px-3 py-1.5 font-medium",
+                                                    experimentsLoading || experimentsPage <= 1
+                                                        ? "cursor-not-allowed opacity-50"
+                                                        : "hover:bg-zinc-50"
+                                                )}
+                                            >
+                                                Prev
+                                            </button>
+                                            <button
+                                                onClick={() => setExperimentsPage((page) => Math.min(Math.max(experimentsPages, 1), page + 1))}
+                                                disabled={experimentsLoading || experimentsPage >= Math.max(experimentsPages, 1)}
+                                                className={cx(
+                                                    "rounded-xl border border-zinc-200 bg-white px-3 py-1.5 font-medium",
+                                                    experimentsLoading || experimentsPage >= Math.max(experimentsPages, 1)
+                                                        ? "cursor-not-allowed opacity-50"
+                                                        : "hover:bg-zinc-50"
+                                                )}
+                                            >
+                                                Next
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </ShellCard>
 
-                        <ShellCard
-                            title="Experiments history"
-                            subtitle="Experiment history is retrieved from DB and includes links to artifacts"
-                            right={
-                                <button
-                                    onClick={refreshExperiments}
-                                    className={cx(
-                                        "rounded-xl border border-zinc-200 bg-white px-3 py-1.5 text-xs font-medium",
-                                        experimentsLoading ? "opacity-60 cursor-not-allowed" : "hover:bg-zinc-50"
-                                    )}
-                                    disabled={experimentsLoading}
-                                >
-                                    {experimentsLoading ? "Refreshing…" : "Refresh"}
-                                </button>
-                            }
-                        >
-                            <div className="px-4 py-3">
-                                <div className="space-y-2">
-                                    {experiments.length === 0 ? (
-                                        <div
-                                            className="rounded-xl border border-dashed border-zinc-300 bg-zinc-50 p-4 text-sm text-zinc-600">
-                                            No experiments returned yet.
+                            <ShellCard
+                                title="Experiment details"
+                                subtitle="Selected experiment summary, author details, and reference plots"
+                            >
+                                <div className="px-4 py-3">
+                                    {!selectedExperiment ? (
+                                        <div className="rounded-xl border border-dashed border-zinc-300 bg-zinc-50 p-4 text-sm text-zinc-600">
+                                            Select an experiment from history to inspect its details.
                                         </div>
                                     ) : (
-                                        experiments.map((exp) => {
-                                            const active = exp.id === selectedExpId;
-                                            return (
-                                                <button
-                                                    key={exp.id}
-                                                    onClick={() => {
-                                                        setSelectedExpId(exp.id);
-                                                        appendUiLog(`[ui] history selected ${exp.id}`);
-                                                    }}
-                                                    className={cx(
-                                                        "w-full rounded-xl border px-3 py-2 text-left",
-                                                        active ? "border-zinc-900 bg-zinc-50" : "border-zinc-200 bg-white hover:bg-zinc-50"
-                                                    )}
-                                                >
-                                                    <div className="flex items-center justify-between gap-2">
-                                                        <div className="text-sm font-medium">{exp.title}</div>
-                                                        <span className={badge(exp.status)}>{exp.status}</span>
-                                                    </div>
-                                                    <div className="mt-0.5 text-xs text-zinc-500">{exp.createdAt}</div>
-                                                </button>
-                                            );
-                                        })
-                                    )}
-                                </div>
-
-                                {selectedExperiment && (
-                                    <div className="mt-3 rounded-xl border border-zinc-200 bg-white p-3">
-                                        {(() => {
+                                        (() => {
                                             const raw = selectedExperiment.raw as BackendExperiment | undefined;
                                             const latestMetrics = raw ? summarizeMetrics(raw.metric_entries ?? []) : new Map<string, {
                                                 round_number: number | null;
                                                 value: number | null
                                             }>();
-                                            const aggregatedCount = raw ? (raw.clients_at_round ?? []).filter((c) => c.is_aggregated).length : 0;
+                                            const accuracySeries = raw
+                                                ? toMetricSeries(raw.metric_entries ?? [], ["average_accuracy_history"], /accuracy/i)
+                                                : [];
+                                            const lossSeries = raw
+                                                ? toMetricSeries(raw.metric_entries ?? [], ["aggregated_loss_history"], /loss/i)
+                                                : [];
+                                            const attackTypes = raw ? getUniqueAttackTypes(raw.clients_at_round ?? []) : [];
+                                            const deviceLabel = [
+                                                raw?.hardware?.is_executed_on,
+                                                raw?.hardware?.gpu_name || raw?.hardware?.cpu,
+                                            ].filter(Boolean).join(" • ");
+
                                             return (
                                                 <>
-                                                    <div className="text-xs font-semibold text-zinc-700">Experiment
-                                                        details
+                                                    <div className="flex items-start justify-between gap-3">
+                                                        <div>
+                                                            <div className="text-sm font-semibold text-zinc-900">{selectedExperiment.title}</div>
+                                                            <div className="mt-1 text-[11px] text-zinc-500">
+                                                                {selectedExperiment.createdAt} • ID {selectedExperiment.id}
+                                                            </div>
+                                                        </div>
+                                                        <span className={badge(selectedExperiment.status)}>{selectedExperiment.status}</span>
                                                     </div>
-                                                    <div className="mt-2 grid grid-cols-2 gap-2 text-xs text-zinc-600">
-                                                        <div><span
-                                                            className="font-medium text-zinc-800">Author:</span> {raw?.full_author_name || "Unknown"}
+
+                                                    <div className="mt-3 grid grid-cols-2 gap-2 text-[11px]">
+                                                        <div className="rounded-xl bg-zinc-50 px-3 py-2 ring-1 ring-zinc-100">
+                                                            <div className="text-zinc-500">Total rounds</div>
+                                                            <div className="mt-1 font-semibold text-zinc-900">{formatValue(raw?.config?.num_rounds)}</div>
                                                         </div>
-                                                        <div><span
-                                                            className="font-medium text-zinc-800">Email:</span> {raw?.author_email || "Unknown"}
+                                                        <div className="rounded-xl bg-zinc-50 px-3 py-2 ring-1 ring-zinc-100">
+                                                            <div className="text-zinc-500">Training device</div>
+                                                            <div className="mt-1 font-semibold text-zinc-900">{deviceLabel || "—"}</div>
                                                         </div>
-                                                        <div><span
-                                                            className="font-medium text-zinc-800">Rounds:</span> {raw?.config?.num_rounds ?? "—"}
+                                                        <div className="rounded-xl bg-zinc-50 px-3 py-2 ring-1 ring-zinc-100">
+                                                            <div className="text-zinc-500">Attack type(s)</div>
+                                                            <div className="mt-1 font-semibold text-zinc-900">
+                                                                {attackTypes.length > 0 ? attackTypes.join(", ") : "None recorded"}
+                                                            </div>
                                                         </div>
-                                                        <div><span
-                                                            className="font-medium text-zinc-800">Clients:</span> {raw?.config?.num_clients ?? "—"}
+                                                        <div className="rounded-xl bg-zinc-50 px-3 py-2 ring-1 ring-zinc-100">
+                                                            <div className="text-zinc-500">Total malicious</div>
+                                                            <div className="mt-1 font-semibold text-zinc-900">{formatValue(raw?.config?.num_malicious_clients)}</div>
                                                         </div>
-                                                        <div><span
-                                                            className="font-medium text-zinc-800">Malicious:</span> {raw?.config?.num_malicious_clients ?? "—"}
-                                                        </div>
-                                                        <div><span
-                                                            className="font-medium text-zinc-800">Aggregated rows:</span> {aggregatedCount}
-                                                        </div>
-                                                        <div><span
-                                                            className="font-medium text-zinc-800">Exec time:</span> {raw?.total_exec_time ?? "—"}
-                                                        </div>
-                                                        <div><span
-                                                            className="font-medium text-zinc-800">GPU:</span> {raw?.hardware?.gpu_name || raw?.hardware?.is_executed_on || "—"}
+                                                    </div>
+
+                                                    <div className="mt-3 flex flex-wrap gap-2">
+                                                        <button
+                                                            onClick={() => restoreConfig(selectedExperiment.config, `experiment ${selectedExperiment.id}`)}
+                                                            className="rounded-xl border border-zinc-200 bg-white px-3 py-2 text-xs font-medium hover:bg-zinc-50"
+                                                        >
+                                                            Restore config
+                                                        </button>
+                                                        <button
+                                                            onClick={() => {
+                                                                const href = selectedExperiment.links[0]?.href;
+                                                                if (!href) return;
+                                                                appendUiLog(`[ui] link clicked: Artifacts URL (${selectedExperiment.id})`);
+                                                                window.open(href, "_blank", "noopener,noreferrer");
+                                                            }}
+                                                            disabled={selectedExperiment.links.length === 0}
+                                                            className={cx(
+                                                                "rounded-xl px-3 py-2 text-xs font-medium",
+                                                                selectedExperiment.links.length > 0
+                                                                    ? "bg-zinc-900 text-white hover:bg-zinc-800"
+                                                                    : "cursor-not-allowed bg-zinc-200 text-zinc-500"
+                                                            )}
+                                                        >
+                                                            Artifacts URL
+                                                        </button>
+                                                    </div>
+
+                                                    <div className="mt-3 rounded-2xl border border-zinc-200 bg-zinc-50 p-3">
+                                                        <div className="text-xs font-semibold text-zinc-800">Author details</div>
+                                                        <div className="mt-2 space-y-1 text-xs text-zinc-600">
+                                                            <div><span className="font-medium text-zinc-800">Name:</span> {formatValue(raw?.full_author_name)}</div>
+                                                            <div><span className="font-medium text-zinc-800">Email:</span> {formatValue(raw?.author_email)}</div>
+                                                            <div><span className="font-medium text-zinc-800">Execution time:</span> {formatValue(raw?.total_exec_time)}</div>
                                                         </div>
                                                     </div>
 
                                                     {raw?.error_message ? (
-                                                        <div
-                                                            className="mt-2 rounded-xl bg-rose-50 px-3 py-2 text-xs text-rose-700 ring-1 ring-rose-100">
+                                                        <div className="mt-3 rounded-xl bg-rose-50 px-3 py-2 text-xs text-rose-700 ring-1 ring-rose-100">
                                                             {raw.error_message}
                                                         </div>
                                                     ) : null}
 
-                                                    <div className="mt-3 text-xs font-semibold text-zinc-700">Latest
-                                                        metrics
+                                                    <div className="mt-3 grid grid-cols-1 gap-3">
+                                                        <MiniTrendCard
+                                                            title="Plot avg. accuracy over rounds"
+                                                            accentClass="bg-emerald-50 text-emerald-700"
+                                                            points={accuracySeries}
+                                                        />
+                                                        <MiniTrendCard
+                                                            title="Plot loss over rounds"
+                                                            accentClass="bg-amber-50 text-amber-800"
+                                                            points={lossSeries}
+                                                        />
                                                     </div>
-                                                    <div className="mt-2 flex flex-wrap gap-2">
+
+                                                    <div className="mt-3 flex flex-wrap gap-2">
                                                         {latestMetrics.size === 0 ? (
-                                                            <span
-                                                                className="text-xs text-zinc-500">No metrics returned.</span>
+                                                            <span className="text-xs text-zinc-500">No summary metrics returned.</span>
                                                         ) : (
-                                                            Array.from(latestMetrics.entries()).slice(0, 8).map(([name, metric]) => (
+                                                            Array.from(latestMetrics.entries()).slice(0, 6).map(([name, metric]) => (
                                                                 <span
                                                                     key={name}
-                                                                    className="rounded-full border border-zinc-200 bg-zinc-50 px-3 py-1 text-xs text-zinc-700"
+                                                                    className="rounded-full border border-zinc-200 bg-white px-3 py-1 text-[11px] text-zinc-700"
                                                                     title={`round ${metric.round_number ?? "?"}`}
                                                                 >
-                                                                        {name}: {metric.value ?? "—"}
-                                                                    </span>
+                                                                    {name}: {formatMetricValue(metric.value)}
+                                                                </span>
                                                             ))
                                                         )}
                                                     </div>
-
-                                                    <div className="mt-3 text-xs font-semibold text-zinc-700">Visualization
-                                                        and artifacts links
-                                                    </div>
-                                                    <div className="mt-2 flex flex-wrap gap-2">
-                                                        {(selectedExperiment.links ?? []).map((l) => (
-                                                            <a
-                                                                key={l.label}
-                                                                href={l.href}
-                                                                onClick={(e) => {
-                                                                    e.preventDefault();
-                                                                    appendUiLog(`[ui] link clicked: ${l.label} (${selectedExperiment.id})`);
-                                                                }}
-                                                                className="rounded-full border border-zinc-200 bg-zinc-50 px-3 py-1 text-xs text-zinc-700 hover:bg-zinc-100"
-                                                            >
-                                                                {l.label}
-                                                            </a>
-                                                        ))}
-                                                    </div>
-
-                                                    <div
-                                                        className="mt-2 text-[11px] text-zinc-500">ID: {selectedExperiment.id}</div>
                                                 </>
                                             );
-                                        })()}
-                                    </div>
-                                )}
-                            </div>
-                        </ShellCard>
+                                        })()
+                                    )}
+                                </div>
+                            </ShellCard>
+                        </div>
                     </div>
                 )}
 

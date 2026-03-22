@@ -106,11 +106,19 @@ async def get_experiments(request: web.Request) -> web.Response:
     """
 
     experiment_server_url = obtain_env_var("EXPERIMENT_SERVER_URL")
+    page = request.query.get("page")
+    page_size = request.query.get("page_size")
+    params = {}
+    if page is not None:
+        params["page"] = page
+    if page_size is not None:
+        params["page_size"] = page_size
 
     try:
         async with aiohttp.ClientSession() as session:
             async with session.get(
                     f"{experiment_server_url}/experiments",
+                    params=params,
                     headers=_auth_headers(),
                     timeout=aiohttp.ClientTimeout(total=30),
             ) as resp:
