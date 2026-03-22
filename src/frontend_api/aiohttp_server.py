@@ -1,14 +1,27 @@
 from __future__ import annotations
 
+import aiohttp
+import logging
+import asyncio
+
 from aiohttp import web
 from typing import Any, Dict
 
 from src.frontend_api.execution_manager import generate_run_id, write_config_json, start_simulation_process
 from src.frontend_api.log_manager import tail_lines, log_path
 from src.config_loaders.config_loader import merge_and_validate_usecase_configs
+from src.utils.common import obtain_env_var
 
 # keep process handles in memory (optional; for status)
 SIMULATION_PROCESSES: Dict[str, Any] = {}
+
+
+def _auth_headers() -> dict:
+    """Common auth headers for experiment server requests."""
+    return {
+        "Authorization": f"Bearer {obtain_env_var('EXPERIMENT_SERVER_TOKEN')}",
+        "Accept": "application/json",
+    }
 
 
 def _validate_config_in_framework_backend(received_config: Dict[str, Any]) -> list[str]:
@@ -86,12 +99,95 @@ async def status(request: web.Request) -> web.Response:
     return web.json_response({"run_id": run_id, "status": "EXITED", "exit_code": code})
 
 
+async def get_experiments(request: web.Request) -> web.Response:
+    """
+    Retrieve experiments from the experiment database server
+    and return them to the frontend.
+    """
+
+    experiment_server_url = obtain_env_var("EXPERIMENT_SERVER_URL")
+
+    try:
+        async with aiohttp.ClientSession() as session:
+            async with session.get(
+                    f"{experiment_server_url}/experiments",
+                    headers=_auth_headers(),
+                    timeout=aiohttp.ClientTimeout(total=30),
+            ) as resp:
+                response_text = await resp.text()
+
+                if resp.status != 200:
+                    logging.error(
+                        f"Failed to retrieve experiments: ({resp.status}): {response_text}"
+                    )
+                    return web.json_response(
+                        {
+                            "success": False,
+                            "message": "Failed to retrieve experiments from remote DB server",
+                            "status": resp.status,
+                            "details": response_text,
+                        },
+                        status=resp.status,
+                    )
+
+                try:
+                    response_json = await resp.json()
+                except aiohttp.ContentTypeError:
+                    logging.error(
+                        f"Remote DB server returned non-JSON response: {response_text}"
+                    )
+                    return web.json_response(
+                        {
+                            "success": False,
+                            "message": "Remote DB server returned invalid JSON",
+                            "details": response_text,
+                        },
+                        status=502,
+                    )
+
+                logging.info("Successfully retrieved experiment data from remote DB")
+                return web.json_response(response_json, status=200)
+
+    except asyncio.TimeoutError:
+        logging.error("Timeout while retrieving experiments from remote DB server")
+        return web.json_response(
+            {
+                "success": False,
+                "message": "Timeout while contacting remote DB server",
+            },
+            status=504,
+        )
+
+    except aiohttp.ClientError as e:
+        logging.error(f"HTTP client error while retrieving experiments: {e}")
+        return web.json_response(
+            {
+                "success": False,
+                "message": "HTTP client error while contacting remote DB server",
+                "details": str(e),
+            },
+            status=502,
+        )
+
+    except Exception as e:
+        logging.exception(f"Unexpected error while retrieving experiments: {e}")
+        return web.json_response(
+            {
+                "success": False,
+                "message": "Unexpected error while retrieving experiments",
+                "details": str(e),
+            },
+            status=500,
+        )
+
+
 def create_app() -> web.Application:
     app = web.Application()
 
     app.router.add_get("/api/health", health)
     app.router.add_post("/api/validate_json_config", validate_json_config)
     app.router.add_post("/api/start_simulation_runner", start_simulation_runner)
+    app.router.add_get("/api/get_experiments", get_experiments)
     app.router.add_get("/api/logs", logs)
     app.router.add_get("/api/status", status)
 

@@ -1,4 +1,4 @@
-import React, {useEffect, useMemo, useRef, useState} from "react";
+import {useEffect, useMemo, useRef, useState} from "react";
 
 /**
  * InteFL Research Framework – UI (API-backed)
@@ -50,13 +50,55 @@ type Experiment = {
     createdAt: string;
     config: JsonObject;
     links: ExperimentLink[];
+    raw?: JsonObject;
 };
 
-type ApiExperimentsResponse = { items: Experiment[] };
+type BackendExperiment = {
+    id: number | string;
+    created_at: string | null;
+    is_successful: boolean | null;
+    total_exec_time: number | null;
+    error_message: string | null;
+    full_author_name: string | null;
+    author_email: string | null;
+    config: {
+        strategy: string | null;
+        dataset: string | null;
+        num_rounds: number | null;
+        num_clients: number | null;
+        num_malicious_clients: number | null;
+        json: JsonObject | string | null;
+    } | null;
+    hardware: {
+        cpu: string | null;
+        arch: string | null;
+        ram: string | null;
+        gpu_name: string | null;
+        gpu_ram: string | null;
+        is_executed_on: string | null;
+    } | null;
+    clients_at_round: Array<{
+        round_number: number | null;
+        client_number: number | null;
+        is_aggregated: boolean | null;
+        attack_type: string | null;
+    }>;
+    metric_entries: Array<{
+        round_number: number | null;
+        metric_name: string | null;
+        metric_type: string | null;
+        value: number | null;
+        client_number: number | null;
+    }>;
+};
+
+type ApiExperimentsResponse = { count?: number; experiments?: BackendExperiment[]; items?: Experiment[] };
 
 type ChatMessage = { role: "user" | "assistant"; text: string };
 
 type Template = { id: string; name: string; config: JsonObject };
+
+type EvidenceItem = { title: string; body: string };
 
 type DocsSection = {
     key: string;
@@ -94,6 +136,70 @@ function badge(status: string) {
     if (status === "RUNNING") return cx(base, "bg-amber-50 text-amber-800");
     if (status === "FAILED") return cx(base, "bg-rose-50 text-rose-700");
     return cx(base, "bg-zinc-100 text-zinc-700");
+}
+
+function formatCreatedAt(value: string | null | undefined) {
+    if (!value) return "Unknown time";
+    const d = new Date(value);
+    if (Number.isNaN(d.getTime())) return String(value);
+    return d.toLocaleString();
+}
+
+function parseMaybeJson(value: unknown): JsonObject | null {
+    if (!value) return null;
+    if (typeof value === "object" && !Array.isArray(value)) return value as JsonObject;
+    if (typeof value === "string") {
+        try {
+            const parsed = JSON.parse(value);
+            if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) return parsed;
+        } catch {
+            return null;
+        }
+    }
+    return null;
+}
+
+function summarizeMetrics(metricEntries: BackendExperiment["metric_entries"]) {
+    const latestByName = new Map<string, { round_number: number | null; value: number | null }>();
+    for (const m of metricEntries ?? []) {
+        if (!m.metric_name) continue;
+        const prev = latestByName.get(m.metric_name);
+        if (!prev || (m.round_number ?? -1) >= (prev.round_number ?? -1)) {
+            latestByName.set(m.metric_name, {round_number: m.round_number, value: m.value});
+        }
+    }
+    return latestByName;
+}
+
+function mapBackendExperiment(exp: BackendExperiment): Experiment {
+    const cfg = exp.config ?? null;
+    const parsedJson = parseMaybeJson(cfg?.json ?? null);
+    const mergedConfig: JsonObject = {
+        ...(parsedJson ?? {}),
+        strategy: cfg?.strategy ?? parsedJson?.strategy ?? null,
+        dataset: cfg?.dataset ?? parsedJson?.dataset ?? null,
+        num_rounds: cfg?.num_rounds ?? parsedJson?.num_rounds ?? null,
+        num_clients: cfg?.num_clients ?? parsedJson?.num_clients ?? null,
+        num_malicious_clients: cfg?.num_malicious_clients ?? parsedJson?.num_malicious_clients ?? null,
+    };
+
+    const strategy = cfg?.strategy ?? "Unknown strategy";
+    const dataset = cfg?.dataset ?? "Unknown dataset";
+    const status = exp.is_successful === true ? "SUCCESS" : exp.is_successful === false ? "FAILED" : "UNKNOWN";
+
+    return {
+        id: String(exp.id),
+        title: `${strategy}, ${dataset}`,
+        status,
+        createdAt: formatCreatedAt(exp.created_at),
+        config: mergedConfig,
+        links: [
+            {label: "Logs", href: "#"},
+            {label: "Config JSON", href: "#"},
+            {label: "Metrics", href: "#"},
+        ],
+        raw: exp as unknown as JsonObject,
+    };
 }
 
 async function apiJson<T>(path: string, init?: RequestInit): Promise<T> {
@@ -226,6 +332,35 @@ const DEFAULT_JSON: JsonObject = {
     dataset: "femnist",
     "bad clients": "20%",
 };
+
+function suggestConfigFromText(text: string): JsonObject {
+    const lower = text.toLowerCase();
+
+    let dataset = "femnist";
+    if (lower.includes("medical") || lower.includes("pneumonia")) {
+        dataset = "pneumoniamnist";
+    } else if (lower.includes("traffic") || lower.includes("sign")) {
+        dataset = "its";
+    } else if (lower.includes("iid")) {
+        dataset = "femnist_iid";
+    } else if (lower.includes("non-iid") || lower.includes("niid")) {
+        dataset = "femnist_niid";
+    }
+
+    let strategy = "PID";
+    if (lower.includes("multikrum")) strategy = "MultiKrum";
+    if (lower.includes("trimmed")) strategy = "TrimmedMean";
+
+    const percentMatch = lower.match(/(\d+)\s*%/);
+    const badClients = percentMatch ? `${percentMatch[1]}%` : DEFAULT_JSON["bad clients"];
+
+    return {
+        ...DEFAULT_JSON,
+        dataset,
+        strategy,
+        "bad clients": badClients,
+    };
+}
 
 const DEFAULT_DOCS_MD = `# Configuration reference
 
@@ -524,7 +659,6 @@ function GlobalLogs({
     );
 }
 
-
 // --------------------
 // Minimal dev tests (runs only in dev)
 // --------------------
@@ -658,11 +792,18 @@ export default function App() {
     const refreshExperiments = async () => {
         setExperimentsLoading(true);
         try {
-            const data = await apiJson<ApiExperimentsResponse>("/api/experiments");
-            setExperiments(data.items ?? []);
-            if (!selectedExpId && (data.items?.length ?? 0) > 0) {
-                setSelectedExpId(data.items[0].id);
+            const data = await apiJson<ApiExperimentsResponse>("/api/get_experiments");
+            const mapped = Array.isArray(data.experiments)
+                ? data.experiments.map(mapBackendExperiment)
+                : Array.isArray(data.items)
+                    ? data.items
+                    : [];
+
+            setExperiments(mapped);
+            if (!selectedExpId && mapped.length > 0) {
+                setSelectedExpId(mapped[0].id);
             }
+            appendUiLog(`[ui] loaded ${mapped.length} experiments from API`);
         } catch (e: any) {
             appendUiLog(`[ui] experiments fetch error: ${e?.message || e}`);
         } finally {
@@ -670,66 +811,50 @@ export default function App() {
         }
     };
 
-    useEffect(() => {
-        // initial load
-        refreshExperiments();
-        // learn whether API is up
-        apiJson<{ ok: boolean }>("/api/health").then(
-            () => appendUiLog("[ui] API connected (/api/health)")
-        ).catch((e: any) => appendUiLog(`[ui] API not reachable: ${e?.message || e}`));
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []);
+    // ANALYZE
+    const [anChatMessages, setAnChatMessages] = useState<ChatMessage[]>([
+        {role: "assistant", text: "Ask about experiment outcomes and I will summarize the retrieved evidence."},
+    ]);
+    const [anChatDraft, setAnChatDraft] = useState("");
+    const [evidence, setEvidence] = useState<EvidenceItem[]>([
+        {
+            title: "No evidence loaded yet",
+            body: "Run an analysis query to populate this panel with retrieved statistics.",
+        },
+    ]);
 
-    // CONFIG TEMPLATES (local storage)
-    const [templates, setTemplates] = useState<Template[]>(() => {
-        const t = loadTemplatesFromStorage();
-        return t.length ? t : [];
-    });
+    // DOCS
+    const [docsMd, setDocsMd] = useState(DEFAULT_DOCS_MD);
+    const [docsConfig, setDocsConfig] = useState<JsonObject>(DEFAULT_JSON);
+    const docsSections = useMemo(() => parseDocsMarkdown(docsMd), [docsMd]);
+    const docsJsonText = useMemo(() => prettyJson(docsConfig), [docsConfig]);
+
+    const applyDocsPick = (key: string, value: string) => {
+        const field = docsKeyToConfigField(key);
+        const coerced = coerceDocValue(value);
+
+        setDocsConfig((prev) => {
+            const next = {...prev, [field]: coerced};
+            appendUiLog(`[ui] docs selected ${field}=${JSON.stringify(coerced)}`);
+            return next;
+        });
+    };
+
+    const resetDocsConfig = () => {
+        setDocsConfig(DEFAULT_JSON);
+        appendUiLog("[ui] docs picks reset");
+    };
+
+    // TEMPLATES
+    const [templates, setTemplates] = useState<Template[]>(() => loadTemplatesFromStorage());
 
     useEffect(() => {
         saveTemplatesToStorage(templates);
     }, [templates]);
 
-    // ANALYZE: chat + evidence (still mocked client-side)
-    const [anChatMessages, setAnChatMessages] = useState<ChatMessage[]>([
-        {role: "assistant", text: "Ask me about your experiments (e.g., best aggregation for medical images)."},
-    ]);
-    const [anChatDraft, setAnChatDraft] = useState("");
-    const [evidence, setEvidence] = useState([{
-        title: "Example evidence",
-        body: "(mock) Retrieved statistics will appear here."
-    }]);
-
-    // DOCS: markdown + compiled config (still local for now)
-    const [docsMd, setDocsMd] = useState(DEFAULT_DOCS_MD);
-    const docsSections = useMemo(() => parseDocsMarkdown(docsMd), [docsMd]);
-
-    const [docsConfig, setDocsConfig] = useState<JsonObject>({dataset: "femnist", "bad clients": "20%"});
-    const docsJsonText = useMemo(() => prettyJson(docsConfig), [docsConfig]);
-
-    const resetDocsConfig = () => setDocsConfig({dataset: "femnist", "bad clients": "20%"});
-
-    const applyDocsPick = (docKey: string, optionValue: string) => {
-        const field = docsKeyToConfigField(docKey);
-        const coerced = coerceDocValue(optionValue);
-        setDocsConfig((prev) => ({...prev, [field]: coerced}));
-        appendUiLog(`[ui] docs pick: ${docKey} -> ${field} = ${optionValue}`);
-    };
-
-    const suggestConfigFromText = (text: string) => {
-        const lower = text.toLowerCase();
-        const percent = text.match(/(\d+\s*%)/)?.[1];
-
-        let dataset = "femnist";
-        if (lower.includes("pneum")) dataset = "pneumoniamnist";
-        else if (lower.includes("its")) dataset = "its";
-        else if (lower.includes("medmentions")) dataset = "medmentions";
-
-        return {
-            dataset,
-            "bad clients": percent ?? (lower.includes("1,3") ? [1, 3] : "20%"),
-        };
-    };
+    useEffect(() => {
+        refreshExperiments();
+    }, []);
 
     const onSendRunChat = () => {
         const text = runChatDraft.trim();
@@ -764,8 +889,9 @@ export default function App() {
 
         const parsed = safeParseJson(jsonText);
         if (!parsed.ok) {
-            setJsonStatus({ok: false, message: parsed.error});
-            appendUiLog(`[ui] validate parse FAILED: ${parsed.error}`);
+            const message = "error" in parsed ? parsed.error : "Invalid JSON";
+            setJsonStatus({ok: false, message});
+            appendUiLog(`[ui] validate parse FAILED: ${message}`);
             return;
         }
 
@@ -800,8 +926,9 @@ export default function App() {
 
         const parsed = safeParseJson(jsonText);
         if (!parsed.ok) {
-            setJsonStatus({ok: false, message: parsed.error});
-            appendUiLog(`[ui] start blocked: ${parsed.error}`);
+            const message = "error" in parsed ? parsed.error : "Invalid JSON";
+            setJsonStatus({ok: false, message});
+            appendUiLog(`[ui] start blocked: ${message}`);
             return;
         }
 
@@ -831,8 +958,9 @@ export default function App() {
     const onSaveTemplate = () => {
         const parsed = safeParseJson(jsonText);
         if (!parsed.ok) {
-            setJsonStatus({ok: false, message: parsed.error});
-            appendUiLog(`[ui] template save blocked: ${parsed.error}`);
+            const message = "error" in parsed ? parsed.error : "Invalid JSON";
+            setJsonStatus({ok: false, message});
+            appendUiLog(`[ui] template save blocked: ${message}`);
             return;
         }
 
@@ -905,7 +1033,7 @@ export default function App() {
                     </div>
                     <div className="hidden sm:flex items-center gap-2">
             <span className="rounded-full bg-white px-3 py-1 text-xs text-zinc-600 shadow-sm ring-1 ring-zinc-200">
-              v0.3-alpha (Validate & Run)
+              v0.4-alpha (Database)
             </span>
                     </div>
                 </div>
@@ -1043,47 +1171,96 @@ export default function App() {
 
                                 {selectedExperiment && (
                                     <div className="mt-3 rounded-xl border border-zinc-200 bg-white p-3">
-                                        <div className="text-xs font-semibold text-zinc-700">Visualization and artifacts
-                                            links
-                                        </div>
-                                        <div className="mt-2 flex flex-wrap gap-2">
-                                            {(selectedExperiment.links ?? []).map((l) => (
-                                                <a
-                                                    key={l.label}
-                                                    href={l.href}
-                                                    onClick={(e) => {
-                                                        e.preventDefault();
-                                                        appendUiLog(`[ui] link clicked: ${l.label} (${selectedExperiment.id})`);
-                                                    }}
-                                                    className="rounded-full border border-zinc-200 bg-zinc-50 px-3 py-1 text-xs text-zinc-700 hover:bg-zinc-100"
-                                                >
-                                                    {l.label}
-                                                </a>
-                                            ))}
-                                        </div>
+                                        {(() => {
+                                            const raw = selectedExperiment.raw as BackendExperiment | undefined;
+                                            const latestMetrics = raw ? summarizeMetrics(raw.metric_entries ?? []) : new Map<string, {
+                                                round_number: number | null;
+                                                value: number | null
+                                            }>();
+                                            const aggregatedCount = raw ? (raw.clients_at_round ?? []).filter((c) => c.is_aggregated).length : 0;
+                                            return (
+                                                <>
+                                                    <div className="text-xs font-semibold text-zinc-700">Experiment
+                                                        details
+                                                    </div>
+                                                    <div className="mt-2 grid grid-cols-2 gap-2 text-xs text-zinc-600">
+                                                        <div><span
+                                                            className="font-medium text-zinc-800">Author:</span> {raw?.full_author_name || "Unknown"}
+                                                        </div>
+                                                        <div><span
+                                                            className="font-medium text-zinc-800">Email:</span> {raw?.author_email || "Unknown"}
+                                                        </div>
+                                                        <div><span
+                                                            className="font-medium text-zinc-800">Rounds:</span> {raw?.config?.num_rounds ?? "—"}
+                                                        </div>
+                                                        <div><span
+                                                            className="font-medium text-zinc-800">Clients:</span> {raw?.config?.num_clients ?? "—"}
+                                                        </div>
+                                                        <div><span
+                                                            className="font-medium text-zinc-800">Malicious:</span> {raw?.config?.num_malicious_clients ?? "—"}
+                                                        </div>
+                                                        <div><span
+                                                            className="font-medium text-zinc-800">Aggregated rows:</span> {aggregatedCount}
+                                                        </div>
+                                                        <div><span
+                                                            className="font-medium text-zinc-800">Exec time:</span> {raw?.total_exec_time ?? "—"}
+                                                        </div>
+                                                        <div><span
+                                                            className="font-medium text-zinc-800">GPU:</span> {raw?.hardware?.gpu_name || raw?.hardware?.is_executed_on || "—"}
+                                                        </div>
+                                                    </div>
 
-                                        <div className="mt-2 grid grid-cols-2 gap-2">
-                                            <button
-                                                onClick={() => restoreConfig(selectedExperiment.config, `history (${selectedExperiment.id})`)}
-                                                className="w-full rounded-xl bg-zinc-900 px-3 py-2 text-sm font-medium text-white hover:bg-zinc-800"
-                                                title="Restore experiment config into Run tab"
-                                            >
-                                                Restore config
-                                            </button>
-                                            <button
-                                                onClick={() => {
-                                                    setRunId(selectedExperiment.id);
-                                                    appendUiLog(`[ui] attached logs to historical run_id=${selectedExperiment.id}`);
-                                                }}
-                                                className="w-full rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm font-medium hover:bg-zinc-50"
-                                                title="Show logs for this experiment (if available)"
-                                            >
-                                                View logs
-                                            </button>
-                                        </div>
+                                                    {raw?.error_message ? (
+                                                        <div
+                                                            className="mt-2 rounded-xl bg-rose-50 px-3 py-2 text-xs text-rose-700 ring-1 ring-rose-100">
+                                                            {raw.error_message}
+                                                        </div>
+                                                    ) : null}
 
-                                        <div
-                                            className="mt-2 text-[11px] text-zinc-500">ID: {selectedExperiment.id}</div>
+                                                    <div className="mt-3 text-xs font-semibold text-zinc-700">Latest
+                                                        metrics
+                                                    </div>
+                                                    <div className="mt-2 flex flex-wrap gap-2">
+                                                        {latestMetrics.size === 0 ? (
+                                                            <span
+                                                                className="text-xs text-zinc-500">No metrics returned.</span>
+                                                        ) : (
+                                                            Array.from(latestMetrics.entries()).slice(0, 8).map(([name, metric]) => (
+                                                                <span
+                                                                    key={name}
+                                                                    className="rounded-full border border-zinc-200 bg-zinc-50 px-3 py-1 text-xs text-zinc-700"
+                                                                    title={`round ${metric.round_number ?? "?"}`}
+                                                                >
+                                                                        {name}: {metric.value ?? "—"}
+                                                                    </span>
+                                                            ))
+                                                        )}
+                                                    </div>
+
+                                                    <div className="mt-3 text-xs font-semibold text-zinc-700">Visualization
+                                                        and artifacts links
+                                                    </div>
+                                                    <div className="mt-2 flex flex-wrap gap-2">
+                                                        {(selectedExperiment.links ?? []).map((l) => (
+                                                            <a
+                                                                key={l.label}
+                                                                href={l.href}
+                                                                onClick={(e) => {
+                                                                    e.preventDefault();
+                                                                    appendUiLog(`[ui] link clicked: ${l.label} (${selectedExperiment.id})`);
+                                                                }}
+                                                                className="rounded-full border border-zinc-200 bg-zinc-50 px-3 py-1 text-xs text-zinc-700 hover:bg-zinc-100"
+                                                            >
+                                                                {l.label}
+                                                            </a>
+                                                        ))}
+                                                    </div>
+
+                                                    <div
+                                                        className="mt-2 text-[11px] text-zinc-500">ID: {selectedExperiment.id}</div>
+                                                </>
+                                            );
+                                        })()}
                                     </div>
                                 )}
                             </div>
@@ -1112,8 +1289,7 @@ export default function App() {
                                     {evidence.map((e: any, i: number) => (
                                         <div key={i} className="rounded-xl border border-zinc-200 bg-white p-3">
                                             <div className="text-xs font-semibold text-zinc-800">{e.title}</div>
-                                            <div
-                                                className="mt-1 whitespace-pre-wrap text-xs text-zinc-600">{e.body}</div>
+                                            <div className="mt-1 whitespace-pre-wrap text-xs text-zinc-600">{e.body}</div>
                                         </div>
                                     ))}
                                 </div>
@@ -1145,11 +1321,11 @@ export default function App() {
                                     </div>
 
                                     <div className="mt-3 rounded-xl border border-zinc-200 bg-white">
-                    <textarea
-                        value={docsMd}
-                        onChange={(e) => setDocsMd(e.target.value)}
-                        className="h-44 w-full resize-none rounded-xl bg-transparent p-3 font-mono text-[12px] leading-5 outline-none"
-                    />
+                        <textarea
+                            value={docsMd}
+                            onChange={(e) => setDocsMd(e.target.value)}
+                            className="h-44 w-full resize-none rounded-xl bg-transparent p-3 font-mono text-[12px] leading-5 outline-none"
+                        />
                                     </div>
 
                                     <div className="mt-4">
@@ -1183,7 +1359,8 @@ export default function App() {
 
                                                         <div className="mt-2 flex flex-wrap gap-2">
                                                             {sec.options.length === 0 ? (
-                                                                <span className="text-xs text-zinc-500">No options found.</span>
+                                                                <span
+                                                                    className="text-xs text-zinc-500">No options found.</span>
                                                             ) : (
                                                                 sec.options.map((opt) => (
                                                                     <button
@@ -1199,8 +1376,8 @@ export default function App() {
                                                         </div>
 
                                                         {sec.options.some((o) => o.description) ? (
-                                                            <div className="mt-2 text-[11px] text-zinc-500">Tip: hover
-                                                                an option to see its description.</div>
+                                                            <div className="mt-2 text-[11px] text-zinc-500">Tip: hover an
+                                                                option to see its description.</div>
                                                         ) : null}
                                                     </div>
                                                 ))
@@ -1215,8 +1392,7 @@ export default function App() {
                                         >
                                             Reset picks
                                         </button>
-                                        <div className="text-xs text-zinc-500">Click options → updates JSON on the
-                                            right
+                                        <div className="text-xs text-zinc-500">Click options → updates JSON on the right
                                         </div>
                                     </div>
                                 </div>
@@ -1226,11 +1402,11 @@ export default function App() {
                         <ShellCard title="JSON configurator" subtitle="Selections compile here, then send to Run">
                             <div className="px-4 py-4">
                                 <div className="rounded-xl border border-zinc-200 bg-zinc-50">
-                  <textarea
-                      value={docsJsonText}
-                      readOnly
-                      className="h-72 w-full resize-none rounded-xl bg-transparent p-3 font-mono text-[12px] leading-5 outline-none"
-                  />
+                      <textarea
+                          value={docsJsonText}
+                          readOnly
+                          className="h-72 w-full resize-none rounded-xl bg-transparent p-3 font-mono text-[12px] leading-5 outline-none"
+                      />
                                 </div>
 
                                 <button
@@ -1242,8 +1418,7 @@ export default function App() {
                                 </button>
 
                                 <div className="mt-2 text-xs text-zinc-500">
-                                    This copies JSON into <span className="font-medium">Run</span> → Manual
-                                    configuration.
+                                    This copies JSON into <span className="font-medium">Run</span> → Manual configuration.
                                 </div>
                             </div>
                         </ShellCard>
@@ -1310,8 +1485,8 @@ export default function App() {
                                                 <div className="text-sm font-semibold">{t.name}</div>
                                                 <pre
                                                     className="mt-2 max-h-40 overflow-auto rounded-xl bg-zinc-50 p-3 text-[11px] leading-5 text-zinc-800 ring-1 ring-zinc-100">
-                          {prettyJson(t.config)}
-                        </pre>
+                              {prettyJson(t.config)}
+                            </pre>
                                                 <button
                                                     onClick={() => restoreConfig(t.config, `template (${t.name})`)}
                                                     className="mt-3 w-full rounded-xl bg-zinc-900 px-3 py-2 text-sm font-medium text-white hover:bg-zinc-800"
@@ -1327,8 +1502,7 @@ export default function App() {
                     </div>
                 )}
 
-                <div className="py-10 text-center text-xs text-zinc-400">UI prototype • API-backed run/logs/history
-                </div>
+                <div className="py-10 text-center text-xs text-zinc-400">UI prototype • API-backed run/logs/history</div>
             </div>
 
             {/* GLOBAL LOGS (always visible, fixed) */}
