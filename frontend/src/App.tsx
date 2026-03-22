@@ -170,18 +170,6 @@ function parseMaybeJson(value: unknown): JsonObject | null {
     return null;
 }
 
-function summarizeMetrics(metricEntries: BackendExperiment["metric_entries"]) {
-    const latestByName = new Map<string, { round_number: number | null; value: number | null }>();
-    for (const m of metricEntries ?? []) {
-        if (!m.metric_name) continue;
-        const prev = latestByName.get(m.metric_name);
-        if (!prev || (m.round_number ?? -1) >= (prev.round_number ?? -1)) {
-            latestByName.set(m.metric_name, {round_number: m.round_number, value: m.value});
-        }
-    }
-    return latestByName;
-}
-
 function toMetricSeries(
     metricEntries: BackendExperiment["metric_entries"],
     preferredNames: string[],
@@ -387,7 +375,7 @@ const DEFAULT_JSON: JsonObject = {
     "bad clients": "20%",
 };
 
-const EXPERIMENTS_PAGE_SIZE = 8;
+const EXPERIMENTS_PAGE_SIZE = 6;
 
 function suggestConfigFromText(text: string): JsonObject {
     const lower = text.toLowerCase();
@@ -447,7 +435,7 @@ const DEFAULT_DOCS_MD = `# Configuration reference
 
 function ShellCard({title, subtitle, right, children}: any) {
     return (
-        <div className="rounded-2xl bg-white shadow-sm ring-1 ring-zinc-200">
+        <div className="flex h-full flex-col rounded-2xl bg-white shadow-sm ring-1 ring-zinc-200">
             <div className="flex items-center justify-between border-b border-zinc-100 px-4 py-3">
                 <div>
                     <div className="text-sm font-semibold">{title}</div>
@@ -487,7 +475,8 @@ function Tabs({active, setActive}: any) {
 function ChatPanel({title, subtitle, messages, draft, setDraft, onSend, placeholder, footerHint}: any) {
     return (
         <ShellCard title={title} subtitle={subtitle}>
-            <div className="h-72 overflow-auto px-4 py-3">
+            <div className="flex flex-1 flex-col">
+            <div className="h-72 flex-1 overflow-auto px-4 py-3">
                 {messages.map((m: ChatMessage, idx: number) => (
                     <div
                         key={idx}
@@ -504,7 +493,7 @@ function ChatPanel({title, subtitle, messages, draft, setDraft, onSend, placehol
                     </div>
                 ))}
             </div>
-            <div className="border-t border-zinc-100 px-4 py-3">
+            <div className="mt-auto border-t border-zinc-100 px-4 py-3">
                 <div className="flex items-center gap-2">
                     <input
                         value={draft}
@@ -523,6 +512,7 @@ function ChatPanel({title, subtitle, messages, draft, setDraft, onSend, placehol
                     </button>
                 </div>
                 {footerHint ? <div className="mt-2 text-xs text-zinc-500">{footerHint}</div> : null}
+            </div>
             </div>
         </ShellCard>
     );
@@ -811,10 +801,9 @@ function MiniTrendCard({
                     />
 
                     <text x={padding.left} y={height - 2} fontSize="10" fill="#71717a">
-                        R{chartPoints[0].round}
                     </text>
                     <text x={padding.left + chartWidth} y={height - 2} textAnchor="end" fontSize="10" fill="#71717a">
-                        R{lastPoint.round}
+                        round {lastPoint.round}
                     </text>
                     <text x={padding.left} y={10} fontSize="9" fill="#71717a">
                         {formatMetricValue(max)}
@@ -1258,16 +1247,17 @@ export default function App() {
                                     </div>
                                 }
                             >
-                                <div className="px-4 py-3">
-                                    <div className="rounded-xl border border-zinc-200 bg-zinc-50">
+                                <div className="flex h-full flex-col px-4 py-3">
+                                    <div className="flex flex-1 rounded-xl border border-zinc-200 bg-zinc-50">
                       <textarea
                           value={jsonText}
                           onChange={(e) => setJsonText(e.target.value)}
-                          className="h-64 w-full resize-none rounded-xl bg-transparent p-3 font-mono text-[12px] leading-5 outline-none"
+                          className="min-h-[22rem] w-full flex-1 resize-none rounded-xl bg-transparent p-3 font-mono text-[12px] leading-5 outline-none"
                       />
                                     </div>
 
-                                    <div className="mt-3 grid grid-cols-2 gap-2">
+                                    <div className="mt-auto pt-3">
+                                    <div className="grid grid-cols-2 gap-2">
                                         <button
                                             onClick={onValidate}
                                             disabled={apiBusy}
@@ -1306,6 +1296,7 @@ export default function App() {
                                     </button>
 
                                     <div className="mt-2 text-xs text-zinc-500">{jsonStatus.message}</div>
+                                    </div>
                                 </div>
                             </ShellCard>
 
@@ -1414,10 +1405,6 @@ export default function App() {
                                     ) : (
                                         (() => {
                                             const raw = selectedExperiment.raw as BackendExperiment | undefined;
-                                            const latestMetrics = raw ? summarizeMetrics(raw.metric_entries ?? []) : new Map<string, {
-                                                round_number: number | null;
-                                                value: number | null
-                                            }>();
                                             const accuracySeries = raw
                                                 ? toMetricSeries(raw.metric_entries ?? [], ["average_accuracy_history"], /accuracy/i)
                                                 : [];
@@ -1506,31 +1493,15 @@ export default function App() {
 
                                                     <div className="mt-3 grid grid-cols-1 gap-3">
                                                         <MiniTrendCard
-                                                            title="Plot avg. accuracy over rounds"
+                                                            title="Aggregated accuracy over rounds"
                                                             accentClass="bg-emerald-50 text-emerald-700"
                                                             points={accuracySeries}
                                                         />
                                                         <MiniTrendCard
-                                                            title="Plot loss over rounds"
+                                                            title="Aggregated loss over rounds"
                                                             accentClass="bg-amber-50 text-amber-800"
                                                             points={lossSeries}
                                                         />
-                                                    </div>
-
-                                                    <div className="mt-3 flex flex-wrap gap-2">
-                                                        {latestMetrics.size === 0 ? (
-                                                            <span className="text-xs text-zinc-500">No summary metrics returned.</span>
-                                                        ) : (
-                                                            Array.from(latestMetrics.entries()).slice(0, 6).map(([name, metric]) => (
-                                                                <span
-                                                                    key={name}
-                                                                    className="rounded-full border border-zinc-200 bg-white px-3 py-1 text-[11px] text-zinc-700"
-                                                                    title={`round ${metric.round_number ?? "?"}`}
-                                                                >
-                                                                    {name}: {formatMetricValue(metric.value)}
-                                                                </span>
-                                                            ))
-                                                        )}
                                                     </div>
                                                 </>
                                             );

@@ -80,7 +80,7 @@ async def get_experiments(request: web.Request) -> web.Response:
     """Return paginated experiment events with config, hardware, and metrics."""
 
     page = _query_int(request, "page", default=1, minimum=1)
-    page_size = _query_int(request, "page_size", default=8, minimum=1, maximum=50)
+    page_size = _query_int(request, "page_size", default=6, minimum=1, maximum=50)
     offset = (page - 1) * page_size
 
     with get_db() as session:
