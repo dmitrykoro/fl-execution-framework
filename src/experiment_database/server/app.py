@@ -43,7 +43,7 @@ def _query_int(
 
 READONLY_SQL_RE = re.compile(r"^\s*(with\b.+?\bselect\b|select\b)", re.IGNORECASE | re.DOTALL)
 FORBIDDEN_SQL_RE = re.compile(
-    r"\b(insert|update|delete|drop|alter|create|truncate|grant|revoke|copy|call|do|merge|comment|refresh|vacuum|analyze)\b",
+    r"\b(insert|update|delete|drop|alter|create|truncate|grant|revoke|copy|call|do|merge|comment|refresh|vacuum|analyze|set)\b",
     re.IGNORECASE,
 )
 

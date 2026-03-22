@@ -1,4 +1,4 @@
-import {useEffect, useId, useMemo, useRef, useState} from "react";
+import {useEffect, useId, useMemo, useRef, useState, type ReactNode} from "react";
 
 /**
  * InteFL Research Framework – UI (API-backed)
@@ -253,6 +253,127 @@ function formatMetricValue(value: number | null | undefined) {
     if (value == null || !Number.isFinite(value)) return "—";
     if (Math.abs(value) >= 100 || Number.isInteger(value)) return String(Number(value.toFixed(0)));
     return value.toFixed(3).replace(/\.?0+$/, "");
+}
+
+function renderMarkdown(markdown: string) {
+    const lines = String(markdown || "").replace(/\r\n/g, "\n").split("\n");
+    const blocks: ReactNode[] = [];
+    let i = 0;
+
+    while (i < lines.length) {
+        const line = lines[i];
+
+        if (!line.trim()) {
+            i += 1;
+            continue;
+        }
+
+        if (line.startsWith("```")) {
+            const fence = line.trim();
+            const language = fence.slice(3).trim();
+            const codeLines: string[] = [];
+            i += 1;
+            while (i < lines.length && !lines[i].startsWith("```")) {
+                codeLines.push(lines[i]);
+                i += 1;
+            }
+            if (i < lines.length) i += 1;
+
+            blocks.push(
+                <div key={`code-${blocks.length}`} className="mt-2 overflow-auto rounded-xl bg-zinc-950 p-3 text-xs text-zinc-100">
+                    {language ? <div className="mb-2 text-[10px] uppercase tracking-[0.14em] text-zinc-400">{language}</div> : null}
+                    <pre className="whitespace-pre-wrap">{codeLines.join("\n")}</pre>
+                </div>
+            );
+            continue;
+        }
+
+        if (/^\|.*\|$/.test(line.trim())) {
+            const tableLines: string[] = [];
+            while (i < lines.length && /^\|.*\|$/.test(lines[i].trim())) {
+                tableLines.push(lines[i].trim());
+                i += 1;
+            }
+
+            const rows = tableLines
+                .map((row) => row.slice(1, -1).split("|").map((cell) => cell.trim()))
+                .filter((row) => row.length > 0);
+            const header = rows[0] ?? [];
+            const body = rows.slice(1).filter((row) => !row.every((cell) => /^:?-{3,}:?$/.test(cell)));
+
+            blocks.push(
+                <div key={`table-${blocks.length}`} className="mt-2 overflow-auto rounded-xl border border-zinc-200">
+                    <table className="min-w-full border-collapse text-left text-xs">
+                        <thead className="bg-zinc-50 text-zinc-700">
+                        <tr>
+                            {header.map((cell, idx) => (
+                                <th key={idx} className="border-b border-zinc-200 px-3 py-2 font-semibold">{cell}</th>
+                            ))}
+                        </tr>
+                        </thead>
+                        <tbody>
+                        {body.map((row, rowIdx) => (
+                            <tr key={rowIdx} className="border-b border-zinc-100 last:border-b-0">
+                                {row.map((cell, cellIdx) => (
+                                    <td key={cellIdx} className="px-3 py-2 align-top text-zinc-600">{cell}</td>
+                                ))}
+                            </tr>
+                        ))}
+                        </tbody>
+                    </table>
+                </div>
+            );
+            continue;
+        }
+
+        if (/^\s*[-*]\s+/.test(line)) {
+            const items: string[] = [];
+            while (i < lines.length && /^\s*[-*]\s+/.test(lines[i])) {
+                items.push(lines[i].replace(/^\s*[-*]\s+/, ""));
+                i += 1;
+            }
+            blocks.push(
+                <ul key={`list-${blocks.length}`} className="mt-2 list-disc space-y-1 pl-5 text-xs text-zinc-600">
+                    {items.map((item, idx) => <li key={idx}>{item}</li>)}
+                </ul>
+            );
+            continue;
+        }
+
+        if (/^#{1,6}\s+/.test(line)) {
+            const level = line.match(/^#+/)?.[0].length ?? 1;
+            const text = line.replace(/^#{1,6}\s+/, "");
+            const classes = [
+                "text-base font-semibold text-zinc-900",
+                "text-sm font-semibold text-zinc-900",
+                "text-xs font-semibold uppercase tracking-wide text-zinc-700",
+            ][Math.min(level - 1, 2)];
+            blocks.push(<div key={`heading-${blocks.length}`} className={cx("mt-2", classes)}>{text}</div>);
+            i += 1;
+            continue;
+        }
+
+        const paragraph: string[] = [];
+        while (
+            i < lines.length &&
+            lines[i].trim() &&
+            !lines[i].startsWith("```") &&
+            !/^\|.*\|$/.test(lines[i].trim()) &&
+            !/^\s*[-*]\s+/.test(lines[i]) &&
+            !/^#{1,6}\s+/.test(lines[i])
+        ) {
+            paragraph.push(lines[i]);
+            i += 1;
+        }
+
+        blocks.push(
+            <p key={`p-${blocks.length}`} className="mt-2 whitespace-pre-wrap text-xs leading-6 text-zinc-600">
+                {paragraph.join("\n")}
+            </p>
+        );
+    }
+
+    return blocks.length > 0 ? blocks : <p className="text-xs text-zinc-500">No content.</p>;
 }
 
 function mapBackendExperiment(exp: BackendExperiment): Experiment {
@@ -1682,8 +1803,9 @@ export default function App() {
 
                 {/* ANALYZE */}
                 {activeTab === "Analyze" && (
-                    <div className="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-2">
+                    <div className="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,2fr)]">
                         <ChatPanel
+                            cardClassName="h-[calc(100vh-19rem)] min-h-[36rem]"
                             title="AI-assisted statistical analysis"
                             subtitle="Agent infers SQL queries from your question and presents findings"
                             messages={anChatMessages}
@@ -1695,14 +1817,18 @@ export default function App() {
                             loadingText={analysisPending ? "Agent is querying and analyzing the database..." : undefined}
                         />
 
-                        <ShellCard title="AI explainability: retrieved statistics"
+                        <ShellCard
+                                   className="h-[calc(100vh-19rem)] min-h-[36rem]"
+                                   title="AI explainability: retrieved statistics"
                                    subtitle="Retrieved tables, numbers, and SQL evidence">
-                            <div className="px-4 py-3">
-                                <div className="space-y-3">
+                            <div className="flex min-h-0 flex-1 flex-col px-4 py-3">
+                                <div className="min-h-0 min-w-0 flex-1 space-y-3 overflow-y-auto overflow-x-hidden pr-1">
                                     {evidence.map((e: any, i: number) => (
                                         <div key={i} className="rounded-xl border border-zinc-200 bg-white p-3">
                                             <div className="text-xs font-semibold text-zinc-800">{e.title}</div>
-                                            <pre className="mt-1 whitespace-pre-wrap text-xs text-zinc-600">{e.body}</pre>
+                                            <div className="mt-1 min-w-0">
+                                                {renderMarkdown(e.body)}
+                                            </div>
                                         </div>
                                     ))}
                                 </div>
