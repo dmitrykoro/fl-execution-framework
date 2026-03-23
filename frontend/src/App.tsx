@@ -86,6 +86,12 @@ type AnalysisSessionListItem = {
     message_count?: number;
 };
 
+type AgentSessionListItem = {
+    id: string;
+    created_at?: string | null;
+    message_count?: number;
+};
+
 type ExperimentLink = { label: string; href: string };
 
 type Experiment = {
@@ -617,9 +623,9 @@ function Tabs({active, setActive}: any) {
 function ChatPanel({title, subtitle, right, topContent, messages, draft, setDraft, onSend, placeholder, footerHint, loadingText, cardClassName}: any) {
     return (
         <ShellCard title={title} subtitle={subtitle} right={right} className={cardClassName}>
-            <div className="flex min-h-0 flex-1 flex-col">
+            <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
             {topContent ? <div className="border-b border-zinc-100 px-4 py-3">{topContent}</div> : null}
-            <div className="h-72 min-h-0 flex-1 overflow-auto px-4 py-3">
+            <div className="h-72 min-h-0 flex-1 overflow-y-auto overflow-x-hidden px-4 py-3">
                 {messages.map((m: ChatMessage, idx: number) => (
                     <div
                         key={idx}
@@ -627,7 +633,7 @@ function ChatPanel({title, subtitle, right, topContent, messages, draft, setDraf
                     >
                         <div
                             className={cx(
-                                "max-w-[85%] whitespace-pre-wrap rounded-2xl px-3 py-2 text-sm",
+                                "max-w-[85%] break-words whitespace-pre-wrap rounded-2xl px-3 py-2 text-sm",
                                 m.role === "user" ? "bg-zinc-900 text-white" : "bg-zinc-100 text-zinc-900"
                             )}
                         >
@@ -1088,9 +1094,11 @@ export default function App() {
         {role: "assistant", text: "Describe your use-case in natural language. I will propose a JSON config."},
     ]);
     const [runChatDraft, setRunChatDraft] = useState("");
+    const [agentSessions, setAgentSessions] = useState<AgentSessionListItem[]>([]);
     const [agentSessionId, setAgentSessionId] = useState<string | null>(null);
     const [agentVersion, setAgentVersion] = useState(0);
     const [agentPending, setAgentPending] = useState(false);
+    const [agentPendingSessionId, setAgentPendingSessionId] = useState<string | null>(null);
     const [agentPhase, setAgentPhase] = useState<AgentPhase>("idle");
     const appliedAgentConfigRef = useRef<string | null>(null);
     const requestedSummaryRunIdRef = useRef<string | null>(null);
@@ -1161,6 +1169,7 @@ export default function App() {
     const [analysisSessionId, setAnalysisSessionId] = useState<string | null>(null);
     const [analysisVersion, setAnalysisVersion] = useState(0);
     const [analysisPending, setAnalysisPending] = useState(false);
+    const [analysisPendingSessionId, setAnalysisPendingSessionId] = useState<string | null>(null);
     const [analysisEvidenceMarkdown, setAnalysisEvidenceMarkdown] = useState(
         "## No evidence loaded yet\n\nRun an analysis query to populate this panel with retrieved statistics."
     );
@@ -1198,6 +1207,62 @@ export default function App() {
         refreshExperiments(experimentsPage);
     }, [experimentsPage]);
 
+    const refreshAgentSessions = async (preferredSessionId?: string | null) => {
+        try {
+            const data = await apiJson<{ items?: AgentSessionListItem[] }>("/api/agent/sessions");
+            const items = data.items ?? [];
+            setAgentSessions(items);
+            if (preferredSessionId && items.some((item) => item.id === preferredSessionId)) {
+                return;
+            }
+        } catch (e: any) {
+            appendUiLog(`[ui] config sessions fetch error: ${e?.message || e}`);
+        }
+    };
+
+    const loadAgentSession = async (sessionId: string) => {
+        try {
+            const snapshot = await apiJson<AgentPollResponse>(`/api/agent/session?session_id=${encodeURIComponent(sessionId)}`);
+            setAgentSessionId(snapshot.session_id);
+            setAgentVersion(snapshot.version);
+            setAgentPending(snapshot.pending);
+            setAgentPendingSessionId(snapshot.pending ? snapshot.session_id : null);
+            setAgentPhase(snapshot.phase);
+            setRunChatMessages(
+                snapshot.messages && snapshot.messages.length > 0
+                    ? snapshot.messages
+                    : [{role: "assistant", text: "Describe your use-case in natural language. I will propose a JSON config."}]
+            );
+
+            if (snapshot.latest_config_text) {
+                appliedAgentConfigRef.current = snapshot.latest_config_text;
+                setJsonText(snapshot.latest_config_text);
+                setJsonStatus({ok: true, message: "AI-generated config validated"});
+            }
+        } catch (e: any) {
+            setAgentPendingSessionId(null);
+            appendUiLog(`[ui] config session load error: ${e?.message || e}`);
+        }
+    };
+
+    const startNewAgentDraft = () => {
+        setAgentSessionId(null);
+        setAgentVersion(0);
+        setAgentPending(false);
+        setAgentPendingSessionId(null);
+        setAgentPhase("idle");
+        appliedAgentConfigRef.current = null;
+        requestedSummaryRunIdRef.current = null;
+        setRunChatMessages([
+            {role: "assistant", text: "Describe your use-case in natural language. I will propose a JSON config."},
+        ]);
+    };
+
+    useEffect(() => {
+        if (activeTab !== "Run") return;
+        void refreshAgentSessions(agentSessionId);
+    }, [activeTab]);
+
     const refreshAnalysisSessions = async (preferredSessionId?: string | null) => {
         try {
             const data = await apiJson<{ items?: AnalysisSessionListItem[] }>("/api/analyze_db/sessions");
@@ -1217,6 +1282,7 @@ export default function App() {
             setAnalysisSessionId(snapshot.session_id);
             setAnalysisVersion(snapshot.version);
             setAnalysisPending(snapshot.pending);
+            setAnalysisPendingSessionId(snapshot.pending ? snapshot.session_id : null);
             setAnChatMessages(
                 snapshot.messages && snapshot.messages.length > 0
                     ? snapshot.messages
@@ -1228,6 +1294,7 @@ export default function App() {
                     : "## No evidence loaded yet\n\nRun an analysis query to populate this panel with retrieved statistics."
             );
         } catch (e: any) {
+            setAnalysisPendingSessionId(null);
             appendUiLog(`[ui] analysis session load error: ${e?.message || e}`);
         }
     };
@@ -1236,6 +1303,7 @@ export default function App() {
         setAnalysisSessionId(null);
         setAnalysisVersion(0);
         setAnalysisPending(false);
+        setAnalysisPendingSessionId(null);
         setAnChatMessages([
             {role: "assistant", text: "Ask about experiment outcomes and I will summarize the retrieved evidence."},
         ]);
@@ -1266,6 +1334,7 @@ export default function App() {
                     since = snapshot.version;
                     setAnalysisVersion(snapshot.version);
                     setAnalysisPending(snapshot.pending);
+                    setAnalysisPendingSessionId(snapshot.pending ? snapshot.session_id : null);
                     setAnChatMessages(snapshot.messages ?? []);
                     setAnalysisEvidenceMarkdown(
                         snapshot.evidence_markdown?.trim()
@@ -1311,6 +1380,7 @@ export default function App() {
                     since = snapshot.version;
                     setAgentVersion(snapshot.version);
                     setAgentPending(snapshot.pending);
+                    setAgentPendingSessionId(snapshot.pending ? snapshot.session_id : null);
                     setAgentPhase(snapshot.phase);
                     setRunChatMessages(snapshot.messages ?? []);
 
@@ -1326,6 +1396,10 @@ export default function App() {
 
                     if (snapshot.error) {
                         appendUiLog(`[ui] agent error: ${snapshot.error}`);
+                    }
+
+                    if (!snapshot.pending) {
+                        void refreshAgentSessions(snapshot.session_id);
                     }
                 } catch (e: any) {
                     if (cancelled) return;
@@ -1364,9 +1438,13 @@ export default function App() {
         const text = runChatDraft.trim();
         if (!text) return;
         setRunChatDraft("");
+        setAgentPending(true);
+        if (agentSessionId) {
+            setAgentPendingSessionId(agentSessionId);
+        }
 
         try {
-            if (!agentSessionId || (runId && runStatus === "EXITED")) {
+            if (!agentSessionId) {
                 requestedSummaryRunIdRef.current = null;
                 appliedAgentConfigRef.current = null;
                 const snapshot = await apiJson<AgentPollResponse>("/api/agent/start", {
@@ -1376,8 +1454,10 @@ export default function App() {
                 setAgentSessionId(snapshot.session_id);
                 setAgentVersion(snapshot.version);
                 setAgentPending(snapshot.pending);
+                setAgentPendingSessionId(snapshot.pending ? snapshot.session_id : null);
                 setAgentPhase(snapshot.phase);
                 setRunChatMessages(snapshot.messages ?? []);
+                void refreshAgentSessions(snapshot.session_id);
                 appendUiLog("[ui] agent generation started");
                 return;
             }
@@ -1388,10 +1468,13 @@ export default function App() {
             });
             setAgentVersion(snapshot.version);
             setAgentPending(snapshot.pending);
+            setAgentPendingSessionId(snapshot.pending ? snapshot.session_id : null);
             setAgentPhase(snapshot.phase);
             setRunChatMessages(snapshot.messages ?? []);
             appendUiLog("[ui] agent refinement started");
         } catch (e: any) {
+            setAgentPending(false);
+            setAgentPendingSessionId(null);
             appendUiLog(`[ui] agent request error: ${e?.message || e}`);
         }
     };
@@ -1511,15 +1594,23 @@ export default function App() {
         if (!text) return;
         setAnChatDraft("");
         setAnalysisPending(true);
+        if (analysisSessionId) {
+            setAnalysisPendingSessionId(analysisSessionId);
+        }
 
         try {
             const snapshot = await apiJson<AnalyzePollResponse>("/api/analyze_db/start", {
                 method: "POST",
-                body: JSON.stringify({question: text, session_id: analysisSessionId}),
+                body: JSON.stringify(
+                    analysisSessionId
+                        ? {question: text, session_id: analysisSessionId}
+                        : {question: text}
+                ),
             });
             setAnalysisSessionId(snapshot.session_id);
             setAnalysisVersion(snapshot.version);
             setAnalysisPending(snapshot.pending);
+            setAnalysisPendingSessionId(snapshot.pending ? snapshot.session_id : null);
             setAnChatMessages(snapshot.messages ?? []);
             setAnalysisEvidenceMarkdown(
                 snapshot.evidence_markdown?.trim()
@@ -1530,6 +1621,7 @@ export default function App() {
             appendUiLog(`[ui] analysis started: "${text}"`);
         } catch (e: any) {
             setAnalysisPending(false);
+            setAnalysisPendingSessionId(null);
             appendUiLog(`[ui] analysis request error: ${e?.message || e}`);
         }
     };
@@ -1562,28 +1654,65 @@ export default function App() {
                 {/* RUN */}
                 {activeTab === "Run" && (
                     <div className="mt-6 overflow-x-auto pb-2">
-                        <div className="grid min-w-[1560px] grid-cols-[360px_360px_320px_420px] gap-4">
+                        <div className="grid h-[calc(100vh-19rem)] min-h-[36rem] w-full min-w-[1680px] grid-cols-[420px_420px_400px_440px] items-stretch gap-4 overflow-hidden">
                             <ChatPanel
-                                cardClassName="h-[58rem]"
+                                cardClassName="h-full min-h-0"
                                 title="AI-assisted configuration and analysis"
                                 subtitle="Describe FL use-case in natural language"
+                                right={
+                                    <button
+                                        onClick={startNewAgentDraft}
+                                        className="rounded-xl border border-zinc-200 bg-white px-3 py-1.5 text-xs font-medium hover:bg-zinc-50"
+                                        title="Create a new configuration session"
+                                    >
+                                        +
+                                    </button>
+                                }
+                                topContent={
+                                    <div className="flex gap-2 overflow-x-auto pb-1">
+                                        {agentSessions.map((session) => {
+                                            const active = session.id === agentSessionId;
+                                            return (
+                                                <button
+                                                    key={session.id}
+                                                    onClick={() => {
+                                                        void loadAgentSession(session.id);
+                                                    }}
+                                                    className={cx(
+                                                        "shrink-0 rounded-xl border px-3 py-1.5 text-xs font-medium",
+                                                        active
+                                                            ? "border-zinc-900 bg-zinc-900 text-white"
+                                                            : "border-zinc-200 bg-white text-zinc-700 hover:bg-zinc-50"
+                                                    )}
+                                                >
+                                                    {formatSessionTabLabel(session.created_at)}
+                                                </button>
+                                            );
+                                        })}
+                                        {!agentSessionId ? (
+                                            <div className="shrink-0 rounded-xl border border-dashed border-zinc-300 bg-zinc-50 px-3 py-1.5 text-xs text-zinc-500">
+                                                New session
+                                            </div>
+                                        ) : null}
+                                    </div>
+                                }
                                 messages={runChatMessages}
                                 draft={runChatDraft}
-                            setDraft={setRunChatDraft}
-                            onSend={onSendRunChat}
-                            placeholder='e.g., "femnist with 20% bad clients"'
-                            footerHint="Requested use-case is reflected in generated JSON."
-                            loadingText={
-                                agentPending
-                                    ? agentPhase === "analyzing_results"
-                                        ? "Agent is analyzing the run results..."
-                                        : "Agent is thinking..."
-                                    : undefined
-                            }
-                        />
+                                setDraft={setRunChatDraft}
+                                onSend={onSendRunChat}
+                                placeholder='e.g., "femnist with 20% bad clients"'
+                                footerHint="Requested use-case is reflected in generated JSON."
+                                loadingText={
+                                    (agentPending || (agentPendingSessionId && agentPendingSessionId === agentSessionId))
+                                        ? agentPhase === "analyzing_results"
+                                            ? "Agent is analyzing the run results..."
+                                            : "Agent is thinking..."
+                                        : undefined
+                                }
+                            />
 
                             <ShellCard
-                                className="h-[58rem]"
+                                className="h-full min-h-0"
                                 title="Manual configuration: JSON"
                                 subtitle="Manually adjust JSON comfiguration"
                                 right={
@@ -1652,7 +1781,7 @@ export default function App() {
                             </ShellCard>
 
                             <ShellCard
-                                className="h-[58rem]"
+                                className="h-full min-h-0"
                                 title="Experiments history"
                                 subtitle="Previously executed experiments"
                                 right={
@@ -1745,7 +1874,7 @@ export default function App() {
                             </ShellCard>
 
                             <ShellCard
-                                className="h-[58rem]"
+                                className="h-full min-h-0"
                                 title="Experiment details"
                                 subtitle="Key configuration and author details, reference plots"
                             >
@@ -1867,9 +1996,9 @@ export default function App() {
 
                 {/* ANALYZE */}
                 {activeTab === "Analyze" && (
-                    <div className="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,2fr)]">
+                    <div className="mt-6 grid h-[calc(100vh-19rem)] min-h-[36rem] grid-cols-1 items-stretch gap-4 overflow-hidden lg:grid-cols-[minmax(0,1fr)_minmax(0,2fr)]">
                         <ChatPanel
-                            cardClassName="h-[calc(100vh-19rem)] min-h-[36rem]"
+                            cardClassName="h-full min-h-0"
                             title="AI-assisted statistical analysis"
                             subtitle="Agent infers SQL queries from your question and presents findings"
                             right={
@@ -1915,16 +2044,20 @@ export default function App() {
                             onSend={onSendAnalyzeChat}
                             placeholder='e.g., "What is the best-performing aggregation on medical images?"'
                             footerHint="Retrieved knowledge is displayed as evidence (explainability)."
-                            loadingText={analysisPending ? "Agent is querying and analyzing the database..." : undefined}
+                            loadingText={
+                                analysisPending || (analysisPendingSessionId && analysisPendingSessionId === analysisSessionId)
+                                    ? "Agent is querying and analyzing the database..."
+                                    : undefined
+                            }
                         />
 
                         <ShellCard
-                                   className="h-[calc(100vh-19rem)] min-h-[36rem]"
+                                   className="h-full min-h-0"
                                    title="AI explainability: retrieved statistics"
                                    subtitle="Retrieved tables, numbers, and SQL evidence">
-                            <div className="flex min-h-0 flex-1 flex-col px-4 py-3">
-                                <div className="min-h-0 min-w-0 flex-1 overflow-y-auto overflow-x-hidden pr-1">
-                                    <div className="rounded-xl border border-zinc-200 bg-white p-3">
+                            <div className="flex h-full min-h-0 flex-1 flex-col px-4 py-3">
+                                <div className="h-0 min-h-0 min-w-0 flex-1 pr-1">
+                                    <div className="h-full min-h-0 overflow-y-auto overflow-x-hidden rounded-xl border border-zinc-200 bg-white p-3">
                                         <div className="min-w-0">
                                             {renderMarkdown(analysisEvidenceMarkdown)}
                                         </div>

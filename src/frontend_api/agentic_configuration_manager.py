@@ -84,6 +84,14 @@ class AgenticConfigurationManager:
             "messages": [{"role": message.role, "text": message.text} for message in session.messages],
         }
 
+    async def list_sessions(self) -> list[dict[str, Any]]:
+        data = await self._db_request(
+            "GET",
+            "/configuration_sessions",
+            params={"author_email": obtain_env_var("AUTHOR_EMAIL")},
+        )
+        return list(data.get("items", []))
+
     def _append_message(self, session: AgentSession, role: str, text: str) -> None:
         session.messages.append(AgentChatMessage(role=role, text=text))
 
@@ -111,17 +119,31 @@ class AgenticConfigurationManager:
             {user_prompt}
         """
 
-    async def start_session(self, user_prompt: str) -> AgentSession:
-        session = AgentSession(id=uuid.uuid4().hex, vendor=self._new_vendor())
+    async def start_session(self, user_prompt: str, session_id: str | None = None) -> AgentSession:
+        if session_id:
+            try:
+                session = await self.load_session(session_id)
+            except RuntimeError as exc:
+                if "404" in str(exc):
+                    session_id = None
+                else:
+                    raise
+
+        if not session_id:
+            session = AgentSession(id=uuid.uuid4().hex, vendor=self._new_vendor())
+            self.sessions[session.id] = session
+            await self._create_remote_session(session.id)
+
         session.user_prompt = user_prompt
         session.phase = "generating_config"
         session.pending = True
         self._append_message(session, "user", user_prompt)
-        self.sessions[session.id] = session
-        await self._create_remote_session(session.id)
+
         await self._append_remote_message(session.id, "user", user_prompt)
+
         self._bump(session)
         asyncio.create_task(self._generate_config(session, self._build_config_prompt(session.vendor, user_prompt)))
+
         return session
 
     async def refine_session(self, session_id: str, refinement_request: str) -> AgentSession:
@@ -139,6 +161,30 @@ class AgenticConfigurationManager:
             Generate and provide the refined JSON configuration file only.
         """
         asyncio.create_task(self._generate_config(session, prompt))
+        return session
+
+    async def load_session(self, session_id: str) -> AgentSession:
+        existing = self.sessions.get(session_id)
+        if existing is not None and existing.pending:
+            return existing
+
+        remote = await self._db_request("GET", f"/configuration_sessions/{session_id}")
+        session = existing
+        if session is None:
+            session = AgentSession(id=session_id, vendor=self._new_vendor())
+            self.sessions[session_id] = session
+
+        session.messages = [
+            AgentChatMessage(
+                role="assistant" if item.get("role") == "agent" else "user",
+                text=str(item.get("payload", "")),
+            )
+            for item in remote.get("messages", [])
+        ]
+        session.pending = False
+        session.error = None
+        session.phase = "completed" if session.messages else "idle"
+        self._bump(session)
         return session
 
     async def _generate_config(self, session: AgentSession, prompt: str) -> None:
@@ -297,14 +343,22 @@ class AgenticConfigurationManager:
             {"role": role, "payload": payload},
         )
 
-    async def _db_request(self, method: str, path: str, payload: dict[str, Any] | None = None) -> dict[str, Any]:
+    async def _db_request(
+            self,
+            method: str,
+            path: str,
+            payload: dict[str, Any] | None = None,
+            params: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
         async with aiohttp.ClientSession() as client:
             async with client.request(
                 method,
                 f"{self._db_base_url()}{path}",
                 json=payload,
+                params=params,
                 headers=self._auth_headers(),
                 timeout=aiohttp.ClientTimeout(total=30),
+
             ) as resp:
                 if resp.status >= 400:
                     text = await resp.text()

@@ -99,8 +99,13 @@ class DatabaseAnalysisManager:
         return list(data.get("items", []))
 
     async def load_session(self, session_id: str) -> AnalysisSession:
+        existing = self.sessions.get(session_id)
+        if existing is not None and existing.pending:
+            return existing
+
         remote = await self._db_request("GET", f"/analysis_sessions/{session_id}")
-        session = self.sessions.get(session_id)
+        session = existing
+
         if session is None:
             session = AnalysisSession(id=session_id, vendor=self._new_vendor())
             self.sessions[session_id] = session
@@ -118,8 +123,15 @@ class DatabaseAnalysisManager:
 
     async def start_session(self, question: str, session_id: str | None = None) -> AnalysisSession:
         if session_id:
-            session = await self.load_session(session_id)
-        else:
+            try:
+                session = await self.load_session(session_id)
+            except RuntimeError as exc:
+                if "404" in str(exc):
+                    session_id = None
+                else:
+                    raise
+
+        if not session_id:
             session_id = uuid.uuid4().hex
             await self._db_request(
                 "POST",

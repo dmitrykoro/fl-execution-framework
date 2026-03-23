@@ -30,6 +30,15 @@ def _auth_headers() -> dict:
     }
 
 
+def _optional_session_id(value: Any) -> str | None:
+    if value is None:
+        return None
+    normalized = str(value).strip()
+    if not normalized or normalized.lower() in {"none", "null", "undefined"}:
+        return None
+    return normalized
+
+
 def _validate_config_in_framework_backend(received_config: Dict[str, Any]) -> list[str]:
     validation_errors = []
 
@@ -206,10 +215,11 @@ async def get_experiments(request: web.Request) -> web.Response:
 async def agent_start(request: web.Request) -> web.Response:
     payload = await request.json()
     text = str(payload.get("text", "")).strip()
+    session_id = _optional_session_id(payload.get("session_id"))
     if not text:
         return web.json_response({"error": "text is required"}, status=400)
 
-    session = await AGENT_MANAGER.start_session(text)
+    session = await AGENT_MANAGER.start_session(text, session_id=session_id)
     return web.json_response(AGENT_MANAGER._snapshot(session), status=202)
 
 
@@ -246,6 +256,24 @@ async def agent_poll(request: web.Request) -> web.Response:
         return web.json_response({"error": str(exc)}, status=404)
 
     return web.json_response(snapshot)
+
+
+async def agent_sessions(request: web.Request) -> web.Response:
+    items = await AGENT_MANAGER.list_sessions()
+    return web.json_response({"items": items})
+
+
+async def agent_get_session(request: web.Request) -> web.Response:
+    session_id = _optional_session_id(request.query.get("session_id"))
+    if not session_id:
+        return web.json_response({"error": "session_id is required"}, status=400)
+
+    try:
+        session = await AGENT_MANAGER.load_session(session_id)
+    except RuntimeError as exc:
+        return web.json_response({"error": str(exc)}, status=502)
+
+    return web.json_response(AGENT_MANAGER._snapshot(session))
 
 
 async def agent_analyze_results(request: web.Request) -> web.Response:
@@ -286,7 +314,7 @@ async def agent_analyze_results(request: web.Request) -> web.Response:
 async def analyze_db_start(request: web.Request) -> web.Response:
     payload = await request.json()
     question = str(payload.get("question", "")).strip()
-    session_id = str(payload.get("session_id", "")).strip() or None
+    session_id = _optional_session_id(payload.get("session_id"))
     if not question:
         return web.json_response({"error": "question is required"}, status=400)
 
@@ -300,7 +328,7 @@ async def analyze_db_sessions(request: web.Request) -> web.Response:
 
 
 async def analyze_db_get_session(request: web.Request) -> web.Response:
-    session_id = str(request.query.get("session_id", "")).strip()
+    session_id = _optional_session_id(request.query.get("session_id"))
     if not session_id:
         return web.json_response({"error": "session_id is required"}, status=400)
 
@@ -339,6 +367,8 @@ def create_app() -> web.Application:
     app.router.add_get("/api/get_experiments", get_experiments)
     app.router.add_post("/api/agent/start", agent_start)
     app.router.add_post("/api/agent/refine", agent_refine)
+    app.router.add_get("/api/agent/sessions", agent_sessions)
+    app.router.add_get("/api/agent/session", agent_get_session)
     app.router.add_get("/api/agent/poll", agent_poll)
     app.router.add_post("/api/agent/analyze_results", agent_analyze_results)
     app.router.add_post("/api/analyze_db/start", analyze_db_start)

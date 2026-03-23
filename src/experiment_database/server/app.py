@@ -532,6 +532,32 @@ async def get_configuration_session(request: web.Request) -> web.Response:
             session.close()
 
 
+async def list_configuration_sessions(request: web.Request) -> web.Response:
+    author_email = _normalize_author_value(request.query.get("author_email"))
+
+    with get_db() as session:
+        try:
+            query = session.query(ConfigurationSession).filter(ConfigurationSession.is_removed.is_(False))
+            if author_email:
+                query = query.join(ConfigurationSession.author).filter(ExperimentAuthor.author_email == author_email)
+
+            rows = query.order_by(ConfigurationSession.created_at.desc()).all()
+            items = [
+                {
+                    "id": row.id,
+                    "created_at": row.created_at.isoformat() if row.created_at else None,
+                    "message_count": sum(1 for msg in row.chat_messages if not msg.is_removed),
+                }
+                for row in rows
+            ]
+            return web.json_response({"items": items})
+        except Exception as e:
+            logging.exception("Failed to list configuration sessions")
+            return web.json_response({"error": str(e)}, status=500)
+        finally:
+            session.close()
+
+
 async def append_configuration_message(request: web.Request) -> web.Response:
     session_id = request.match_info["session_id"]
     payload = await request.json()
@@ -693,6 +719,7 @@ app.router.add_get("/analysis_sessions/{session_id}", get_database_analysis_sess
 app.router.add_post("/analysis_sessions/{session_id}/messages", append_database_analysis_message)
 app.router.add_put("/analysis_sessions/{session_id}/payload", update_database_analysis_payload)
 app.router.add_post("/configuration_sessions", create_configuration_session)
+app.router.add_get("/configuration_sessions", list_configuration_sessions)
 app.router.add_get("/configuration_sessions/{session_id}", get_configuration_session)
 app.router.add_post("/configuration_sessions/{session_id}/messages", append_configuration_message)
 app.router.add_get("/health", health)
