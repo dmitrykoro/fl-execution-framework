@@ -99,7 +99,7 @@ class FlowerClient(fl.client.NumPyClient):
                 correct, total, epoch_loss = 0, 0, 0.0
 
                 for batch_idx, (images, labels) in enumerate(trainloader):
-                    if epoch == 0 and batch_idx == 0:
+                    if current_round_attack_configs and epoch == 0 and batch_idx == 0:
                             original_images = images.clone()
                             original_labels = labels.clone()
                     for attack_type, attack_config in zip(attack_keywords_list, current_round_attack_configs):
@@ -113,27 +113,27 @@ class FlowerClient(fl.client.NumPyClient):
                             num_classes=num_classes
                         )
 
-                        # Save snapshot after all attacks applied
-                        if epoch == 0 and batch_idx == 0:
+                    # Save snapshot after all attacks applied
+                    if current_round_attack_configs and epoch == 0 and batch_idx == 0:
 
-                            attack_snapshot_handler.save_attack_snapshots(
-                                attack_snapshot_format=self.attack_snapshot_format,
-                                tokenizer=self.tokenizer,
-                                model_type=self.model_type,
-                                save_attack_snapshots=self.save_attack_snapshots,
-                                client_id=self.client_id,
-                                output_dir=self.output_dir,
-                                max_samples=self.snapshot_max_samples,
-                                save_format=self.attack_snapshot_format,
-                                experiment_info=self.experiment_info,
-                                strategy_number=self.strategy_number,
-                                current_round=current_round,
-                                attack_configs=current_round_attack_configs,
-                                data_sample=images,
-                                labels_sample=labels,
-                                original_data_sample=original_images,
-                                original_labels_sample=original_labels,
-                            )
+                        attack_snapshot_handler.save_attack_snapshots(
+                            attack_snapshot_format=self.attack_snapshot_format,
+                            tokenizer=self.tokenizer,
+                            model_type=self.model_type,
+                            save_attack_snapshots=self.save_attack_snapshots,
+                            client_id=self.client_id,
+                            output_dir=self.output_dir,
+                            max_samples=self.snapshot_max_samples,
+                            save_format=self.attack_snapshot_format,
+                            experiment_info=self.experiment_info,
+                            strategy_number=self.strategy_number,
+                            current_round=current_round,
+                            attack_configs=current_round_attack_configs,
+                            data_sample=images,
+                            labels_sample=labels,
+                            original_data_sample=original_images,
+                            original_labels_sample=original_labels,
+                        )
 
                     images, labels = images.to(self.training_device), labels.to(self.training_device)
                     optimizer.zero_grad()
