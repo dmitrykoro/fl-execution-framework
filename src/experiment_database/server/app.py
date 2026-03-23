@@ -173,12 +173,27 @@ async def post_experiment(request: web.Request) -> web.Response:
 
     with get_db() as session:
         try:
-            strategy_history = SimulationStrategyHistory.from_dict(data["strategy_history"])
+            strategy_history = SimulationStrategyHistory.from_dict(
+                data["strategy_history"]
+            )
             total_exec_time = data.get("total_exec_time")
             full_author_name = data.get("full_author_name")
             author_email = data.get("author_email")
+            created_at = data.get("created_at")
 
-            fill_all_tables(session, strategy_history, total_exec_time, full_author_name, author_email)
+            if created_at:
+                from datetime import datetime, timezone
+
+                created_at = datetime.fromisoformat(created_at)
+
+            fill_all_tables(
+                session,
+                strategy_history,
+                total_exec_time,
+                full_author_name,
+                author_email,
+                created_at=created_at,
+            )
 
             return web.json_response({"status": "ok"}, status=201)
 
@@ -233,11 +248,15 @@ async def get_experiments(request: web.Request) -> web.Response:
                         "full_author_name": author.full_author_name if author else None,
                         "author_email": author.author_email if author else None,
                         "config": {
-                            "strategy": cfg.aggregation_strategy_keyword if cfg else None,
+                            "strategy": cfg.aggregation_strategy_keyword
+                            if cfg
+                            else None,
                             "dataset": cfg.dataset_keyword if cfg else None,
                             "num_rounds": cfg.num_rounds if cfg else None,
                             "num_clients": cfg.num_clients if cfg else None,
-                            "num_malicious_clients": cfg.num_malicious_clients if cfg else None,
+                            "num_malicious_clients": cfg.num_malicious_clients
+                            if cfg
+                            else None,
                             "json": cfg.json if cfg else None,
                         },
                         "hardware": {
@@ -251,21 +270,35 @@ async def get_experiments(request: web.Request) -> web.Response:
                         "clients_at_round": [
                             {
                                 "round_number": c.round_number,
-                                "client_number": c.client.client_number if c.client else None,
+                                "client_number": c.client.client_number
+                                if c.client
+                                else None,
                                 "is_aggregated": c.client_is_aggregated,
                                 "attack_type": c.attack_type,
                             }
-                            for c in (exp.clients_at_round[:20] if exp.clients_at_round else [])
+                            for c in (
+                                exp.clients_at_round[:20]
+                                if exp.clients_at_round
+                                else []
+                            )
                         ],
                         "metric_entries": [
                             {
                                 "round_number": m.round_number,
-                                "metric_name": m.metric_info.name if m.metric_info else None,
-                                "metric_type": m.metric_info.type if m.metric_info else None,
+                                "metric_name": m.metric_info.name
+                                if m.metric_info
+                                else None,
+                                "metric_type": m.metric_info.type
+                                if m.metric_info
+                                else None,
                                 "value": m.value,
-                                "client_number": m.client.client_number if m.client else None,
+                                "client_number": m.client.client_number
+                                if m.client
+                                else None,
                             }
-                            for m in (exp.metric_entries[:200] if exp.metric_entries else [])
+                            for m in (
+                                exp.metric_entries[:200] if exp.metric_entries else []
+                            )
                         ],
                     }
                 )
@@ -612,7 +645,9 @@ async def homepage(request: web.Request) -> web.Response:
             db_bytes = session.execute(
                 text("SELECT pg_database_size(current_database())")
             ).scalar()
-            db_size_gb = round(db_bytes / (1024 ** 3), 3) if db_bytes is not None else "unknown"
+            db_size_gb = (
+                round(db_bytes / (1024**3), 3) if db_bytes is not None else "unknown"
+            )
 
             last_exp = (
                 session.query(ExperimentEvent)
@@ -632,7 +667,7 @@ async def homepage(request: web.Request) -> web.Response:
                     dt = dt.replace(tzinfo=ZoneInfo("UTC"))
                 dt = dt.astimezone(ZoneInfo("America/New_York"))
 
-                last_created_at = dt.strftime("%B %-d, %Y %-I:%M%p %Z")
+                last_created_at = dt.strftime("%B %d, %Y %I:%M%p %Z")
                 last_strategy = cfg.aggregation_strategy_keyword if cfg else None
 
             else:
