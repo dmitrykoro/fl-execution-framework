@@ -33,7 +33,8 @@ class RoundsInfo:
     document_recall_history: List[float] = field(default_factory=list)
     document_f1_history: List[float] = field(default_factory=list)
 
-    average_r2_history: List[float] = field(default_factory=list)
+    # Aggregate metrics for Regression task datasets (e.g. air_quality_uci)
+    average_r2_history: List[float] = field(default_factory=list) # Aggregated R^2 Value across all clients
 
     plottable_metrics = []
     barable_metrics = []

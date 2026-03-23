@@ -172,6 +172,7 @@ class SimulationStrategyHistory:
 
         Derivative data calculated here (per round):
             - average_accuracy_history: average accuracy of non-removed benign clients
+            - average_r2_history: average R2 of non-removed benign clients (only for regression task datasets (e.g. air_quality_uci))
         """
         for round_num in range(self.strategy_config.num_of_rounds):
             round_tp_count = 0

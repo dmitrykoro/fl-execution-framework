@@ -70,6 +70,11 @@ def apply_target_flipping(
         degree_of_poisoning: float = 0.1,
         dataset: Optional[TensorDataset] = None,
 ) -> torch.Tensor:
+    """
+    Flip subset of target values based on FLIP attack strategy.
+    Performs dynamic dataset poisoning attack on Regression task datasets (e.g. air_quality_uci).
+    """
+
     substitute_fraction = 0.25  # Changing subset size doesn't change effectiveness of attack
     '''
     At a minimum use 25% of the client dataset as the subset.
@@ -456,7 +461,10 @@ class DatasetHandler:
 
 
     def _flip_targets(self, client_dir: str) -> None:
-        """Flip subset of target values based on FLIP attack strategy."""
+        """
+        Flip subset of target values based on FLIP attack strategy.
+        Performs static dataset poisoning attack on Regression task datasets (e.g. air_quality_uci).
+        """
         
         client_path = os.path.join(self.dst_dataset, client_dir)
 

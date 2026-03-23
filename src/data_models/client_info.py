@@ -22,10 +22,12 @@ class ClientInfo:
     absolute_distance_history: List[Union[float, None]] = None
     loss_history: List[Union[float, None]] = None
     accuracy_history: List[Union[float, None]] = None
-    ss_res_history: List[Union[float, None]] = None
-    ss_tot_history: List[Union[float, None]] = None
-    r2_history: List[Union[float, None]] = None
     aggregation_participation_history: List[Union[int, None]] = None
+
+    # Client metrics for Regression task datasets (e.g. air_quality_uci)
+    ss_res_history: List[Union[float, None]] = None # Residual sum of squares used to calculate global R^2
+    ss_tot_history: List[Union[float, None]] = None # Total sum of squares used to calculate global R^2
+    r2_history: List[Union[float, None]] = None     # Client R^2 calculated from train/test
 
     plottable_metrics = [
         "removal_criterion_history",
