@@ -89,6 +89,16 @@ class ExperimentAuthor(Base):
         back_populates="author",
         cascade="all, save-update",
     )
+    configuration_sessions = relationship(
+        "ConfigurationSession",
+        back_populates="author",
+        cascade="all, save-update",
+    )
+    database_analysis_sessions = relationship(
+        "DatabaseAnalysisSession",
+        back_populates="author",
+        cascade="all, save-update",
+    )
 
 
 class ExperimentClient(Base):
@@ -178,3 +188,66 @@ class AuthToken(Base):
     __table_args__ = (
         Index("ix_auth_token_expires_at", "expires_at"),
     )
+
+
+class ConfigurationSession(Base):
+    __tablename__ = "configuration_session"
+
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    experiment_author_id = Column(Integer, ForeignKey("experiment_author.id"), nullable=True)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
+    is_removed = Column(Boolean, default=False, nullable=False)
+
+    author = relationship("ExperimentAuthor", back_populates="configuration_sessions")
+    chat_messages = relationship(
+        "ConfigurationChatMessage",
+        back_populates="configuration_session",
+        cascade="all, delete-orphan",
+    )
+
+
+class ConfigurationChatMessage(Base):
+    __tablename__ = "configuration_chat_message"
+
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    configuration_session_id = Column(
+        String(36), ForeignKey("configuration_session.id", ondelete="CASCADE"), nullable=False
+    )
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
+    is_removed = Column(Boolean, default=False, nullable=False)
+    creator_role = Column(String(16), nullable=False)
+    payload = Column(Text, nullable=False)
+
+    configuration_session = relationship("ConfigurationSession", back_populates="chat_messages")
+
+
+class DatabaseAnalysisSession(Base):
+    __tablename__ = "database_analysis_session"
+
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    experiment_author_id = Column(Integer, ForeignKey("experiment_author.id"), nullable=True)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
+    is_removed = Column(Boolean, default=False, nullable=False)
+    payload = Column(Text, nullable=True)
+
+    author = relationship("ExperimentAuthor", back_populates="database_analysis_sessions")
+    chat_messages = relationship(
+        "DatabaseAnalysisChatMessage",
+        back_populates="database_analysis_session",
+        cascade="all, delete-orphan",
+    )
+
+
+class DatabaseAnalysisChatMessage(Base):
+    __tablename__ = "database_analysis_chat_message"
+
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    database_analysis_session_id = Column(
+        String(36), ForeignKey("database_analysis_session.id", ondelete="CASCADE"), nullable=False
+    )
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
+    is_removed = Column(Boolean, default=False, nullable=False)
+    creator_role = Column(String(16), nullable=False)
+    payload = Column(Text, nullable=False)
+
+    database_analysis_session = relationship("DatabaseAnalysisSession", back_populates="chat_messages")
