@@ -1654,7 +1654,7 @@ export default function App() {
                 {/* RUN */}
                 {activeTab === "Run" && (
                     <div className="mt-6 overflow-x-auto pb-2">
-                        <div className="grid h-[calc(100vh-19rem)] min-h-[36rem] w-full min-w-[1680px] grid-cols-[420px_420px_400px_440px] items-stretch gap-4 overflow-hidden">
+                        <div className="grid h-[calc(100vh-26rem)] min-h-[33rem] w-full min-w-[1680px] grid-cols-[420px_420px_400px_440px] items-stretch gap-4 overflow-hidden">
                             <ChatPanel
                                 cardClassName="h-full min-h-0"
                                 title="AI-assisted configuration and analysis"
@@ -1996,7 +1996,7 @@ export default function App() {
 
                 {/* ANALYZE */}
                 {activeTab === "Analyze" && (
-                    <div className="mt-6 grid h-[calc(100vh-19rem)] min-h-[36rem] grid-cols-1 items-stretch gap-4 overflow-hidden lg:grid-cols-[minmax(0,1fr)_minmax(0,2fr)]">
+                    <div className="mt-6 grid h-[calc(100vh-26rem)] min-h-[33rem] grid-cols-1 items-stretch gap-4 overflow-hidden lg:grid-cols-[minmax(0,1fr)_minmax(0,2fr)]">
                         <ChatPanel
                             cardClassName="h-full min-h-0"
                             title="AI-assisted statistical analysis"
