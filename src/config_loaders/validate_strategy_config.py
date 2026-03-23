@@ -11,7 +11,7 @@ config_schema = {
             "type": "string",
             "enum": ["trust", "pid", "pid_scaled", "pid_standardized", "pid_standardized_score_based",
                     "multi-krum", "krum", "multi-krum-based", "trimmed_mean",
-                    "rfa", "bulyan", "fools_gold"]
+                    "rfa", "bulyan", "fools_gold", "pid_v5_stateless_mean_based"]
         },
         "strict_mode": {
             "type": "string",
@@ -220,6 +220,12 @@ config_schema = {
                         "type": "string",
                         "enum": ["label_flipping", "gaussian_noise"]
                     },
+                    # old format entries for backward-compatibility - do not use
+                    "selection_strategy": {"type": "string", "enum": ["specific", "random", "percentage"]},
+                    "malicious_client_ids": {"type": "array", "items": {"type": "integer"}},
+                    "malicious_client_count": {"type": "integer", "minimum": 1},
+                    "malicious_percentage": {"type": "number", "minimum": 0.0, "maximum": 1.0},
+                    # end of old format entries
                     "num_malicious_clients": {"type": "integer", "items": {"type": "integer"}},
                     "specific_malicious_clients": {"type": "array", "items": {"type": "integer"}},
                     "proportion_malicious_clients": {"type": "number", "items": {"type": "integer"}},
@@ -341,9 +347,9 @@ def _populate_client_selection(config: dict) -> None:
     num_of_clients = config.get("num_of_clients")
 
     for idx, entry in enumerate(schedule):
-        num_malicious_clients = entry.get("num_malicious_clients", None)
-        proportion_malicious_clients = entry.get("proportion_malicious_clients", None)
-        specific_malicious_clients = entry.get("specific_malicious_clients", None)
+        num_malicious_clients = entry.get("num_malicious_clients", entry.get("malicious_client_count", None))
+        proportion_malicious_clients = entry.get("proportion_malicious_clients", entry.get("malicious_percentage", None))
+        specific_malicious_clients = entry.get("specific_malicious_clients", entry.get("malicious_client_ids", None))
 
         if specific_malicious_clients:
             entry["malicious_client_ids"] = specific_malicious_clients

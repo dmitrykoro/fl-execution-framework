@@ -1,7 +1,7 @@
 {
   "shared_settings": {
     "strict_mode": "true",
-    "aggregation_strategy_keyword": "pid_standardized_score_based",
+    "aggregation_strategy_keyword": "pid_v5_stateless_mean_based",
     "remove_clients": "true",
     "dataset_keyword": "femnist_iid",
     "use_llm": "false",
@@ -50,6 +50,14 @@
         "start_round": 2,
         "end_round": 5,
         "specific_malicious_clients": [0]
+      },
+      {
+        "attack_type": "gaussian_noise",
+        "attack_ratio": 0.95,
+        "target_noise_snr": 5,
+        "start_round": 1,
+        "end_round": 4,
+        "specific_malicious_clients": [0, 1]
       }
     ]
   },
@@ -57,4 +65,3 @@
     {}
   ]
 }
-
