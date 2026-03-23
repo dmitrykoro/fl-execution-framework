@@ -3,6 +3,7 @@ import numpy as np
 import flwr as fl
 import torch
 import logging
+import os
 
 from typing import Dict, List, Optional, Tuple, Union
 from sklearn.cluster import KMeans
@@ -20,6 +21,7 @@ class RFABasedRemovalStrategy(FedAvg):
             self,
             remove_clients: bool,
             begin_removing_from_round: int,
+            output_dirname,
             weighted_median_factor: float = 1.0,
             *args, **kwargs
     ):
@@ -32,6 +34,21 @@ class RFABasedRemovalStrategy(FedAvg):
         self.current_round = 0
         self.removed_client_ids = set()
         self.client_scores = {}
+
+        # Create a logger
+        self.logger = logging.getLogger(f"rfa_removal_{id(self)}")
+        self.logger.setLevel(logging.INFO)  # Set the logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL)
+
+        # Create handlers
+        out_dir = output_dirname
+        os.makedirs(out_dir, exist_ok=True)
+        file_handler = logging.FileHandler(f"{out_dir}/output.log")
+        console_handler = logging.StreamHandler()
+
+        # Add the handlers to the logger
+        self.logger.addHandler(file_handler)
+        self.logger.addHandler(console_handler)
+        self.logger.propagate = False
 
     def aggregate_fit(self, server_round: int, results: List[Tuple[ClientProxy, FitRes]], failures: List[Union[Tuple[ClientProxy, FitRes], BaseException]]) -> Tuple[Optional[Parameters], Dict[str, Scalar]]:
         if not results:
@@ -96,7 +113,7 @@ class RFABasedRemovalStrategy(FedAvg):
                 removal_criterion=deviation
             )
 
-            logging.info(f'Aggregation round: {server_round} Client ID: {client_id} Deviation: {deviation} Normalized Distance: {normalized_distances[i][0]}')
+            self.logger.info(f'Aggregation round: {server_round} Client ID: {client_id} Deviation: {deviation} Normalized Distance: {normalized_distances[i][0]}')
 
         # Aggregate the parameters using the weighted geometric median.
         aggregated_parameters_list = []
@@ -151,7 +168,7 @@ class RFABasedRemovalStrategy(FedAvg):
         if self.remove_clients:
             # Remove clients with the highest deviation if applicable.
             client_id = max(client_scores, key=client_scores.get)
-            logging.info(f"Removing client with highest deviation: {client_id}")
+            self.logger.info(f"Removing client with highest deviation: {client_id}")
 
             self.removed_client_ids.add(client_id)
 
@@ -159,7 +176,7 @@ class RFABasedRemovalStrategy(FedAvg):
             current_round=self.current_round, removed_client_ids=self.removed_client_ids
         )
         
-        logging.info(f"removed clients are : {self.removed_client_ids}")
+        self.logger.info(f"removed clients are : {self.removed_client_ids}")
 
         selected_client_ids = sorted(client_scores, key=client_scores.get, reverse=True)
         fit_ins = fl.common.FitIns(parameters, {})
@@ -171,7 +188,7 @@ class RFABasedRemovalStrategy(FedAvg):
             results: List[Tuple[ClientProxy, EvaluateRes]],
             failures: List[Tuple[Union[ClientProxy, EvaluateRes], BaseException]]
     ) -> Tuple[Optional[float], Dict[str, Scalar]]:
-        logging.info('\n' + '-' * 50 + f'AGGREGATION ROUND {server_round}' + '-' * 50)
+        self.logger.info('\n' + '-' * 50 + f'AGGREGATION ROUND {server_round}' + '-' * 50)
 
         for client_result in results:
             cid = client_result[0].cid
@@ -220,7 +237,7 @@ class RFABasedRemovalStrategy(FedAvg):
             strategy_history=self.strategy_history
         )
 
-        logging.info(
+        self.logger.info(
             f'Round: {server_round} '
             f'Number of aggregated clients: {number_of_clients_in_loss_calc} '
             f'Aggregated loss: {loss_aggregated} '

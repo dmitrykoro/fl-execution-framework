@@ -34,7 +34,7 @@ def _get_snapshots_dir_checked(
         logging.warning(
             f"No attack_snapshots_{strategy_number} directory found in {output_dir}"
         )
-        return None
+        snapshots_dir.mkdir(parents=True, exist_ok=True)
     return snapshots_dir
 
 

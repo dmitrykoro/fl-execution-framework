@@ -1,5 +1,6 @@
 from dataclasses import dataclass, field
-from typing import List, Union, Optional
+from typing import List, Union, Optional, Any
+import numpy as np
 
 
 @dataclass
@@ -12,6 +13,7 @@ class ClientInfo:
 
     _attack_schedule: List[dict] = None
     _legacy_attack_type: str = None
+    _poisoned_client_ids: Optional[set[int]] = None
 
     attack_plan_keywords: List[List[str]] = None
     attack_plan_configs: List[dict] = field(default_factory=list)
@@ -43,7 +45,16 @@ class ClientInfo:
 
         def _create_attack_plan(attack_schedule: list, legacy_attack_type: str):
             if legacy_attack_type:
-                self.attack_plan_keywords = _init_list([legacy_attack_type])
+                if self._poisoned_client_ids and self.client_id in self._poisoned_client_ids:
+                    self.attack_plan_keywords = _init_list([legacy_attack_type])
+                    self.is_malicious = True
+                else:
+                    self.attack_plan_keywords = _init_list([])
+                return
+            
+            # If there is no attack type and not attack schedule (i.e no attack)
+            elif not attack_schedule and not legacy_attack_type:
+                self.attack_plan_keywords = _init_list([])
                 return
 
             else:
@@ -93,6 +104,26 @@ class ClientInfo:
         """
         return self.attack_plan_configs
 
+    def get_current_attack_configs(self, current_round) -> list:
+        """
+        Get the attack configs scheduled for specified round.
+        """
+        current_attack_configs = []
+        for attack_config in self.attack_plan_configs:
+            if (attack_config["start_round"] <= current_round <= attack_config["end_round"]):
+                current_attack_configs.append(attack_config)
+        return current_attack_configs
+    
+    @staticmethod
+    def _to_python_number(value: Any) -> Any:
+        """
+        Convert value to python number to allow for later database upload.
+        Catches np.float32, np.float64, etc. which are not json serializable.
+        """
+        if isinstance(value, np.generic):
+            return value.item()
+        return value
+
     def add_history_entry(
             self,
             current_round: int,
@@ -114,13 +145,13 @@ class ClientInfo:
         """
 
         if removal_criterion is not None:
-            self.removal_criterion_history[current_round - 1] = removal_criterion
+            self.removal_criterion_history[current_round - 1] = self._to_python_number(removal_criterion)
         if absolute_distance is not None:
-            self.absolute_distance_history[current_round - 1] = absolute_distance
+            self.absolute_distance_history[current_round - 1] = self._to_python_number(absolute_distance)
         if loss is not None:
-            self.loss_history[current_round - 1] = loss
+            self.loss_history[current_round - 1] = self._to_python_number(loss)
         if accuracy is not None:
-            self.accuracy_history[current_round - 1] = accuracy
+            self.accuracy_history[current_round - 1] = self._to_python_number(accuracy)
         if aggregation_participation is not None:
             self.aggregation_participation_history[current_round - 1] = aggregation_participation
 
