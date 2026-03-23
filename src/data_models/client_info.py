@@ -56,6 +56,11 @@ class ClientInfo:
                 else:
                     self.attack_plan_keywords = _init_list([])
                 return
+            
+            # If there is no attack type and not attack schedule (i.e no attack)
+            elif not attack_schedule and not legacy_attack_type:
+                self.attack_plan_keywords = _init_list([])
+                return
 
             else:
                 self.attack_plan_keywords = _init_list([])

@@ -7,6 +7,7 @@ from datetime import datetime
 
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Union
+from torch.utils.data import TensorDataset
 
 from src.attack_utils.snapshot_image_viz import save_image_grid, save_scatter_plot
 from src.attack_utils.snapshot_text_viz import save_text_samples, save_regression_text_samples
@@ -85,7 +86,7 @@ def save_attack_snapshots(
                 tokenizer=tokenizer,
                 original_data_sample=original_data_sample.cpu().numpy(),
             )
-        elif model_type == "linear_regression" and original_data_sample is not None and dataset is not None and target_gas != "":
+        elif model_type == "linear_regression" and dataset is not None and target_gas != "":
                 # Unnormalize features and targets for intuitive values in the snapshots
                 x_mean = dataset.x_mean
                 x_std = dataset.x_std
@@ -94,8 +95,10 @@ def save_attack_snapshots(
 
                 features_real = data_sample * x_std + x_mean
                 targets_real = labels_sample * y_std + y_mean
-                orig_features_real = original_data_sample * x_std + x_mean
-                orig_targets_real = original_labels_sample * y_std + y_mean
+                if original_data_sample is not None:
+                    orig_features_real = original_data_sample * x_std + x_mean
+                if original_labels_sample is not None:
+                    orig_targets_real = original_labels_sample * y_std + y_mean
 
                 save_visual_snapshot(
                     client_id=client_id,
@@ -106,12 +109,11 @@ def save_attack_snapshots(
                     original_labels_sample=orig_targets_real.cpu().numpy() if original_labels_sample is not None else labels_sample.cpu().numpy(),
                     output_dir=output_dir,
                     model_type=model_type,
-                    max_samples=max_samples,
                     experiment_info=experiment_info,
                     strategy_number=strategy_number,
                     target_gas=target_gas,
-                    original_data_sample=orig_features_real.cpu().numpy(),
-                    feature_names=dataset.feature_names,
+                    original_data_sample=orig_features_real.cpu().numpy() if original_data_sample is not None else data_sample.cpu().numpy(),
+                    dataset=dataset,
                 )
 
 
@@ -203,13 +205,12 @@ def save_visual_snapshot(
         original_labels_sample: np.ndarray,
         output_dir: str,
         model_type: str,
-        max_samples: int = 5,
         experiment_info: Optional[Dict[str, Any]] = None,
         strategy_number: int = 0,
         tokenizer=None,
         target_gas: str = "",
         original_data_sample: Optional[np.ndarray] = None,
-        feature_names: Optional[list] = None
+        dataset: Optional[TensorDataset] = None
 ) -> None:
     """Save visual snapshot of attack samples for inspection.
 
@@ -231,7 +232,7 @@ def save_visual_snapshot(
         tokenizer: HuggingFace tokenizer for text visualization (optional)
         target_gas: Target being predicted in regression task
         original_data_sample: Original data before poisoning for comparison (optional)
-        feature_names: Names of the columns for the features in a regression task dataset (optional)
+        dataset: Regression task dataset (optional)
 
     Note:
         Automatically detects data type (images vs text) and uses appropriate
@@ -263,16 +264,25 @@ def save_visual_snapshot(
                 input_ids_poisoned=data_sample,
             )
         elif model_type == "linear_regression":
+            # Unnormalize min and max target values for intuitive values in the snapshots
+            if dataset:
+                min_target = (dataset.y_min * dataset.y_std + dataset.y_mean).item()
+                max_target = (dataset.y_max * dataset.y_std + dataset.y_mean).item()
+            else:
+                min_target = min(original_labels_sample)[0]
+                max_target = max(original_labels_sample)[0]
+
             text_filename = f"{attack_type}_samples.txt"
-            labels_sample = labels_sample[:max_samples]
             save_regression_text_samples(
                 targets=labels_sample,
                 original_targets=original_labels_sample,
                 filepath=snapshot_dir / text_filename,
                 target_gas=target_gas,
+                min_target=min_target, 
+                max_target=max_target,
                 attack_config=attack_config,
                 original_features=original_data_sample,
-                feature_names=feature_names
+                feature_names=dataset.feature_names if dataset else None,
             )
             plot_filename = f"{attack_type}_scatter.png"
             save_scatter_plot(
@@ -280,7 +290,9 @@ def save_visual_snapshot(
                 original_targets=original_labels_sample,
                 filepath=snapshot_dir / plot_filename,
                 target_gas=target_gas,
-                attack_config=attack_config
+                min_target=min_target,
+                max_target=max_target,
+                attack_config=attack_config,
             )
 
         logging.debug(

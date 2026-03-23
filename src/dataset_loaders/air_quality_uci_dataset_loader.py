@@ -86,6 +86,12 @@ class AirQualityUCIDatasetLoader:
             val_dataset.y_mean = y_mean
             val_dataset.y_std = y_std
 
+            # store globalized min and max feature
+            train_dataset.y_min = y_train.min().item()
+            train_dataset.y_max = y_train.max().item()
+            val_dataset.y_min = y_train.min().item()
+            val_dataset.y_max = y_train.max().item()
+
             # store feature names for use in snapshot logging
             feature_names = client_dataset.drop(columns=[self.target_gas]).columns.tolist()
             train_dataset.feature_names = feature_names

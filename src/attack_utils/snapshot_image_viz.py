@@ -331,6 +331,8 @@ def save_scatter_plot(
     original_targets: np.ndarray,
     filepath: Path,
     target_gas: str,
+    min_target: float,
+    max_target: float,
     attack_config: Optional[Union[dict, List[dict]]] = None,
 ):
     """
@@ -344,13 +346,13 @@ def save_scatter_plot(
         original_targets: Original targets before attack
         filepath: Output file path for the scatter plot visualization
         target_gas: Value that the model is predicting
+        min_target: Minimum target value
+        max_target: Maximum target value
         attack_config: Attack configuration dict or list of dicts (optional)
 
     Note:
         Saves with tight layout and 150 DPI for clarity.
     """
-    min_target = min(original_targets)[0]
-    max_target = max(original_targets)[0]
 
     plt.scatter(original_targets[:len(targets)], targets, alpha=0.6)
     plt.plot(
@@ -394,9 +396,6 @@ def save_scatter_plot(
         handlelength=0,
         borderaxespad=0           
     )
- 
-    #for text in legend.get_texts():
-    #    text.set_ha("left")
 
     plt.savefig(filepath, dpi=150, bbox_inches="tight")
     plt.close()

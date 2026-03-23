@@ -11,7 +11,8 @@ config_schema = {
             "type": "string",
             "enum": ["trust", "pid", "pid_scaled", "pid_standardized", "pid_standardized_score_based",
                     "multi-krum", "krum", "multi-krum-based", "trimmed_mean",
-                    "rfa", "bulyan", "fools_gold", "pid_v5_stateless_mean_based"]
+                    "rfa", "bulyan", "fools_gold", "pid_v5_stateless_mean_based", 
+                    "pid_v5_stateless_median_based", "fed_nga"]
         },
         "strict_mode": {
             "type": "string",

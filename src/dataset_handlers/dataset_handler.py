@@ -11,6 +11,7 @@ import math
 import torch
 
 from typing import Tuple, Optional
+from torch.utils.data import TensorDataset
 
 
 def apply_label_flipping(
@@ -67,6 +68,7 @@ def apply_gaussian_noise(
 def apply_target_flipping(
         targets: torch.Tensor,
         degree_of_poisoning: float = 0.1,
+        dataset: Optional[TensorDataset] = None,
 ) -> torch.Tensor:
     substitute_fraction = 0.25  # Changing subset size doesn't change effectiveness of attack
     '''
@@ -82,9 +84,13 @@ def apply_target_flipping(
     seed = math.ceil(seed_string) % (2 ** 32)
     rng = random.Random(seed)
 
-    # Determine feasibility domain 
-    min_target = targets.min()
-    max_target = targets.max()
+    # Determine feasibility domain
+    if dataset is not None:
+        min_target = dataset.y_min
+        max_target = dataset.y_max
+    else: 
+        min_target = targets.min().item()
+        max_target = targets.max().item()
 
     # Take subset of dataset to poison from
     dataset_size = len(targets)
@@ -98,7 +104,7 @@ def apply_target_flipping(
     # Begin Flip algorithm
     distances = []
     for i, target in sub_targets:
-        distance = max(target-min_target.item(), max_target.item()-target)
+        distance = max(target-min_target, max_target-target)
         distances.append((i,distance))
     sorted_distances = sorted(distances, key=lambda x: x[1], reverse=True)
     poison_indexes = [i for i, _ in sorted_distances[:num_of_poison_points]]
@@ -119,6 +125,7 @@ def apply_poisoning_attack(
         attack_config: dict,
         tokenizer=None,
         num_classes: int = None,
+        dataset: Optional[TensorDataset] = None,
 ) -> Tuple[torch.Tensor, torch.Tensor]:
     """Apply poisoning attack based on config. Supports label_flipping and gaussian_noise."""
 
@@ -148,7 +155,7 @@ def apply_poisoning_attack(
     elif attack_type == "target_flipping":
         degree_of_poisoing = attack_config.get("attack_ratio", 0.1)
         labels = apply_target_flipping(
-            labels, degree_of_poisoing
+            labels, degree_of_poisoing, dataset=dataset,
         )
 
     return data, labels

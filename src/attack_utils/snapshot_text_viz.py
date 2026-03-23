@@ -218,9 +218,11 @@ def save_regression_text_samples(
     original_targets: np.ndarray,
     filepath: Path,
     target_gas: str,
+    min_target: float,
+    max_target: float,
     attack_config: Optional[Union[dict, List[dict]]] = None,
     original_features: Optional[np.ndarray] = None,
-    feature_names: Optional[list] = None,
+    feature_names: Optional[List[str]] = None,
 ):
     """
     Save text attack samples to a visualization file.
@@ -232,6 +234,8 @@ def save_regression_text_samples(
         original_targets: Original targets before attack
         filepath: Output file path for the text visualization
         target_gas: Value that the model is predicting
+        min_target: Minimum target value
+        max_target: Maximum target value
         attack_config: Attack configuration dict or list of dicts (optional)
         original_features: Original features for comparison (optional)
         feature_names: Names of the columns for the features in a regression task dataset (optional)
@@ -274,8 +278,8 @@ def save_regression_text_samples(
                 f.write(f"Degree of Poisoning: {degree_of_poisoning}\n")
                 f.write(f"Sample Dataset Size: {len(targets)}\n")
                 f.write(f"Estimated Poison Samples: {math.ceil(len(targets) * degree_of_poisoning)}\n")
-                f.write(f"Min Target: {min(original_targets)[0]:.4f}\n")
-                f.write(f"Max Target: {max(original_targets)[0]:.4f}\n")
+                f.write(f"Min Target: {min_target:.4f}\n")
+                f.write(f"Max Target: {max_target:.4f}\n")
 
             f.write("\n" + "=" * 80 + "\n\n")
         
