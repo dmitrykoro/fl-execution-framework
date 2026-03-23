@@ -76,7 +76,14 @@ type AnalyzePollResponse = {
     error?: string | null;
     question?: string | null;
     messages: ChatMessage[];
-    evidence: EvidenceItem[];
+    evidence_markdown?: string | null;
+};
+
+type AnalysisSessionListItem = {
+    id: string;
+    created_at?: string | null;
+    payload_preview?: string | null;
+    message_count?: number;
 };
 
 type ExperimentLink = { label: string; href: string };
@@ -146,8 +153,6 @@ type MetricPoint = { round: number; value: number };
 type ChatMessage = { role: "user" | "assistant"; text: string };
 
 type Template = { id: string; name: string; config: JsonObject };
-
-type EvidenceItem = { title: string; body: string };
 
 type DocsSection = {
     key: string;
@@ -253,6 +258,13 @@ function formatMetricValue(value: number | null | undefined) {
     if (value == null || !Number.isFinite(value)) return "—";
     if (Math.abs(value) >= 100 || Number.isInteger(value)) return String(Number(value.toFixed(0)));
     return value.toFixed(3).replace(/\.?0+$/, "");
+}
+
+function formatSessionTabLabel(value: string | null | undefined) {
+    if (!value) return "New session";
+    const d = new Date(value);
+    if (Number.isNaN(d.getTime())) return "Saved session";
+    return d.toLocaleDateString(undefined, {month: "short", day: "numeric"});
 }
 
 function renderMarkdown(markdown: string) {
@@ -602,10 +614,11 @@ function Tabs({active, setActive}: any) {
     );
 }
 
-function ChatPanel({title, subtitle, messages, draft, setDraft, onSend, placeholder, footerHint, loadingText, cardClassName}: any) {
+function ChatPanel({title, subtitle, right, topContent, messages, draft, setDraft, onSend, placeholder, footerHint, loadingText, cardClassName}: any) {
     return (
-        <ShellCard title={title} subtitle={subtitle} className={cardClassName}>
+        <ShellCard title={title} subtitle={subtitle} right={right} className={cardClassName}>
             <div className="flex min-h-0 flex-1 flex-col">
+            {topContent ? <div className="border-b border-zinc-100 px-4 py-3">{topContent}</div> : null}
             <div className="h-72 min-h-0 flex-1 overflow-auto px-4 py-3">
                 {messages.map((m: ChatMessage, idx: number) => (
                     <div
@@ -1144,15 +1157,13 @@ export default function App() {
         {role: "assistant", text: "Ask about experiment outcomes and I will summarize the retrieved evidence."},
     ]);
     const [anChatDraft, setAnChatDraft] = useState("");
+    const [analysisSessions, setAnalysisSessions] = useState<AnalysisSessionListItem[]>([]);
     const [analysisSessionId, setAnalysisSessionId] = useState<string | null>(null);
     const [analysisVersion, setAnalysisVersion] = useState(0);
     const [analysisPending, setAnalysisPending] = useState(false);
-    const [evidence, setEvidence] = useState<EvidenceItem[]>([
-        {
-            title: "No evidence loaded yet",
-            body: "Run an analysis query to populate this panel with retrieved statistics.",
-        },
-    ]);
+    const [analysisEvidenceMarkdown, setAnalysisEvidenceMarkdown] = useState(
+        "## No evidence loaded yet\n\nRun an analysis query to populate this panel with retrieved statistics."
+    );
 
     // DOCS
     const [docsMd, setDocsMd] = useState(DEFAULT_DOCS_MD);
@@ -1187,6 +1198,55 @@ export default function App() {
         refreshExperiments(experimentsPage);
     }, [experimentsPage]);
 
+    const refreshAnalysisSessions = async (preferredSessionId?: string | null) => {
+        try {
+            const data = await apiJson<{ items?: AnalysisSessionListItem[] }>("/api/analyze_db/sessions");
+            const items = data.items ?? [];
+            setAnalysisSessions(items);
+            if (preferredSessionId && items.some((item) => item.id === preferredSessionId)) {
+                return;
+            }
+        } catch (e: any) {
+            appendUiLog(`[ui] analysis sessions fetch error: ${e?.message || e}`);
+        }
+    };
+
+    const loadAnalysisSession = async (sessionId: string) => {
+        try {
+            const snapshot = await apiJson<AnalyzePollResponse>(`/api/analyze_db/session?session_id=${encodeURIComponent(sessionId)}`);
+            setAnalysisSessionId(snapshot.session_id);
+            setAnalysisVersion(snapshot.version);
+            setAnalysisPending(snapshot.pending);
+            setAnChatMessages(
+                snapshot.messages && snapshot.messages.length > 0
+                    ? snapshot.messages
+                    : [{role: "assistant", text: "Ask about experiment outcomes and I will summarize the retrieved evidence."}]
+            );
+            setAnalysisEvidenceMarkdown(
+                snapshot.evidence_markdown?.trim()
+                    ? snapshot.evidence_markdown
+                    : "## No evidence loaded yet\n\nRun an analysis query to populate this panel with retrieved statistics."
+            );
+        } catch (e: any) {
+            appendUiLog(`[ui] analysis session load error: ${e?.message || e}`);
+        }
+    };
+
+    const startNewAnalysisDraft = () => {
+        setAnalysisSessionId(null);
+        setAnalysisVersion(0);
+        setAnalysisPending(false);
+        setAnChatMessages([
+            {role: "assistant", text: "Ask about experiment outcomes and I will summarize the retrieved evidence."},
+        ]);
+        setAnalysisEvidenceMarkdown("## No evidence loaded yet\n\nRun an analysis query to populate this panel with retrieved statistics.");
+    };
+
+    useEffect(() => {
+        if (activeTab !== "Analyze") return;
+        void refreshAnalysisSessions(analysisSessionId);
+    }, [activeTab]);
+
     useEffect(() => {
         if (!analysisSessionId) return;
 
@@ -1207,16 +1267,14 @@ export default function App() {
                     setAnalysisVersion(snapshot.version);
                     setAnalysisPending(snapshot.pending);
                     setAnChatMessages(snapshot.messages ?? []);
-                    setEvidence(
-                        snapshot.evidence && snapshot.evidence.length > 0
-                            ? snapshot.evidence
-                            : [{
-                                title: "No evidence loaded yet",
-                                body: "Run an analysis query to populate this panel with retrieved statistics.",
-                            }]
+                    setAnalysisEvidenceMarkdown(
+                        snapshot.evidence_markdown?.trim()
+                            ? snapshot.evidence_markdown
+                            : "## No evidence loaded yet\n\nRun an analysis query to populate this panel with retrieved statistics."
                     );
 
                     if (!snapshot.pending) {
+                        void refreshAnalysisSessions(snapshot.session_id);
                         return;
                     }
                 } catch (e: any) {
@@ -1457,12 +1515,18 @@ export default function App() {
         try {
             const snapshot = await apiJson<AnalyzePollResponse>("/api/analyze_db/start", {
                 method: "POST",
-                body: JSON.stringify({question: text}),
+                body: JSON.stringify({question: text, session_id: analysisSessionId}),
             });
             setAnalysisSessionId(snapshot.session_id);
             setAnalysisVersion(snapshot.version);
             setAnalysisPending(snapshot.pending);
             setAnChatMessages(snapshot.messages ?? []);
+            setAnalysisEvidenceMarkdown(
+                snapshot.evidence_markdown?.trim()
+                    ? snapshot.evidence_markdown
+                    : "## No evidence loaded yet\n\nRun an analysis query to populate this panel with retrieved statistics."
+            );
+            void refreshAnalysisSessions(snapshot.session_id);
             appendUiLog(`[ui] analysis started: "${text}"`);
         } catch (e: any) {
             setAnalysisPending(false);
@@ -1808,6 +1872,43 @@ export default function App() {
                             cardClassName="h-[calc(100vh-19rem)] min-h-[36rem]"
                             title="AI-assisted statistical analysis"
                             subtitle="Agent infers SQL queries from your question and presents findings"
+                            right={
+                                <button
+                                    onClick={startNewAnalysisDraft}
+                                    className="rounded-xl border border-zinc-200 bg-white px-3 py-1.5 text-xs font-medium hover:bg-zinc-50"
+                                    title="Create a new analysis session"
+                                >
+                                    +
+                                </button>
+                            }
+                            topContent={
+                                <div className="flex gap-2 overflow-x-auto pb-1">
+                                    {analysisSessions.map((session) => {
+                                        const active = session.id === analysisSessionId;
+                                        return (
+                                            <button
+                                                key={session.id}
+                                                onClick={() => {
+                                                    void loadAnalysisSession(session.id);
+                                                }}
+                                                className={cx(
+                                                    "shrink-0 rounded-xl border px-3 py-1.5 text-xs font-medium",
+                                                    active
+                                                        ? "border-zinc-900 bg-zinc-900 text-white"
+                                                        : "border-zinc-200 bg-white text-zinc-700 hover:bg-zinc-50"
+                                                )}
+                                            >
+                                                {formatSessionTabLabel(session.created_at)}
+                                            </button>
+                                        );
+                                    })}
+                                    {!analysisSessionId ? (
+                                        <div className="shrink-0 rounded-xl border border-dashed border-zinc-300 bg-zinc-50 px-3 py-1.5 text-xs text-zinc-500">
+                                            New session
+                                        </div>
+                                    ) : null}
+                                </div>
+                            }
                             messages={anChatMessages}
                             draft={anChatDraft}
                             setDraft={setAnChatDraft}
@@ -1822,15 +1923,12 @@ export default function App() {
                                    title="AI explainability: retrieved statistics"
                                    subtitle="Retrieved tables, numbers, and SQL evidence">
                             <div className="flex min-h-0 flex-1 flex-col px-4 py-3">
-                                <div className="min-h-0 min-w-0 flex-1 space-y-3 overflow-y-auto overflow-x-hidden pr-1">
-                                    {evidence.map((e: any, i: number) => (
-                                        <div key={i} className="rounded-xl border border-zinc-200 bg-white p-3">
-                                            <div className="text-xs font-semibold text-zinc-800">{e.title}</div>
-                                            <div className="mt-1 min-w-0">
-                                                {renderMarkdown(e.body)}
-                                            </div>
+                                <div className="min-h-0 min-w-0 flex-1 overflow-y-auto overflow-x-hidden pr-1">
+                                    <div className="rounded-xl border border-zinc-200 bg-white p-3">
+                                        <div className="min-w-0">
+                                            {renderMarkdown(analysisEvidenceMarkdown)}
                                         </div>
-                                    ))}
+                                    </div>
                                 </div>
                             </div>
                         </ShellCard>

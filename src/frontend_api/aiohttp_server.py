@@ -286,11 +286,30 @@ async def agent_analyze_results(request: web.Request) -> web.Response:
 async def analyze_db_start(request: web.Request) -> web.Response:
     payload = await request.json()
     question = str(payload.get("question", "")).strip()
+    session_id = str(payload.get("session_id", "")).strip() or None
     if not question:
         return web.json_response({"error": "question is required"}, status=400)
 
-    session = await DB_ANALYSIS_MANAGER.start_session(question)
+    session = await DB_ANALYSIS_MANAGER.start_session(question, session_id=session_id)
     return web.json_response(DB_ANALYSIS_MANAGER._snapshot(session), status=202)
+
+
+async def analyze_db_sessions(request: web.Request) -> web.Response:
+    items = await DB_ANALYSIS_MANAGER.list_sessions()
+    return web.json_response({"items": items})
+
+
+async def analyze_db_get_session(request: web.Request) -> web.Response:
+    session_id = str(request.query.get("session_id", "")).strip()
+    if not session_id:
+        return web.json_response({"error": "session_id is required"}, status=400)
+
+    try:
+        session = await DB_ANALYSIS_MANAGER.load_session(session_id)
+    except RuntimeError as exc:
+        return web.json_response({"error": str(exc)}, status=502)
+
+    return web.json_response(DB_ANALYSIS_MANAGER._snapshot(session))
 
 
 async def analyze_db_poll(request: web.Request) -> web.Response:
@@ -323,6 +342,8 @@ def create_app() -> web.Application:
     app.router.add_get("/api/agent/poll", agent_poll)
     app.router.add_post("/api/agent/analyze_results", agent_analyze_results)
     app.router.add_post("/api/analyze_db/start", analyze_db_start)
+    app.router.add_get("/api/analyze_db/sessions", analyze_db_sessions)
+    app.router.add_get("/api/analyze_db/session", analyze_db_get_session)
     app.router.add_get("/api/analyze_db/poll", analyze_db_poll)
     app.router.add_get("/api/logs", logs)
     app.router.add_get("/api/status", status)

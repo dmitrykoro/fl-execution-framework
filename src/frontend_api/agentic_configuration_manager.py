@@ -4,13 +4,14 @@ import asyncio
 import json
 import time
 import uuid
+import aiohttp
 
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
 from src.ai_agent_wrapper import AIAgent
-from src.utils.common import load_json_as_str
+from src.utils.common import load_json_as_str, obtain_env_var
 
 
 @dataclass
@@ -49,6 +50,16 @@ class AgenticConfigurationManager:
     def _new_vendor(self):
         agent = AIAgent(ai_agent_config_filename=self.ai_agent_config_filename)
         return agent.ai_vendor_api
+
+    def _auth_headers(self) -> dict[str, str]:
+        return {
+            "Authorization": f"Bearer {obtain_env_var('EXPERIMENT_SERVER_TOKEN')}",
+            "Accept": "application/json",
+            "Content-Type": "application/json",
+        }
+
+    def _db_base_url(self) -> str:
+        return str(obtain_env_var("EXPERIMENT_SERVER_URL")).rstrip("/")
 
     def _bump(self, session: AgentSession) -> None:
         session.version += 1
@@ -107,6 +118,8 @@ class AgenticConfigurationManager:
         session.pending = True
         self._append_message(session, "user", user_prompt)
         self.sessions[session.id] = session
+        await self._create_remote_session(session.id)
+        await self._append_remote_message(session.id, "user", user_prompt)
         self._bump(session)
         asyncio.create_task(self._generate_config(session, self._build_config_prompt(session.vendor, user_prompt)))
         return session
@@ -117,6 +130,7 @@ class AgenticConfigurationManager:
         session.pending = True
         session.error = None
         self._append_message(session, "user", refinement_request)
+        await self._append_remote_message(session.id, "user", refinement_request)
         self._bump(session)
 
         prompt = f"""
@@ -156,11 +170,13 @@ class AgenticConfigurationManager:
                     "or click Start to run it."
                 ),
             )
+            await self._append_remote_message(session.id, "agent", session.messages[-1].text)
         except Exception as exc:
             session.phase = "error"
             session.pending = False
             session.error = str(exc)
             self._append_message(session, "assistant", f"I hit an error while generating the configuration: {exc}")
+            await self._append_remote_message(session.id, "agent", session.messages[-1].text)
         finally:
             self._bump(session)
 
@@ -190,6 +206,13 @@ class AgenticConfigurationManager:
             session,
             "assistant",
             "Execution started. I’ll wait for the run to finish and then summarize the observations here.",
+        )
+        asyncio.create_task(
+            self._append_remote_message(
+                session.id,
+                "agent",
+                "Execution started. I’ll wait for the run to finish and then summarize the observations here.",
+            )
         )
         self._bump(session)
 
@@ -246,13 +269,47 @@ class AgenticConfigurationManager:
             session.pending = False
             session.error = None
             self._append_message(session, "assistant", summary)
+            await self._append_remote_message(session.id, "agent", summary)
         except Exception as exc:
             session.phase = "error"
             session.pending = False
             session.error = str(exc)
             self._append_message(session, "assistant", f"I hit an error while analyzing the results: {exc}")
+            await self._append_remote_message(session.id, "agent", session.messages[-1].text)
         finally:
             self._bump(session)
+
+    async def _create_remote_session(self, session_id: str) -> None:
+        await self._db_request(
+            "POST",
+            "/configuration_sessions",
+            {
+                "id": session_id,
+                "author_name": obtain_env_var("FULL_AUTHOR_NAME"),
+                "author_email": obtain_env_var("AUTHOR_EMAIL"),
+            },
+        )
+
+    async def _append_remote_message(self, session_id: str, role: str, payload: str) -> None:
+        await self._db_request(
+            "POST",
+            f"/configuration_sessions/{session_id}/messages",
+            {"role": role, "payload": payload},
+        )
+
+    async def _db_request(self, method: str, path: str, payload: dict[str, Any] | None = None) -> dict[str, Any]:
+        async with aiohttp.ClientSession() as client:
+            async with client.request(
+                method,
+                f"{self._db_base_url()}{path}",
+                json=payload,
+                headers=self._auth_headers(),
+                timeout=aiohttp.ClientTimeout(total=30),
+            ) as resp:
+                if resp.status >= 400:
+                    text = await resp.text()
+                    raise RuntimeError(f"Remote DB request failed ({resp.status}): {text}")
+                return await resp.json()
 
     @staticmethod
     def _reason_about_results(
