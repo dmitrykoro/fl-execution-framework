@@ -166,6 +166,8 @@ type DocsSection = {
     options: { value: string; description: string }[];
 };
 
+const ANALYSIS_SQL_VISIBILITY_KEY = "analysis-evidence-show-sql";
+
 function cx(...xs: Array<string | false | null | undefined>) {
     return xs.filter(Boolean).join(" ");
 }
@@ -273,16 +275,65 @@ function formatSessionTabLabel(value: string | null | undefined) {
     return d.toLocaleDateString(undefined, {month: "short", day: "numeric"});
 }
 
-function renderMarkdown(markdown: string) {
+function escapeHtml(value: string) {
+    return value
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#39;");
+}
+
+function stripSqlSections(markdown: string) {
+    let next = String(markdown || "").replace(/\r\n/g, "\n");
+
+    // Remove fenced blocks explicitly tagged as SQL.
+    next = next.replace(/\n?```sql[^\n]*\n[\s\S]*?\n```\n?/gi, "\n");
+
+    // Remove "SQL" labels followed by any fenced code block.
+    next = next.replace(/\n?SQL\s*\n+(?:```[^\n]*\n[\s\S]*?\n```)\n?/gi, "\n");
+
+    // Collapse extra whitespace left behind by removed blocks.
+    next = next.replace(/\n{3,}/g, "\n\n");
+
+    return next.trim();
+}
+
+function renderMarkdown(markdown: string, options?: {showSql?: boolean}) {
     const lines = String(markdown || "").replace(/\r\n/g, "\n").split("\n");
     const blocks: ReactNode[] = [];
+    const showSql = options?.showSql ?? true;
     let i = 0;
+
+    const nextNonEmptyLine = (startIndex: number) => {
+        let idx = startIndex;
+        while (idx < lines.length) {
+            if (lines[idx].trim()) return lines[idx].trim();
+            idx += 1;
+        }
+        return "";
+    };
 
     while (i < lines.length) {
         const line = lines[i];
 
         if (!line.trim()) {
             i += 1;
+            continue;
+        }
+
+        if (!showSql && /^sql$/i.test(line.trim()) && nextNonEmptyLine(i + 1).startsWith("```")) {
+            i += 1;
+            while (i < lines.length && !lines[i].trim()) {
+                i += 1;
+            }
+            if (i < lines.length && lines[i].startsWith("```")) {
+                i += 1;
+                while (i < lines.length && !lines[i].startsWith("```")) {
+                    i += 1;
+                }
+                if (i < lines.length) i += 1;
+            }
             continue;
         }
 
@@ -296,6 +347,10 @@ function renderMarkdown(markdown: string) {
                 i += 1;
             }
             if (i < lines.length) i += 1;
+
+            if (!showSql && /^sql$/i.test(language)) {
+                continue;
+            }
 
             blocks.push(
                 <div key={`code-${blocks.length}`} className="mt-2 overflow-auto rounded-xl bg-zinc-950 p-3 text-xs text-zinc-100">
@@ -1173,6 +1228,15 @@ export default function App() {
     const [analysisEvidenceMarkdown, setAnalysisEvidenceMarkdown] = useState(
         "## No evidence loaded yet\n\nRun an analysis query to populate this panel with retrieved statistics."
     );
+    const analysisEvidenceRef = useRef<HTMLDivElement | null>(null);
+    const [showAnalysisSql, setShowAnalysisSql] = useState(() => {
+        if (typeof window === "undefined") return true;
+        return window.localStorage.getItem(ANALYSIS_SQL_VISIBILITY_KEY) !== "false";
+    });
+    const visibleAnalysisEvidenceMarkdown = useMemo(
+        () => (showAnalysisSql ? analysisEvidenceMarkdown : stripSqlSections(analysisEvidenceMarkdown)),
+        [analysisEvidenceMarkdown, showAnalysisSql]
+    );
 
     // DOCS
     const [docsMd, setDocsMd] = useState(DEFAULT_DOCS_MD);
@@ -1314,6 +1378,10 @@ export default function App() {
         if (activeTab !== "Analyze") return;
         void refreshAnalysisSessions(analysisSessionId);
     }, [activeTab]);
+
+    useEffect(() => {
+        window.localStorage.setItem(ANALYSIS_SQL_VISIBILITY_KEY, String(showAnalysisSql));
+    }, [showAnalysisSql]);
 
     useEffect(() => {
         if (!analysisSessionId) return;
@@ -1624,6 +1692,196 @@ export default function App() {
             setAnalysisPendingSessionId(null);
             appendUiLog(`[ui] analysis request error: ${e?.message || e}`);
         }
+    };
+
+    const onDownloadAnalysisPdf = () => {
+        const renderedEvidence = analysisEvidenceRef.current;
+        if (!renderedEvidence) {
+            appendUiLog("[ui] analysis export blocked: evidence panel is not ready");
+            return;
+        }
+
+        const printWindow = window.open("", "_blank", "width=1100,height=850");
+        if (!printWindow) {
+            appendUiLog("[ui] analysis export blocked: popup window was blocked");
+            return;
+        }
+
+        const sessionLabel = analysisSessionId ? formatSessionTabLabel(analysisSessions.find((s) => s.id === analysisSessionId)?.created_at) : "draft";
+        const documentTitle = `analysis-evidence-${sessionLabel}`.toLowerCase().replace(/[^a-z0-9-_]+/g, "-");
+        const exportedAt = new Date().toLocaleString();
+
+        const exportHtml = `<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>${escapeHtml(documentTitle)}</title>
+    <style>
+      :root {
+        color-scheme: light;
+        font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        background: #f4f4f5;
+        color: #18181b;
+      }
+      main {
+        width: min(960px, calc(100vw - 48px));
+        margin: 24px auto;
+        padding: 32px;
+        background: #ffffff;
+      }
+      h1 {
+        margin: 0;
+        font-size: 24px;
+        line-height: 1.2;
+      }
+      .meta {
+        margin-top: 8px;
+        font-size: 12px;
+        color: #71717a;
+      }
+      .content {
+        margin-top: 24px;
+      }
+      .content > :first-child {
+        margin-top: 0;
+      }
+      .content > div,
+      .content > ul {
+        break-inside: avoid;
+      }
+      .content .text-base {
+        font-size: 20px;
+        line-height: 1.3;
+      }
+      .content .text-sm {
+        font-size: 15px;
+        line-height: 1.5;
+      }
+      .content .text-xs {
+        font-size: 12px;
+        line-height: 1.65;
+      }
+      .content .uppercase {
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+      }
+      .content .font-semibold {
+        font-weight: 600;
+      }
+      .content .text-zinc-900,
+      .content .text-zinc-700,
+      .content .text-zinc-600,
+      .content .text-zinc-400,
+      .content .text-zinc-100 {
+        color: inherit;
+      }
+      .content .mt-2 {
+        margin-top: 14px;
+      }
+      .content .space-y-1 > li + li {
+        margin-top: 6px;
+      }
+      .content .pl-5 {
+        padding-left: 20px;
+      }
+      .content .list-disc {
+        list-style: disc;
+      }
+      .content .rounded-xl {
+        border-radius: 14px;
+      }
+      .content .border {
+        border: 1px solid #e4e4e7;
+      }
+      .content .border-zinc-200,
+      .content .border-zinc-100 {
+        border-color: #e4e4e7;
+      }
+      .content .bg-white,
+      .content .bg-zinc-50 {
+        background: #ffffff;
+      }
+      .content .bg-zinc-950 {
+        background: #09090b;
+        color: #f4f4f5;
+      }
+      .content .p-3 {
+        padding: 16px;
+      }
+      .content .mb-2 {
+        margin-bottom: 8px;
+      }
+      .content table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 12px;
+      }
+      .content th,
+      .content td {
+        padding: 8px 10px;
+        border-bottom: 1px solid #e4e4e7;
+        text-align: left;
+        vertical-align: top;
+      }
+      .content thead {
+        background: #f4f4f5;
+      }
+      .content pre {
+        margin: 0;
+        white-space: pre-wrap;
+        word-break: break-word;
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+      }
+      @media print {
+        body {
+          background: #ffffff;
+        }
+        main {
+          width: 100%;
+          margin: 0;
+          padding: 0;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>AI explainability: retrieved statistics</h1>
+      <div class="meta">Exported ${escapeHtml(exportedAt)}</div>
+      <div class="content">${renderedEvidence.innerHTML}</div>
+    </main>
+  </body>
+</html>`;
+
+        const blob = new Blob([exportHtml], {type: "text/html"});
+        const exportUrl = URL.createObjectURL(blob);
+
+        const cleanup = () => {
+            URL.revokeObjectURL(exportUrl);
+        };
+
+        const triggerPrint = () => {
+            printWindow.focus();
+            printWindow.print();
+        };
+
+        printWindow.addEventListener("afterprint", () => {
+            cleanup();
+            printWindow.close();
+        }, {once: true});
+
+        printWindow.addEventListener("load", () => {
+            window.setTimeout(triggerPrint, 150);
+        }, {once: true});
+
+        printWindow.location.replace(exportUrl);
+        appendUiLog("[ui] analysis export opened print dialog for PDF download");
     };
 
     const clearAllLogs = () => {
@@ -2054,12 +2312,44 @@ export default function App() {
                         <ShellCard
                                    className="h-full min-h-0"
                                    title="AI explainability: retrieved statistics"
-                                   subtitle="Retrieved tables, numbers, and SQL evidence">
+                                   subtitle="Retrieved tables, numbers, and SQL evidence"
+                                   right={
+                                       <div className="flex items-center gap-3">
+                                           <label className="flex items-center gap-2 text-xs text-zinc-600">
+                                               <span>SQL queries</span>
+                                               <button
+                                                   type="button"
+                                                   role="switch"
+                                                   aria-checked={showAnalysisSql}
+                                                   aria-label="Toggle SQL queries in explainability view"
+                                                   onClick={() => setShowAnalysisSql((value) => !value)}
+                                                   className={cx(
+                                                       "relative inline-flex h-6 w-11 items-center rounded-full transition-colors",
+                                                       showAnalysisSql ? "bg-zinc-900" : "bg-zinc-300"
+                                                   )}
+                                               >
+                                                   <span
+                                                       className={cx(
+                                                           "inline-block h-5 w-5 rounded-full bg-white transition-transform",
+                                                           showAnalysisSql ? "translate-x-5" : "translate-x-1"
+                                                       )}
+                                                   />
+                                               </button>
+                                           </label>
+                                           <button
+                                               onClick={onDownloadAnalysisPdf}
+                                               className="rounded-xl border border-zinc-200 bg-white px-3 py-1.5 text-xs font-medium hover:bg-zinc-50"
+                                               title="Download the explainability markdown as PDF"
+                                           >
+                                               Download PDF
+                                           </button>
+                                       </div>
+                                   }>
                             <div className="flex h-full min-h-0 flex-1 flex-col px-4 py-3">
                                 <div className="h-0 min-h-0 min-w-0 flex-1 pr-1">
                                     <div className="h-full min-h-0 overflow-y-auto overflow-x-hidden rounded-xl border border-zinc-200 bg-white p-3">
-                                        <div className="min-w-0">
-                                            {renderMarkdown(analysisEvidenceMarkdown)}
+                                        <div ref={analysisEvidenceRef} className="min-w-0">
+                                            {renderMarkdown(visibleAnalysisEvidenceMarkdown, {showSql: showAnalysisSql})}
                                         </div>
                                     </div>
                                 </div>
