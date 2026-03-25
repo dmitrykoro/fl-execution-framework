@@ -42,6 +42,7 @@ from src.network_models.organcmnist_network_definition import OrganCMNISTNetwork
 from src.network_models.organsmnist_network_definition import OrganSMNISTNetwork
 from src.network_models.bert_model_definition import load_model, load_model_with_lora
 from src.network_models.linear_regression_model_definition import LinearRegressionModel
+from src.network_models.mlp_network_definition import MLPNetwork
 
 from src.client_models.flower_client import FlowerClient
 
@@ -340,7 +341,10 @@ class FederatedSimulation:
                 target_gas=self.strategy_config.target_gas,
                 **common_kwargs
             )
-            self._network_model = LinearRegressionModel()
+            if self.strategy_config.model_type == "mlp":
+                self._network_model = MLPNetwork()
+            else:
+                self._network_model = LinearRegressionModel()
 
         else:
             logging.error(

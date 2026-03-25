@@ -170,10 +170,11 @@ def show_plots_within_strategy(
 
     # remove metrics not needed depending on Classificaiton or Regression task
     # TODO: Come back and fix this so that it is generalized for Classificaiton and Regression
-    if (simulation_strategy.strategy_config.model_type == "linear_regression"):
+    if (simulation_strategy.strategy_config.model_type == "linear_regression"
+        or simulation_strategy.strategy_config.model_type == "mlp"):
         if ("accuracy_history" in plottable_metrics):
             plottable_metrics.remove("accuracy_history")
-    elif (simulation_strategy.strategy_config.model_type != "linear_regression"):
+    else:
         if ("r2_history" in plottable_metrics):
             plottable_metrics.remove("r2_history")
 
@@ -284,10 +285,12 @@ def show_inter_strategy_plots(
         for simulation_strategy in executed_simulation_strategies:
             # Skip over metrics not needed depending on Classificaiton or Regression task
             # TODO: Come back and fix this so that it is generalized for Classificaiton and Regression
-            if (simulation_strategy.strategy_config.model_type == "linear_regression"
+            if ((simulation_strategy.strategy_config.model_type == "linear_regression"
+                 or simulation_strategy.strategy_config.model_type == "mlp")
                 and metric_name == "average_accuracy_history"):
                 continue
             elif (simulation_strategy.strategy_config.model_type != "linear_regression"
+                  and simulation_strategy.strategy_config.model_type != "mlp"
                   and (metric_name == "average_r2_history")):
                 continue
 

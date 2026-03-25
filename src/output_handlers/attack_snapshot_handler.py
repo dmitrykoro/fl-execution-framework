@@ -34,7 +34,7 @@ def save_attack_snapshots(
         dataset=None
 ):
     """
-    Helper function to save attack snapshots for CNN, transformer, and linear regression models.
+    Helper function to save attack snapshots for CNN, transformer, linear regression, and mlp models.
     """
 
     if not (save_attack_snapshots and output_dir):
@@ -86,7 +86,8 @@ def save_attack_snapshots(
                 tokenizer=tokenizer,
                 original_data_sample=original_data_sample.cpu().numpy(),
             )
-        elif model_type == "linear_regression" and dataset is not None and target_gas != "":
+        elif ((model_type == "linear_regression" or model_type == "mlp") 
+                and dataset is not None and target_gas != ""):
                 # Unnormalize features and targets for intuitive values in the snapshots
                 x_mean = dataset.x_mean
                 x_std = dataset.x_std
@@ -263,7 +264,7 @@ def save_visual_snapshot(
                 input_ids_original=original_data_sample,
                 input_ids_poisoned=data_sample,
             )
-        elif model_type == "linear_regression":
+        elif model_type == "linear_regression" or model_type == "mlp":
             # Unnormalize min and max target values for intuitive values in the snapshots
             if dataset:
                 min_target = (dataset.y_min * dataset.y_std + dataset.y_mean).item()

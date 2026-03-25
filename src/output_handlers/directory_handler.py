@@ -76,10 +76,11 @@ class DirectoryHandler:
 
             # remove metrics not needed depending on Classificaiton or Regression task
             # TODO: Come back and fix this so that it is generalized for Classificaiton and Regression
-            if (self.simulation_strategy_history.strategy_config.model_type == "linear_regression"):
+            if (self.simulation_strategy_history.strategy_config.model_type == "linear_regression"
+                or self.simulation_strategy_history.strategy_config.model_type == "mlp"):
                 if ("accuracy_history" in savable_metrics):
                     savable_metrics.remove("accuracy_history")
-            elif (self.simulation_strategy_history.strategy_config.model_type != "linear_regression"):
+            else:
                 if ("r2_history" in savable_metrics):
                     savable_metrics.remove("r2_history")
 
@@ -116,12 +117,13 @@ class DirectoryHandler:
 
             # remove metrics not needed depending on Classificaiton or Regression task
             # TODO: Come back and fix this so that it is generalized for Classificaiton and Regression
-            if (self.simulation_strategy_history.strategy_config.model_type == "linear_regression"):
+            if (self.simulation_strategy_history.strategy_config.model_type == "linear_regression"
+                or self.simulation_strategy_history.strategy_config.model_type == "mlp"):
                 if ("average_accuracy_history" in savable_metrics):
                     savable_metrics.remove("average_accuracy_history")
                 if ("average_accuracy_std_history" in savable_metrics):
                     savable_metrics.remove("average_accuracy_std_history")
-            elif (self.simulation_strategy_history.strategy_config.model_type != "linear_regression"):
+            else:
                 if ("average_r2_history" in savable_metrics):
                     savable_metrics.remove("average_r2_history")
 
@@ -163,7 +165,8 @@ class DirectoryHandler:
 
             # remove metrics not needed depending on Classificaiton or Regression task
             # TODO: Come back and fix this so that it is generalized for Classificaiton and Regression
-            if (self.simulation_strategy_history.strategy_config.model_type == "linear_regression"):
+            if (self.simulation_strategy_history.strategy_config.model_type == "linear_regression"
+                or self.simulation_strategy_history.strategy_config.model_type == "mlp"):
                 if ("average_accuracy_history" in statsable_metrics):
                     statsable_metrics.remove("average_accuracy_history")
 

@@ -48,7 +48,7 @@ config_schema = {
         },
         "model_type": {
             "type": "string",
-            "enum": ["cnn", "transformer", "linear_regression"]
+            "enum": ["cnn", "transformer", "linear_regression", "mlp"]
         },
         "num_of_rounds": {
             "type": "integer"
