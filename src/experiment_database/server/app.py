@@ -11,13 +11,17 @@ from zoneinfo import ZoneInfo
 
 from src.data_models.simulation_strategy_history import SimulationStrategyHistory
 from src.experiment_database.models import (
+    ClientAtRound,
     ConfigurationChatMessage,
     ConfigurationSession,
     DatabaseAnalysisChatMessage,
     DatabaseAnalysisSession,
     ExecutedConfig,
     ExperimentAuthor,
+    ExperimentClient,
     ExperimentEvent,
+    MetricEntry,
+    MetricInfo,
 )
 from src.experiment_database.persistence import fill_all_tables
 from src.experiment_database.session import get_db
@@ -119,6 +123,76 @@ def _resolve_author(session, full_author_name: str | None, author_email: str | N
         session.flush()
 
     return author
+
+
+def _serialize_clients_at_round(session, experiment_event_id: int, limit: int = 20) -> list[dict]:
+    rows = (
+        session.query(ClientAtRound, ExperimentClient)
+        .join(ExperimentClient, ClientAtRound.experiment_client_id == ExperimentClient.id)
+        .filter(ClientAtRound.experiment_event_id == experiment_event_id)
+        .order_by(ClientAtRound.round_number.asc(), ExperimentClient.client_number.asc())
+        .limit(limit)
+        .all()
+    )
+
+    return [
+        {
+            "round_number": client_at_round.round_number,
+            "client_number": client.client_number if client else None,
+            "is_aggregated": client_at_round.client_is_aggregated,
+            "attack_type": client_at_round.attack_type,
+        }
+        for client_at_round, client in rows
+    ]
+
+
+def _serialize_metric_entries(session, experiment_event_id: int, limit: int = 200) -> list[dict]:
+    def _query_metric_rows(per_round_only: bool, row_limit: int | None = None):
+        query = (
+            session.query(MetricEntry, MetricInfo, ExperimentClient)
+            .join(MetricInfo, MetricEntry.metric_info_id == MetricInfo.id)
+            .outerjoin(ExperimentClient, MetricEntry.client_id == ExperimentClient.id)
+            .filter(MetricEntry.experiment_event_id == experiment_event_id)
+        )
+
+        if per_round_only:
+            query = query.filter(MetricEntry.client_id.is_(None))
+        else:
+            query = query.filter(MetricEntry.client_id.is_not(None))
+
+        query = query.order_by(
+            MetricEntry.round_number.asc(),
+            MetricInfo.name.asc(),
+            ExperimentClient.client_number.asc(),
+        )
+
+        if row_limit is not None:
+            query = query.limit(row_limit)
+
+        return query.all()
+
+    def _serialize(rows) -> list[dict]:
+        return [
+            {
+                "round_number": metric_entry.round_number,
+                "metric_name": metric_info.name if metric_info else None,
+                "metric_type": metric_info.type if metric_info else None,
+                "value": metric_entry.value,
+                "client_number": client.client_number if client else None,
+            }
+            for metric_entry, metric_info, client in rows
+        ]
+
+    per_round_rows = _query_metric_rows(per_round_only=True)
+    serialized = _serialize(per_round_rows)
+
+    remaining = limit - len(serialized)
+    if remaining <= 0:
+        return serialized[:limit]
+
+    per_client_rows = _query_metric_rows(per_round_only=False, row_limit=remaining)
+    serialized.extend(_serialize(per_client_rows))
+    return serialized
 
 
 def _serialize_analysis_session(session_row: DatabaseAnalysisSession) -> dict:
@@ -257,25 +331,8 @@ async def get_experiments(request: web.Request) -> web.Response:
                             "gpu_ram": hw.gpu_ram if hw else None,
                             "is_executed_on": hw.is_executed_on if hw else None,
                         },
-                        "clients_at_round": [
-                            {
-                                "round_number": c.round_number,
-                                "client_number": c.client.client_number if c.client else None,
-                                "is_aggregated": c.client_is_aggregated,
-                                "attack_type": c.attack_type,
-                            }
-                            for c in (exp.clients_at_round[:20] if exp.clients_at_round else [])
-                        ],
-                        "metric_entries": [
-                            {
-                                "round_number": m.round_number,
-                                "metric_name": m.metric_info.name if m.metric_info else None,
-                                "metric_type": m.metric_info.type if m.metric_info else None,
-                                "value": m.value,
-                                "client_number": m.client.client_number if m.client else None,
-                            }
-                            for m in (exp.metric_entries[:200] if exp.metric_entries else [])
-                        ],
+                        "clients_at_round": _serialize_clients_at_round(session, exp.id),
+                        "metric_entries": _serialize_metric_entries(session, exp.id),
                     }
                 )
 
