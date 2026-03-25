@@ -470,6 +470,21 @@ function mapBackendExperiment(exp: BackendExperiment): Experiment {
     const strategy = cfg?.strategy ?? "Unknown strategy";
     const dataset = cfg?.dataset ?? "Unknown dataset";
     const status = exp.is_successful === true ? "SUCCESS" : exp.is_successful === false ? "FAILED" : "UNKNOWN";
+    let artifactsHref = exp.wandb_url ?? null;
+
+    if (exp.local_dashboard_url) {
+        try {
+            const localDashboardUrl = new URL(exp.local_dashboard_url);
+            const pathParts = localDashboardUrl.pathname.split("/").filter(Boolean);
+            const outIndex = pathParts.lastIndexOf("out");
+            if (outIndex >= 0 && outIndex + 2 < pathParts.length) {
+                const relativePath = pathParts.slice(outIndex + 1).map(encodeURIComponent).join("/");
+                artifactsHref = `/api/artifacts/${relativePath}`;
+            }
+        } catch {
+            artifactsHref = exp.wandb_url ?? null;
+        }
+    }
 
     return {
         id: String(exp.id),
@@ -477,8 +492,8 @@ function mapBackendExperiment(exp: BackendExperiment): Experiment {
         status,
         createdAt: formatCreatedAt(exp.created_at),
         config: mergedConfig,
-        links: (exp.local_dashboard_url || exp.wandb_url)
-            ? [{label: "Artifacts URL", href: exp.local_dashboard_url || exp.wandb_url || ""}]
+        links: artifactsHref
+            ? [{label: "Artifacts URL", href: artifactsHref}]
             : [],
         raw: exp as unknown as JsonObject,
     };
@@ -499,6 +514,28 @@ async function apiJson<T>(path: string, init?: RequestInit): Promise<T> {
     }
 
     return (await res.json()) as T;
+}
+
+function isUnknownAnalysisSessionError(error: unknown) {
+    const message = error instanceof Error ? error.message : String(error ?? "");
+    return message.includes("API 404") && message.includes("Unknown analysis session");
+}
+
+function isUnknownAgentSessionError(error: unknown) {
+    const message = error instanceof Error ? error.message : String(error ?? "");
+    return message.includes("API 404") && message.includes("Unknown agent session");
+}
+
+function isBackendUnavailableError(error: unknown) {
+    const message = error instanceof Error ? error.message : String(error ?? "");
+    return (
+        message.includes("Failed to fetch")
+        || message.includes("NetworkError")
+        || message.includes("ECONNREFUSED")
+        || message.includes("API 502")
+        || message.includes("API 503")
+        || message.includes("API 504")
+    );
 }
 
 function safeParseJson(text: string): { ok: true; value: JsonObject } | { ok: false; error: string } {
@@ -1363,6 +1400,10 @@ export default function App() {
                 setJsonStatus({ok: true, message: "AI-generated config validated"});
             }
         } catch (e: any) {
+            if (isUnknownAgentSessionError(e)) {
+                startNewAgentDraft();
+                void refreshAgentSessions(null);
+            }
             setAgentPendingSessionId(null);
             appendUiLog(`[ui] config session load error: ${e?.message || e}`);
         }
@@ -1423,6 +1464,10 @@ export default function App() {
                     : "## No evidence loaded yet\n\nRun an analysis query to populate this panel with retrieved statistics."
             );
         } catch (e: any) {
+            if (isUnknownAnalysisSessionError(e)) {
+                startNewAnalysisDraft();
+                void refreshAnalysisSessions(null);
+            }
             setAnalysisPendingSessionId(null);
             appendUiLog(`[ui] analysis session load error: ${e?.message || e}`);
         }
@@ -1453,6 +1498,7 @@ export default function App() {
 
         let cancelled = false;
         let since = analysisVersion;
+        let failureCount = 0;
 
         const loop = async () => {
             while (!cancelled) {
@@ -1464,6 +1510,7 @@ export default function App() {
                     const snapshot = await apiJson<AnalyzePollResponse>(`/api/analyze_db/poll?${params.toString()}`);
                     if (cancelled) return;
 
+                    failureCount = 0;
                     since = snapshot.version;
                     setAnalysisVersion(snapshot.version);
                     setAnalysisPending(snapshot.pending);
@@ -1481,8 +1528,23 @@ export default function App() {
                     }
                 } catch (e: any) {
                     if (cancelled) return;
+                    if (isUnknownAnalysisSessionError(e)) {
+                        setAnalysisSessionId(null);
+                        setAnalysisPending(false);
+                        setAnalysisPendingSessionId(null);
+                        await refreshAnalysisSessions(null);
+                        appendUiLog("[ui] cleared stale analysis session after backend reported it missing");
+                        return;
+                    }
+                    failureCount += 1;
+                    if (isBackendUnavailableError(e) && failureCount >= 3) {
+                        setAnalysisPending(false);
+                        setAnalysisPendingSessionId(null);
+                        appendUiLog("[ui] paused analysis polling after repeated backend connection failures");
+                        return;
+                    }
                     appendUiLog(`[ui] analysis poll error: ${e?.message || e}`);
-                    await new Promise((resolve) => window.setTimeout(resolve, 1500));
+                    await new Promise((resolve) => window.setTimeout(resolve, Math.min(1500 * failureCount, 10000)));
                 }
             }
         };
@@ -1499,6 +1561,7 @@ export default function App() {
 
         let cancelled = false;
         let since = agentVersion;
+        let failureCount = 0;
 
         const loop = async () => {
             while (!cancelled) {
@@ -1510,6 +1573,7 @@ export default function App() {
                     const snapshot = await apiJson<AgentPollResponse>(`/api/agent/poll?${params.toString()}`);
                     if (cancelled) return;
 
+                    failureCount = 0;
                     since = snapshot.version;
                     setAgentVersion(snapshot.version);
                     setAgentPending(snapshot.pending);
@@ -1533,11 +1597,27 @@ export default function App() {
 
                     if (!snapshot.pending) {
                         void refreshAgentSessions(snapshot.session_id);
+                        return;
                     }
                 } catch (e: any) {
                     if (cancelled) return;
+                    if (isUnknownAgentSessionError(e)) {
+                        setAgentSessionId(null);
+                        setAgentPending(false);
+                        setAgentPendingSessionId(null);
+                        await refreshAgentSessions(null);
+                        appendUiLog("[ui] cleared stale config session after backend reported it missing");
+                        return;
+                    }
+                    failureCount += 1;
+                    if (isBackendUnavailableError(e) && failureCount >= 3) {
+                        setAgentPending(false);
+                        setAgentPendingSessionId(null);
+                        appendUiLog("[ui] paused config polling after repeated backend connection failures");
+                        return;
+                    }
                     appendUiLog(`[ui] agent poll error: ${e?.message || e}`);
-                    await new Promise((resolve) => window.setTimeout(resolve, 1500));
+                    await new Promise((resolve) => window.setTimeout(resolve, Math.min(1500 * failureCount, 10000)));
                 }
             }
         };

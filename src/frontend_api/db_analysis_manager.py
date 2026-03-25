@@ -75,6 +75,14 @@ class DatabaseAnalysisManager:
         }
 
     @staticmethod
+    def _infer_phase(messages: list[dict[str, str]]) -> str:
+        if any(item.get("role") == "assistant" for item in messages):
+            return "completed"
+        if any(item.get("role") == "user" for item in messages):
+            return "idle"
+        return "idle"
+
+    @staticmethod
     def _strip_code_fences(text: str) -> str:
         cleaned = text.strip()
         if cleaned.startswith("```"):
@@ -115,9 +123,13 @@ class DatabaseAnalysisManager:
             for item in remote.get("messages", [])
         ]
         session.evidence_markdown = str(remote.get("payload", "") or "")
+        for item in reversed(session.messages):
+            if item.get("role") == "user":
+                session.question = item.get("text")
+                break
         session.pending = False
         session.error = None
-        session.phase = "completed" if session.messages else "idle"
+        session.phase = self._infer_phase(session.messages)
         self._bump(session)
         return session
 
@@ -163,7 +175,15 @@ class DatabaseAnalysisManager:
             raise KeyError(f"Unknown analysis session: {session_id}") from exc
 
     async def wait_for_update(self, session_id: str, since: int, timeout_seconds: float = 25.0) -> dict[str, Any]:
-        session = self.get_session(session_id)
+        try:
+            session = self.get_session(session_id)
+        except KeyError:
+            try:
+                session = await self.load_session(session_id)
+            except RuntimeError as exc:
+                if "404" in str(exc):
+                    raise KeyError(f"Unknown analysis session: {session_id}") from exc
+                raise
         if session.version <= since:
             try:
                 await asyncio.wait_for(session.update_event.wait(), timeout=timeout_seconds)

@@ -20,6 +20,8 @@ SIMULATION_PROCESSES: Dict[str, Any] = {}
 RUN_CONFIG_PATHS: Dict[str, str] = {}
 AGENT_MANAGER = AgenticConfigurationManager()
 DB_ANALYSIS_MANAGER = DatabaseAnalysisManager()
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+ARTIFACTS_ROOT = PROJECT_ROOT / "out"
 
 
 def _auth_headers() -> dict:
@@ -377,6 +379,8 @@ def create_app() -> web.Application:
     app.router.add_get("/api/analyze_db/poll", analyze_db_poll)
     app.router.add_get("/api/logs", logs)
     app.router.add_get("/api/status", status)
+    app.router.add_static("/api/artifacts", path=str(ARTIFACTS_ROOT), show_index=True)
+    app.router.add_static("/artifacts", path=str(ARTIFACTS_ROOT), show_index=True)
 
     return app
 

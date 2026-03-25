@@ -84,6 +84,14 @@ class AgenticConfigurationManager:
             "messages": [{"role": message.role, "text": message.text} for message in session.messages],
         }
 
+    @staticmethod
+    def _infer_phase(messages: list[AgentChatMessage]) -> str:
+        if any(message.role == "assistant" for message in messages):
+            return "completed"
+        if any(message.role == "user" for message in messages):
+            return "idle"
+        return "idle"
+
     async def list_sessions(self) -> list[dict[str, Any]]:
         data = await self._db_request(
             "GET",
@@ -181,9 +189,15 @@ class AgenticConfigurationManager:
             )
             for item in remote.get("messages", [])
         ]
+
+        for item in reversed(session.messages):
+            if item.role == "user":
+                session.user_prompt = item.text
+                break
+
         session.pending = False
         session.error = None
-        session.phase = "completed" if session.messages else "idle"
+        session.phase = self._infer_phase(session.messages)
         self._bump(session)
         return session
 
@@ -233,7 +247,18 @@ class AgenticConfigurationManager:
             raise KeyError(f"Unknown agent session: {session_id}") from exc
 
     async def wait_for_update(self, session_id: str, since: int, timeout_seconds: float = 25.0) -> dict[str, Any]:
-        session = self.get_session(session_id)
+        try:
+            session = self.get_session(session_id)
+
+        except KeyError:
+            try:
+                session = await self.load_session(session_id)
+            except RuntimeError as exc:
+
+                if "404" in str(exc):
+                    raise KeyError(f"Unknown agent session: {session_id}") from exc
+                raise
+
         if session.version <= since:
             try:
                 await asyncio.wait_for(session.update_event.wait(), timeout=timeout_seconds)
