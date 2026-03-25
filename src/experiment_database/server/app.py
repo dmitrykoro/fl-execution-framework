@@ -177,8 +177,16 @@ async def post_experiment(request: web.Request) -> web.Response:
             total_exec_time = data.get("total_exec_time")
             full_author_name = data.get("full_author_name")
             author_email = data.get("author_email")
+            local_dashboard_url = data.get("local_dashboard_url")
 
-            fill_all_tables(session, strategy_history, total_exec_time, full_author_name, author_email)
+            fill_all_tables(
+                session,
+                strategy_history,
+                total_exec_time,
+                full_author_name,
+                author_email,
+                local_dashboard_url=local_dashboard_url,
+            )
 
             return web.json_response({"status": "ok"}, status=201)
 
@@ -227,6 +235,7 @@ async def get_experiments(request: web.Request) -> web.Response:
                         "id": exp.id,
                         "created_at": exp.created_at.isoformat() if exp.created_at else None,
                         "wandb_url": exp.wandb_url,
+                        "local_dashboard_url": exp.local_dashboard_url,
                         "is_successful": exp.is_successful,
                         "total_exec_time": exp.total_exec_time,
                         "error_message": exp.error_message,

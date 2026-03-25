@@ -108,6 +108,7 @@ type BackendExperiment = {
     id: number | string;
     created_at: string | null;
     wandb_url: string | null;
+    local_dashboard_url: string | null;
     is_successful: boolean | null;
     total_exec_time: string | number | null;
     error_message: string | null;
@@ -167,6 +168,11 @@ type DocsSection = {
 };
 
 const ANALYSIS_SQL_VISIBILITY_KEY = "analysis-evidence-show-sql";
+const UI_ACTIVE_TAB_KEY = "ui-active-tab";
+const UI_RUN_SESSION_KEY = "ui-run-session-id";
+const UI_ANALYSIS_SESSION_KEY = "ui-analysis-session-id";
+const UI_LOGS_HIDDEN_KEY = "ui-logs-hidden";
+const UI_LOGS_HEIGHT_KEY = "ui-logs-height";
 
 function cx(...xs: Array<string | false | null | undefined>) {
     return xs.filter(Boolean).join(" ");
@@ -471,7 +477,9 @@ function mapBackendExperiment(exp: BackendExperiment): Experiment {
         status,
         createdAt: formatCreatedAt(exp.created_at),
         config: mergedConfig,
-        links: exp.wandb_url ? [{label: "Artifacts URL", href: exp.wandb_url}] : [],
+        links: (exp.local_dashboard_url || exp.wandb_url)
+            ? [{label: "Artifacts URL", href: exp.local_dashboard_url || exp.wandb_url || ""}]
+            : [],
         raw: exp as unknown as JsonObject,
     };
 }
@@ -749,13 +757,29 @@ function GlobalLogs({
     status: string | null;
     onClear: () => void;
 }) {
-    const [hidden, setHidden] = useState(false);
+    const [hidden, setHidden] = useState(() => {
+        if (typeof window === "undefined") return false;
+        return window.localStorage.getItem(UI_LOGS_HIDDEN_KEY) === "true";
+    });
 
     // panel height (px)
-    const [height, setHeight] = useState<number>(220); // default expanded-ish
+    const [height, setHeight] = useState<number>(() => {
+        if (typeof window === "undefined") return 220;
+        const raw = Number(window.localStorage.getItem(UI_LOGS_HEIGHT_KEY));
+        if (!Number.isFinite(raw)) return 220;
+        return Math.min(640, Math.max(120, raw));
+    });
     const heightRef = useRef(height);
     useEffect(() => {
         heightRef.current = height;
+    }, [height]);
+
+    useEffect(() => {
+        window.localStorage.setItem(UI_LOGS_HIDDEN_KEY, String(hidden));
+    }, [hidden]);
+
+    useEffect(() => {
+        window.localStorage.setItem(UI_LOGS_HEIGHT_KEY, String(height));
     }, [height]);
 
     // resize dragging
@@ -1087,7 +1111,10 @@ if (typeof import.meta !== "undefined" && (import.meta as any).env && (import.me
 // --------------------
 
 export default function App() {
-    const [activeTab, setActiveTab] = useState("Run");
+    const [activeTab, setActiveTab] = useState(() => {
+        if (typeof window === "undefined") return "Run";
+        return window.localStorage.getItem(UI_ACTIVE_TAB_KEY) || "Run";
+    });
 
     // LOGS (global): UI events + current run output
     const [uiLogs, setUiLogs] = useState<string[]>(["[ui] Ready."]);
@@ -1150,7 +1177,10 @@ export default function App() {
     ]);
     const [runChatDraft, setRunChatDraft] = useState("");
     const [agentSessions, setAgentSessions] = useState<AgentSessionListItem[]>([]);
-    const [agentSessionId, setAgentSessionId] = useState<string | null>(null);
+    const [agentSessionId, setAgentSessionId] = useState<string | null>(() => {
+        if (typeof window === "undefined") return null;
+        return window.localStorage.getItem(UI_RUN_SESSION_KEY);
+    });
     const [agentVersion, setAgentVersion] = useState(0);
     const [agentPending, setAgentPending] = useState(false);
     const [agentPendingSessionId, setAgentPendingSessionId] = useState<string | null>(null);
@@ -1221,7 +1251,10 @@ export default function App() {
     ]);
     const [anChatDraft, setAnChatDraft] = useState("");
     const [analysisSessions, setAnalysisSessions] = useState<AnalysisSessionListItem[]>([]);
-    const [analysisSessionId, setAnalysisSessionId] = useState<string | null>(null);
+    const [analysisSessionId, setAnalysisSessionId] = useState<string | null>(() => {
+        if (typeof window === "undefined") return null;
+        return window.localStorage.getItem(UI_ANALYSIS_SESSION_KEY);
+    });
     const [analysisVersion, setAnalysisVersion] = useState(0);
     const [analysisPending, setAnalysisPending] = useState(false);
     const [analysisPendingSessionId, setAnalysisPendingSessionId] = useState<string | null>(null);
@@ -1268,6 +1301,26 @@ export default function App() {
     }, [templates]);
 
     useEffect(() => {
+        window.localStorage.setItem(UI_ACTIVE_TAB_KEY, activeTab);
+    }, [activeTab]);
+
+    useEffect(() => {
+        if (agentSessionId) {
+            window.localStorage.setItem(UI_RUN_SESSION_KEY, agentSessionId);
+        } else {
+            window.localStorage.removeItem(UI_RUN_SESSION_KEY);
+        }
+    }, [agentSessionId]);
+
+    useEffect(() => {
+        if (analysisSessionId) {
+            window.localStorage.setItem(UI_ANALYSIS_SESSION_KEY, analysisSessionId);
+        } else {
+            window.localStorage.removeItem(UI_ANALYSIS_SESSION_KEY);
+        }
+    }, [analysisSessionId]);
+
+    useEffect(() => {
         refreshExperiments(experimentsPage);
     }, [experimentsPage]);
 
@@ -1277,7 +1330,13 @@ export default function App() {
             const items = data.items ?? [];
             setAgentSessions(items);
             if (preferredSessionId && items.some((item) => item.id === preferredSessionId)) {
+                if (agentSessionId !== preferredSessionId || runChatMessages.length <= 1) {
+                    await loadAgentSession(preferredSessionId);
+                }
                 return;
+            }
+            if (preferredSessionId) {
+                setAgentSessionId(null);
             }
         } catch (e: any) {
             appendUiLog(`[ui] config sessions fetch error: ${e?.message || e}`);
@@ -1333,7 +1392,13 @@ export default function App() {
             const items = data.items ?? [];
             setAnalysisSessions(items);
             if (preferredSessionId && items.some((item) => item.id === preferredSessionId)) {
+                if (analysisSessionId !== preferredSessionId || anChatMessages.length <= 1) {
+                    await loadAnalysisSession(preferredSessionId);
+                }
                 return;
+            }
+            if (preferredSessionId) {
+                setAnalysisSessionId(null);
             }
         } catch (e: any) {
             appendUiLog(`[ui] analysis sessions fetch error: ${e?.message || e}`);
