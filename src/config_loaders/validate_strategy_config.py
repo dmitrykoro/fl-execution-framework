@@ -43,12 +43,13 @@ config_schema = {
                 "organamnist",
                 "organcmnist",
                 "organsmnist",
-                "air_quality_uci"
+                "air_quality_uci",
+                "smores",
             ]
         },
         "model_type": {
             "type": "string",
-            "enum": ["cnn", "transformer", "linear_regression"]
+            "enum": ["cnn", "transformer", "linear_regression", "lstm"]
         },
         "num_of_rounds": {
             "type": "integer"
@@ -169,6 +170,10 @@ config_schema = {
         "target_gas": {
             "type": "string",
             "enum": ["CO", "C6H6", "NOx", "NO2"]
+        },
+        # Smores
+        "sequence_len": {
+            "type": "integer"
         },
 
         # Strategy specific parameters
@@ -341,6 +346,11 @@ def _validate_dependent_params(strategy_config: dict) -> None:
         if "target_gas" not in strategy_config:
             raise ValidationError(
                 f"Missing parameter target_gas for UCI Air Quality dataset {dataset_keyword}"
+            )
+    elif dataset_keyword == "smores":
+        if "sequence_len" not in strategy_config:
+            raise ValidationError(
+                f"Missing parameter sequence_len for SMORES dataset {dataset_keyword}"
             )
         
     if aggregation_strategy_keyword in ("bulyan", "krum", "multi-krum-based", "multi-krum", "rfa", "trimmed_mean", "pid"):

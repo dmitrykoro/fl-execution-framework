@@ -25,7 +25,10 @@ class StrategyConfig:
     gpus_per_client: float = None
 
     model_type: str = None
+    # For air_quality_uci dataset
     target_gas: str = None
+    # For smores dataset
+    sequence_len: int = None
 
     trust_threshold: float = None
     reputation_threshold: float = None
