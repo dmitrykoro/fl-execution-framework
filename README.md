@@ -66,6 +66,7 @@ Defines the aggregation strategy. Options:
   - `organsmnist`: sagittal view CT scans of abdominal organs, 11 classes, 40 clients.
   - `medmentions`: PubMed extracts with NER labels, 10 clients (can manually generate more clients using the script in `src/utils/make_medmentions.py`)
   - `air_quality_uci`: Hourly responses averages of a gas multisensor device along with gas concentrations references from a certified analyzer, 12 clients, 4 targets for gas concentration prediction. Source: https://doi.org/10.24432/C59K5F
+  - `smores`: Smarter Microbial Observatories for Realtime Experiments datasets for disolved oxygen concentration forcasting introduced at https://github.com/rzv09/smores_proj by Raman Zatsarenko
 
 - `num_of_rounds`: total aggregation rounds.
 - `num_of_clients`: number of clients (limited to available dataset clients).
@@ -75,7 +76,7 @@ Defines the aggregation strategy. Options:
 - `save_csv`: Save metrics as `.csv` files in `out/` directory (`true`/`false`).
 - `preserve_dataset`: save poisoned dataset for verification (`true`/`false`).
 - `training_subset_fraction`: fraction of each client's dataset for training (e.g., `0.9` for 90% training, 10% evaluation).
-- `model_type`: type of model being trained (e.g., `cnn`, `linear_regression`).
+- `model_type`: type of model being trained (e.g., `cnn`, `linear_regression`, `lstm`).
 
 - **`attack_schedule`**: array of attack configurations for round-based attacks. Each entry requires:
   - `start_round`: when the attack starts (1 to `num_of_rounds`).
@@ -121,6 +122,9 @@ Defines the aggregation strategy. Options:
 
 **For `air_quality_uci` dataset**:
 - `target_gas`: gas concentration to predict (CO, C6H6, NOx, or NO2)
+
+**For `smores` dataset**
+- `sequence_len`: amount of time series data to provide to model for its forcasting
 
 #### Strategy-specific parameters
 
