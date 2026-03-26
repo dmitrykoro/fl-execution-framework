@@ -329,3 +329,25 @@ and compare how they affect the simulation outcome.
 One limitation is that as of now it is impossible to vary the number of aggregation rounds, so the parameter
 `num_of_rounds` must always be in the `shared_settings` section. 
 
+---
+## Citation
+Researchers who employ InteFL in their work are kindly asked to reference our peer-reviewed article published in IEEE Intelligent Systems:
+
+```bibtex
+@ARTICLE{11366920,
+  author={Korobeinikov, Dmitrii and Zatsarenko, Raman and Chuprov, Sergei and Barea, Arnaldo and Reznik, Leon},
+  journal={IEEE Intelligent Systems}, 
+  title={InteFL Framework: Optimizing Federated Learning with Metacognition for Application Design and Deployment}, 
+  year={2026},
+  volume={},
+  number={},
+  pages={1-10},
+  keywords={Artificial intelligence;Monitoring;Benchmark testing;Metacognition;Adaptation models;Training;Intelligent systems;Hardware;Federated learning;Data models},
+  doi={10.1109/MIS.2026.3658072}}
+```
+
+
+
+
+
+
