@@ -50,6 +50,7 @@ class SimulationStrategyHistory:
                     else None
                 ),
                 _poisoned_client_ids=self.dataset_handler.poisoned_client_ids,
+                model_type=self.strategy_config.model_type,
             )
 
         for client in self._clients_dict.values():

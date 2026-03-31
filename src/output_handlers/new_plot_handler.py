@@ -57,24 +57,15 @@ def _get_client_attack_summary(client_id: int, attack_schedule: list) -> str:
 
 def _generate_single_string_strategy_label(strategy_config: StrategyConfig) -> str:
     """Generate single-string label for strategy (better to use as legend)"""
+    single_string = (
+        f"strategy: {strategy_config.aggregation_strategy_keyword}, " 
+        f"dataset: {strategy_config.dataset_keyword}, "
+    )
 
     if strategy_config.dataset_keyword == "air_quality_uci":
-        # TODO: Come back and generalize this
-        return(
-            f"strategy: {strategy_config.aggregation_strategy_keyword}, "
-            f"dataset: {strategy_config.dataset_keyword}, "
-            f"target: {strategy_config.target_gas}, "
-            f"remove: {strategy_config.remove_clients}, "
-            f"remove_from: {strategy_config.begin_removing_from_round if strategy_config.remove_clients else 'n/a'}, "
-            f"total clients: {strategy_config.num_of_clients}, "
-            f"bad_clients: {strategy_config.num_of_malicious_clients}, "
-            f"client_epochs: {strategy_config.num_of_client_epochs}, "
-            f"batch_size: {strategy_config.batch_size}"
-        )
+        single_string += f"target: {strategy_config.target_gas}, "
 
-    return (
-        f"strategy: {strategy_config.aggregation_strategy_keyword}, "
-        f"dataset: {strategy_config.dataset_keyword}, "
+    single_string += (
         f"remove: {strategy_config.remove_clients}, "
         f"remove_from: {strategy_config.begin_removing_from_round if strategy_config.remove_clients else 'n/a'}, "
         f"total clients: {strategy_config.num_of_clients}, "
@@ -82,6 +73,8 @@ def _generate_single_string_strategy_label(strategy_config: StrategyConfig) -> s
         f"client_epochs: {strategy_config.num_of_client_epochs}, "
         f"batch_size: {strategy_config.batch_size}"
     )
+
+    return single_string
 
 
 def _generate_multi_string_strategy_label(strategy_config: StrategyConfig) -> str:
@@ -167,15 +160,6 @@ def show_plots_within_strategy(
         return
 
     plottable_metrics = list_of_client_histories[0].plottable_metrics.copy()
-
-    # remove metrics not needed depending on Classificaiton or Regression task
-    # TODO: Come back and fix this so that it is generalized for Classificaiton and Regression
-    if (simulation_strategy.strategy_config.model_type == "linear_regression" or simulation_strategy.strategy_config.model_type == "lstm"):
-        if ("accuracy_history" in plottable_metrics):
-            plottable_metrics.remove("accuracy_history")
-    elif (simulation_strategy.strategy_config.model_type != "linear_regression"):
-        if ("r2_history" in plottable_metrics):
-            plottable_metrics.remove("r2_history")
 
     for metric_name in plottable_metrics:
         plt.figure(figsize=plot_size)
@@ -282,17 +266,6 @@ def show_inter_strategy_plots(
         plt.figure(figsize=plot_size)
 
         for simulation_strategy in executed_simulation_strategies:
-            # Skip over metrics not needed depending on Classificaiton or Regression task
-            # TODO: Come back and fix this so that it is generalized for Classificaiton and Regression
-            if ((simulation_strategy.strategy_config.model_type == "linear_regression"
-                 or simulation_strategy.strategy_config.model_type == "lstm")
-                and metric_name == "average_accuracy_history"):
-                continue
-            elif ((simulation_strategy.strategy_config.model_type != "linear_regression"
-                   and simulation_strategy.strategy_config.model_type != "lstm")
-                  and (metric_name == "average_r2_history")):
-                continue
-
             round_info = simulation_strategy.strategy_history.rounds_history
 
             metric_values = round_info.get_metric_by_name(metric_name)

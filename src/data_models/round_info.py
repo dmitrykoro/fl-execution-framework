@@ -44,9 +44,12 @@ class RoundsInfo:
         self.plottable_metrics = [
             "score_calculation_time_nanos_history",
             "aggregated_loss_history",
-            "average_accuracy_history",
-            "average_r2_history"
         ]
+        if self.simulation_strategy_config.model_type in ["cnn", "transformer"]:
+            self.plottable_metrics += ["average_accuracy_history"]
+        elif self.simulation_strategy_config.model_type == "linear_regression":
+            self.plottable_metrics += ["average_r2_history"]
+
 
         self.barable_metrics = [
             "removal_accuracy_history",
@@ -60,13 +63,13 @@ class RoundsInfo:
             "score_calculation_time_nanos_history",
             "removal_threshold_history",
             "aggregated_loss_history",
-            "average_accuracy_history",
-            "average_accuracy_std_history",
-            "average_r2_history"
         ]
+        if self.simulation_strategy_config.model_type in ["cnn", "transformer"]:
+            self.savable_metrics += ["average_accuracy_history", "average_accuracy_std_history"]
+        elif self.simulation_strategy_config.model_type == "linear_regression":
+            self.savable_metrics += ["average_r2_history"]
 
         self.statsable_metrics = [
-            "average_accuracy_history",
             "tp_history",
             "tn_history",
             "fp_history",
@@ -76,6 +79,8 @@ class RoundsInfo:
             "removal_recall_history",
             "removal_f1_history",
         ]
+        if self.simulation_strategy_config.model_type in ["cnn", "transformer"]:
+            self.statsable_metrics = ["average_accuracy_history",] + self.statsable_metrics
         
         if self.simulation_strategy_config.dataset_keyword == "medmentions":
             self.savable_metrics += [
