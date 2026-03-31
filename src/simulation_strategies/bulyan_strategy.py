@@ -23,6 +23,7 @@ from flwr.server.strategy.aggregate import weighted_loss_avg
 from src.output_handlers.directory_handler import DirectoryHandler
 from src.data_models.simulation_strategy_history import SimulationStrategyHistory
 from src.utils.medmentions_strategy_helper import aggregate_strict_medmentions_metrics
+from src.utils.strategy_evaluation_metrics_helper import store_evaluation_metrics
 
 
 class BulyanStrategy(fl.server.strategy.FedAvg):
@@ -240,22 +241,12 @@ class BulyanStrategy(fl.server.strategy.FedAvg):
             cid = cp.cid
             metrics = dict(ev.metrics)
             metrics["cid"] = cid
-            if "accuracy" in metrics:
-                # For classification tasks
-                self.strategy_history.insert_single_client_history_entry(
-                    client_id=int(cid),
-                    current_round=self.current_round,
-                    accuracy=metrics['accuracy']
-                )
-            elif "ss_res" in metrics and "ss_tot" in metrics and "r2" in metrics:
-                # For regression tasks
-                self.strategy_history.insert_single_client_history_entry(
-                    client_id=int(cid),
-                    current_round=self.current_round,
-                    ss_res=metrics["ss_res"],
-                    ss_tot=metrics["ss_tot"],
-                    r2=metrics["r2"]
-                )
+            store_evaluation_metrics(
+                clinet_id=int(cid),
+                current_round=self.current_round,
+                metrics=metrics, 
+                strategy_history=self.strategy_history
+            )
 
         if not results:
             return None, {}

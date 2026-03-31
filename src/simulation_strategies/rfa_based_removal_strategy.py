@@ -14,6 +14,7 @@ from flwr.common import EvaluateRes, Scalar
 from flwr.server.client_proxy import ClientProxy
 from flwr.server.strategy.fedavg import FedAvg
 from src.utils.medmentions_strategy_helper import aggregate_strict_medmentions_metrics
+from src.utils.strategy_evaluation_metrics_helper import store_evaluation_metrics
 
 
 class RFABasedRemovalStrategy(FedAvg):
@@ -193,23 +194,12 @@ class RFABasedRemovalStrategy(FedAvg):
         for client_result in results:
             cid = client_result[0].cid
             metrics = client_result[1].metrics
-
-            if "accuracy" in metrics:
-                # For classification tasks
-                self.strategy_history.insert_single_client_history_entry(
-                    client_id=int(cid),
-                    current_round=self.current_round,
-                    accuracy=metrics['accuracy']
-                )
-            elif "ss_res" in metrics and "ss_tot" in metrics and "r2" in metrics:
-                # For regression tasks
-                self.strategy_history.insert_single_client_history_entry(
-                    client_id=int(cid),
-                    current_round=self.current_round,
-                    ss_res=metrics["ss_res"],
-                    ss_tot=metrics["ss_tot"],
-                    r2=metrics["r2"]
-                )
+            store_evaluation_metrics(
+                clinet_id=int(cid),
+                current_round=self.current_round,
+                metrics=metrics, 
+                strategy_history=self.strategy_history
+            )
 
         if not results:
             return None, {}

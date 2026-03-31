@@ -5,6 +5,7 @@ import numpy as np
 
 @dataclass
 class ClientInfo:
+    model_type: str
 
     client_id: int
     num_of_rounds: int
@@ -28,23 +29,6 @@ class ClientInfo:
     ss_res_history: List[Union[float, None]] = None # Residual sum of squares used to calculate global R^2
     ss_tot_history: List[Union[float, None]] = None # Total sum of squares used to calculate global R^2
     r2_history: List[Union[float, None]] = None     # Client R^2 calculated from train/test
-
-    plottable_metrics = [
-        "removal_criterion_history",
-        "absolute_distance_history",
-        "loss_history",
-        "accuracy_history",
-        "r2_history"
-    ]
-
-    savable_metrics = [
-        "removal_criterion_history",
-        "absolute_distance_history",
-        "loss_history",
-        "accuracy_history",
-        "r2_history",
-        "aggregation_participation_history",
-    ]
 
     def __post_init__(self):
         def _init_list(value=None):
@@ -101,6 +85,25 @@ class ClientInfo:
 
         for round_num in range(self.num_of_rounds):
             self.rounds.append(round_num + 1)
+        
+        self.plottable_metrics = [
+            "removal_criterion_history",
+            "absolute_distance_history",
+            "loss_history",
+        ]
+
+        self.savable_metrics = [
+            "removal_criterion_history",
+            "absolute_distance_history",
+            "loss_history",
+        ]
+
+        if self.model_type == "cnn" or self.model_type == "transformer":
+            self.plottable_metrics += ["accuracy_history",]
+            self.savable_metrics += ["accuracy_history", "aggregation_participation_history",]
+        elif self.model_type == "linear_regression":
+            self.plottable_metrics += ["r2_history",]
+            self.savable_metrics += ["r2_history", "aggregation_participation_history",]
 
     def get_current_attack_keywords(self, current_round) -> list:
         """
