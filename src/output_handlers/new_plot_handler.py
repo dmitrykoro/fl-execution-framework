@@ -64,6 +64,8 @@ def _generate_single_string_strategy_label(strategy_config: StrategyConfig) -> s
 
     if strategy_config.dataset_keyword == "air_quality_uci":
         single_string += f"target: {strategy_config.target_gas}, "
+    if strategy_config.dataset_keyword == "smores":
+        single_string += f"sequence length: {strategy_config.sequence_len}, "
 
     single_string += (
         f"remove: {strategy_config.remove_clients}, "
@@ -295,6 +297,73 @@ def show_inter_strategy_plots(
             plt.show()
 
         plt.close()
+
+    # time series specific plots
+    time_series_plottable_metrics = executed_simulation_strategies[0].strategy_history.rounds_history.time_series_plottable_metrics
+    if len(time_series_plottable_metrics) > 0:
+        separated = [time_series_plottable_metrics[:2], time_series_plottable_metrics[2:]]
+        for simulation_strategy in executed_simulation_strategies:
+            for pair in separated:
+                plt.figure(figsize=plot_size)
+                for metric_name in pair:
+                    round_info = simulation_strategy.strategy_history.rounds_history
+
+                    metric_values = round_info.get_metric_by_name(metric_name)
+
+                    if metric_values:  # plot only if metrics were actually collected
+                        # Ensure rounds and metric_values have matching dimensions
+                        min_length = min(len(rounds), len(metric_values))
+                        plt.plot(
+                            rounds[:min_length],
+                            metric_values[:min_length],
+                            label=metric_name
+                        )
+                plt.xlabel('round #')
+                if "aggregated_loss_history" in pair:
+                    plt.ylabel('loss_history')
+                else:
+                    plt.ylabel('MARE_history')
+                plot_strategy_title = _generate_multi_string_strategy_label(simulation_strategy.strategy_config)
+                if "aggregated_loss_history" in pair:
+                    plt.title(
+                        f"Aggregated loss vs. Baseline Aggregated loss for strategy: "
+                        f"{simulation_strategy.strategy_config.aggregation_strategy_keyword}\n{plot_strategy_title}"
+                    )
+                else:
+                    plt.title(
+                    f"Aggregated MARE vs. Baseline Aggregated MARE for strategy: "
+                        f"{simulation_strategy.strategy_config.aggregation_strategy_keyword}\n{plot_strategy_title}"
+                    )
+
+                if "aggregated_loss_history" in pair:
+                    legend_title = 'loss curves'
+                else:
+                    legend_title = 'MARE curves'
+
+                plt.legend(
+                    title=legend_title, bbox_to_anchor=(1.05, 1),
+                    loc='upper left',
+                )
+                ax = plt.gca()
+                ax.xaxis.set_major_locator(MaxNLocator(integer=True, steps=[2, 5]))
+                plt.tight_layout()
+
+                if simulation_strategy.strategy_config.save_plots:
+                    if "aggregated_loss_history" in pair:
+                        plt.savefig(
+                            f"{directory_handler.new_plots_dirname}/"
+                            f"average_loss_baseline_comparison_{simulation_strategy.strategy_config.strategy_number}.pdf"
+                        )
+                    else:
+                        plt.savefig(
+                            f"{directory_handler.new_plots_dirname}/"
+                            f"average_mare_baseline_comparison_{simulation_strategy.strategy_config.strategy_number}.pdf"
+                        )
+
+                if simulation_strategy.strategy_config.show_plots:
+                    plt.show()
+
+                plt.close()
 
     # bar plots
     barable_metrics = executed_simulation_strategies[0].strategy_history.rounds_history.barable_metrics

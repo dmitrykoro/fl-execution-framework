@@ -512,6 +512,7 @@ class FederatedSimulation:
             strategy_number=self.strategy_config.strategy_number,
             tokenizer=tokenizer,
             target_gas=self.strategy_config.target_gas,
+            sequence_len=self.strategy_config.sequence_len,
             strategy_history=self.strategy_history
         ).to_client()
 
