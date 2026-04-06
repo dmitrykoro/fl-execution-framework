@@ -121,9 +121,10 @@ Defines the aggregation strategy. Options:
 #### Dataset-specific parameters
 
 **For `air_quality_uci` dataset**:
-- `target_gas`: gas concentration to predict (CO, C6H6, NOx, or NO2)
+- `target_name`: gas concentration to predict (CO, C6H6, NOx, or NO2)
 
 **For `smores` dataset**
+- `target_name`: predicting next dissolved oxygen concentration in the sequence (DO)
 - `sequence_len`: amount of time series data to provide to model for its forcasting
 
 #### Strategy-specific parameters

@@ -63,8 +63,9 @@ def _generate_single_string_strategy_label(strategy_config: StrategyConfig) -> s
     )
 
     if strategy_config.dataset_keyword == "air_quality_uci":
-        single_string += f"target: {strategy_config.target_gas}, "
+        single_string += f"target: {strategy_config.target_name}, "
     if strategy_config.dataset_keyword == "smores":
+        single_string += f"target: {strategy_config.target_name}, "
         single_string += f"sequence length: {strategy_config.sequence_len}, "
 
     single_string += (

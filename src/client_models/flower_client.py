@@ -12,7 +12,6 @@ from src.output_handlers import attack_snapshot_handler
 
 
 class FlowerClient(fl.client.NumPyClient):
-    #TODO: Generalize `target_gas` param for all regression tasks
     def __init__(
             self,
             client_id,
@@ -32,7 +31,7 @@ class FlowerClient(fl.client.NumPyClient):
             experiment_info=None,
             strategy_number=0,
             tokenizer=None,
-            target_gas="",
+            target_name="",
             sequence_len=12,
             strategy_history=None,
     ):
@@ -53,7 +52,7 @@ class FlowerClient(fl.client.NumPyClient):
         self.experiment_info = experiment_info
         self.strategy_number = strategy_number
         self.tokenizer = tokenizer
-        self.target_gas=target_gas
+        self.target_name=target_name
         self.sequence_len=sequence_len
         self.strategy_history=strategy_history
 
@@ -246,6 +245,10 @@ class FlowerClient(fl.client.NumPyClient):
                 # For R^2 calcualtion
                 ss_res, sum_y, sum_y_sq = 0.0, 0.0, 0.0
 
+                # For denormalization
+                y_mean = trainloader.dataset.y_mean.to(self.training_device)
+                y_std = trainloader.dataset.y_std.to(self.training_device)
+
                 for batch_idx, (features, targets) in enumerate(trainloader):
                     if current_round_attack_configs and epoch == 0  and collected < self.snapshot_max_samples:
                         original_features = features.clone()
@@ -289,11 +292,6 @@ class FlowerClient(fl.client.NumPyClient):
                     epoch_loss += loss.item() * features.size(0)
 
                     # denormalize for metrics
-                    y_mean = trainloader.dataset.y_mean
-                    y_std = trainloader.dataset.y_std
-                    y_std = y_std.to(self.training_device)
-                    y_mean = y_mean.to(self.training_device)
-
                     outputs_real = outputs * y_std + y_mean
                     targets_real = targets * y_std + y_mean
                     
@@ -318,7 +316,6 @@ class FlowerClient(fl.client.NumPyClient):
                 num_steps = epochs * len(trainloader)
                 eta_eff = optimizer_lr * num_steps
 
-            #TODO: Generalize `target_gas` param for all regression tasks
             # Save snapshot of attack
             if snapshot_features:
                 attack_snapshot_handler.save_attack_snapshots(
@@ -334,7 +331,7 @@ class FlowerClient(fl.client.NumPyClient):
                     attack_configs=current_round_attack_configs,
                     data_sample=torch.cat(snapshot_features),
                     labels_sample=torch.cat(snapshot_targets),
-                    target_gas=self.target_gas,
+                    target_name=self.target_name,
                     original_data_sample=torch.cat(snapshot_original_features),
                     original_labels_sample=torch.cat(snapshot_original_targets),
                     dataset=trainloader.dataset,
@@ -349,12 +346,12 @@ class FlowerClient(fl.client.NumPyClient):
             net.train()
 
             # Collect snapshot data
-            '''snapshot_features = []
+            snapshot_features = []
             snapshot_targets = []
             snapshot_original_features = []
             snapshot_original_targets = []
 
-            collected = 0'''
+            collected = 0
 
             for epoch in range(epochs):
                 total, epoch_loss = 0, 0.0
@@ -362,13 +359,12 @@ class FlowerClient(fl.client.NumPyClient):
                 eps = 1e-8
                 abs_rel_error_sum = 0.0
 
-                dataset_mean = trainloader.dataset.dataset_mean
-                dataset_std = trainloader.dataset.dataset_std
-                dataset_std = dataset_std.to(self.training_device)
-                dataset_mean = dataset_mean.to(self.training_device)
+                # For denormalization
+                y_mean = trainloader.dataset.y_mean.to(self.training_device)
+                y_std = trainloader.dataset.y_std.to(self.training_device)
 
                 for batch_idx, (features, targets) in enumerate(trainloader):
-                    '''if current_round_attack_configs and epoch == 0  and collected < self.snapshot_max_samples:
+                    if current_round_attack_configs and epoch == 0  and collected < self.snapshot_max_samples:
                         original_features = features.clone()
                         original_targets = targets.clone()
                     # Apply all attacks sequentially
@@ -391,7 +387,7 @@ class FlowerClient(fl.client.NumPyClient):
                         snapshot_original_features.append(original_features[:take].clone())
                         snapshot_original_targets.append(original_targets[:take].clone())
 
-                        collected += take'''
+                        collected += take
 
                     features = features.to(self.training_device)
                     targets = targets.to(self.training_device).float()
@@ -410,8 +406,8 @@ class FlowerClient(fl.client.NumPyClient):
                     epoch_loss += loss.item()
 
                     # denormalize for metrics
-                    outputs_real = outputs * dataset_std + dataset_mean
-                    targets_real = targets * dataset_std + dataset_mean
+                    outputs_real = outputs * y_std + y_mean
+                    targets_real = targets * y_std + y_mean
                     
                     abs_rel_error_sum += torch.sum(
                         torch.abs(targets_real - outputs_real) / (torch.abs(targets_real) + eps)
@@ -433,9 +429,8 @@ class FlowerClient(fl.client.NumPyClient):
                 num_steps = epochs * len(trainloader)
                 eta_eff = optimizer_lr * num_steps
 
-            #TODO: Generalize `target_gas` param for all regression tasks
             # Save snapshot of attack
-            '''if snapshot_features:
+            if snapshot_features:
                 attack_snapshot_handler.save_attack_snapshots(
                     attack_snapshot_format=self.attack_snapshot_format,
                     model_type=self.model_type,
@@ -449,11 +444,11 @@ class FlowerClient(fl.client.NumPyClient):
                     attack_configs=current_round_attack_configs,
                     data_sample=torch.cat(snapshot_features),
                     labels_sample=torch.cat(snapshot_targets),
-                    target_gas=self.target_gas,
+                    target_name=self.target_name,
                     original_data_sample=torch.cat(snapshot_original_features),
                     original_labels_sample=torch.cat(snapshot_original_targets),
                     dataset=trainloader.dataset,
-                )'''            
+                )            
 
             return float(epoch_loss), float(epoch_mare), float(eta_eff)
 
@@ -566,6 +561,10 @@ class FlowerClient(fl.client.NumPyClient):
 
             total, loss_sum, ss_res, ss_tot, y_true_sum, y_true_sq_sum = 0, 0.0, 0.0, 0.0, 0.0, 0.0
 
+            # For denormalization
+            y_mean = testloader.dataset.y_mean.to(self.training_device)
+            y_std = testloader.dataset.y_std.to(self.training_device)
+
             with torch.no_grad():
                 for features, targets in testloader:
                     # Apply all attacks sequentially
@@ -582,11 +581,6 @@ class FlowerClient(fl.client.NumPyClient):
                     outputs = net(features)
 
                     # denormalize for metrics
-                    y_mean = testloader.dataset.y_mean
-                    y_std = testloader.dataset.y_std
-                    y_mean = y_mean.to(self.training_device)
-                    y_std = y_std.to(self.training_device)
-
                     outputs_real = outputs * y_std + y_mean
                     targets_real = targets * y_std + y_mean
 
@@ -621,10 +615,11 @@ class FlowerClient(fl.client.NumPyClient):
             eps = 1e-8
             abs_rel_error_sum, abs_rel_error_baseline_sum = 0.0, 0.0
 
-            dataset_mean = testloader.dataset.dataset_mean
-            dataset_std = testloader.dataset.dataset_std
-            dataset_mean = dataset_mean.to(self.training_device)
-            dataset_std = dataset_std.to(self.training_device)
+            # For denormalization
+            y_mean = testloader.dataset.y_mean.to(self.training_device)
+            y_std = testloader.dataset.y_std.to(self.training_device)
+            x_mean = testloader.dataset.x_mean.to(self.training_device)
+            x_std = testloader.dataset.x_std.to(self.training_device)
 
             def _rolling_average_model(batch_sequences, window_size):
                 """
@@ -638,40 +633,43 @@ class FlowerClient(fl.client.NumPyClient):
 
             with torch.no_grad():
                 for features, targets in testloader:
+                    # create baseline outputs using moving average before poisoning
+                    features, targets = features.to(self.training_device), targets.to(self.training_device)
+                    features_real = features * x_std + x_mean
+                    targets_real = targets * y_std + y_mean
+
+                    outputs_baseline = _rolling_average_model(features_real, self.sequence_len)
+                    outputs_baseline = outputs_baseline.to(self.training_device)
+                    outputs_baseline = outputs_baseline.view_as(targets_real)   # Ensure baseline_outputs is the same shape as targets
+
+                    smooth_l1_loss_baseline_sum += criterion(outputs_baseline, targets_real).item()
+                    abs_rel_error_baseline_sum += torch.sum(
+                        torch.abs(targets_real - outputs_baseline) / torch.abs(targets_real + eps)
+                    ).item()    
+
                     # Apply all attacks sequentially
-                    '''for attack_type, attack_config in zip(attack_keywords_list, current_round_attack_configs):
+                    for attack_type, attack_config in zip(attack_keywords_list, current_round_attack_configs):
                         features, targets = apply_poisoning_attack(
                             data=features,
                             labels=targets,
                             attack_type=attack_type,
                             attack_config=attack_config,
                             dataset=testloader.dataset,
-                        )'''
+                        )
 
-                    features, targets = features.to(self.training_device), targets.to(self.training_device)
                     outputs = net(features)
 
                     # denormalize for metrics
-                    outputs_real = outputs * dataset_std + dataset_mean
-                    targets_real = targets * dataset_std + dataset_mean
-                    features_real = features * dataset_std + dataset_mean
-
-                    # create baseline outputs using moving average
-                    outputs_baseline = _rolling_average_model(features_real, self.sequence_len)
-                    outputs_baseline = outputs_baseline.to(self.training_device)
-                    outputs_baseline = outputs_baseline.view_as(targets_real)   # Ensure baseline_outputs is the same shape as targets
+                    outputs_real = outputs * y_std + y_mean
+                    targets_real = targets * y_std + y_mean
 
                     # SmoothL1Loss for reporting
                     smooth_l1_loss_sum += criterion(outputs_real, targets_real).item()
-                    smooth_l1_loss_baseline_sum += criterion(outputs_baseline, targets_real).item()
 
                     # Sum absolute relative errors for MARE
                     abs_rel_error_sum += torch.sum(
                         torch.abs(targets_real - outputs_real) / (torch.abs(targets_real) + eps)
                     ).item()
-                    abs_rel_error_baseline_sum += torch.sum(
-                        torch.abs(targets_real - outputs_baseline) / torch.abs(targets_real + eps)
-                    ).item()    
 
                     total += targets.numel()
             

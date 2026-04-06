@@ -64,7 +64,6 @@ def apply_gaussian_noise(
     return poisoned_images
 
 
-# TODO: Genralize this for any regression task
 def apply_target_flipping(
         targets: torch.Tensor,
         degree_of_poisoning: float = 0.1,
@@ -477,8 +476,9 @@ class DatasetHandler:
             logging.error(f"Client directory not found: {client_path}")
             return
         
-        # TODO: Genralize this for any regression task
-        target_gas = self._strategy_config.target_gas + "(GT)"
+        target_name = self._strategy_config.target_name
+        if self._strategy_config.dataset_keyword == "air_quality_uci":
+            target_name = target_name + "(GT)"
         substitute_fraction = 0.25  # Changing subset size doesn't change effectiveness of attack
         degree_of_poisoning = self._strategy_config.attack_ratio if self._strategy_config.attack_ratio else 0.1
 
@@ -491,7 +491,7 @@ class DatasetHandler:
             substitute_fraction = degree_of_poisoning
 
         # Auto-generate seed from attack parameters for reproducibility
-        seed_string = sum([ord(char) for char in target_gas]) / (substitute_fraction * degree_of_poisoning) if (substitute_fraction * degree_of_poisoning) != 0 else sum([ord(char) for char in target_gas])
+        seed_string = sum([ord(char) for char in target_name]) / (substitute_fraction * degree_of_poisoning) if (substitute_fraction * degree_of_poisoning) != 0 else sum([ord(char) for char in target_name])
         seed = math.ceil(seed_string) % (2 ** 32)
         rng = random.Random(seed)
 
@@ -504,7 +504,7 @@ class DatasetHandler:
                 continue
 
             # Determine feasibility domain 
-            targets = dataset[target_gas]
+            targets = dataset[target_name]
             min_target = min(targets)
             max_target = max(targets)
 
@@ -515,7 +515,7 @@ class DatasetHandler:
             # (must be size of subset or less)
             num_of_poison_points = math.ceil(dataset_size * degree_of_poisoning) if math.ceil(dataset_size * degree_of_poisoning) <= subset_size else subset_size
             random_indexes = rng.sample(range(dataset_size), subset_size)
-            sub_targets = [(i, dataset.iloc[i][target_gas]) for i in random_indexes]
+            sub_targets = [(i, dataset.iloc[i][target_name]) for i in random_indexes]
 
             # Begin Flip algorithm
             distances = []
@@ -526,10 +526,10 @@ class DatasetHandler:
             poison_indexes = [i for i, _ in sorted_distances[:num_of_poison_points]]
             
             for i in poison_indexes:
-                if dataset.iloc[i][target_gas] > ((0.5*(max_target-min_target)) + min_target):
-                    dataset.at[i, target_gas] = min_target
+                if dataset.iloc[i][target_name] > ((0.5*(max_target-min_target)) + min_target):
+                    dataset.at[i, target_name] = min_target
                 else:
-                    dataset.at[i, target_gas] = max_target
+                    dataset.at[i, target_name] = max_target
             
             failure = dataset.to_csv(dataset_path, index=False)
             if not failure:

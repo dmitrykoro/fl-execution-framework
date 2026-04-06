@@ -25,8 +25,8 @@ class StrategyConfig:
     gpus_per_client: float = None
 
     model_type: str = None
-    # For air_quality_uci dataset
-    target_gas: str = None
+    # For regression task datasets (e.g air_quality_uci, smores)
+    target_name: str = None
     # For smores dataset
     sequence_len: int = None
 
