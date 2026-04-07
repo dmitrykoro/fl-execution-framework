@@ -2,6 +2,7 @@
 .vscode
 .DS_store
 .venv
+.venv-win
 ITS_USECASE/
 FLAIR_USECASE/
 __pycache__
@@ -28,3 +29,11 @@ cache/
 dist/
 local/
 logs/
+/.venv-wsl
+node_modules
+dist
+.vite
+*.log
+.env
+.env.*
+/wandb/

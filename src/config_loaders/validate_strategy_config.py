@@ -1,4 +1,6 @@
 import logging
+import random
+
 from jsonschema import validate, ValidationError
 
 config_schema = {
@@ -9,8 +11,7 @@ config_schema = {
             "type": "string",
             "enum": ["trust", "pid", "pid_scaled", "pid_standardized", "pid_standardized_score_based",
                     "multi-krum", "krum", "multi-krum-based", "trimmed_mean",
-                    "rfa", "bulyan", "fed_nga", "pid_v5_stateless_mean_based", 
-                    "pid_v5_stateless_median_based"]
+                    "rfa", "bulyan", "fools_gold", "pid_v5_stateless_mean_based"]
         },
         "strict_mode": {
             "type": "string",
@@ -197,6 +198,11 @@ config_schema = {
             "type": "integer"
         },
 
+        # Bulyan
+        "num_bulyan_benign_clients": {
+            "type": "integer"
+        },
+
         # Trimmed mean
         "trim_ratio": {
             "type": "number"
@@ -214,16 +220,21 @@ config_schema = {
                         "type": "string",
                         "enum": ["label_flipping", "gaussian_noise", "gradient_scaling"]
                     },
+                    # old format entries for backward-compatibility - do not use
                     "selection_strategy": {"type": "string", "enum": ["specific", "random", "percentage"]},
                     "malicious_client_ids": {"type": "array", "items": {"type": "integer"}},
                     "malicious_client_count": {"type": "integer", "minimum": 1},
                     "malicious_percentage": {"type": "number", "minimum": 0.0, "maximum": 1.0},
+                    # end of old format entries
+                    "num_malicious_clients": {"type": "integer", "items": {"type": "integer"}},
+                    "specific_malicious_clients": {"type": "array", "items": {"type": "integer"}},
+                    "proportion_malicious_clients": {"type": "number", "items": {"type": "integer"}},
                     "random_seed": {"type": "integer", "minimum": 0},
                     "target_noise_snr": {"type": "number"},
                     "attack_ratio": {"type": "number", "minimum": 0.0, "maximum": 1.0},
                     "scale_factor": {"type": "number", "exclusiveMinimum": 0}
                 },
-                "required": ["start_round", "end_round", "attack_type", "selection_strategy"]
+                "required": ["start_round", "end_round", "attack_type"]
             }
         },
 
@@ -240,7 +251,28 @@ config_schema = {
             "type": "integer",
             "minimum": 1,
             "maximum": 50
+        },
+
+        "config_is_ai_generated": {
+            "type": "string"
+        },
+
+        "user_prompt_for_ai_generated": {
+            "type": "string"
+        },
+
+        "ai_agent_config_reasoning": {
+            "type": "string"
+        },
+
+        "ai_configuration_error": {
+            "type": "string"
+        },
+
+        "num_ai_config_corrections": {
+            "type": "number"
         }
+
     },
     "required": [
         "aggregation_strategy_keyword", "remove_clients", "dataset_keyword", "model_type",
@@ -249,7 +281,7 @@ config_schema = {
         "training_subset_fraction", "training_device", "cpus_per_client",
         "gpus_per_client", "min_fit_clients", "min_evaluate_clients",
         "min_available_clients", "evaluate_metrics_aggregation_fn",
-        "num_of_client_epochs", "batch_size", "attack_schedule"
+        "num_of_client_epochs", "batch_size"
     ]
 }
 
@@ -270,7 +302,7 @@ def _validate_dependent_params(strategy_config: dict) -> None:
                 )
     elif aggregation_strategy_keyword in ("pid", "pid_scaled", "pid_standardized", "pid_standardized_score_based"):
         pid_specific_parameters = [
-            "num_std_dev", "Kp", "Ki", "Kd"
+            "num_std_dev", "Kp", "Ki", "Kd", "begin_removing_from_round"
         ]
         for param in pid_specific_parameters:
             if param not in strategy_config:
@@ -283,15 +315,26 @@ def _validate_dependent_params(strategy_config: dict) -> None:
                 f"Missing parameter num_krum_selections for Krum-based aggregation {aggregation_strategy_keyword}"
             )
     elif aggregation_strategy_keyword == "trimmed_mean":
-        if "trim_ratio" not in strategy_config:
+        if "trim_ratio" not in strategy_config or "begin_removing_from_round" not in strategy_config:
             raise ValidationError(
                 f"Missing parameter trim_ratio for trimmed mean aggregation {aggregation_strategy_keyword}"
+            )
+    elif aggregation_strategy_keyword == "bulyan":
+        if "num_bulyan_benign_clients" not in strategy_config:
+            raise ValidationError(
+                f"Missing parameter num_bulyan_benign_clients for aggregation: {aggregation_strategy_keyword}"
+            )
+
+    if aggregation_strategy_keyword in ("bulyan", "krum", "multi-krum-based", "multi-krum", "rfa", "trimmed_mean", "pid"):
+        if "begin_removing_from_round" not in strategy_config:
+            raise ValidationError(
+                f"Missing parameter begin_removing_from_round for aggregation {aggregation_strategy_keyword}"
             )
 
 
 def _populate_client_selection(config: dict) -> None:
     """
-    Populate _selected_clients for random and percentage selection strategies.
+    Populate malicious_client_ids for random and percentage selection strategies.
 
     For reproducibility, uses deterministic seeding:
     - If attack entry has 'random_seed': use it
@@ -300,56 +343,58 @@ def _populate_client_selection(config: dict) -> None:
     Research-backed approach: Fixed client selection per attack window
     (not re-randomized each round) for reproducibility.
     """
-    import random
 
     schedule = config.get("attack_schedule", [])
     num_of_clients = config.get("num_of_clients")
 
     for idx, entry in enumerate(schedule):
-        selection_strategy = entry.get("selection_strategy")
+        num_malicious_clients = entry.get("num_malicious_clients", entry.get("malicious_client_count", None))
+        proportion_malicious_clients = entry.get("proportion_malicious_clients", entry.get("malicious_percentage", None))
+        specific_malicious_clients = entry.get("specific_malicious_clients", entry.get("malicious_client_ids", None))
 
-        if selection_strategy == "specific":
-            # Already has explicit malicious_client_ids, nothing to do
+        if specific_malicious_clients:
+            entry["malicious_client_ids"] = specific_malicious_clients
             continue
 
-        elif selection_strategy in ("random", "percentage"):
-            if "random_seed" in entry:
-                seed = entry["random_seed"]
-            else:
-                # Auto-generate seed from attack parameters for reproducibility
-                seed_string = f"{entry.get('attack_type')}_{entry.get('start_round')}_{entry.get('end_round')}_{idx}"
-                seed = hash(seed_string) % (2 ** 32)
-
+        if "random_seed" in entry:
+            seed = entry["random_seed"]
+        else:
+            # Auto-generate seed from attack parameters for reproducibility
+            seed_string = f"{entry.get('attack_type')}_{entry.get('start_round')}_{entry.get('end_round')}_{idx}"
+            seed = hash(seed_string) % (2 ** 32)
             random.seed(seed)
 
-            if selection_strategy == "random":
-                num_malicious = entry.get("malicious_client_count")
-            else:
-                malicious_percentage = entry.get("malicious_percentage")
-                num_malicious = int(num_of_clients * malicious_percentage)
+        if proportion_malicious_clients:
+            num_malicious_clients = int(num_of_clients * proportion_malicious_clients)
 
-            if num_malicious > num_of_clients:
-                raise ValidationError(
-                    f"attack_schedule entry {idx}: Cannot select {num_malicious} clients "
-                    f"when only {num_of_clients} clients exist"
-                )
+        if specific_malicious_clients:
+            num_malicious_clients = len(specific_malicious_clients)
 
-            if num_malicious <= 0:
-                raise ValidationError(
+        if num_malicious_clients > num_of_clients:
+            raise ValidationError(
+                f"attack_schedule entry {idx}: Cannot select {num_malicious_clients} clients "
+                f"when only {num_of_clients} clients exist"
+            )
+
+        if num_malicious_clients <= 0:
+            raise ValidationError(
                     f"attack_schedule entry {idx}: Must select at least 1 malicious client "
-                    f"(got {num_malicious})"
-                )
+                    f"(got {num_malicious_clients})"
+            )
 
+        if specific_malicious_clients:
+            entry["malicious_client_ids"] = specific_malicious_clients
+
+        else:
             all_client_ids = list(range(num_of_clients))
-            selected_clients = sorted(random.sample(all_client_ids, num_malicious))
+            selected_clients = sorted(random.sample(all_client_ids, num_malicious_clients))
 
-            entry["_selected_clients"] = selected_clients
+            entry["malicious_client_ids"] = selected_clients
 
-            logging.debug(
-                f"attack_schedule entry {idx} ({selection_strategy}): "
+        logging.debug(
                 f"Selected clients {selected_clients} for {entry.get('attack_type')} attack "
                 f"(seed={seed})"
-            )
+        )
 
 
 def _validate_attack_schedule(config: dict) -> None:
@@ -402,27 +447,6 @@ def _validate_attack_schedule(config: dict) -> None:
             if entry["scale_factor"] <= 0:
                 raise ValidationError(
                     f"{entry_desc}: 'scale_factor' must be > 0"
-                )
-
-        # Validate selection strategy requirements
-        selection_strategy = entry.get("selection_strategy")
-
-        if selection_strategy == "specific":
-            if "malicious_client_ids" not in entry:
-                raise ValidationError(
-                    f"{entry_desc}: 'specific' selection strategy requires 'malicious_client_ids' list"
-                )
-
-        elif selection_strategy == "random":
-            if "malicious_client_count" not in entry:
-                raise ValidationError(
-                    f"{entry_desc}: 'random' selection strategy requires 'malicious_client_count' integer"
-                )
-
-        elif selection_strategy == "percentage":
-            if "malicious_percentage" not in entry:
-                raise ValidationError(
-                    f"{entry_desc}: 'percentage' selection strategy requires 'malicious_percentage' (0.0-1.0)"
                 )
 
     # Check for overlapping rounds (attack stacking)
@@ -513,6 +537,14 @@ def _validate_llm_parameters(strategy_config: dict) -> None:
 
 def _apply_strict_mode(config: dict) -> None:
     """Handle strict_mode validation and client configuration logic."""
+
+    # set strict mode if AI generated, try-catch for legacy configs
+    try:
+        if config["config_is_ai_generated"] == "true":
+            config["strict_mode"] = "true"
+
+    except Exception as e: # noqa
+        pass
 
     # Set strict_mode to "true" by default if not specified
     if "strict_mode" not in config:

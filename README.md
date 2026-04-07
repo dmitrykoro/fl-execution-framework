@@ -82,15 +82,14 @@ Defines the aggregation strategy. Options:
   - `attack_type`: type of attack. Two categories are supported:
     - **Data poisoning** (applied to training data before local training): `label_flipping`, `gaussian_noise`.
     - **Model poisoning** (applied to model weights after local training, before sending to server): `gradient_scaling`.
-  - `selection_strategy`: how to select malicious clients (`specific`, `random`, or `percentage`).
   - **Attack parameters:**
     - `label_flipping`: no additional parameters required.
     - `gaussian_noise`: `target_noise_snr` (dB, recommended) or `mean`/`std`, plus optional `attack_ratio` (0.0-1.0, defaults to 1.0).
     - `gradient_scaling`: `scale_factor` (number > 0). The local weight update delta `(local - global)` is multiplied by this factor before being sent to the server. A value greater than 1 amplifies the update; a value between 0 and 1 dampens it. For example, `scale_factor: 10.0` makes the malicious client's update 10× larger than its honest counterpart.
-  - **Selection parameters:**
-    - `specific`: `malicious_client_ids` (array of client IDs).
-    - `random`: `malicious_client_count` (integer).
-    - `percentage`: `malicious_percentage` (0.0-1.0).
+  - **Malicious Clients Selection:**
+    - `num_malicious_clients`: specify number of malicious clients. Specific clients will be selected randomly.
+    - `proportion_malicious_clients`: specify proportion of malicious clients. Specific clients will be selected randomly.
+    - `specific_malicious_clients`: specify array of malicious client ids.
   - **Note:** `preserve_dataset: true` is incompatible with data poisoning attacks (`label_flipping`, `gaussian_noise`) but is allowed alongside `gradient_scaling` since model poisoning does not modify the local dataset.
 
 - `save_attack_snapshots`: save attack snapshots for analysis (`true`/`false`).
@@ -117,10 +116,12 @@ Defines the aggregation strategy. Options:
   - **Lora settings**
     - `lora_rank`: rank/size of the low-rank matrices used in lora
     - `lora_alpha`: scaling factor for lora updates
-    - `lora_dropout`: droput rate applied during training
+    - `lora_dropout`: dropout rate applied during training
     - `lora_target_modules`: list of model layers where lora should be applied
 
 #### Strategy-specific parameters
+
+**For `bulyan`, `krum`, `multi-krum-based`, `multi-krum`, `rfa`, `trimmed_mean`, `pid` strategies**: 
 
 **For `trust` strategy**:
 - `begin_removing_from_round`: start round for removing malicious clients.

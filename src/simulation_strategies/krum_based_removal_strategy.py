@@ -3,6 +3,7 @@ import numpy as np
 import flwr as fl
 import torch
 import logging
+import os
 
 from typing import Dict, List, Optional, Tuple, Union
 
@@ -28,6 +29,7 @@ class KrumBasedRemovalStrategy(Krum):
             num_krum_selections: int,
             begin_removing_from_round: int,
             strategy_history: SimulationStrategyHistory,
+            output_dirname,
             *args,
             **kwargs
     ):
@@ -41,6 +43,21 @@ class KrumBasedRemovalStrategy(Krum):
         self.num_krum_selections = num_krum_selections
 
         self.strategy_history = strategy_history
+
+        # Create a logger
+        self.logger = logging.getLogger(f"krum_removal_{id(self)}")
+        self.logger.setLevel(logging.INFO)  # Set the logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL)
+
+        # Create handlers
+        out_dir = output_dirname
+        os.makedirs(out_dir, exist_ok=True)
+        file_handler = logging.FileHandler(f"{out_dir}/output.log")
+        console_handler = logging.StreamHandler()
+
+        # Add the handlers to the logger
+        self.logger.addHandler(file_handler)
+        self.logger.addHandler(console_handler)
+        self.logger.propagate = False
 
     def _calculate_krum_scores(
             self,
@@ -91,10 +108,6 @@ class KrumBasedRemovalStrategy(Krum):
 
         self.current_round += 1
 
-        # Update client.is_malicious based on attack_schedule for dynamic attacks
-        if self.strategy_history:
-            self.strategy_history.update_client_malicious_status(server_round)
-
         # Handle empty results
         if not results:
             return super().aggregate_fit(server_round, results, failures)
@@ -139,7 +152,7 @@ class KrumBasedRemovalStrategy(Krum):
                 absolute_distance=float(distances[i][0])
             )
 
-            logging.info(
+            self.logger.info(
                 f'Aggregation round: {server_round} Client ID: {client_id} Krum Score: {score} Normalized Distance: {normalized_distances[i][0]}'
             )
 
@@ -149,7 +162,7 @@ class KrumBasedRemovalStrategy(Krum):
 
         # Log the selected client for aggregation
         selected_client_id = min_krum_client[0].cid
-        logging.info(
+        self.logger.info(
             f"Selected client for aggregation: {selected_client_id} with Krum Score: {krum_scores[min_krum_score_index]}"
         )
 
@@ -180,10 +193,10 @@ class KrumBasedRemovalStrategy(Krum):
         if self.remove_clients:
             # in the first round after warmup, remove the client with the highest Krum score
             client_id = max(client_scores, key=client_scores.get)
-            logging.info(f"Removing client with highest Krum score: {client_id}")
+            self.logger.info(f"Removing client with highest Krum score: {client_id}")
             self.removed_client_ids.add(client_id)
 
-        logging.info(f"removed clients are : {self.removed_client_ids}")
+        self.logger.info(f"removed clients are : {self.removed_client_ids}")
 
         selected_client_ids = sorted(client_scores, key=client_scores.get, reverse=True)
         fit_ins = fl.common.FitIns(parameters, {"server_round": server_round})
@@ -201,7 +214,7 @@ class KrumBasedRemovalStrategy(Krum):
             failures: List[Tuple[Union[ClientProxy, EvaluateRes], BaseException]]
     ) -> Tuple[Optional[float], Dict[str, Scalar]]:
 
-        logging.info('\n' + '-' * 50 + f'AGGREGATION ROUND {server_round}' + '-' * 50)
+        self.logger.info('\n' + '-' * 50 + f'AGGREGATION ROUND {server_round}' + '-' * 50)
 
         for client_result in results:
             cid = client_result[0].cid
@@ -250,7 +263,7 @@ class KrumBasedRemovalStrategy(Krum):
             strategy_history=self.strategy_history
         )
 
-        logging.info(
+        self.logger.info(
             f'Round: {server_round} '
             f'Number of aggregated clients: {number_of_clients_in_loss_calc} '
             f'Aggregated loss: {loss_aggregated}'

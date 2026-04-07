@@ -1,7 +1,7 @@
 #!/bin/sh
 # Runs the simulation, setting up the environment if needed
 
-. "$(dirname "$0")/tests/scripts/common.sh"
+. "$(dirname "$0")/shell_scripts/common.sh"
 
 if ! ensure_virtual_environment; then
     log_warning "Running reinstall_requirements.sh to create 'venv'..."
@@ -35,8 +35,8 @@ if [ ! -d "datasets/bloodmnist" ]; then
   cd "$_orig_dir" || exit 1
 fi
 
-log_info "🚀 Initializing simulation..."
-if run_python -m src.simulation_runner table_viii_gradient_scaling/pneumoniamnist.json; then
+log_info "Initializing simulation..."
+if run_python -m src.simulation_runner "$@"; then
     echo ""
     show_simulation_output_info "out/"
 else
