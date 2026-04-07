@@ -107,6 +107,10 @@ class SimulationStrategyHistory:
             ss_res: float = None,
             ss_tot: float = None,
             r2: float = None,
+            loss_baseline: float = None,
+            mare: float = None,
+            mare_baseline: float = None,
+            num_elements: int = None,
             aggregation_participation: int = None
     ) -> None:
         """Insert a history entry for a single client.
@@ -123,6 +127,10 @@ class SimulationStrategyHistory:
             self._to_python_number(ss_res),
             self._to_python_number(ss_tot),
             self._to_python_number(r2),
+            self._to_python_number(loss_baseline),
+            self._to_python_number(mare),
+            self._to_python_number(mare_baseline),
+            self._to_python_number(num_elements),
             aggregation_participation
         )
 
@@ -181,8 +189,13 @@ class SimulationStrategyHistory:
             round_fp_count = 0
             round_fn_count = 0
 
-            round_ss_res = 0
-            round_ss_tot = 0
+            round_ss_res = 0.0
+            round_ss_tot = 0.0
+
+            round_loss_baseline = 0.0
+            round_mare = 0.0
+            round_mare_baseline = 0.0
+            round_num_elements = 0
 
             num_aggregated_clients = 0
             sum_aggregated_accuracies = 0
@@ -218,6 +231,17 @@ class SimulationStrategyHistory:
                         round_ss_res += ss_res
                         round_ss_tot += ss_tot
 
+                    loss_baseline = client_info.loss_baseline_history[round_num]
+                    mare = client_info.mare_history[round_num]
+                    mare_baseline = client_info.mare_baseline_history[round_num]
+                    num_elements = client_info.num_elements_history[round_num]
+                    if (loss_baseline is not None and mare is not None 
+                        and mare_baseline is not None and num_elements is not None):
+                        round_loss_baseline += loss_baseline * num_elements
+                        round_mare += mare * num_elements
+                        round_mare_baseline += mare_baseline * num_elements
+                        round_num_elements += num_elements
+
             self.rounds_history.append_tp_tn_fp_fn(
                 round_tp_count, round_tn_count, round_fp_count, round_fn_count
             )
@@ -237,6 +261,14 @@ class SimulationStrategyHistory:
             # calculate aggregate R^2 for the round
             global_r2 = 1 - (round_ss_res / round_ss_tot) if round_ss_tot > 0 else 0.0
             self.rounds_history.average_r2_history.append(self._to_python_number(global_r2))
+
+            # calculate aggregate baseline loss, MARE, and baseline MARE through weighted average
+            global_baseline_loss = round_loss_baseline / round_num_elements if round_num_elements > 0 else 0.0
+            self.rounds_history.average_loss_baseline_history.append(self._to_python_number(global_baseline_loss))
+            global_mare = round_mare / round_num_elements if round_num_elements > 0 else 0.0
+            self.rounds_history.average_mare_history.append(self._to_python_number(global_mare))
+            global_mare_baseline = round_mare_baseline / round_num_elements if round_num_elements > 0 else 0.0
+            self.rounds_history.average_mare_baseline_history.append(self._to_python_number(global_mare_baseline))
 
         if self.strategy_config.remove_clients:
             self.rounds_history.calculate_additional_metrics()

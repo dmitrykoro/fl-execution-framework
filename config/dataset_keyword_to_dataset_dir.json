@@ -17,5 +17,6 @@
   "organcmnist": "datasets/organcmnist",
   "organsmnist": "datasets/organsmnist",
   "medmentions": "datasets/medmentions_st21pv_ner",
-  "air_quality_uci": "datasets/air_quality_uci"
+  "air_quality_uci": "datasets/air_quality_uci",
+  "smores": "datasets/smores"
 }

@@ -229,7 +229,10 @@ class TrimmedMeanBasedRemovalStrategy(FedAvg):
                 loss=evaluate_res.loss
             )
 
-            aggregate_value.append((evaluate_res.num_examples, evaluate_res.loss))
+            if self.strategy_history.strategy_config.model_type == "lstm":
+                aggregate_value.append((evaluate_res.metrics['num_elements'], evaluate_res.loss))
+            else:
+                aggregate_value.append((evaluate_res.num_examples, evaluate_res.loss))
             number_of_clients_in_loss_calc += 1
 
         loss_aggregated = weighted_loss_avg(aggregate_value)

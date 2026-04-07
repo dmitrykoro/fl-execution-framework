@@ -22,6 +22,7 @@ from src.network_models.gpt2_model_definition import load_gpt2_ner_model, load_g
 from src.dataset_loaders.image_transformers.medmnist_2d_grayscale_image_transformer import medmnist_2d_grayscale_image_transformer
 from src.dataset_loaders.image_transformers.medmnist_2d_rgb_image_transformer import medmnist_2d_rgb_image_transformer
 from src.dataset_loaders.air_quality_uci_dataset_loader import AirQualityUCIDatasetLoader
+from src.dataset_loaders.smores_data_loader import SmoresDatasetLoader
 
 
 from src.network_models.its_network_definition import ITSNetwork
@@ -42,6 +43,7 @@ from src.network_models.organcmnist_network_definition import OrganCMNISTNetwork
 from src.network_models.organsmnist_network_definition import OrganSMNISTNetwork
 from src.network_models.bert_model_definition import load_model, load_model_with_lora
 from src.network_models.linear_regression_model_definition import LinearRegressionModel
+from src.network_models.lstm_model_definition import LSTMModel
 
 from src.client_models.flower_client import FlowerClient
 
@@ -337,10 +339,17 @@ class FederatedSimulation:
 
         elif dataset_keyword == "air_quality_uci":
             dataset_loader = AirQualityUCIDatasetLoader(
-                target_gas=self.strategy_config.target_gas,
+                target_name=self.strategy_config.target_name,
                 **common_kwargs
             )
             self._network_model = LinearRegressionModel()
+
+        elif dataset_keyword == "smores":
+            dataset_loader = SmoresDatasetLoader(
+                sequence_len=self.strategy_config.sequence_len,
+                **common_kwargs
+            )
+            self._network_model = LSTMModel()
 
         else:
             logging.error(
@@ -483,7 +492,6 @@ class FederatedSimulation:
         if self.strategy_config.model_type == "transformer" and hasattr(self._dataset_loader, 'tokenizer'):
             tokenizer = self._dataset_loader.tokenizer
 
-        # TODO: Generalize `target_gas` to be used by all regression tasks
         return FlowerClient(
             client_id=int(cid),
             net=net,
@@ -502,7 +510,8 @@ class FederatedSimulation:
             experiment_info=experiment_info,
             strategy_number=self.strategy_config.strategy_number,
             tokenizer=tokenizer,
-            target_gas=self.strategy_config.target_gas,
+            target_name=self.strategy_config.target_name,
+            sequence_len=self.strategy_config.sequence_len,
             strategy_history=self.strategy_history
         ).to_client()
 

@@ -26,3 +26,14 @@ def store_evaluation_metrics(
             ss_tot=metrics["ss_tot"],
             r2=metrics["r2"]
         )
+    elif ("loss_baseline" in metrics and "mare" in metrics 
+          and "mare_baseline" in metrics and "num_elements" in metrics):
+        # For time-series forcasting tasks
+        strategy_history.insert_single_client_history_entry(
+            client_id=clinet_id,
+            current_round=current_round,
+            loss_baseline=metrics["loss_baseline"],
+            mare=metrics["mare"],
+            mare_baseline=metrics["mare_baseline"],
+            num_elements=metrics["num_elements"]
+        )

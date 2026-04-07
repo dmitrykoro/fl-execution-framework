@@ -43,12 +43,13 @@ config_schema = {
                 "organamnist",
                 "organcmnist",
                 "organsmnist",
-                "air_quality_uci"
+                "air_quality_uci",
+                "smores",
             ]
         },
         "model_type": {
             "type": "string",
-            "enum": ["cnn", "transformer", "linear_regression"]
+            "enum": ["cnn", "transformer", "linear_regression", "lstm"]
         },
         "num_of_rounds": {
             "type": "integer"
@@ -165,10 +166,18 @@ config_schema = {
 
         # Dataset specific parameters
 
-        # AirQualityUCI
-        "target_gas": {
+        # Regression Tasks Dataset Parameters
+        "target_name": {
             "type": "string",
-            "enum": ["CO", "C6H6", "NOx", "NO2"]
+            "enum": [
+                        "CO", "C6H6", "NOx", "NO2", # AirQualityUCI
+                        "DO",                       # SMORES
+                    ]
+        },
+        
+        # SMORES
+        "sequence_len": {
+            "type": "integer"
         },
 
         # Strategy specific parameters
@@ -338,9 +347,35 @@ def _validate_dependent_params(strategy_config: dict) -> None:
     dataset_keyword = strategy_config["dataset_keyword"]
 
     if dataset_keyword == "air_quality_uci":
-        if "target_gas" not in strategy_config:
+        if "target_name" not in strategy_config:
             raise ValidationError(
-                f"Missing parameter target_gas for UCI Air Quality dataset {dataset_keyword}"
+                f"Missing parameter target_name for UCI Air Quality dataset {dataset_keyword}"
+            )
+        elif ("target_name" in strategy_config
+              and strategy_config.get("target_name","") not in ["CO", "C6H6", "NOx", "NO2"]):
+            raise ValidationError(
+                f"For UCI Air Quality dataset {dataset_keyword}, target_name  must be one of ['CO', 'C6H6', 'NOx', 'NO2']"
+            ) 
+    elif dataset_keyword == "smores":
+        if "target_name" not in strategy_config:
+            raise ValidationError(
+                f"Missing parameter target_name for SMORES dataset {dataset_keyword}"
+            )
+        elif ("target" in strategy_config
+              and strategy_config.get("target_name","") not in ["DO"]):
+            raise ValidationError(
+                f"For SMORES dataset {dataset_keyword}, target_name must be one of ['DO']"
+            )
+
+        if "sequence_len" not in strategy_config:
+            raise ValidationError(
+                f"Missing parameter sequence_len for SMORES dataset {dataset_keyword}"
+            )
+        
+        if "attack_type" in strategy_config and strategy_config["attack_type"] == "target_flipping":
+            raise ValidationError(
+                f"Static Target Flipping is not supported for SMORES dataset {dataset_keyword}.\n"
+                        f"Please use 'attack_schedule' instead of 'attack_type'."
             )
         
     if aggregation_strategy_keyword in ("bulyan", "krum", "multi-krum-based", "multi-krum", "rfa", "trimmed_mean", "pid"):

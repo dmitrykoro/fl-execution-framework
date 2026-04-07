@@ -257,7 +257,10 @@ class BulyanStrategy(fl.server.strategy.FedAvg):
                 client_id=int(cp.cid), current_round=self.current_round, loss=ev.loss
             )
             if cp.cid not in self.removed_client_ids:
-                aggregate_value.append((ev.num_examples, ev.loss))
+                if self.strategy_history.strategy_config.model_type == "lstm":
+                    aggregate_value.append((ev.metrics['num_elements'], ev.loss))
+                else:
+                    aggregate_value.append((ev.num_examples, ev.loss))
                 num_clients_loss += 1
 
         loss_aggregated = weighted_loss_avg(aggregate_value)

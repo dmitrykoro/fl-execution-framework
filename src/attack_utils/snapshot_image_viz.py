@@ -325,12 +325,11 @@ def save_image_grid(
     plt.close()
 
 
-#TODO: Generalize `target_gas` param for all regression tasks
 def save_scatter_plot(
     targets: np.ndarray,
     original_targets: np.ndarray,
     filepath: Path,
-    target_gas: str,
+    target_name: str,
     min_target: float,
     max_target: float,
     attack_config: Optional[Union[dict, List[dict]]] = None,
@@ -345,7 +344,7 @@ def save_scatter_plot(
         targets: Poisoned targets array
         original_targets: Original targets before attack
         filepath: Output file path for the scatter plot visualization
-        target_gas: Value that the model is predicting
+        target_name: Value that the model is predicting
         min_target: Minimum target value
         max_target: Maximum target value
         attack_config: Attack configuration dict or list of dicts (optional)
@@ -372,10 +371,10 @@ def save_scatter_plot(
             degree_of_poisoning = _extract_attack_param(
                     attack_config, "attack_ratio", default=0.1
                 )
-            legend_title = f"Data Samples and Attack\nTarget: {target_gas}\nDegree of Poisoing: {degree_of_poisoning}\nMin: {min_target:.4f}\nMax: {max_target:.4f}"
+            legend_title = f"Data Samples and Attack\nTarget: {target_name}\nDegree of Poisoing: {degree_of_poisoning}\nMin: {min_target:.4f}\nMax: {max_target:.4f}"
     else:
         plt_title = f"Regression Attack"
-        legend_title = f"Data Samples and Attack\nTarget: {target_gas}\nMin: {min_target:.4f}\nMax: {max_target:.4f}"
+        legend_title = f"Data Samples and Attack\nTarget: {target_name}\nMin: {min_target:.4f}\nMax: {max_target:.4f}"
     plt.title(plt_title)
 
     legend_items = []

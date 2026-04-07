@@ -14,14 +14,14 @@ class AirQualityUCIDatasetLoader:
             num_of_clients: int,
             batch_size: int,
             training_subset_fraction: float,
-            target_gas: str = "CO"
+            target_name: str = "CO"
     ) -> None:
         self.dataset_dir = dataset_dir
         self.num_of_clients = num_of_clients
         self.batch_size = batch_size
         self.training_subset_fraction = training_subset_fraction
 
-        self.target_gas = target_gas + "(GT)"
+        self.target_gas = target_name + "(GT)"
         self.used_columns = copy.deepcopy(AirQualityUCIDatasetLoader._always_used_columns)
         self.used_columns.append(self.target_gas)
 
