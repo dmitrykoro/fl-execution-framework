@@ -11,7 +11,7 @@ config_schema = {
             "type": "string",
             "enum": ["trust", "pid", "pid_scaled", "pid_standardized", "pid_standardized_score_based",
                     "multi-krum", "krum", "multi-krum-based", "trimmed_mean",
-                    "rfa", "bulyan", "fools_gold", "pid_v5_stateless_mean_based"]
+                    "rfa", "bulyan", "fools_gold", "pid_v5_stateless_mean_based", "pid_made"]
         },
         "strict_mode": {
             "type": "string",
@@ -208,6 +208,26 @@ config_schema = {
             "type": "number"
         },
 
+        # PID-MADE
+        "lam": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "exclusiveMaximum": 1.0
+        },
+        "threshold_mode": {
+            "type": "string",
+            "enum": ["fixed", "chebyshev", "gaussian"]
+        },
+        "tau": {
+            "type": "number",
+            "exclusiveMinimum": 0.0
+        },
+        "alpha": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "exclusiveMaximum": 1.0
+        },
+
         # Attack scheduling
         "attack_schedule": {
             "type": "array",
@@ -309,6 +329,28 @@ def _validate_dependent_params(strategy_config: dict) -> None:
                 raise ValidationError(
                     f"Missing parameter {param} for PID aggregation {aggregation_strategy_keyword}"
                 )
+    elif aggregation_strategy_keyword == "pid_made":
+        pid_made_required = ["Kp", "Ki", "Kd", "lam", "threshold_mode", "begin_removing_from_round"]
+        for param in pid_made_required:
+            if param not in strategy_config:
+                raise ValidationError(
+                    f"Missing parameter '{param}' for pid_made aggregation"
+                )
+        threshold_mode = strategy_config["threshold_mode"]
+        if threshold_mode == "fixed":
+            if "tau" not in strategy_config:
+                raise ValidationError(
+                    "pid_made with threshold_mode='fixed' requires 'tau' parameter"
+                )
+        elif threshold_mode in ("chebyshev", "gaussian"):
+            if "alpha" not in strategy_config:
+                raise ValidationError(
+                    f"pid_made with threshold_mode='{threshold_mode}' requires 'alpha' parameter"
+                )
+        else:
+            raise ValidationError(
+                f"pid_made: invalid threshold_mode '{threshold_mode}'. Must be 'fixed', 'chebyshev', or 'gaussian'"
+            )
     elif aggregation_strategy_keyword in ["multi-krum", "krum", "multi-krum-based"]:
         if "num_krum_selections" not in strategy_config:
             raise ValidationError(
