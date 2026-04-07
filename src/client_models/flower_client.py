@@ -7,6 +7,11 @@ from collections import OrderedDict
 
 from src.network_models.bert_model_definition import get_peft_model_state_dict, set_peft_model_state_dict
 from src.dataset_handlers.dataset_handler import apply_poisoning_attack
+from src.attack_utils.poisoning import (
+    should_poison_this_round,
+    apply_model_poisoning_attack,
+    is_model_poisoning_attack,
+)
 from src.utils.legacy.ner_metrics_medmentions import StrictMentionAndDocEvaluator
 from src.output_handlers import attack_snapshot_handler
 
@@ -331,6 +336,7 @@ class FlowerClient(fl.client.NumPyClient):
 
     def fit(self, parameters, config):
         logging.debug(f"[Client {self.client_id}] Starting fit() - Setting parameters and beginning training")
+        global_params_ndarrays = [p.copy() for p in parameters]
         self.set_parameters(self.net, parameters)
 
         # Capture global LoRA parameters for FedProx
@@ -351,7 +357,20 @@ class FlowerClient(fl.client.NumPyClient):
         if torch.cuda.is_available():
             torch.cuda.empty_cache()
 
-        return self.get_parameters(self.net), len(self.trainloader), {"loss": epoch_loss, "accuracy": epoch_acc, "eta_eff": eta_eff}
+        local_params = self.get_parameters(self.net)
+
+        current_round = config.get("server_round", 1) if config else 1
+        should_poison, attack_configs = should_poison_this_round(
+            current_round, self.client_id, self.attacks_schedule
+        )
+        if should_poison and attack_configs:
+            for attack_config in attack_configs:
+                if is_model_poisoning_attack(attack_config.get("attack_type")):
+                    local_params = apply_model_poisoning_attack(
+                        local_params, global_params_ndarrays, attack_config
+                    )
+
+        return local_params, len(self.trainloader), {"loss": epoch_loss, "accuracy": epoch_acc, "eta_eff": eta_eff}
 
     def evaluate(self, parameters, config):
         self.set_parameters(self.net, parameters)

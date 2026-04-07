@@ -79,14 +79,18 @@ Defines the aggregation strategy. Options:
 - **`attack_schedule`**: array of attack configurations for round-based attacks. Each entry requires:
   - `start_round`: when the attack starts (1 to `num_of_rounds`).
   - `end_round`: when the attack ends (1 to `num_of_rounds`).
-  - `attack_type`: type of attack (`label_flipping` or `gaussian_noise`).
+  - `attack_type`: type of attack. Both categories are configured as `attack_schedule` entries and applied in-memory — no pre-poisoned dataset required:
+    - **Data poisoning** (applied to training data before local training): `label_flipping`, `gaussian_noise`.
+    - **Model poisoning** (applied to model weights after local training, before sending to server): `gradient_scaling`.
   - **Attack parameters:**
     - `label_flipping`: no additional parameters required.
     - `gaussian_noise`: `target_noise_snr` (dB, recommended) or `mean`/`std`, plus optional `attack_ratio` (0.0-1.0, defaults to 1.0).
+    - `gradient_scaling`: `scale_factor` (number > 0). The local weight update delta `(local - global)` is multiplied by this factor before being sent to the server. A value greater than 1 amplifies the update; a value between 0 and 1 dampens it. For example, `scale_factor: 10.0` makes the malicious client's update 10× larger than its honest counterpart.
   - **Malicious Clients Selection:**
     - `num_malicious_clients`: specify number of malicious clients. Specific clients will be selected randomly.
     - `proportion_malicious_clients`: specify proportion of malicious clients. Specific clients will be selected randomly.
-    - `specific_malicious_clients`: specify array of malicious client ids. 
+    - `specific_malicious_clients`: specify array of malicious client ids.
+  - **Note:** `preserve_dataset: true` is incompatible with data poisoning attacks (`label_flipping`, `gaussian_noise`) but is allowed alongside `gradient_scaling` since model poisoning does not modify the local dataset.
 
 - `save_attack_snapshots`: save attack snapshots for analysis (`true`/`false`).
 - `attack_snapshot_format`: format for snapshots (`pickle`, `visual`, or `pickle_and_visual`).

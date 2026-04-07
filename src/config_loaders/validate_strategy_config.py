@@ -218,7 +218,7 @@ config_schema = {
                     "end_round": {"type": "integer", "minimum": 1},
                     "attack_type": {
                         "type": "string",
-                        "enum": ["label_flipping", "gaussian_noise"]
+                        "enum": ["label_flipping", "gaussian_noise", "gradient_scaling"]
                     },
                     # old format entries for backward-compatibility - do not use
                     "selection_strategy": {"type": "string", "enum": ["specific", "random", "percentage"]},
@@ -231,7 +231,8 @@ config_schema = {
                     "proportion_malicious_clients": {"type": "number", "items": {"type": "integer"}},
                     "random_seed": {"type": "integer", "minimum": 0},
                     "target_noise_snr": {"type": "number"},
-                    "attack_ratio": {"type": "number", "minimum": 0.0, "maximum": 1.0}
+                    "attack_ratio": {"type": "number", "minimum": 0.0, "maximum": 1.0},
+                    "scale_factor": {"type": "number", "exclusiveMinimum": 0}
                 },
                 "required": ["start_round", "end_round", "attack_type"]
             }
@@ -438,6 +439,16 @@ def _validate_attack_schedule(config: dict) -> None:
                     f"{entry_desc}: gaussian_noise attack requires 'attack_ratio' parameter"
                 )
 
+        elif attack_type == "gradient_scaling":
+            if "scale_factor" not in entry:
+                raise ValidationError(
+                    f"{entry_desc}: gradient_scaling attack requires 'scale_factor' parameter"
+                )
+            if entry["scale_factor"] <= 0:
+                raise ValidationError(
+                    f"{entry_desc}: 'scale_factor' must be > 0"
+                )
+
     # Check for overlapping rounds (attack stacking)
     for i, entry1 in enumerate(schedule):
         for j, entry2 in enumerate(schedule[i + 1:], start=i + 1):
@@ -469,8 +480,10 @@ def _validate_attack_schedule(config: dict) -> None:
                         f"Both attacks will be stacked and applied sequentially."
                     )
 
-    # Strict rejection: preserve_dataset incompatible with attack_schedule
-    if schedule and config.get("preserve_dataset") == "true":
+    # Strict rejection: preserve_dataset incompatible with data-poisoning attack_schedule
+    # (gradient_scaling is post-training and does not touch the dataset, so it is exempt)
+    data_poisoning_entries = [e for e in schedule if e.get("attack_type") != "gradient_scaling"]
+    if data_poisoning_entries and config.get("preserve_dataset") == "true":
         raise ValidationError(
             "CONFIG REJECTED: Cannot use attack_schedule with preserve_dataset=true\n"
             "\n"
