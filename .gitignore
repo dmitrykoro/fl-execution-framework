@@ -24,6 +24,7 @@ tests/logs/
 .sonarwork/
 *sonar-project.properties
 config/simulation_strategies/testing/
+config/simulation_strategies/study/
 build/
 cache/
 dist/

@@ -16,5 +16,8 @@
   "organamnist": "datasets/organamnist",
   "organcmnist": "datasets/organcmnist",
   "organsmnist": "datasets/organsmnist",
-  "medmentions": "datasets/medmentions_st21pv_ner"
+  "medmentions": "datasets/medmentions_st21pv_ner",
+  "cifar100_a01": "datasets/cifar100_a01",
+  "cifar100_a05": "datasets/cifar100_a05",
+  "cifar100_a20": "datasets/cifar100_a20"
 }

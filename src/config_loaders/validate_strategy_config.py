@@ -41,7 +41,10 @@ config_schema = {
                 "tissuemnist",
                 "organamnist",
                 "organcmnist",
-                "organsmnist"
+                "organsmnist",
+                "cifar100_a01",
+                "cifar100_a05",
+                "cifar100_a20"
             ]
         },
         "model_type": {
