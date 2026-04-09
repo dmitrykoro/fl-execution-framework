@@ -32,6 +32,7 @@ Defines the aggregation strategy. Options:
   - `pid_standardized_score_based`: Same as pid_standardized, but threshold is calculated based on pid scores.
   - `pid_v5_stateless_mean_based`: Same as pid_standardized_score_based, but removal is stateless: all clients are reevaluated each round, and removal decisions apply only to the current round rather than being permanently maintained.
   - `pid_v5_stateless_median_based`: Same as pid_v5_stateless_mean_based, but threshold is calculated with median instead of mean.
+  - `pid_made`: PID-MADE (PID with Model-Adaptive Deviation Estimation). Uses a *lagged centroid* reference (geometric median during warmup, then the previous global model), a *discounted integral* with forgetting factor λ, and an *adaptive threshold* (fixed, Chebyshev, or Gaussian). Fully stateless: no client is permanently removed — every client is re-evaluated fresh each round.
   - `multi-krum`: Multi-Krum aggregation. Clients are removed from aggregation only in current round.
   - `krum`: Krum aggregation works like Multi-Krum, but uses only a single client. 
   - `multi-krum-based`: Multi-Krum-based aggregation where removed clients are excluded from aggregation permanently.
@@ -139,7 +140,16 @@ Defines the aggregation strategy. Options:
 **For `trimmed_mean` strategy**:
 - `trim_ratio`: fraction of extreme values to discard from both ends (lowest and highest) of each parameter dimension before averaging. Must be in the range 0–0.5.
 
-
+**For `pid_made` strategy**:
+- `Kp`, `Ki`, `Kd`: PID controller gains.
+- `begin_removing_from_round`: number of warmup rounds (`T_warmup`). During warmup the centroid reference is the geometric median of client weights; after warmup it switches to the lagged global model.
+- `lam`: forgetting factor λ ∈ (0, 1) applied to the per-client integral each round (`I[i] ← I[i]*λ + Δᵢ`). Lower values make the integral forget history faster.
+- `threshold_mode`: how the per-round threshold τₜ is derived from the score distribution. Options:
+  - `fixed`: τₜ = `tau` (constant). Requires `tau` parameter.
+  - `chebyshev`: τₜ = μ + √((1-α)/α)·σ — distribution-free bound. Requires `alpha` parameter.
+  - `gaussian`: τₜ = μ + Φ⁻¹(1-α)·σ — parametric bound. Requires `alpha` parameter.
+- `tau`: constant threshold score (required only when `threshold_mode` is `fixed`).
+- `alpha`: per-round false-positive rate α ∈ (0, 1) (required when `threshold_mode` is `chebyshev` or `gaussian`). Smaller α → higher threshold → fewer clients excluded.
 
 ---
 
