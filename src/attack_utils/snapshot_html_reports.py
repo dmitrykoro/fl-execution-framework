@@ -86,6 +86,51 @@ def _split_composite_attack_info(attack_type: str, attack_configs: list) -> list
     return attack_info
 
 
+def _build_visuals_list(attack_types:list[str], base_dir: Path) -> list:
+    """
+    Build list of visuals for HTML report.
+    
+    Args:
+        attack_type: List of attack types
+        base_dir: Path to base directory
+
+    Returns:
+        List of visuals
+    """
+    visuals = []
+    
+    for attack_type in attack_types:
+        if attack_type == "token_replacement":
+            visuals.append(
+                {
+                    "path": (base_dir / f"{attack_type}_samples.txt").as_posix(),
+                    "type": "text",
+                    "icon": "📝",
+                    "title": "View text samples",
+                }
+            )
+        elif attack_type == "little_is_enough":
+            visuals.append(
+                {
+                    "path": (base_dir / f"{attack_type}_attack_info.txt").as_posix(),
+                    "type": "text",
+                    "icon": "📑",
+                    "title": "View extra info",
+                }
+            )
+        else:            
+            visuals.append(
+                {
+                    "path": (base_dir / f"{attack_type}_visual.png").as_posix(),
+                    "type": "image",
+                    "icon": "🖼️",
+                    "title": "View visual",
+                }
+            )
+
+    return visuals
+
+
 def generate_summary_json(
     output_dir: str, run_config: Optional[dict] = None, strategy_number: int = 0
 ) -> None:
@@ -181,7 +226,9 @@ def generate_snapshot_index(
             client_id = metadata.get("client_id")
             round_num = metadata.get("round_num")
 
-            if isinstance(attack_config, list) and len(attack_config) > 1:
+            base_dir = Path(f"client_{client_id}") / f"round_{round_num}"
+
+            if isinstance(attack_config, list):
                 attack_info_list = _split_composite_attack_info(
                     attack_type, attack_config
                 )
@@ -191,6 +238,8 @@ def generate_snapshot_index(
                 for info in attack_info_list:
                     if info["params"]:
                         all_params.extend(info["params"])
+
+                visuals = _build_visuals_list(attack_types, base_dir)
 
                 snapshot_data.append(
                     {
@@ -203,33 +252,17 @@ def generate_snapshot_index(
                         "pickle_path": snapshot_path.relative_to(
                             snapshots_dir
                         ).as_posix(),
-                        "visual_path": (
-                            Path(f"client_{client_id}")
-                            / f"round_{round_num}"
-                            / f"{attack_type}_visual.png"
-                        ).as_posix(),
-                        "visual_type": "image",
-                        "metadata_path": (
-                            Path(f"client_{client_id}")
-                            / f"round_{round_num}"
-                            / f"{attack_type}_metadata.json"
-                        ).as_posix(),
+                        "visuals": visuals,
+                        "metadata_path": (base_dir / f"{attack_type}_metadata.json").as_posix(),
                     }
                 )
             else:
-                if isinstance(attack_config, list):
-                    attack_config = attack_config[0] if attack_config else {}
 
                 attack_parameters = _extract_attack_params_for_display(
                     attack_type, attack_config
                 )
 
-                if attack_type == "token_replacement":
-                    visual_filename = f"{attack_type}_samples.txt"
-                    visual_type = "text"
-                else:
-                    visual_filename = f"{attack_type}_visual.png"
-                    visual_type = "image"
+                visuals = _build_visuals_list([attack_type], base_dir)
 
                 snapshot_data.append(
                     {
@@ -244,17 +277,8 @@ def generate_snapshot_index(
                         "pickle_path": snapshot_path.relative_to(
                             snapshots_dir
                         ).as_posix(),
-                        "visual_path": (
-                            Path(f"client_{client_id}")
-                            / f"round_{round_num}"
-                            / visual_filename
-                        ).as_posix(),
-                        "visual_type": visual_type,
-                        "metadata_path": (
-                            Path(f"client_{client_id}")
-                            / f"round_{round_num}"
-                            / f"{attack_type}_metadata.json"
-                        ).as_posix(),
+                        "visuals": visuals,
+                        "metadata_path": (base_dir / f"{attack_type}_metadata.json").as_posix(),
                     }
                 )
 

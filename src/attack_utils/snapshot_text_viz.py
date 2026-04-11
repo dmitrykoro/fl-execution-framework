@@ -2,7 +2,7 @@
 Text visualization utilities for attack snapshots.
 """
 from pathlib import Path
-from typing import List, Optional, Union
+from typing import List, Optional, Union, Any, Dict, Optional
 
 import numpy as np
 
@@ -209,3 +209,41 @@ def save_text_samples(
             f.write("=" * 40 + "\n")
             for i, (label, orig) in enumerate(zip(labels, original_labels)):
                 f.write(f"Sample {i}: {label} (was {orig})\n")
+
+
+def save_extra_attack_info(
+      client_id: int,
+      round_num: int,
+      filepath: Path,
+      attack_type: str,
+      experiment_info: Dict[str, Any],  
+):
+    """
+    Save extra information about an attack that isn't included in the parameters.
+
+    For example, the Little Is Enough attack has no parameters, but there are variables caluclated
+    during the attack that define how the attack works and should be saved for debugging purposes.
+
+    Args:
+        client_id: Client ID
+        round_num: Round number
+        filepath: Filepath to save to
+        attack_type: Type of attack
+        experiment_info: Additional information about the attack
+    """
+    with open(filepath, "w", encoding="utf-8") as f:
+        f.write("=" * 80 + "\n")
+        f.write("ADDITIONAL ATTACK INFORMATION\n")
+        f.write("=" * 80 + "\n\n")
+
+        f.write(f"Round {round_num}: Attack on Client {client_id}\n")
+
+        if attack_type == "little_is_enough":
+            f.write(f"\tAttack Type: Little Is Enough\n")
+            f.write(f"\tTotal Clients: {experiment_info['total_clients']}\n")
+            f.write(f"\tMalicious Clients: {experiment_info['malicious_clients']}\n")
+            f.write(f"\tBenign Clients: {experiment_info['benign_clients']}\n")
+            f.write(f"\tNumber of non-corrupt clients needed for a majority: {experiment_info['s']}\n")
+            f.write(f"\tProportional value of z_max: {experiment_info['p']}\n")
+            f.write(f"\tz_max: {experiment_info['z_max']}\n")
+        

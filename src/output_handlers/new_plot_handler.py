@@ -99,6 +99,7 @@ def _add_attack_background_shading(
         "gaussian_noise": "#9999ff",   # Blue
         "token_replacement": "#99ff99", # Green
         "gradient_scaling": "#ffcc66", # Orange
+        "little_is_enough": "#faff5b"  # Yellow
     }
 
     ATTACK_HATCHES = {
@@ -106,6 +107,7 @@ def _add_attack_background_shading(
         "gaussian_noise": "\\\\\\\\", # Dense diagonal left
         "token_replacement": "xxxx",   # Dense crosses
         "gradient_scaling": "....",    # Dots
+        "little_is_enough": "----",      # Dashes
     }
 
     # Track which attack periods we've already added to avoid duplicate labels

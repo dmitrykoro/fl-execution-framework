@@ -64,7 +64,7 @@ config_schema = {
         },
         "attack_type": {
             "type": "string",
-            "enum": ["label_flipping", "gaussian_noise", "ner_label_flipping"]
+            "enum": ["label_flipping", "gaussian_noise", "ner_label_flipping",]
         },
         "attack_ratio": {
             "type": "number",
@@ -241,7 +241,8 @@ config_schema = {
                     "end_round": {"type": "integer", "minimum": 1},
                     "attack_type": {
                         "type": "string",
-                        "enum": ["label_flipping", "gaussian_noise", "gradient_scaling"]
+                        "enum": ["label_flipping", "gaussian_noise", "gradient_scaling",
+                                 "little_is_enough"]
                     },
                     # old format entries for backward-compatibility - do not use
                     "selection_strategy": {"type": "string", "enum": ["specific", "random", "percentage"]},
@@ -526,8 +527,8 @@ def _validate_attack_schedule(config: dict) -> None:
                     )
 
     # Strict rejection: preserve_dataset incompatible with data-poisoning attack_schedule
-    # (gradient_scaling is post-training and does not touch the dataset, so it is exempt)
-    data_poisoning_entries = [e for e in schedule if e.get("attack_type") != "gradient_scaling"]
+    # (gradient_scaling and little_is_enough is post-training and does not touch the dataset, so it is exempt)
+    data_poisoning_entries = [e for e in schedule if e.get("attack_type") not in ["gradient_scaling", "little_is_enough"]]
     if data_poisoning_entries and config.get("preserve_dataset") == "true":
         raise ValidationError(
             "CONFIG REJECTED: Cannot use attack_schedule with preserve_dataset=true\n"

@@ -63,6 +63,8 @@ from src.data_models.simulation_strategy_history import SimulationStrategyHistor
 
 from src.dataset_handlers.dataset_handler import DatasetHandler
 
+from src.attack_utils.little_is_enough_attack import LittleIsEnoughAttack
+
 
 def weighted_average(metrics: List[Tuple[int, dict]]) -> dict:
     """Compute weighted average of metrics from multiple clients."""
@@ -460,6 +462,13 @@ class FederatedSimulation:
 
         else:
             raise NotImplementedError(f"The strategy {aggregation_strategy_keyword} not implemented!")
+        
+        use_median_control_attack = False
+        if self.strategy_config.attack_schedule is not None:
+            use_median_control_attack = LittleIsEnoughAttack.check_for_attack(self.strategy_config.attack_schedule)
+
+        if use_median_control_attack and self._aggregation_strategy is not None:
+            self._aggregation_strategy = LittleIsEnoughAttack(self._aggregation_strategy, **common_kwargs)
 
     def client_fn(self, cid: str) -> Client:
         """Create a Flower client."""
