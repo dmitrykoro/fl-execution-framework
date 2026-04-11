@@ -92,7 +92,6 @@ Defines the aggregation strategy. Options:
     - `num_malicious_clients`: specify number of malicious clients. Specific clients will be selected randomly.
     - `proportion_malicious_clients`: specify proportion of malicious clients. Specific clients will be selected randomly.
     - `specific_malicious_clients`: specify array of malicious client ids.
-  - **Note:** `preserve_dataset: true` is incompatible with data poisoning attacks (`label_flipping`, `gaussian_noise`) but is allowed alongside `gradient_scaling` and `little_is_enough` since model poisoning does not modify the local dataset.
 
 - `save_attack_snapshots`: save attack snapshots for analysis (`true`/`false`).
 - `attack_snapshot_format`: format for snapshots (`pickle`, `visual`, or `pickle_and_visual`).

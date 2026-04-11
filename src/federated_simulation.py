@@ -464,7 +464,9 @@ class FederatedSimulation:
             raise NotImplementedError(f"The strategy {aggregation_strategy_keyword} not implemented!")
         
         use_median_control_attack = False
-        if self.strategy_config.attack_schedule is not None:
+        if self.strategy_config.attack_type is not None:
+            use_median_control_attack = LittleIsEnoughAttack.check_for_attack(self.strategy_config.attack_type)
+        elif self.strategy_config.attack_schedule is not None:
             use_median_control_attack = LittleIsEnoughAttack.check_for_attack(self.strategy_config.attack_schedule)
 
         if use_median_control_attack and self._aggregation_strategy is not None:

@@ -47,18 +47,20 @@ class LittleIsEnoughAttack(fl.server.strategy.FedAvg):
 
     
     @staticmethod
-    def check_for_attack(attack_config: List[dict]) -> bool:
+    def check_for_attack(attack: Union[str, List[dict]]) -> bool:
         """Check if there will be a little is enough attack during the simulation.
 
         Args:
-            attack: Attack configuration list of dicts
+            attack: Attack type or Attack configuration list of dicts
 
         Returns:
             Boolean for whether there will be a little is enough attack
         """
 
-        if isinstance(attack_config, list):
-            if attack_config:
+        if isinstance(attack, str):
+            return attack == "little_is_enough"
+        elif isinstance(attack, list):
+            if attack:
                 return True if "little_is_enough" in [cfg.get("attack_type") or cfg.get("type", "unknown") for cfg in attack] else False
         return False
     
@@ -113,8 +115,6 @@ class LittleIsEnoughAttack(fl.server.strategy.FedAvg):
             results: List[Tuple[fl.server.client_proxy.ClientProxy, fl.common.FitRes]],
             failures: List[Union[Tuple[ClientProxy, FitRes], BaseException]],
     ) -> Tuple[Optional[Parameters], Dict[str, Scalar]]:
-        
-        #self.current_round += 1
 
         # Handle empty results
         if not results:
@@ -135,7 +135,6 @@ class LittleIsEnoughAttack(fl.server.strategy.FedAvg):
                 malicious.append((client_proxy, fit_res))
             else:
                 benign.append((client_proxy, fit_res))
-
 
         if malicious:
             # Set the number of requred workers for a majorty
@@ -161,13 +160,6 @@ class LittleIsEnoughAttack(fl.server.strategy.FedAvg):
             p = min(max(p, 1e-6), 1 - 1e-6)
             z_max = norm.ppf(p)
 
-            # print(f"\nRound {server_round}: Little Is Enough Attack")
-            # print(f"Number of malicious clients: {m}")
-            # print(f"Number of benign clients: {len(benign)}")
-            # print(f"Number of required workers: {s}")
-            # print(f"Preportional value of z_max: {p}")
-            # print(f"z_max: {z_max}\n")
-
             # Compute per layer μ and σ from malicious updates
             mu, sigma = self._compute_stats(malicious)
 
@@ -181,32 +173,32 @@ class LittleIsEnoughAttack(fl.server.strategy.FedAvg):
             new_results = benign + modified_malicious
 
             # Save little_is_enough visual snapshot for each malicious client
-            experiment_info = {
-                'total_clients': n,
-                'malicious_clients': m,
-                'benign_clients': len(benign),
-                's': s,
-                'p': p,
-                'z_max': z_max
-            }
-            for client_proxy, _ in malicious:
-                client_id = int(client_proxy.cid)
-                client_instance = self.strategy_history.get_client_by_id(client_id)
-                current_round_attack_configs = client_instance.get_current_attack_configs(server_round)
+            if self.strategy_history.strategy_config.attack_schedule:
+                experiment_info = {
+                    'total_clients': n,
+                    'malicious_clients': m,
+                    'benign_clients': len(benign),
+                    's': s,
+                    'p': p,
+                    'z_max': z_max
+                }
+                for client_proxy, _ in malicious:
+                    client_id = int(client_proxy.cid)
+                    client_instance = self.strategy_history.get_client_by_id(client_id)
+                    current_round_attack_configs = client_instance.get_current_attack_configs(server_round)
 
-                save_visual_snapshot(
-                    client_id=client_id,
-                    round_num=server_round,
-                    attack_config=current_round_attack_configs,
-                    data_sample=np.array([]),
-                    labels_sample=np.array([]),
-                    original_labels_sample=np.array([]),
-                    output_dir=self.out_dir,
-                    experiment_info=experiment_info,
-                    strategy_number=self.strategy_history.strategy_config.strategy_number,
-                    specific_attack_type="little_is_enough"
-                )
-
+                    save_visual_snapshot(
+                        client_id=client_id,
+                        round_num=server_round,
+                        attack_config=current_round_attack_configs,
+                        data_sample=np.array([]),
+                        labels_sample=np.array([]),
+                        original_labels_sample=np.array([]),
+                        output_dir=self.out_dir,
+                        experiment_info=experiment_info,
+                        strategy_number=self.strategy_history.strategy_config.strategy_number,
+                        specific_attack_type="little_is_enough"
+                    )
 
         return self.aggregation_strategy.aggregate_fit(server_round, new_results, failures)
 
