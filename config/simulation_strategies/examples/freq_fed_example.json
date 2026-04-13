@@ -1,0 +1,51 @@
+{
+    "shared_settings": {
+      "aggregation_strategy_keyword": "freq_fed",
+      "remove_clients": "true",
+      "dataset_keyword": "femnist_iid",
+      "use_llm": "false",
+      "model_type": "cnn",
+      "num_of_rounds": 10,
+      "num_of_clients": 20,
+      "num_of_malicious_clients": 5,
+      "show_plots": "false",
+      "save_plots": "true",
+      "save_csv": "true",
+      "training_device": "cpu",
+      "cpus_per_client": 1,
+      "gpus_per_client": 0.0,
+      "min_cluster_size": 5,
+      "training_subset_fraction": 0.8,
+      "min_fit_clients": 20,
+      "min_evaluate_clients": 20,
+      "min_available_clients": 20,
+      "evaluate_metrics_aggregation_fn": "weighted_average",
+      "num_of_client_epochs": 3,
+      "batch_size": 10,
+      "preserve_dataset": "false",
+      "begin_removing_from_round": 2,
+      "save_attack_snapshots": "true",
+      "attack_snapshot_format": "pickle_and_visual",
+      "snapshot_max_samples": 5
+    },
+    "simulation_strategies": [
+      {
+        "attack_schedule": [
+          {
+            "start_round": 3,
+            "end_round": 5,
+            "attack_type": "label_flipping",
+            "selection_strategy": "percentage",
+            "malicious_percentage": 0.25
+          },
+          {
+            "start_round": 8,
+            "end_round": 9,
+            "attack_type": "label_flipping",
+            "selection_strategy": "percentage",
+            "malicious_percentage": 0.25
+          }
+        ]
+      }
+    ]
+  }
