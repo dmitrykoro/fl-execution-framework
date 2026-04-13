@@ -1,5 +1,5 @@
 [![codecov](https://codecov.io/github/dmitrykoro/fl-execution-framework/graph/badge.svg?token=HJFASRJ43T)](https://codecov.io/github/dmitrykoro/fl-execution-framework)
-# Knowledge Management Framework for Federated Learning
+# InteFL: Knowledge Management Framework for Federated Learning
 ### A framework for Federated Learning simulation configuration and execution
 
 ---
@@ -7,7 +7,8 @@
 ## General information
 
 This is the framework for the configuration and management of federated learning simulation strategies.
-Federated Learning setup is based on Flower. The framework provides functionality to configure simulation execution
+Federated Learning setup is based on Flower. The framework provides functionality to configure execution environment 
+parameters, such as adversarial attacks, and machine learning parameters, such as number of epochs, ML task, 
 and collect metrics in an uniformed way. It also allows to vary any number of simulation parameters and compare the
 effects of these parameters on the collected metrics, as well as plug-and-play integration of custom aggregation strategies.
 

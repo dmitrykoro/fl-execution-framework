@@ -74,6 +74,7 @@ def create_experiment_event(
         executed_config: ExecutedConfig,
         hardware: HostHardwareSpec | None = None,
         wandb_url: str | None = None,
+        local_dashboard_url: str | None = None,
         full_author_name: str | None = None,
         author_email: str | None = None,
 ) -> ExperimentEvent:
@@ -108,6 +109,7 @@ def create_experiment_event(
         author_id=author.id if author else None,
         is_successful=False,
         wandb_url=wandb_url,
+        local_dashboard_url=local_dashboard_url,
     )
 
     session.add(event)
@@ -272,7 +274,14 @@ def persist_clients_at_round(
     session.flush()
 
 
-def fill_all_tables(session, strategy_history: SimulationStrategyHistory, total_exec_time, full_author_name, author_email):
+def fill_all_tables(
+    session,
+    strategy_history: SimulationStrategyHistory,
+    total_exec_time,
+    full_author_name,
+    author_email,
+    local_dashboard_url: str | None = None,
+):
     """
     Fill tables with full experiment information.
     """
@@ -295,6 +304,7 @@ def fill_all_tables(session, strategy_history: SimulationStrategyHistory, total_
         session=session,
         executed_config=executed_config,
         hardware=hardware,
+        local_dashboard_url=local_dashboard_url,
         full_author_name=full_author_name,
         author_email=author_email
     )
