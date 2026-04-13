@@ -14,7 +14,7 @@
       "training_device": "cpu",
       "cpus_per_client": 1,
       "gpus_per_client": 0.0,
-      "min_cluster_size": 2,
+      "min_cluster_size": 5,
       "training_subset_fraction": 0.8,
       "min_fit_clients": 20,
       "min_evaluate_clients": 20,

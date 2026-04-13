@@ -44,7 +44,7 @@ class FreqFedStrategy(fl.server.strategy.FedAvg):
     Parameters
     ----------
     min_cluster_size : int
-        Minimum cluster size for HDBSCAN (default 2; not specified in paper, sklearn default is 5).
+        Minimum cluster size for HDBSCAN (default 5; not specified in paper, matches sklearn default).
     remove_clients : bool
         Whether to exclude filtered clients from aggregation.
     begin_removing_from_round : int

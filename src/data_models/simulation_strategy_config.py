@@ -56,7 +56,7 @@ class StrategyConfig:
     alpha: float = None          # false-positive rate (threshold_mode in chebyshev/gaussian)
 
     # FreqFed parameters
-    min_cluster_size: int = None  # HDBSCAN min_cluster_size (default 2)
+    min_cluster_size: int = None  # HDBSCAN min_cluster_size (default 5)
 
     strict_mode: bool = None
 

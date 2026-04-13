@@ -451,7 +451,7 @@ class FederatedSimulation:
 
         elif aggregation_strategy_keyword == "freq_fed":
             self._aggregation_strategy = FreqFedStrategy(
-                min_cluster_size=self.strategy_config.min_cluster_size or 2,
+                min_cluster_size=self.strategy_config.min_cluster_size or 5,
                 **common_kwargs
             )
 
