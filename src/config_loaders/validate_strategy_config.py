@@ -11,7 +11,8 @@ config_schema = {
             "type": "string",
             "enum": ["trust", "pid", "pid_scaled", "pid_standardized", "pid_standardized_score_based",
                     "multi-krum", "krum", "multi-krum-based", "trimmed_mean",
-                    "rfa", "bulyan", "fools_gold", "pid_v5_stateless_mean_based", "pid_made"]
+                    "rfa", "bulyan", "fools_gold", "pid_v5_stateless_mean_based", "pid_made",
+                    "freq_fed", "fed_nga"]
         },
         "strict_mode": {
             "type": "string",
@@ -208,6 +209,12 @@ config_schema = {
             "type": "number"
         },
 
+        # FreqFed
+        "min_cluster_size": {
+            "type": "integer",
+            "minimum": 2
+        },
+
         # PID-MADE
         "lam": {
             "type": "number",
@@ -365,6 +372,11 @@ def _validate_dependent_params(strategy_config: dict) -> None:
         if "num_bulyan_benign_clients" not in strategy_config:
             raise ValidationError(
                 f"Missing parameter num_bulyan_benign_clients for aggregation: {aggregation_strategy_keyword}"
+            )
+    elif aggregation_strategy_keyword == "freq_fed":
+        if "begin_removing_from_round" not in strategy_config:
+            raise ValidationError(
+                "Missing parameter 'begin_removing_from_round' for freq_fed aggregation"
             )
 
     if aggregation_strategy_keyword in ("bulyan", "krum", "multi-krum-based", "multi-krum", "rfa", "trimmed_mean", "pid"):
