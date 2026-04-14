@@ -7,7 +7,7 @@ from src.experiment_database.session import get_db
 from src.experiment_database.models import AuthToken
 
 
-PUBLIC_ROUTES = {"/"}
+PUBLIC_ROUTES = {"/", "/experiments", "/experiments/compare", "/experiments/user/{email}"} #I understand if on the server we dont want to keep these public, but for now we have them
 
 
 def _extract_bearer_token(request: web.Request) -> str | None:
@@ -42,12 +42,20 @@ def _is_token_valid(token_hash: str) -> bool:
 
         return True
 
+def _is_public_route(path: str) -> bool:
+    if path in {"/", "/experiments", "/experiments/compare", "/experiments/stats"}:
+        return True
+    if path.startswith("/experiments/user/"):
+        return True
+    if path.startswith("/experiments/"): 
+        return True
+    return False
 
 @web.middleware
 async def auth_middleware(request: web.Request, handler):
-    if request.path in PUBLIC_ROUTES:
+    if _is_public_route(request.path):
         return await handler(request)
-
+    
     raw = _extract_bearer_token(request)
     if raw is None:
         return web.json_response({"error": "Missing or invalid Authorization header"}, status=401)

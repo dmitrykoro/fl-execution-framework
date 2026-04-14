@@ -1,8 +1,8 @@
-import React, {useEffect, useMemo, useRef, useState} from "react";
+import {useEffect, useId, useMemo, useRef, useState, type ReactNode} from "react";
 
 /**
  * InteFL Research Framework – UI (API-backed)
- * Tabs: Run | Analyze | Docs | AI Settings | Config templates
+ * Tabs: Run | Analyze | Docs | AI Settings | Config Templates
  *
  * Key UX requirement: logs stay visible at the bottom regardless of tab.
  *
@@ -41,6 +41,57 @@ type ApiLogsResponse = { lines: string[] };
 
 type ApiStatusResponse = { run_id: string; status: "RUNNING" | "EXITED" | "UNKNOWN"; exit_code?: number };
 
+type AgentPhase =
+    | "idle"
+    | "generating_config"
+    | "refining_config"
+    | "config_ready"
+    | "running_experiment"
+    | "analyzing_results"
+    | "completed"
+    | "error";
+
+type AgentPollResponse = {
+    session_id: string;
+    version: number;
+    phase: AgentPhase;
+    pending: boolean;
+    error?: string | null;
+    user_prompt?: string | null;
+    latest_config_text?: string | null;
+    latest_config_path?: string | null;
+    latest_reasoning?: string | null;
+    num_corrections?: number;
+    run_id?: string | null;
+    result_summary?: string | null;
+    result_summary_run_id?: string | null;
+    messages: ChatMessage[];
+};
+
+type AnalyzePollResponse = {
+    session_id: string;
+    version: number;
+    phase: string;
+    pending: boolean;
+    error?: string | null;
+    question?: string | null;
+    messages: ChatMessage[];
+    evidence_markdown?: string | null;
+};
+
+type AnalysisSessionListItem = {
+    id: string;
+    created_at?: string | null;
+    payload_preview?: string | null;
+    message_count?: number;
+};
+
+type AgentSessionListItem = {
+    id: string;
+    created_at?: string | null;
+    message_count?: number;
+};
+
 type ExperimentLink = { label: string; href: string };
 
 type Experiment = {
@@ -50,9 +101,61 @@ type Experiment = {
     createdAt: string;
     config: JsonObject;
     links: ExperimentLink[];
+    raw?: JsonObject;
 };
 
-type ApiExperimentsResponse = { items: Experiment[] };
+type BackendExperiment = {
+    id: number | string;
+    created_at: string | null;
+    wandb_url: string | null;
+    local_dashboard_url: string | null;
+    is_successful: boolean | null;
+    total_exec_time: string | number | null;
+    error_message: string | null;
+    full_author_name: string | null;
+    author_email: string | null;
+    config: {
+        strategy: string | number | null;
+        dataset: string | number | null;
+        num_rounds: string | number | null;
+        num_clients: string | number | null;
+        num_malicious_clients: string | number | null;
+        json: JsonObject | string | null;
+    } | null;
+    hardware: {
+        cpu: string | null;
+        arch: string | null;
+        ram: string | null;
+        gpu_name: string | null;
+        gpu_ram: string | null;
+        is_executed_on: string | null;
+    } | null;
+    clients_at_round: Array<{
+        round_number: number | null;
+        client_number: number | null;
+        is_aggregated: boolean | null;
+        attack_type: string | null;
+    }>;
+    metric_entries: Array<{
+        round_number: number | null;
+        metric_name: string | null;
+        metric_type: string | null;
+        value: number | null;
+        client_number: number | null;
+    }>;
+};
+
+type ApiExperimentsResponse = {
+    count?: number;
+    total?: number;
+    page?: number;
+    page_size?: number;
+    pages?: number;
+    experiments?: BackendExperiment[];
+    items?: Experiment[];
+};
+
+type MetricPoint = { round: number; value: number };
 
 type ChatMessage = { role: "user" | "assistant"; text: string };
 
@@ -63,6 +166,13 @@ type DocsSection = {
     description: string;
     options: { value: string; description: string }[];
 };
+
+const ANALYSIS_SQL_VISIBILITY_KEY = "analysis-evidence-show-sql";
+const UI_ACTIVE_TAB_KEY = "ui-active-tab";
+const UI_RUN_SESSION_KEY = "ui-run-session-id";
+const UI_ANALYSIS_SESSION_KEY = "ui-analysis-session-id";
+const UI_LOGS_HIDDEN_KEY = "ui-logs-hidden";
+const UI_LOGS_HEIGHT_KEY = "ui-logs-height";
 
 function cx(...xs: Array<string | false | null | undefined>) {
     return xs.filter(Boolean).join(" ");
@@ -96,6 +206,299 @@ function badge(status: string) {
     return cx(base, "bg-zinc-100 text-zinc-700");
 }
 
+function formatCreatedAt(value: string | null | undefined) {
+    if (!value) return "Unknown time";
+    const d = new Date(value);
+    if (Number.isNaN(d.getTime())) return String(value);
+    return d.toLocaleString();
+}
+
+function parseMaybeJson(value: unknown): JsonObject | null {
+    if (!value) return null;
+    if (typeof value === "object" && !Array.isArray(value)) return value as JsonObject;
+    if (typeof value === "string") {
+        try {
+            const parsed = JSON.parse(value);
+            if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) return parsed;
+        } catch {
+            return null;
+        }
+    }
+    return null;
+}
+
+function toMetricSeries(
+    metricEntries: BackendExperiment["metric_entries"],
+    preferredNames: string[],
+    fallbackPattern: RegExp
+): MetricPoint[] {
+    const preferred = new Set(preferredNames.map((name) => name.toLowerCase()));
+    const byRound = new Map<number, number>();
+
+    for (const entry of metricEntries ?? []) {
+        if (entry.metric_type !== "per_round") continue;
+        if (entry.client_number != null) continue;
+        if (entry.round_number == null || entry.value == null || !Number.isFinite(entry.value)) continue;
+
+        const metricName = String(entry.metric_name ?? "").toLowerCase();
+        if (!preferred.has(metricName) && !fallbackPattern.test(metricName)) continue;
+        byRound.set(entry.round_number, entry.value);
+    }
+
+    return Array.from(byRound.entries())
+        .sort((a, b) => a[0] - b[0])
+        .map(([round, value]) => ({round, value}));
+}
+
+function getUniqueAttackTypes(clientsAtRound: BackendExperiment["clients_at_round"]): string[] {
+    const values = new Set<string>();
+    for (const row of clientsAtRound ?? []) {
+        const raw = String(row.attack_type ?? "").trim();
+        if (!raw) continue;
+        for (const item of raw.split(/[,\s]+/)) {
+            const cleaned = item.trim();
+            if (cleaned) values.add(cleaned);
+        }
+    }
+    return Array.from(values).sort();
+}
+
+function formatValue(value: string | number | null | undefined) {
+    if (value == null || value === "") return "—";
+    return String(value);
+}
+
+function formatMetricValue(value: number | null | undefined) {
+    if (value == null || !Number.isFinite(value)) return "—";
+    if (Math.abs(value) >= 100 || Number.isInteger(value)) return String(Number(value.toFixed(0)));
+    return value.toFixed(3).replace(/\.?0+$/, "");
+}
+
+function formatSessionTabLabel(value: string | null | undefined) {
+    if (!value) return "New session";
+    const d = new Date(value);
+    if (Number.isNaN(d.getTime())) return "Saved session";
+    return d.toLocaleDateString(undefined, {month: "short", day: "numeric"});
+}
+
+function escapeHtml(value: string) {
+    return value
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#39;");
+}
+
+function stripSqlSections(markdown: string) {
+    let next = String(markdown || "").replace(/\r\n/g, "\n");
+
+    // Remove fenced blocks explicitly tagged as SQL.
+    next = next.replace(/\n?```sql[^\n]*\n[\s\S]*?\n```\n?/gi, "\n");
+
+    // Remove "SQL" labels followed by any fenced code block.
+    next = next.replace(/\n?SQL\s*\n+(?:```[^\n]*\n[\s\S]*?\n```)\n?/gi, "\n");
+
+    // Collapse extra whitespace left behind by removed blocks.
+    next = next.replace(/\n{3,}/g, "\n\n");
+
+    return next.trim();
+}
+
+function renderMarkdown(markdown: string, options?: {showSql?: boolean}) {
+    const lines = String(markdown || "").replace(/\r\n/g, "\n").split("\n");
+    const blocks: ReactNode[] = [];
+    const showSql = options?.showSql ?? true;
+    let i = 0;
+
+    const nextNonEmptyLine = (startIndex: number) => {
+        let idx = startIndex;
+        while (idx < lines.length) {
+            if (lines[idx].trim()) return lines[idx].trim();
+            idx += 1;
+        }
+        return "";
+    };
+
+    while (i < lines.length) {
+        const line = lines[i];
+
+        if (!line.trim()) {
+            i += 1;
+            continue;
+        }
+
+        if (!showSql && /^sql$/i.test(line.trim()) && nextNonEmptyLine(i + 1).startsWith("```")) {
+            i += 1;
+            while (i < lines.length && !lines[i].trim()) {
+                i += 1;
+            }
+            if (i < lines.length && lines[i].startsWith("```")) {
+                i += 1;
+                while (i < lines.length && !lines[i].startsWith("```")) {
+                    i += 1;
+                }
+                if (i < lines.length) i += 1;
+            }
+            continue;
+        }
+
+        if (line.startsWith("```")) {
+            const fence = line.trim();
+            const language = fence.slice(3).trim();
+            const codeLines: string[] = [];
+            i += 1;
+            while (i < lines.length && !lines[i].startsWith("```")) {
+                codeLines.push(lines[i]);
+                i += 1;
+            }
+            if (i < lines.length) i += 1;
+
+            if (!showSql && /^sql$/i.test(language)) {
+                continue;
+            }
+
+            blocks.push(
+                <div key={`code-${blocks.length}`} className="mt-2 overflow-auto rounded-xl bg-zinc-950 p-3 text-xs text-zinc-100">
+                    {language ? <div className="mb-2 text-[10px] uppercase tracking-[0.14em] text-zinc-400">{language}</div> : null}
+                    <pre className="whitespace-pre-wrap">{codeLines.join("\n")}</pre>
+                </div>
+            );
+            continue;
+        }
+
+        if (/^\|.*\|$/.test(line.trim())) {
+            const tableLines: string[] = [];
+            while (i < lines.length && /^\|.*\|$/.test(lines[i].trim())) {
+                tableLines.push(lines[i].trim());
+                i += 1;
+            }
+
+            const rows = tableLines
+                .map((row) => row.slice(1, -1).split("|").map((cell) => cell.trim()))
+                .filter((row) => row.length > 0);
+            const header = rows[0] ?? [];
+            const body = rows.slice(1).filter((row) => !row.every((cell) => /^:?-{3,}:?$/.test(cell)));
+
+            blocks.push(
+                <div key={`table-${blocks.length}`} className="mt-2 overflow-auto rounded-xl border border-zinc-200">
+                    <table className="min-w-full border-collapse text-left text-xs">
+                        <thead className="bg-zinc-50 text-zinc-700">
+                        <tr>
+                            {header.map((cell, idx) => (
+                                <th key={idx} className="border-b border-zinc-200 px-3 py-2 font-semibold">{cell}</th>
+                            ))}
+                        </tr>
+                        </thead>
+                        <tbody>
+                        {body.map((row, rowIdx) => (
+                            <tr key={rowIdx} className="border-b border-zinc-100 last:border-b-0">
+                                {row.map((cell, cellIdx) => (
+                                    <td key={cellIdx} className="px-3 py-2 align-top text-zinc-600">{cell}</td>
+                                ))}
+                            </tr>
+                        ))}
+                        </tbody>
+                    </table>
+                </div>
+            );
+            continue;
+        }
+
+        if (/^\s*[-*]\s+/.test(line)) {
+            const items: string[] = [];
+            while (i < lines.length && /^\s*[-*]\s+/.test(lines[i])) {
+                items.push(lines[i].replace(/^\s*[-*]\s+/, ""));
+                i += 1;
+            }
+            blocks.push(
+                <ul key={`list-${blocks.length}`} className="mt-2 list-disc space-y-1 pl-5 text-xs text-zinc-600">
+                    {items.map((item, idx) => <li key={idx}>{item}</li>)}
+                </ul>
+            );
+            continue;
+        }
+
+        if (/^#{1,6}\s+/.test(line)) {
+            const level = line.match(/^#+/)?.[0].length ?? 1;
+            const text = line.replace(/^#{1,6}\s+/, "");
+            const classes = [
+                "text-base font-semibold text-zinc-900",
+                "text-sm font-semibold text-zinc-900",
+                "text-xs font-semibold uppercase tracking-wide text-zinc-700",
+            ][Math.min(level - 1, 2)];
+            blocks.push(<div key={`heading-${blocks.length}`} className={cx("mt-2", classes)}>{text}</div>);
+            i += 1;
+            continue;
+        }
+
+        const paragraph: string[] = [];
+        while (
+            i < lines.length &&
+            lines[i].trim() &&
+            !lines[i].startsWith("```") &&
+            !/^\|.*\|$/.test(lines[i].trim()) &&
+            !/^\s*[-*]\s+/.test(lines[i]) &&
+            !/^#{1,6}\s+/.test(lines[i])
+        ) {
+            paragraph.push(lines[i]);
+            i += 1;
+        }
+
+        blocks.push(
+            <p key={`p-${blocks.length}`} className="mt-2 whitespace-pre-wrap text-xs leading-6 text-zinc-600">
+                {paragraph.join("\n")}
+            </p>
+        );
+    }
+
+    return blocks.length > 0 ? blocks : <p className="text-xs text-zinc-500">No content.</p>;
+}
+
+function mapBackendExperiment(exp: BackendExperiment): Experiment {
+    const cfg = exp.config ?? null;
+    const parsedJson = parseMaybeJson(cfg?.json ?? null);
+    const mergedConfig: JsonObject = {
+        ...(parsedJson ?? {}),
+        strategy: cfg?.strategy ?? parsedJson?.strategy ?? null,
+        dataset: cfg?.dataset ?? parsedJson?.dataset ?? null,
+        num_rounds: cfg?.num_rounds ?? parsedJson?.num_rounds ?? null,
+        num_clients: cfg?.num_clients ?? parsedJson?.num_clients ?? null,
+        num_malicious_clients: cfg?.num_malicious_clients ?? parsedJson?.num_malicious_clients ?? null,
+    };
+
+    const strategy = cfg?.strategy ?? "Unknown strategy";
+    const dataset = cfg?.dataset ?? "Unknown dataset";
+    const status = exp.is_successful === true ? "SUCCESS" : exp.is_successful === false ? "FAILED" : "UNKNOWN";
+    let artifactsHref = exp.wandb_url ?? null;
+
+    if (exp.local_dashboard_url) {
+        try {
+            const localDashboardUrl = new URL(exp.local_dashboard_url);
+            const pathParts = localDashboardUrl.pathname.split("/").filter(Boolean);
+            const outIndex = pathParts.lastIndexOf("out");
+            if (outIndex >= 0 && outIndex + 2 < pathParts.length) {
+                const relativePath = pathParts.slice(outIndex + 1).map(encodeURIComponent).join("/");
+                artifactsHref = `/api/artifacts/${relativePath}`;
+            }
+        } catch {
+            artifactsHref = exp.wandb_url ?? null;
+        }
+    }
+
+    return {
+        id: String(exp.id),
+        title: `${strategy}, ${dataset}`,
+        status,
+        createdAt: formatCreatedAt(exp.created_at),
+        config: mergedConfig,
+        links: artifactsHref
+            ? [{label: "Artifacts URL", href: artifactsHref}]
+            : [],
+        raw: exp as unknown as JsonObject,
+    };
+}
+
 async function apiJson<T>(path: string, init?: RequestInit): Promise<T> {
     const res = await fetch(path, {
         ...init,
@@ -111,6 +514,28 @@ async function apiJson<T>(path: string, init?: RequestInit): Promise<T> {
     }
 
     return (await res.json()) as T;
+}
+
+function isUnknownAnalysisSessionError(error: unknown) {
+    const message = error instanceof Error ? error.message : String(error ?? "");
+    return message.includes("API 404") && message.includes("Unknown analysis session");
+}
+
+function isUnknownAgentSessionError(error: unknown) {
+    const message = error instanceof Error ? error.message : String(error ?? "");
+    return message.includes("API 404") && message.includes("Unknown agent session");
+}
+
+function isBackendUnavailableError(error: unknown) {
+    const message = error instanceof Error ? error.message : String(error ?? "");
+    return (
+        message.includes("Failed to fetch")
+        || message.includes("NetworkError")
+        || message.includes("ECONNREFUSED")
+        || message.includes("API 502")
+        || message.includes("API 503")
+        || message.includes("API 504")
+    );
 }
 
 function safeParseJson(text: string): { ok: true; value: JsonObject } | { ok: false; error: string } {
@@ -227,6 +652,8 @@ const DEFAULT_JSON: JsonObject = {
     "bad clients": "20%",
 };
 
+const EXPERIMENTS_PAGE_SIZE = 6;
+
 const DEFAULT_DOCS_MD = `# Configuration reference
 
 - **\`dataset_keyword\`**  
@@ -254,9 +681,9 @@ const DEFAULT_DOCS_MD = `# Configuration reference
 // UI components
 // --------------------
 
-function ShellCard({title, subtitle, right, children}: any) {
+function ShellCard({title, subtitle, right, children, className}: any) {
     return (
-        <div className="rounded-2xl bg-white shadow-sm ring-1 ring-zinc-200">
+        <div className={cx("flex h-full min-h-0 flex-col overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-zinc-200", className)}>
             <div className="flex items-center justify-between border-b border-zinc-100 px-4 py-3">
                 <div>
                     <div className="text-sm font-semibold">{title}</div>
@@ -270,7 +697,7 @@ function ShellCard({title, subtitle, right, children}: any) {
 }
 
 function Tabs({active, setActive}: any) {
-    const tabs = ["Run", "Analyze", "Docs", "AI Settings", "Config templates"];
+    const tabs = ["Run", "Analyze", "Docs", "AI Settings", "Config Templates"];
     return (
         <div className="mt-6 flex w-full items-center gap-2 border-b border-zinc-200">
             {tabs.map((t) => {
@@ -293,10 +720,12 @@ function Tabs({active, setActive}: any) {
     );
 }
 
-function ChatPanel({title, subtitle, messages, draft, setDraft, onSend, placeholder, footerHint}: any) {
+function ChatPanel({title, subtitle, right, topContent, messages, draft, setDraft, onSend, placeholder, footerHint, loadingText, cardClassName}: any) {
     return (
-        <ShellCard title={title} subtitle={subtitle}>
-            <div className="h-72 overflow-auto px-4 py-3">
+        <ShellCard title={title} subtitle={subtitle} right={right} className={cardClassName}>
+            <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+            {topContent ? <div className="border-b border-zinc-100 px-4 py-3">{topContent}</div> : null}
+            <div className="h-72 min-h-0 flex-1 overflow-y-auto overflow-x-hidden px-4 py-3">
                 {messages.map((m: ChatMessage, idx: number) => (
                     <div
                         key={idx}
@@ -304,7 +733,7 @@ function ChatPanel({title, subtitle, messages, draft, setDraft, onSend, placehol
                     >
                         <div
                             className={cx(
-                                "max-w-[85%] whitespace-pre-wrap rounded-2xl px-3 py-2 text-sm",
+                                "max-w-[85%] break-words whitespace-pre-wrap rounded-2xl px-3 py-2 text-sm",
                                 m.role === "user" ? "bg-zinc-900 text-white" : "bg-zinc-100 text-zinc-900"
                             )}
                         >
@@ -312,17 +741,33 @@ function ChatPanel({title, subtitle, messages, draft, setDraft, onSend, placehol
                         </div>
                     </div>
                 ))}
+                {loadingText ? (
+                    <div className="mb-3 flex justify-start">
+                        <div className="max-w-[85%] rounded-2xl bg-zinc-100 px-3 py-2 text-sm text-zinc-700 animate-pulse">
+                            {loadingText}
+                        </div>
+                    </div>
+                ) : null}
             </div>
-            <div className="border-t border-zinc-100 px-4 py-3">
-                <div className="flex items-center gap-2">
-                    <input
+            <div className="mt-auto border-t border-zinc-100 px-4 py-3">
+                <div className="flex items-end gap-2">
+                    <textarea
                         value={draft}
                         onChange={(e) => setDraft(e.target.value)}
+                        onInput={(e) => {
+                            const el = e.currentTarget;
+                            el.style.height = "0px";
+                            el.style.height = `${Math.min(el.scrollHeight, 160)}px`;
+                        }}
                         onKeyDown={(e) => {
-                            if (e.key === "Enter") onSend();
+                            if (e.key === "Enter" && !e.shiftKey) {
+                                e.preventDefault();
+                                onSend();
+                            }
                         }}
                         placeholder={placeholder}
-                        className="w-full rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-zinc-300"
+                        rows={1}
+                        className="max-h-40 min-h-[42px] w-full resize-none rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-zinc-300"
                     />
                     <button
                         onClick={onSend}
@@ -332,6 +777,7 @@ function ChatPanel({title, subtitle, messages, draft, setDraft, onSend, placehol
                     </button>
                 </div>
                 {footerHint ? <div className="mt-2 text-xs text-zinc-500">{footerHint}</div> : null}
+            </div>
             </div>
         </ShellCard>
     );
@@ -348,13 +794,29 @@ function GlobalLogs({
     status: string | null;
     onClear: () => void;
 }) {
-    const [hidden, setHidden] = useState(false);
+    const [hidden, setHidden] = useState(() => {
+        if (typeof window === "undefined") return false;
+        return window.localStorage.getItem(UI_LOGS_HIDDEN_KEY) === "true";
+    });
 
     // panel height (px)
-    const [height, setHeight] = useState<number>(220); // default expanded-ish
+    const [height, setHeight] = useState<number>(() => {
+        if (typeof window === "undefined") return 220;
+        const raw = Number(window.localStorage.getItem(UI_LOGS_HEIGHT_KEY));
+        if (!Number.isFinite(raw)) return 220;
+        return Math.min(640, Math.max(120, raw));
+    });
     const heightRef = useRef(height);
     useEffect(() => {
         heightRef.current = height;
+    }, [height]);
+
+    useEffect(() => {
+        window.localStorage.setItem(UI_LOGS_HIDDEN_KEY, String(hidden));
+    }, [hidden]);
+
+    useEffect(() => {
+        window.localStorage.setItem(UI_LOGS_HEIGHT_KEY, String(height));
     }, [height]);
 
     // resize dragging
@@ -524,6 +986,117 @@ function GlobalLogs({
     );
 }
 
+function MiniTrendCard({
+                           title,
+                           accentClass,
+                           points,
+                       }: {
+    title: string;
+    accentClass: string;
+    points: MetricPoint[];
+}) {
+    const gradientId = useId().replace(/:/g, "");
+    const width = 260;
+    const height = 92;
+    const padding = {top: 10, right: 10, bottom: 14, left: 10};
+
+    if (points.length === 0) {
+        return (
+            <div className="rounded-2xl border border-zinc-200 bg-white p-3">
+                <div className="text-xs font-semibold text-zinc-800">{title}</div>
+                <div className="mt-8 text-center text-xs text-zinc-500">No round metrics available.</div>
+            </div>
+        );
+    }
+
+    const values = points.map((point) => point.value);
+    const min = Math.min(...values);
+    const max = Math.max(...values);
+    const range = max - min || 1;
+    const chartWidth = width - padding.left - padding.right;
+    const chartHeight = height - padding.top - padding.bottom;
+    const colorClass = accentClass.includes("emerald") ? "text-emerald-500" : "text-amber-500";
+    const fillFrom = accentClass.includes("emerald") ? "#10b981" : "#f59e0b";
+    const fillTo = accentClass.includes("emerald") ? "#d1fae5" : "#fef3c7";
+
+    const chartPoints = points.map((point, index) => {
+        const x = points.length === 1
+            ? padding.left + chartWidth / 2
+            : padding.left + (index / (points.length - 1)) * chartWidth;
+        const y = padding.top + chartHeight - ((point.value - min) / range) * chartHeight;
+        return {...point, x, y};
+    });
+
+    const linePath = chartPoints
+        .map((point, index) => `${index === 0 ? "M" : "L"} ${point.x} ${point.y}`)
+        .join(" ");
+    const areaPath = `${linePath} L ${chartPoints[chartPoints.length - 1].x} ${padding.top + chartHeight} L ${chartPoints[0].x} ${padding.top + chartHeight} Z`;
+
+    const lastPoint = points[points.length - 1];
+
+    return (
+        <div className="rounded-2xl border border-zinc-200 bg-white p-3">
+            <div className="flex items-start justify-between gap-3">
+                <div>
+                    <div className="text-xs font-semibold text-zinc-800">{title}</div>
+                    <div className="mt-1 text-[11px] text-zinc-500">Rounds 1-{lastPoint.round}</div>
+                </div>
+                <div className={cx("rounded-full px-2 py-1 text-[11px] font-medium", accentClass)}>
+                    {formatMetricValue(lastPoint.value)}
+                </div>
+            </div>
+
+            <div className="mt-3 rounded-xl bg-zinc-50/80 p-2 ring-1 ring-zinc-100">
+                <svg viewBox={`0 0 ${width} ${height}`} className="h-20 w-full overflow-visible">
+                    <defs>
+                        <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="0%" stopColor={fillFrom} stopOpacity="0.22"/>
+                            <stop offset="100%" stopColor={fillTo} stopOpacity="0.03"/>
+                        </linearGradient>
+                    </defs>
+
+                    {[0.15, 0.5, 0.85].map((fraction) => {
+                        const y = padding.top + fraction * chartHeight;
+                        return (
+                            <line
+                                key={fraction}
+                                x1={padding.left}
+                                y1={y}
+                                x2={padding.left + chartWidth}
+                                y2={y}
+                                stroke="#ececf2"
+                                strokeDasharray="3 5"
+                            />
+                        );
+                    })}
+
+                    <path d={areaPath} fill={`url(#${gradientId})`}/>
+                    <path
+                        d={linePath}
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2.5"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        className={colorClass}
+                    />
+
+                    <text x={padding.left} y={height - 2} fontSize="10" fill="#71717a">
+                    </text>
+                    <text x={padding.left + chartWidth} y={height - 2} textAnchor="end" fontSize="10" fill="#71717a">
+                        round {lastPoint.round}
+                    </text>
+                    <text x={padding.left} y={10} fontSize="9" fill="#71717a">
+                        {formatMetricValue(max)}
+                    </text>
+                    <text x={padding.left} y={padding.top + chartHeight + 10} fontSize="9" fill="#a1a1aa">
+                        {formatMetricValue(min)}
+                    </text>
+                </svg>
+            </div>
+        </div>
+    );
+}
 
 // --------------------
 // Minimal dev tests (runs only in dev)
@@ -575,7 +1148,10 @@ if (typeof import.meta !== "undefined" && (import.meta as any).env && (import.me
 // --------------------
 
 export default function App() {
-    const [activeTab, setActiveTab] = useState("Run");
+    const [activeTab, setActiveTab] = useState(() => {
+        if (typeof window === "undefined") return "Run";
+        return window.localStorage.getItem(UI_ACTIVE_TAB_KEY) || "Run";
+    });
 
     // LOGS (global): UI events + current run output
     const [uiLogs, setUiLogs] = useState<string[]>(["[ui] Ready."]);
@@ -637,6 +1213,17 @@ export default function App() {
         {role: "assistant", text: "Describe your use-case in natural language. I will propose a JSON config."},
     ]);
     const [runChatDraft, setRunChatDraft] = useState("");
+    const [agentSessions, setAgentSessions] = useState<AgentSessionListItem[]>([]);
+    const [agentSessionId, setAgentSessionId] = useState<string | null>(() => {
+        if (typeof window === "undefined") return null;
+        return window.localStorage.getItem(UI_RUN_SESSION_KEY);
+    });
+    const [agentVersion, setAgentVersion] = useState(0);
+    const [agentPending, setAgentPending] = useState(false);
+    const [agentPendingSessionId, setAgentPendingSessionId] = useState<string | null>(null);
+    const [agentPhase, setAgentPhase] = useState<AgentPhase>("idle");
+    const appliedAgentConfigRef = useRef<string | null>(null);
+    const requestedSummaryRunIdRef = useRef<string | null>(null);
 
     // RUN: JSON
     const [jsonText, setJsonText] = useState(prettyJson(DEFAULT_JSON));
@@ -648,6 +1235,9 @@ export default function App() {
     // RUN: history (API-backed)
     const [experiments, setExperiments] = useState<Experiment[]>([]);
     const [experimentsLoading, setExperimentsLoading] = useState(false);
+    const [experimentsPage, setExperimentsPage] = useState(1);
+    const [experimentsTotal, setExperimentsTotal] = useState(0);
+    const [experimentsPages, setExperimentsPages] = useState(0);
     const [selectedExpId, setSelectedExpId] = useState<string | null>(null);
 
     const selectedExperiment = useMemo(() => {
@@ -655,14 +1245,36 @@ export default function App() {
         return experiments.find((e) => e.id === selectedExpId) ?? null;
     }, [experiments, selectedExpId]);
 
-    const refreshExperiments = async () => {
+    const refreshExperiments = async (pageOverride = experimentsPage) => {
         setExperimentsLoading(true);
         try {
-            const data = await apiJson<ApiExperimentsResponse>("/api/experiments");
-            setExperiments(data.items ?? []);
-            if (!selectedExpId && (data.items?.length ?? 0) > 0) {
-                setSelectedExpId(data.items[0].id);
+            const params = new URLSearchParams({
+                page: String(pageOverride),
+                page_size: String(EXPERIMENTS_PAGE_SIZE),
+            });
+            const data = await apiJson<ApiExperimentsResponse>(`/api/get_experiments?${params.toString()}`);
+            const mapped = Array.isArray(data.experiments)
+                ? data.experiments.map(mapBackendExperiment)
+                : Array.isArray(data.items)
+                    ? data.items
+                    : [];
+
+            const total = data.total ?? mapped.length;
+            const pages = data.pages ?? (total > 0 ? Math.ceil(total / EXPERIMENTS_PAGE_SIZE) : 0);
+
+            if (pages > 0 && pageOverride > pages) {
+                setExperimentsPage(pages);
+                return;
             }
+
+            setExperiments(mapped);
+            setExperimentsTotal(total);
+            setExperimentsPages(pages);
+            setSelectedExpId((current) => {
+                if (current && mapped.some((experiment) => experiment.id === current)) return current;
+                return mapped[0]?.id ?? null;
+            });
+            appendUiLog(`[ui] loaded ${mapped.length} experiments from API (page ${pageOverride})`);
         } catch (e: any) {
             appendUiLog(`[ui] experiments fetch error: ${e?.message || e}`);
         } finally {
@@ -670,87 +1282,414 @@ export default function App() {
         }
     };
 
-    useEffect(() => {
-        // initial load
-        refreshExperiments();
-        // learn whether API is up
-        apiJson<{ ok: boolean }>("/api/health").then(
-            () => appendUiLog("[ui] API connected (/api/health)")
-        ).catch((e: any) => appendUiLog(`[ui] API not reachable: ${e?.message || e}`));
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []);
-
-    // CONFIG TEMPLATES (local storage)
-    const [templates, setTemplates] = useState<Template[]>(() => {
-        const t = loadTemplatesFromStorage();
-        return t.length ? t : [];
+    // ANALYZE
+    const [anChatMessages, setAnChatMessages] = useState<ChatMessage[]>([
+        {role: "assistant", text: "Ask about experiment outcomes and I will summarize the retrieved evidence."},
+    ]);
+    const [anChatDraft, setAnChatDraft] = useState("");
+    const [analysisSessions, setAnalysisSessions] = useState<AnalysisSessionListItem[]>([]);
+    const [analysisSessionId, setAnalysisSessionId] = useState<string | null>(() => {
+        if (typeof window === "undefined") return null;
+        return window.localStorage.getItem(UI_ANALYSIS_SESSION_KEY);
     });
+    const [analysisVersion, setAnalysisVersion] = useState(0);
+    const [analysisPending, setAnalysisPending] = useState(false);
+    const [analysisPendingSessionId, setAnalysisPendingSessionId] = useState<string | null>(null);
+    const [analysisEvidenceMarkdown, setAnalysisEvidenceMarkdown] = useState(
+        "## No evidence loaded yet\n\nRun an analysis query to populate this panel with retrieved statistics."
+    );
+    const analysisEvidenceRef = useRef<HTMLDivElement | null>(null);
+    const [showAnalysisSql, setShowAnalysisSql] = useState(() => {
+        if (typeof window === "undefined") return true;
+        return window.localStorage.getItem(ANALYSIS_SQL_VISIBILITY_KEY) !== "false";
+    });
+    const visibleAnalysisEvidenceMarkdown = useMemo(
+        () => (showAnalysisSql ? analysisEvidenceMarkdown : stripSqlSections(analysisEvidenceMarkdown)),
+        [analysisEvidenceMarkdown, showAnalysisSql]
+    );
+
+    // DOCS
+    const [docsMd, setDocsMd] = useState(DEFAULT_DOCS_MD);
+    const [docsConfig, setDocsConfig] = useState<JsonObject>(DEFAULT_JSON);
+    const docsSections = useMemo(() => parseDocsMarkdown(docsMd), [docsMd]);
+    const docsJsonText = useMemo(() => prettyJson(docsConfig), [docsConfig]);
+
+    const applyDocsPick = (key: string, value: string) => {
+        const field = docsKeyToConfigField(key);
+        const coerced = coerceDocValue(value);
+
+        setDocsConfig((prev) => {
+            const next = {...prev, [field]: coerced};
+            appendUiLog(`[ui] docs selected ${field}=${JSON.stringify(coerced)}`);
+            return next;
+        });
+    };
+
+    const resetDocsConfig = () => {
+        setDocsConfig(DEFAULT_JSON);
+        appendUiLog("[ui] docs picks reset");
+    };
+
+    // TEMPLATES
+    const [templates, setTemplates] = useState<Template[]>(() => loadTemplatesFromStorage());
 
     useEffect(() => {
         saveTemplatesToStorage(templates);
     }, [templates]);
 
-    // ANALYZE: chat + evidence (still mocked client-side)
-    const [anChatMessages, setAnChatMessages] = useState<ChatMessage[]>([
-        {role: "assistant", text: "Ask me about your experiments (e.g., best aggregation for medical images)."},
-    ]);
-    const [anChatDraft, setAnChatDraft] = useState("");
-    const [evidence, setEvidence] = useState([{
-        title: "Example evidence",
-        body: "(mock) Retrieved statistics will appear here."
-    }]);
+    useEffect(() => {
+        window.localStorage.setItem(UI_ACTIVE_TAB_KEY, activeTab);
+    }, [activeTab]);
 
-    // DOCS: markdown + compiled config (still local for now)
-    const [docsMd, setDocsMd] = useState(DEFAULT_DOCS_MD);
-    const docsSections = useMemo(() => parseDocsMarkdown(docsMd), [docsMd]);
+    useEffect(() => {
+        if (agentSessionId) {
+            window.localStorage.setItem(UI_RUN_SESSION_KEY, agentSessionId);
+        } else {
+            window.localStorage.removeItem(UI_RUN_SESSION_KEY);
+        }
+    }, [agentSessionId]);
 
-    const [docsConfig, setDocsConfig] = useState<JsonObject>({dataset: "femnist", "bad clients": "20%"});
-    const docsJsonText = useMemo(() => prettyJson(docsConfig), [docsConfig]);
+    useEffect(() => {
+        if (analysisSessionId) {
+            window.localStorage.setItem(UI_ANALYSIS_SESSION_KEY, analysisSessionId);
+        } else {
+            window.localStorage.removeItem(UI_ANALYSIS_SESSION_KEY);
+        }
+    }, [analysisSessionId]);
 
-    const resetDocsConfig = () => setDocsConfig({dataset: "femnist", "bad clients": "20%"});
+    useEffect(() => {
+        refreshExperiments(experimentsPage);
+    }, [experimentsPage]);
 
-    const applyDocsPick = (docKey: string, optionValue: string) => {
-        const field = docsKeyToConfigField(docKey);
-        const coerced = coerceDocValue(optionValue);
-        setDocsConfig((prev) => ({...prev, [field]: coerced}));
-        appendUiLog(`[ui] docs pick: ${docKey} -> ${field} = ${optionValue}`);
+    const refreshAgentSessions = async (preferredSessionId?: string | null) => {
+        try {
+            const data = await apiJson<{ items?: AgentSessionListItem[] }>("/api/agent/sessions");
+            const items = data.items ?? [];
+            setAgentSessions(items);
+            if (preferredSessionId && items.some((item) => item.id === preferredSessionId)) {
+                if (agentSessionId !== preferredSessionId || runChatMessages.length <= 1) {
+                    await loadAgentSession(preferredSessionId);
+                }
+                return;
+            }
+            if (preferredSessionId) {
+                setAgentSessionId(null);
+            }
+        } catch (e: any) {
+            appendUiLog(`[ui] config sessions fetch error: ${e?.message || e}`);
+        }
     };
 
-    const suggestConfigFromText = (text: string) => {
-        const lower = text.toLowerCase();
-        const percent = text.match(/(\d+\s*%)/)?.[1];
+    const loadAgentSession = async (sessionId: string) => {
+        try {
+            const snapshot = await apiJson<AgentPollResponse>(`/api/agent/session?session_id=${encodeURIComponent(sessionId)}`);
+            setAgentSessionId(snapshot.session_id);
+            setAgentVersion(snapshot.version);
+            setAgentPending(snapshot.pending);
+            setAgentPendingSessionId(snapshot.pending ? snapshot.session_id : null);
+            setAgentPhase(snapshot.phase);
+            setRunChatMessages(
+                snapshot.messages && snapshot.messages.length > 0
+                    ? snapshot.messages
+                    : [{role: "assistant", text: "Describe your use-case in natural language. I will propose a JSON config."}]
+            );
 
-        let dataset = "femnist";
-        if (lower.includes("pneum")) dataset = "pneumoniamnist";
-        else if (lower.includes("its")) dataset = "its";
-        else if (lower.includes("medmentions")) dataset = "medmentions";
+            if (snapshot.latest_config_text) {
+                appliedAgentConfigRef.current = snapshot.latest_config_text;
+                setJsonText(snapshot.latest_config_text);
+                setJsonStatus({ok: true, message: "AI-generated config validated"});
+            }
+        } catch (e: any) {
+            if (isUnknownAgentSessionError(e)) {
+                startNewAgentDraft();
+                void refreshAgentSessions(null);
+            }
+            setAgentPendingSessionId(null);
+            appendUiLog(`[ui] config session load error: ${e?.message || e}`);
+        }
+    };
 
-        return {
-            dataset,
-            "bad clients": percent ?? (lower.includes("1,3") ? [1, 3] : "20%"),
+    const startNewAgentDraft = () => {
+        setAgentSessionId(null);
+        setAgentVersion(0);
+        setAgentPending(false);
+        setAgentPendingSessionId(null);
+        setAgentPhase("idle");
+        appliedAgentConfigRef.current = null;
+        requestedSummaryRunIdRef.current = null;
+        setRunChatMessages([
+            {role: "assistant", text: "Describe your use-case in natural language. I will propose a JSON config."},
+        ]);
+    };
+
+    useEffect(() => {
+        if (activeTab !== "Run") return;
+        void refreshAgentSessions(agentSessionId);
+    }, [activeTab]);
+
+    const refreshAnalysisSessions = async (preferredSessionId?: string | null) => {
+        try {
+            const data = await apiJson<{ items?: AnalysisSessionListItem[] }>("/api/analyze_db/sessions");
+            const items = data.items ?? [];
+            setAnalysisSessions(items);
+            if (preferredSessionId && items.some((item) => item.id === preferredSessionId)) {
+                if (analysisSessionId !== preferredSessionId || anChatMessages.length <= 1) {
+                    await loadAnalysisSession(preferredSessionId);
+                }
+                return;
+            }
+            if (preferredSessionId) {
+                setAnalysisSessionId(null);
+            }
+        } catch (e: any) {
+            appendUiLog(`[ui] analysis sessions fetch error: ${e?.message || e}`);
+        }
+    };
+
+    const loadAnalysisSession = async (sessionId: string) => {
+        try {
+            const snapshot = await apiJson<AnalyzePollResponse>(`/api/analyze_db/session?session_id=${encodeURIComponent(sessionId)}`);
+            setAnalysisSessionId(snapshot.session_id);
+            setAnalysisVersion(snapshot.version);
+            setAnalysisPending(snapshot.pending);
+            setAnalysisPendingSessionId(snapshot.pending ? snapshot.session_id : null);
+            setAnChatMessages(
+                snapshot.messages && snapshot.messages.length > 0
+                    ? snapshot.messages
+                    : [{role: "assistant", text: "Ask about experiment outcomes and I will summarize the retrieved evidence."}]
+            );
+            setAnalysisEvidenceMarkdown(
+                snapshot.evidence_markdown?.trim()
+                    ? snapshot.evidence_markdown
+                    : "## No evidence loaded yet\n\nRun an analysis query to populate this panel with retrieved statistics."
+            );
+        } catch (e: any) {
+            if (isUnknownAnalysisSessionError(e)) {
+                startNewAnalysisDraft();
+                void refreshAnalysisSessions(null);
+            }
+            setAnalysisPendingSessionId(null);
+            appendUiLog(`[ui] analysis session load error: ${e?.message || e}`);
+        }
+    };
+
+    const startNewAnalysisDraft = () => {
+        setAnalysisSessionId(null);
+        setAnalysisVersion(0);
+        setAnalysisPending(false);
+        setAnalysisPendingSessionId(null);
+        setAnChatMessages([
+            {role: "assistant", text: "Ask about experiment outcomes and I will summarize the retrieved evidence."},
+        ]);
+        setAnalysisEvidenceMarkdown("## No evidence loaded yet\n\nRun an analysis query to populate this panel with retrieved statistics.");
+    };
+
+    useEffect(() => {
+        if (activeTab !== "Analyze") return;
+        void refreshAnalysisSessions(analysisSessionId);
+    }, [activeTab]);
+
+    useEffect(() => {
+        window.localStorage.setItem(ANALYSIS_SQL_VISIBILITY_KEY, String(showAnalysisSql));
+    }, [showAnalysisSql]);
+
+    useEffect(() => {
+        if (!analysisSessionId) return;
+
+        let cancelled = false;
+        let since = analysisVersion;
+        let failureCount = 0;
+
+        const loop = async () => {
+            while (!cancelled) {
+                try {
+                    const params = new URLSearchParams({
+                        session_id: analysisSessionId,
+                        since: String(since),
+                    });
+                    const snapshot = await apiJson<AnalyzePollResponse>(`/api/analyze_db/poll?${params.toString()}`);
+                    if (cancelled) return;
+
+                    failureCount = 0;
+                    since = snapshot.version;
+                    setAnalysisVersion(snapshot.version);
+                    setAnalysisPending(snapshot.pending);
+                    setAnalysisPendingSessionId(snapshot.pending ? snapshot.session_id : null);
+                    setAnChatMessages(snapshot.messages ?? []);
+                    setAnalysisEvidenceMarkdown(
+                        snapshot.evidence_markdown?.trim()
+                            ? snapshot.evidence_markdown
+                            : "## No evidence loaded yet\n\nRun an analysis query to populate this panel with retrieved statistics."
+                    );
+
+                    if (!snapshot.pending) {
+                        void refreshAnalysisSessions(snapshot.session_id);
+                        return;
+                    }
+                } catch (e: any) {
+                    if (cancelled) return;
+                    if (isUnknownAnalysisSessionError(e)) {
+                        setAnalysisSessionId(null);
+                        setAnalysisPending(false);
+                        setAnalysisPendingSessionId(null);
+                        await refreshAnalysisSessions(null);
+                        appendUiLog("[ui] cleared stale analysis session after backend reported it missing");
+                        return;
+                    }
+                    failureCount += 1;
+                    if (isBackendUnavailableError(e) && failureCount >= 3) {
+                        setAnalysisPending(false);
+                        setAnalysisPendingSessionId(null);
+                        appendUiLog("[ui] paused analysis polling after repeated backend connection failures");
+                        return;
+                    }
+                    appendUiLog(`[ui] analysis poll error: ${e?.message || e}`);
+                    await new Promise((resolve) => window.setTimeout(resolve, Math.min(1500 * failureCount, 10000)));
+                }
+            }
         };
-    };
 
-    const onSendRunChat = () => {
+        void loop();
+
+        return () => {
+            cancelled = true;
+        };
+    }, [analysisSessionId]);
+
+    useEffect(() => {
+        if (!agentSessionId) return;
+
+        let cancelled = false;
+        let since = agentVersion;
+        let failureCount = 0;
+
+        const loop = async () => {
+            while (!cancelled) {
+                try {
+                    const params = new URLSearchParams({
+                        session_id: agentSessionId,
+                        since: String(since),
+                    });
+                    const snapshot = await apiJson<AgentPollResponse>(`/api/agent/poll?${params.toString()}`);
+                    if (cancelled) return;
+
+                    failureCount = 0;
+                    since = snapshot.version;
+                    setAgentVersion(snapshot.version);
+                    setAgentPending(snapshot.pending);
+                    setAgentPendingSessionId(snapshot.pending ? snapshot.session_id : null);
+                    setAgentPhase(snapshot.phase);
+                    setRunChatMessages(snapshot.messages ?? []);
+
+                    if (
+                        snapshot.latest_config_text &&
+                        appliedAgentConfigRef.current !== snapshot.latest_config_text
+                    ) {
+                        appliedAgentConfigRef.current = snapshot.latest_config_text;
+                        setJsonText(snapshot.latest_config_text);
+                        setJsonStatus({ok: true, message: "AI-generated config validated"});
+                        appendUiLog("[ui] agent generated validated config");
+                    }
+
+                    if (snapshot.error) {
+                        appendUiLog(`[ui] agent error: ${snapshot.error}`);
+                    }
+
+                    if (!snapshot.pending) {
+                        void refreshAgentSessions(snapshot.session_id);
+                        return;
+                    }
+                } catch (e: any) {
+                    if (cancelled) return;
+                    if (isUnknownAgentSessionError(e)) {
+                        setAgentSessionId(null);
+                        setAgentPending(false);
+                        setAgentPendingSessionId(null);
+                        await refreshAgentSessions(null);
+                        appendUiLog("[ui] cleared stale config session after backend reported it missing");
+                        return;
+                    }
+                    failureCount += 1;
+                    if (isBackendUnavailableError(e) && failureCount >= 3) {
+                        setAgentPending(false);
+                        setAgentPendingSessionId(null);
+                        appendUiLog("[ui] paused config polling after repeated backend connection failures");
+                        return;
+                    }
+                    appendUiLog(`[ui] agent poll error: ${e?.message || e}`);
+                    await new Promise((resolve) => window.setTimeout(resolve, Math.min(1500 * failureCount, 10000)));
+                }
+            }
+        };
+
+        void loop();
+
+        return () => {
+            cancelled = true;
+        };
+    }, [agentSessionId]);
+
+    useEffect(() => {
+        if (!runId || !agentSessionId || runStatus !== "EXITED") return;
+        if (requestedSummaryRunIdRef.current === runId) return;
+
+        requestedSummaryRunIdRef.current = runId;
+        setAgentPending(true);
+        setAgentPhase("analyzing_results");
+
+        void apiJson<AgentPollResponse>("/api/agent/analyze_results", {
+            method: "POST",
+            body: JSON.stringify({session_id: agentSessionId, run_id: runId}),
+        }).catch((e: any) => {
+            requestedSummaryRunIdRef.current = null;
+            setAgentPending(false);
+            appendUiLog(`[ui] agent result analysis error: ${e?.message || e}`);
+        });
+    }, [runId, runStatus, agentSessionId]);
+
+    const onSendRunChat = async () => {
         const text = runChatDraft.trim();
         if (!text) return;
-        setRunChatMessages((m) => [...m, {role: "user", text}]);
         setRunChatDraft("");
+        setAgentPending(true);
+        if (agentSessionId) {
+            setAgentPendingSessionId(agentSessionId);
+        }
 
-        const suggested = suggestConfigFromText(text);
+        try {
+            if (!agentSessionId) {
+                requestedSummaryRunIdRef.current = null;
+                appliedAgentConfigRef.current = null;
+                const snapshot = await apiJson<AgentPollResponse>("/api/agent/start", {
+                    method: "POST",
+                    body: JSON.stringify({text}),
+                });
+                setAgentSessionId(snapshot.session_id);
+                setAgentVersion(snapshot.version);
+                setAgentPending(snapshot.pending);
+                setAgentPendingSessionId(snapshot.pending ? snapshot.session_id : null);
+                setAgentPhase(snapshot.phase);
+                setRunChatMessages(snapshot.messages ?? []);
+                void refreshAgentSessions(snapshot.session_id);
+                appendUiLog("[ui] agent generation started");
+                return;
+            }
 
-        setTimeout(() => {
-            setRunChatMessages((m) => [
-                ...m,
-                {
-                    role: "assistant",
-                    text: "Requested use-case is reflected in generated JSON:\n\n" + prettyJson(suggested),
-                },
-            ]);
-            setJsonText(prettyJson(suggested));
-            setJsonStatus({ok: true, message: "Not validated yet"});
-            appendUiLog(`[ui] agent suggested config for dataset=${suggested.dataset}`);
-        }, 200);
+            const snapshot = await apiJson<AgentPollResponse>("/api/agent/refine", {
+                method: "POST",
+                body: JSON.stringify({session_id: agentSessionId, text}),
+            });
+            setAgentVersion(snapshot.version);
+            setAgentPending(snapshot.pending);
+            setAgentPendingSessionId(snapshot.pending ? snapshot.session_id : null);
+            setAgentPhase(snapshot.phase);
+            setRunChatMessages(snapshot.messages ?? []);
+            appendUiLog("[ui] agent refinement started");
+        } catch (e: any) {
+            setAgentPending(false);
+            setAgentPendingSessionId(null);
+            appendUiLog(`[ui] agent request error: ${e?.message || e}`);
+        }
     };
 
     const onValidate = async () => {
@@ -764,8 +1703,9 @@ export default function App() {
 
         const parsed = safeParseJson(jsonText);
         if (!parsed.ok) {
-            setJsonStatus({ok: false, message: parsed.error});
-            appendUiLog(`[ui] validate parse FAILED: ${parsed.error}`);
+            const message = "error" in parsed ? parsed.error : "Invalid JSON";
+            setJsonStatus({ok: false, message});
+            appendUiLog(`[ui] validate parse FAILED: ${message}`);
             return;
         }
 
@@ -800,8 +1740,9 @@ export default function App() {
 
         const parsed = safeParseJson(jsonText);
         if (!parsed.ok) {
-            setJsonStatus({ok: false, message: parsed.error});
-            appendUiLog(`[ui] start blocked: ${parsed.error}`);
+            const message = "error" in parsed ? parsed.error : "Invalid JSON";
+            setJsonStatus({ok: false, message});
+            appendUiLog(`[ui] start blocked: ${message}`);
             return;
         }
 
@@ -809,7 +1750,7 @@ export default function App() {
         try {
             const resp = await apiJson<ApiStartResponse>("/api/start_simulation_runner", {
                 method: "POST",
-                body: JSON.stringify({config: parsed.value, log_level: "INFO"}),
+                body: JSON.stringify({config: parsed.value, log_level: "INFO", agent_session_id: agentSessionId}),
             });
 
             setRunId(resp.run_id);
@@ -818,7 +1759,8 @@ export default function App() {
 
             // refresh experiments soon after start
             setTimeout(() => {
-                refreshExperiments();
+                setExperimentsPage(1);
+                refreshExperiments(1);
             }, 800);
 
         } catch (e: any) {
@@ -831,8 +1773,9 @@ export default function App() {
     const onSaveTemplate = () => {
         const parsed = safeParseJson(jsonText);
         if (!parsed.ok) {
-            setJsonStatus({ok: false, message: parsed.error});
-            appendUiLog(`[ui] template save blocked: ${parsed.error}`);
+            const message = "error" in parsed ? parsed.error : "Invalid JSON";
+            setJsonStatus({ok: false, message});
+            appendUiLog(`[ui] template save blocked: ${message}`);
             return;
         }
 
@@ -849,7 +1792,7 @@ export default function App() {
 
         setTemplates((t) => [{id, name, config: parsed.value}, ...t]);
         appendUiLog(`[ui] template saved: ${name}`);
-        setActiveTab("Config templates");
+        setActiveTab("Config Templates");
     };
 
     const restoreConfig = (config: JsonObject, sourceLabel: string) => {
@@ -859,31 +1802,231 @@ export default function App() {
         setActiveTab("Run");
     };
 
-    const onSendAnalyzeChat = () => {
+    const onSendAnalyzeChat = async () => {
         const text = anChatDraft.trim();
         if (!text) return;
-        setAnChatMessages((m) => [...m, {role: "user", text}]);
         setAnChatDraft("");
+        setAnalysisPending(true);
+        if (analysisSessionId) {
+            setAnalysisPendingSessionId(analysisSessionId);
+        }
 
-        setTimeout(() => {
-            const answer =
-                text.toLowerCase().includes("best") && text.toLowerCase().includes("medical")
-                    ? "(mock) According to experimental database, it's PID."
-                    : "(mock) I can answer using the experiment database once connected.";
+        try {
+            const snapshot = await apiJson<AnalyzePollResponse>("/api/analyze_db/start", {
+                method: "POST",
+                body: JSON.stringify(
+                    analysisSessionId
+                        ? {question: text, session_id: analysisSessionId}
+                        : {question: text}
+                ),
+            });
+            setAnalysisSessionId(snapshot.session_id);
+            setAnalysisVersion(snapshot.version);
+            setAnalysisPending(snapshot.pending);
+            setAnalysisPendingSessionId(snapshot.pending ? snapshot.session_id : null);
+            setAnChatMessages(snapshot.messages ?? []);
+            setAnalysisEvidenceMarkdown(
+                snapshot.evidence_markdown?.trim()
+                    ? snapshot.evidence_markdown
+                    : "## No evidence loaded yet\n\nRun an analysis query to populate this panel with retrieved statistics."
+            );
+            void refreshAnalysisSessions(snapshot.session_id);
+            appendUiLog(`[ui] analysis started: "${text}"`);
+        } catch (e: any) {
+            setAnalysisPending(false);
+            setAnalysisPendingSessionId(null);
+            appendUiLog(`[ui] analysis request error: ${e?.message || e}`);
+        }
+    };
 
-            setAnChatMessages((m) => [...m, {role: "assistant", text: answer}]);
+    const onDownloadAnalysisPdf = () => {
+        const renderedEvidence = analysisEvidenceRef.current;
+        if (!renderedEvidence) {
+            appendUiLog("[ui] analysis export blocked: evidence panel is not ready");
+            return;
+        }
 
-            const newEvidence = {
-                title: "Retrieved statistics (mock)",
-                body:
-                    "• Query inferred from your question\n" +
-                    "• Example: top-1 aggregation by avg accuracy on medical datasets\n" +
-                    "• Evidence can include tables/plots/links once wired to backend",
-            };
+        const printWindow = window.open("", "_blank", "width=1100,height=850");
+        if (!printWindow) {
+            appendUiLog("[ui] analysis export blocked: popup window was blocked");
+            return;
+        }
 
-            setEvidence((ev) => [newEvidence, ...ev]);
-            appendUiLog(`[ui] analyze processed: \"${text}\"`);
-        }, 250);
+        const sessionLabel = analysisSessionId ? formatSessionTabLabel(analysisSessions.find((s) => s.id === analysisSessionId)?.created_at) : "draft";
+        const documentTitle = `analysis-evidence-${sessionLabel}`.toLowerCase().replace(/[^a-z0-9-_]+/g, "-");
+        const exportedAt = new Date().toLocaleString();
+
+        const exportHtml = `<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>${escapeHtml(documentTitle)}</title>
+    <style>
+      :root {
+        color-scheme: light;
+        font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        background: #f4f4f5;
+        color: #18181b;
+      }
+      main {
+        width: min(960px, calc(100vw - 48px));
+        margin: 24px auto;
+        padding: 32px;
+        background: #ffffff;
+      }
+      h1 {
+        margin: 0;
+        font-size: 24px;
+        line-height: 1.2;
+      }
+      .meta {
+        margin-top: 8px;
+        font-size: 12px;
+        color: #71717a;
+      }
+      .content {
+        margin-top: 24px;
+      }
+      .content > :first-child {
+        margin-top: 0;
+      }
+      .content > div,
+      .content > ul {
+        break-inside: avoid;
+      }
+      .content .text-base {
+        font-size: 20px;
+        line-height: 1.3;
+      }
+      .content .text-sm {
+        font-size: 15px;
+        line-height: 1.5;
+      }
+      .content .text-xs {
+        font-size: 12px;
+        line-height: 1.65;
+      }
+      .content .uppercase {
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+      }
+      .content .font-semibold {
+        font-weight: 600;
+      }
+      .content .text-zinc-900,
+      .content .text-zinc-700,
+      .content .text-zinc-600,
+      .content .text-zinc-400,
+      .content .text-zinc-100 {
+        color: inherit;
+      }
+      .content .mt-2 {
+        margin-top: 14px;
+      }
+      .content .space-y-1 > li + li {
+        margin-top: 6px;
+      }
+      .content .pl-5 {
+        padding-left: 20px;
+      }
+      .content .list-disc {
+        list-style: disc;
+      }
+      .content .rounded-xl {
+        border-radius: 14px;
+      }
+      .content .border {
+        border: 1px solid #e4e4e7;
+      }
+      .content .border-zinc-200,
+      .content .border-zinc-100 {
+        border-color: #e4e4e7;
+      }
+      .content .bg-white,
+      .content .bg-zinc-50 {
+        background: #ffffff;
+      }
+      .content .bg-zinc-950 {
+        background: #09090b;
+        color: #f4f4f5;
+      }
+      .content .p-3 {
+        padding: 16px;
+      }
+      .content .mb-2 {
+        margin-bottom: 8px;
+      }
+      .content table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 12px;
+      }
+      .content th,
+      .content td {
+        padding: 8px 10px;
+        border-bottom: 1px solid #e4e4e7;
+        text-align: left;
+        vertical-align: top;
+      }
+      .content thead {
+        background: #f4f4f5;
+      }
+      .content pre {
+        margin: 0;
+        white-space: pre-wrap;
+        word-break: break-word;
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+      }
+      @media print {
+        body {
+          background: #ffffff;
+        }
+        main {
+          width: 100%;
+          margin: 0;
+          padding: 0;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>AI explainability: retrieved statistics</h1>
+      <div class="meta">Exported ${escapeHtml(exportedAt)}</div>
+      <div class="content">${renderedEvidence.innerHTML}</div>
+    </main>
+  </body>
+</html>`;
+
+        const blob = new Blob([exportHtml], {type: "text/html"});
+        const exportUrl = URL.createObjectURL(blob);
+
+        const cleanup = () => {
+            URL.revokeObjectURL(exportUrl);
+        };
+
+        const triggerPrint = () => {
+            printWindow.focus();
+            printWindow.print();
+        };
+
+        printWindow.addEventListener("afterprint", () => {
+            cleanup();
+            printWindow.close();
+        }, {once: true});
+
+        printWindow.addEventListener("load", () => {
+            window.setTimeout(triggerPrint, 150);
+        }, {once: true});
+
+        printWindow.location.replace(exportUrl);
+        appendUiLog("[ui] analysis export opened print dialog for PDF download");
     };
 
     const clearAllLogs = () => {
@@ -894,18 +2037,17 @@ export default function App() {
     return (
         <div className="min-h-screen bg-zinc-50 text-zinc-900">
             {/* Content wrapper: add bottom padding so fixed logs never overlap content */}
-            <div className="mx-auto max-w-6xl px-4 pt-8 pb-60">
+            <div className="mx-auto w-full max-w-[1760px] px-4 pt-8 pb-60">
                 <div className="flex items-start justify-between gap-4">
                     <div>
                         <h1 className="text-2xl font-semibold tracking-tight">InteFL Research Framework</h1>
                         <p className="mt-1 text-sm text-zinc-600">
-                            API-backed prototype: execution + analysis + docs (.md → selectable entries) + AI settings +
-                            templates.
+                            Configure Federated Learning based on quantitative evaluation of its performance on simulated target system
                         </p>
                     </div>
                     <div className="hidden sm:flex items-center gap-2">
             <span className="rounded-full bg-white px-3 py-1 text-xs text-zinc-600 shadow-sm ring-1 ring-zinc-200">
-              v0.3-alpha (Validate & Run)
+              v0.4-alpha (Database)
             </span>
                     </div>
                 </div>
@@ -914,208 +2056,447 @@ export default function App() {
 
                 {/* RUN */}
                 {activeTab === "Run" && (
-                    <div className="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-3">
-                        <ChatPanel
-                            title="AI-assisted execution and analysis"
-                            subtitle="User describes use-case in natural language"
-                            messages={runChatMessages}
-                            draft={runChatDraft}
-                            setDraft={setRunChatDraft}
-                            onSend={onSendRunChat}
-                            placeholder='e.g., "Use femnist with 20% bad clients"'
-                            footerHint="Requested use-case is reflected in generated JSON."
-                        />
-
-                        <ShellCard
-                            title="Manual configuration: JSON"
-                            subtitle="User can manually adjust the JSON or configure it from scratch"
-                            right={
-                                <div
-                                    className={cx(
-                                        "text-[11px] rounded-full px-2 py-0.5",
-                                        jsonStatus.ok ? "bg-emerald-50 text-emerald-700" : "bg-rose-50 text-rose-700"
-                                    )}
-                                    title={jsonStatus.message}
-                                >
-                                    {apiBusy ? "Working…" : jsonStatus.ok ? "OK" : "Errors"}
-                                </div>
-                            }
-                        >
-                            <div className="px-4 py-3">
-                                <div className="rounded-xl border border-zinc-200 bg-zinc-50">
-                  <textarea
-                      value={jsonText}
-                      onChange={(e) => setJsonText(e.target.value)}
-                      className="h-64 w-full resize-none rounded-xl bg-transparent p-3 font-mono text-[12px] leading-5 outline-none"
-                  />
-                                </div>
-
-                                <div className="mt-3 grid grid-cols-2 gap-2">
+                    <div className="mt-6 overflow-x-auto pb-2">
+                        <div className="grid h-[calc(100vh-26rem)] min-h-[33rem] w-full min-w-[1680px] grid-cols-[420px_420px_400px_440px] items-stretch gap-4 overflow-hidden">
+                            <ChatPanel
+                                cardClassName="h-full min-h-0"
+                                title="AI-assisted configuration and analysis"
+                                subtitle="Describe FL use-case in natural language"
+                                right={
                                     <button
-                                        onClick={onValidate}
-                                        disabled={apiBusy}
-                                        className={cx(
-                                            "rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm font-medium",
-                                            apiBusy ? "opacity-60 cursor-not-allowed" : "hover:bg-zinc-50"
-                                        )}
+                                        onClick={startNewAgentDraft}
+                                        className="rounded-xl border border-zinc-200 bg-white px-3 py-1.5 text-xs font-medium hover:bg-zinc-50"
+                                        title="Create a new configuration session"
                                     >
-                                        Validate
+                                        +
                                     </button>
-                                    <button
-                                        onClick={onStart}
-                                        disabled={!jsonStatus.ok || apiBusy}
-                                        className={cx(
-                                            "rounded-xl px-3 py-2 text-sm font-medium",
-                                            jsonStatus.ok && !apiBusy
-                                                ? "bg-zinc-900 text-white hover:bg-zinc-800"
-                                                : "bg-zinc-200 text-zinc-500 cursor-not-allowed"
-                                        )}
-                                        title={jsonStatus.ok ? "Start experiment" : "Validate first"}
-                                    >
-                                        Start ▷
-                                    </button>
-                                </div>
-
-                                <button
-                                    onClick={onSaveTemplate}
-                                    disabled={apiBusy}
-                                    className={cx(
-                                        "mt-2 w-full rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm font-medium",
-                                        apiBusy ? "opacity-60 cursor-not-allowed" : "hover:bg-zinc-50"
-                                    )}
-                                    title="Save this configuration for later reuse"
-                                >
-                                    Save as a template
-                                </button>
-
-                                <div className="mt-2 text-xs text-zinc-500">{jsonStatus.message}</div>
-                            </div>
-                        </ShellCard>
-
-                        <ShellCard
-                            title="Experiments history"
-                            subtitle="Experiment history is retrieved from DB and includes links to artifacts"
-                            right={
-                                <button
-                                    onClick={refreshExperiments}
-                                    className={cx(
-                                        "rounded-xl border border-zinc-200 bg-white px-3 py-1.5 text-xs font-medium",
-                                        experimentsLoading ? "opacity-60 cursor-not-allowed" : "hover:bg-zinc-50"
-                                    )}
-                                    disabled={experimentsLoading}
-                                >
-                                    {experimentsLoading ? "Refreshing…" : "Refresh"}
-                                </button>
-                            }
-                        >
-                            <div className="px-4 py-3">
-                                <div className="space-y-2">
-                                    {experiments.length === 0 ? (
-                                        <div
-                                            className="rounded-xl border border-dashed border-zinc-300 bg-zinc-50 p-4 text-sm text-zinc-600">
-                                            No experiments returned yet.
-                                        </div>
-                                    ) : (
-                                        experiments.map((exp) => {
-                                            const active = exp.id === selectedExpId;
+                                }
+                                topContent={
+                                    <div className="flex gap-2 overflow-x-auto pb-1">
+                                        {agentSessions.map((session) => {
+                                            const active = session.id === agentSessionId;
                                             return (
                                                 <button
-                                                    key={exp.id}
+                                                    key={session.id}
                                                     onClick={() => {
-                                                        setSelectedExpId(exp.id);
-                                                        appendUiLog(`[ui] history selected ${exp.id}`);
+                                                        void loadAgentSession(session.id);
                                                     }}
                                                     className={cx(
-                                                        "w-full rounded-xl border px-3 py-2 text-left",
-                                                        active ? "border-zinc-900 bg-zinc-50" : "border-zinc-200 bg-white hover:bg-zinc-50"
+                                                        "shrink-0 rounded-xl border px-3 py-1.5 text-xs font-medium",
+                                                        active
+                                                            ? "border-zinc-900 bg-zinc-900 text-white"
+                                                            : "border-zinc-200 bg-white text-zinc-700 hover:bg-zinc-50"
                                                     )}
                                                 >
-                                                    <div className="flex items-center justify-between gap-2">
-                                                        <div className="text-sm font-medium">{exp.title}</div>
-                                                        <span className={badge(exp.status)}>{exp.status}</span>
-                                                    </div>
-                                                    <div className="mt-0.5 text-xs text-zinc-500">{exp.createdAt}</div>
+                                                    {formatSessionTabLabel(session.created_at)}
                                                 </button>
                                             );
-                                        })
+                                        })}
+                                        {!agentSessionId ? (
+                                            <div className="shrink-0 rounded-xl border border-dashed border-zinc-300 bg-zinc-50 px-3 py-1.5 text-xs text-zinc-500">
+                                                New session
+                                            </div>
+                                        ) : null}
+                                    </div>
+                                }
+                                messages={runChatMessages}
+                                draft={runChatDraft}
+                                setDraft={setRunChatDraft}
+                                onSend={onSendRunChat}
+                                placeholder='e.g., "femnist with 20% bad clients"'
+                                footerHint="Requested use-case is reflected in generated JSON."
+                                loadingText={
+                                    (agentPending || (agentPendingSessionId && agentPendingSessionId === agentSessionId))
+                                        ? agentPhase === "analyzing_results"
+                                            ? "Agent is analyzing the run results..."
+                                            : "Agent is thinking..."
+                                        : undefined
+                                }
+                            />
+
+                            <ShellCard
+                                className="h-full min-h-0"
+                                title="Manual configuration: JSON"
+                                subtitle="Manually adjust JSON comfiguration"
+                                right={
+                                    <div
+                                        className={cx(
+                                            "text-[11px] rounded-full px-2 py-0.5",
+                                            jsonStatus.ok ? "bg-emerald-50 text-emerald-700" : "bg-rose-50 text-rose-700"
+                                        )}
+                                        title={jsonStatus.message}
+                                    >
+                                        {apiBusy ? "Working…" : jsonStatus.ok ? "OK" : "Errors"}
+                                    </div>
+                                }
+                            >
+                                <div className="flex h-full flex-col px-4 py-3">
+                                    <div className="flex flex-1 rounded-xl border border-zinc-200 bg-zinc-50">
+                      <textarea
+                          value={jsonText}
+                          onChange={(e) => setJsonText(e.target.value)}
+                          className="min-h-[22rem] w-full flex-1 resize-none rounded-xl bg-transparent p-3 font-mono text-[12px] leading-5 outline-none"
+                      />
+                                    </div>
+
+                                    <div className="mt-auto pt-3">
+                                    <div className="grid grid-cols-2 gap-2">
+                                        <button
+                                            onClick={onValidate}
+                                            disabled={apiBusy}
+                                            className={cx(
+                                                "rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm font-medium",
+                                                apiBusy ? "opacity-60 cursor-not-allowed" : "hover:bg-zinc-50"
+                                            )}
+                                        >
+                                            Validate
+                                        </button>
+                                        <button
+                                            onClick={onStart}
+                                            disabled={!jsonStatus.ok || apiBusy}
+                                            className={cx(
+                                                "rounded-xl px-3 py-2 text-sm font-medium",
+                                                jsonStatus.ok && !apiBusy
+                                                    ? "bg-zinc-900 text-white hover:bg-zinc-800"
+                                                    : "bg-zinc-200 text-zinc-500 cursor-not-allowed"
+                                            )}
+                                            title={jsonStatus.ok ? "Start experiment" : "Validate first"}
+                                        >
+                                            Start ▷
+                                        </button>
+                                    </div>
+
+                                    <button
+                                        onClick={onSaveTemplate}
+                                        disabled={apiBusy}
+                                        className={cx(
+                                            "mt-2 w-full rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm font-medium",
+                                            apiBusy ? "opacity-60 cursor-not-allowed" : "hover:bg-zinc-50"
+                                        )}
+                                        title="Save this configuration for later reuse"
+                                    >
+                                        Save as a template
+                                    </button>
+
+                                    <div className="mt-2 text-xs text-zinc-500">{jsonStatus.message}</div>
+                                    </div>
+                                </div>
+                            </ShellCard>
+
+                            <ShellCard
+                                className="h-full min-h-0"
+                                title="Experiments history"
+                                subtitle="Previously executed experiments"
+                                right={
+                                    <button
+                                        onClick={() => refreshExperiments(experimentsPage)}
+                                        className={cx(
+                                            "rounded-xl border border-zinc-200 bg-white px-3 py-1.5 text-xs font-medium",
+                                            experimentsLoading ? "opacity-60 cursor-not-allowed" : "hover:bg-zinc-50"
+                                        )}
+                                        disabled={experimentsLoading}
+                                    >
+                                        {experimentsLoading ? "Refreshing…" : "Refresh"}
+                                    </button>
+                                }
+                            >
+                                <div className="flex h-full flex-col px-4 py-3">
+                                    <div className="space-y-2">
+                                        {experiments.length === 0 ? (
+                                            <div
+                                                className="rounded-xl border border-dashed border-zinc-300 bg-zinc-50 p-4 text-sm text-zinc-600">
+                                                No experiments returned yet.
+                                            </div>
+                                        ) : (
+                                            experiments.map((exp) => {
+                                                const active = exp.id === selectedExpId;
+                                                return (
+                                                    <button
+                                                        key={exp.id}
+                                                        onClick={() => {
+                                                            setSelectedExpId(exp.id);
+                                                        }}
+                                                        className={cx(
+                                                            "w-full rounded-2xl border px-3 py-3 text-left transition-colors",
+                                                            active ? "border-zinc-900 bg-zinc-50" : "border-zinc-200 bg-white hover:bg-zinc-50"
+                                                        )}
+                                                    >
+                                                        <div className="flex items-start justify-between gap-2">
+                                                            <div>
+                                                                <div className="text-sm font-medium text-zinc-900">
+                                                                    {String(exp.config.dataset ?? "Unknown dataset")}
+                                                                </div>
+                                                                <div className="mt-0.5 text-[11px] text-zinc-500">
+                                                                    {String(exp.config.strategy ?? "Unknown strategy")}
+                                                                </div>
+                                                            </div>
+                                                            <span className={badge(exp.status)}>{exp.status}</span>
+                                                        </div>
+                                                        <div className="mt-3 flex items-center justify-between gap-2 text-[11px] text-zinc-500">
+                                                            <span>{exp.createdAt}</span>
+                                                            <span>{String((exp.raw as BackendExperiment | undefined)?.full_author_name ?? "Unknown author")}</span>
+                                                        </div>
+                                                    </button>
+                                                );
+                                            })
+                                        )}
+                                    </div>
+
+                                    <div className="mt-4 flex items-center justify-between border-t border-zinc-100 pt-3 text-xs text-zinc-500">
+                                        <span>
+                                            {experimentsTotal === 0 ? "No experiments" : `Page ${experimentsPage} of ${Math.max(experimentsPages, 1)}`}
+                                        </span>
+                                        <div className="flex items-center gap-2">
+                                            <button
+                                                onClick={() => setExperimentsPage((page) => Math.max(1, page - 1))}
+                                                disabled={experimentsLoading || experimentsPage <= 1}
+                                                className={cx(
+                                                    "rounded-xl border border-zinc-200 bg-white px-3 py-1.5 font-medium",
+                                                    experimentsLoading || experimentsPage <= 1
+                                                        ? "cursor-not-allowed opacity-50"
+                                                        : "hover:bg-zinc-50"
+                                                )}
+                                            >
+                                                Prev
+                                            </button>
+                                            <button
+                                                onClick={() => setExperimentsPage((page) => Math.min(Math.max(experimentsPages, 1), page + 1))}
+                                                disabled={experimentsLoading || experimentsPage >= Math.max(experimentsPages, 1)}
+                                                className={cx(
+                                                    "rounded-xl border border-zinc-200 bg-white px-3 py-1.5 font-medium",
+                                                    experimentsLoading || experimentsPage >= Math.max(experimentsPages, 1)
+                                                        ? "cursor-not-allowed opacity-50"
+                                                        : "hover:bg-zinc-50"
+                                                )}
+                                            >
+                                                Next
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </ShellCard>
+
+                            <ShellCard
+                                className="h-full min-h-0"
+                                title="Experiment details"
+                                subtitle="Key configuration and author details, reference plots"
+                            >
+                                <div className="px-4 py-3">
+                                    {!selectedExperiment ? (
+                                        <div className="rounded-xl border border-dashed border-zinc-300 bg-zinc-50 p-4 text-sm text-zinc-600">
+                                            Select an experiment from history to inspect its details.
+                                        </div>
+                                    ) : (
+                                        (() => {
+                                            const raw = selectedExperiment.raw as BackendExperiment | undefined;
+                                            const accuracySeries = raw
+                                                ? toMetricSeries(raw.metric_entries ?? [], ["average_accuracy_history"], /accuracy/i)
+                                                : [];
+                                            const lossSeries = raw
+                                                ? toMetricSeries(raw.metric_entries ?? [], ["aggregated_loss_history"], /loss/i)
+                                                : [];
+                                            const attackTypes = raw ? getUniqueAttackTypes(raw.clients_at_round ?? []) : [];
+                                            const deviceLabel = [
+                                                raw?.hardware?.is_executed_on,
+                                                raw?.hardware?.gpu_name || raw?.hardware?.cpu,
+                                            ].filter(Boolean).join(" • ");
+
+                                            return (
+                                                <>
+                                                    <div className="flex items-start justify-between gap-3">
+                                                        <div>
+                                                            <div className="text-sm font-semibold text-zinc-900">{selectedExperiment.title}</div>
+                                                            <div className="mt-1 text-[11px] text-zinc-500">
+                                                                {selectedExperiment.createdAt} • ID {selectedExperiment.id}
+                                                            </div>
+                                                        </div>
+                                                        <span className={badge(selectedExperiment.status)}>{selectedExperiment.status}</span>
+                                                    </div>
+
+                                                    <div className="mt-3 grid grid-cols-2 gap-2 text-[11px]">
+                                                        <div className="rounded-xl bg-zinc-50 px-3 py-2 ring-1 ring-zinc-100">
+                                                            <div className="text-zinc-500">Total rounds</div>
+                                                            <div className="mt-1 font-semibold text-zinc-900">{formatValue(raw?.config?.num_rounds)}</div>
+                                                        </div>
+                                                        <div className="rounded-xl bg-zinc-50 px-3 py-2 ring-1 ring-zinc-100">
+                                                            <div className="text-zinc-500">Training device</div>
+                                                            <div className="mt-1 font-semibold text-zinc-900">{deviceLabel || "—"}</div>
+                                                        </div>
+                                                        <div className="rounded-xl bg-zinc-50 px-3 py-2 ring-1 ring-zinc-100">
+                                                            <div className="text-zinc-500">Attack type(s)</div>
+                                                            <div className="mt-1 font-semibold text-zinc-900">
+                                                                {attackTypes.length > 0 ? attackTypes.join(", ") : "None recorded"}
+                                                            </div>
+                                                        </div>
+                                                        <div className="rounded-xl bg-zinc-50 px-3 py-2 ring-1 ring-zinc-100">
+                                                            <div className="text-zinc-500">Total malicious</div>
+                                                            <div className="mt-1 font-semibold text-zinc-900">{formatValue(raw?.config?.num_malicious_clients)}</div>
+                                                        </div>
+                                                    </div>
+
+                                                    <div className="mt-3 flex flex-wrap gap-2">
+                                                        <button
+                                                            onClick={() => restoreConfig(selectedExperiment.config, `experiment ${selectedExperiment.id}`)}
+                                                            className="rounded-xl border border-zinc-200 bg-white px-3 py-2 text-xs font-medium hover:bg-zinc-50"
+                                                        >
+                                                            Restore config
+                                                        </button>
+                                                        <button
+                                                            onClick={() => {
+                                                                const href = selectedExperiment.links[0]?.href;
+                                                                if (!href) return;
+                                                                appendUiLog(`[ui] link clicked: Artifacts URL (${selectedExperiment.id})`);
+                                                                window.open(href, "_blank", "noopener,noreferrer");
+                                                            }}
+                                                            disabled={selectedExperiment.links.length === 0}
+                                                            className={cx(
+                                                                "rounded-xl px-3 py-2 text-xs font-medium",
+                                                                selectedExperiment.links.length > 0
+                                                                    ? "bg-zinc-900 text-white hover:bg-zinc-800"
+                                                                    : "cursor-not-allowed bg-zinc-200 text-zinc-500"
+                                                            )}
+                                                        >
+                                                            Artifacts URL
+                                                        </button>
+                                                    </div>
+
+                                                    <div className="mt-3 rounded-2xl border border-zinc-200 bg-zinc-50 p-3">
+                                                        <div className="text-xs font-semibold text-zinc-800">Author details</div>
+                                                        <div className="mt-2 space-y-1 text-xs text-zinc-600">
+                                                            <div><span className="font-medium text-zinc-800">Name:</span> {formatValue(raw?.full_author_name)}</div>
+                                                            <div><span className="font-medium text-zinc-800">Email:</span> {formatValue(raw?.author_email)}</div>
+                                                            <div><span className="font-medium text-zinc-800">Execution time:</span> {formatValue(raw?.total_exec_time)}</div>
+                                                        </div>
+                                                    </div>
+
+                                                    {raw?.error_message ? (
+                                                        <div className="mt-3 rounded-xl bg-rose-50 px-3 py-2 text-xs text-rose-700 ring-1 ring-rose-100">
+                                                            {raw.error_message}
+                                                        </div>
+                                                    ) : null}
+
+                                                    <div className="mt-3 grid grid-cols-1 gap-3">
+                                                        <MiniTrendCard
+                                                            title="Aggregated accuracy over rounds"
+                                                            accentClass="bg-emerald-50 text-emerald-700"
+                                                            points={accuracySeries}
+                                                        />
+                                                        <MiniTrendCard
+                                                            title="Aggregated loss over rounds"
+                                                            accentClass="bg-amber-50 text-amber-800"
+                                                            points={lossSeries}
+                                                        />
+                                                    </div>
+                                                </>
+                                            );
+                                        })()
                                     )}
                                 </div>
-
-                                {selectedExperiment && (
-                                    <div className="mt-3 rounded-xl border border-zinc-200 bg-white p-3">
-                                        <div className="text-xs font-semibold text-zinc-700">Visualization and artifacts
-                                            links
-                                        </div>
-                                        <div className="mt-2 flex flex-wrap gap-2">
-                                            {(selectedExperiment.links ?? []).map((l) => (
-                                                <a
-                                                    key={l.label}
-                                                    href={l.href}
-                                                    onClick={(e) => {
-                                                        e.preventDefault();
-                                                        appendUiLog(`[ui] link clicked: ${l.label} (${selectedExperiment.id})`);
-                                                    }}
-                                                    className="rounded-full border border-zinc-200 bg-zinc-50 px-3 py-1 text-xs text-zinc-700 hover:bg-zinc-100"
-                                                >
-                                                    {l.label}
-                                                </a>
-                                            ))}
-                                        </div>
-
-                                        <div className="mt-2 grid grid-cols-2 gap-2">
-                                            <button
-                                                onClick={() => restoreConfig(selectedExperiment.config, `history (${selectedExperiment.id})`)}
-                                                className="w-full rounded-xl bg-zinc-900 px-3 py-2 text-sm font-medium text-white hover:bg-zinc-800"
-                                                title="Restore experiment config into Run tab"
-                                            >
-                                                Restore config
-                                            </button>
-                                            <button
-                                                onClick={() => {
-                                                    setRunId(selectedExperiment.id);
-                                                    appendUiLog(`[ui] attached logs to historical run_id=${selectedExperiment.id}`);
-                                                }}
-                                                className="w-full rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm font-medium hover:bg-zinc-50"
-                                                title="Show logs for this experiment (if available)"
-                                            >
-                                                View logs
-                                            </button>
-                                        </div>
-
-                                        <div
-                                            className="mt-2 text-[11px] text-zinc-500">ID: {selectedExperiment.id}</div>
-                                    </div>
-                                )}
-                            </div>
-                        </ShellCard>
+                            </ShellCard>
+                        </div>
                     </div>
                 )}
 
                 {/* ANALYZE */}
                 {activeTab === "Analyze" && (
-                    <div className="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-2">
+                    <div className="mt-6 grid h-[calc(100vh-26rem)] min-h-[33rem] grid-cols-1 items-stretch gap-4 overflow-hidden lg:grid-cols-[minmax(0,1fr)_minmax(0,2fr)]">
                         <ChatPanel
+                            cardClassName="h-full min-h-0"
                             title="AI-assisted statistical analysis"
-                            subtitle="(mock) Agent infers SQL request and presents findings"
+                            subtitle="Agent infers SQL queries from your question and presents findings"
+                            right={
+                                <button
+                                    onClick={startNewAnalysisDraft}
+                                    className="rounded-xl border border-zinc-200 bg-white px-3 py-1.5 text-xs font-medium hover:bg-zinc-50"
+                                    title="Create a new analysis session"
+                                >
+                                    +
+                                </button>
+                            }
+                            topContent={
+                                <div className="flex gap-2 overflow-x-auto pb-1">
+                                    {analysisSessions.map((session) => {
+                                        const active = session.id === analysisSessionId;
+                                        return (
+                                            <button
+                                                key={session.id}
+                                                onClick={() => {
+                                                    void loadAnalysisSession(session.id);
+                                                }}
+                                                className={cx(
+                                                    "shrink-0 rounded-xl border px-3 py-1.5 text-xs font-medium",
+                                                    active
+                                                        ? "border-zinc-900 bg-zinc-900 text-white"
+                                                        : "border-zinc-200 bg-white text-zinc-700 hover:bg-zinc-50"
+                                                )}
+                                            >
+                                                {formatSessionTabLabel(session.created_at)}
+                                            </button>
+                                        );
+                                    })}
+                                    {!analysisSessionId ? (
+                                        <div className="shrink-0 rounded-xl border border-dashed border-zinc-300 bg-zinc-50 px-3 py-1.5 text-xs text-zinc-500">
+                                            New session
+                                        </div>
+                                    ) : null}
+                                </div>
+                            }
                             messages={anChatMessages}
                             draft={anChatDraft}
                             setDraft={setAnChatDraft}
                             onSend={onSendAnalyzeChat}
                             placeholder='e.g., "What is the best-performing aggregation on medical images?"'
                             footerHint="Retrieved knowledge is displayed as evidence (explainability)."
+                            loadingText={
+                                analysisPending || (analysisPendingSessionId && analysisPendingSessionId === analysisSessionId)
+                                    ? "Agent is querying and analyzing the database..."
+                                    : undefined
+                            }
                         />
 
-                        <ShellCard title="AI explainability: retrieved statistics"
-                                   subtitle="Possibly: plots, tables, numbers (mock)">
-                            <div className="px-4 py-3">
-                                <div className="space-y-3">
-                                    {evidence.map((e: any, i: number) => (
-                                        <div key={i} className="rounded-xl border border-zinc-200 bg-white p-3">
-                                            <div className="text-xs font-semibold text-zinc-800">{e.title}</div>
-                                            <div
-                                                className="mt-1 whitespace-pre-wrap text-xs text-zinc-600">{e.body}</div>
+                        <ShellCard
+                                   className="h-full min-h-0"
+                                   title="AI explainability: retrieved statistics"
+                                   subtitle="Retrieved tables, numbers, and SQL evidence"
+                                   right={
+                                       <div className="flex items-center gap-3">
+                                           <label className="flex items-center gap-2 text-xs text-zinc-600">
+                                               <span>SQL queries</span>
+                                               <button
+                                                   type="button"
+                                                   role="switch"
+                                                   aria-checked={showAnalysisSql}
+                                                   aria-label="Toggle SQL queries in explainability view"
+                                                   onClick={() => setShowAnalysisSql((value) => !value)}
+                                                   className={cx(
+                                                       "relative inline-flex h-6 w-11 items-center rounded-full transition-colors",
+                                                       showAnalysisSql ? "bg-zinc-900" : "bg-zinc-300"
+                                                   )}
+                                               >
+                                                   <span
+                                                       className={cx(
+                                                           "inline-block h-5 w-5 rounded-full bg-white transition-transform",
+                                                           showAnalysisSql ? "translate-x-5" : "translate-x-1"
+                                                       )}
+                                                   />
+                                               </button>
+                                           </label>
+                                           <button
+                                               onClick={onDownloadAnalysisPdf}
+                                               className="rounded-xl border border-zinc-200 bg-white px-3 py-1.5 text-xs font-medium hover:bg-zinc-50"
+                                               title="Download the explainability markdown as PDF"
+                                           >
+                                               Download PDF
+                                           </button>
+                                       </div>
+                                   }>
+                            <div className="flex h-full min-h-0 flex-1 flex-col px-4 py-3">
+                                <div className="h-0 min-h-0 min-w-0 flex-1 pr-1">
+                                    <div className="h-full min-h-0 overflow-y-auto overflow-x-hidden rounded-xl border border-zinc-200 bg-white p-3">
+                                        <div ref={analysisEvidenceRef} className="min-w-0">
+                                            {renderMarkdown(visibleAnalysisEvidenceMarkdown, {showSql: showAnalysisSql})}
                                         </div>
-                                    ))}
+                                    </div>
                                 </div>
                             </div>
                         </ShellCard>
@@ -1145,11 +2526,11 @@ export default function App() {
                                     </div>
 
                                     <div className="mt-3 rounded-xl border border-zinc-200 bg-white">
-                    <textarea
-                        value={docsMd}
-                        onChange={(e) => setDocsMd(e.target.value)}
-                        className="h-44 w-full resize-none rounded-xl bg-transparent p-3 font-mono text-[12px] leading-5 outline-none"
-                    />
+                        <textarea
+                            value={docsMd}
+                            onChange={(e) => setDocsMd(e.target.value)}
+                            className="h-44 w-full resize-none rounded-xl bg-transparent p-3 font-mono text-[12px] leading-5 outline-none"
+                        />
                                     </div>
 
                                     <div className="mt-4">
@@ -1183,7 +2564,8 @@ export default function App() {
 
                                                         <div className="mt-2 flex flex-wrap gap-2">
                                                             {sec.options.length === 0 ? (
-                                                                <span className="text-xs text-zinc-500">No options found.</span>
+                                                                <span
+                                                                    className="text-xs text-zinc-500">No options found.</span>
                                                             ) : (
                                                                 sec.options.map((opt) => (
                                                                     <button
@@ -1199,8 +2581,8 @@ export default function App() {
                                                         </div>
 
                                                         {sec.options.some((o) => o.description) ? (
-                                                            <div className="mt-2 text-[11px] text-zinc-500">Tip: hover
-                                                                an option to see its description.</div>
+                                                            <div className="mt-2 text-[11px] text-zinc-500">Tip: hover an
+                                                                option to see its description.</div>
                                                         ) : null}
                                                     </div>
                                                 ))
@@ -1215,8 +2597,7 @@ export default function App() {
                                         >
                                             Reset picks
                                         </button>
-                                        <div className="text-xs text-zinc-500">Click options → updates JSON on the
-                                            right
+                                        <div className="text-xs text-zinc-500">Click options → updates JSON on the right
                                         </div>
                                     </div>
                                 </div>
@@ -1226,11 +2607,11 @@ export default function App() {
                         <ShellCard title="JSON configurator" subtitle="Selections compile here, then send to Run">
                             <div className="px-4 py-4">
                                 <div className="rounded-xl border border-zinc-200 bg-zinc-50">
-                  <textarea
-                      value={docsJsonText}
-                      readOnly
-                      className="h-72 w-full resize-none rounded-xl bg-transparent p-3 font-mono text-[12px] leading-5 outline-none"
-                  />
+                      <textarea
+                          value={docsJsonText}
+                          readOnly
+                          className="h-72 w-full resize-none rounded-xl bg-transparent p-3 font-mono text-[12px] leading-5 outline-none"
+                      />
                                 </div>
 
                                 <button
@@ -1242,8 +2623,7 @@ export default function App() {
                                 </button>
 
                                 <div className="mt-2 text-xs text-zinc-500">
-                                    This copies JSON into <span className="font-medium">Run</span> → Manual
-                                    configuration.
+                                    This copies JSON into <span className="font-medium">Run</span> → Manual configuration.
                                 </div>
                             </div>
                         </ShellCard>
@@ -1292,7 +2672,7 @@ export default function App() {
                 )}
 
                 {/* CONFIG TEMPLATES */}
-                {activeTab === "Config templates" && (
+                {activeTab === "Config Templates" && (
                     <div className="mt-6">
                         <ShellCard title="Saved Templates"
                                    subtitle="User can browse saved configs and restore them for execution">
@@ -1310,8 +2690,8 @@ export default function App() {
                                                 <div className="text-sm font-semibold">{t.name}</div>
                                                 <pre
                                                     className="mt-2 max-h-40 overflow-auto rounded-xl bg-zinc-50 p-3 text-[11px] leading-5 text-zinc-800 ring-1 ring-zinc-100">
-                          {prettyJson(t.config)}
-                        </pre>
+                              {prettyJson(t.config)}
+                            </pre>
                                                 <button
                                                     onClick={() => restoreConfig(t.config, `template (${t.name})`)}
                                                     className="mt-3 w-full rounded-xl bg-zinc-900 px-3 py-2 text-sm font-medium text-white hover:bg-zinc-800"
@@ -1327,8 +2707,7 @@ export default function App() {
                     </div>
                 )}
 
-                <div className="py-10 text-center text-xs text-zinc-400">UI prototype • API-backed run/logs/history
-                </div>
+                <div className="py-10 text-center text-xs text-zinc-400">UI prototype • API-backed run/logs/history</div>
             </div>
 
             {/* GLOBAL LOGS (always visible, fixed) */}
