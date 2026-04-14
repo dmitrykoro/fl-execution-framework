@@ -12,7 +12,7 @@ config_schema = {
             "enum": ["trust", "pid", "pid_scaled", "pid_standardized", "pid_standardized_score_based",
                     "multi-krum", "krum", "multi-krum-based", "trimmed_mean",
                     "rfa", "bulyan", "fools_gold", "pid_v5_stateless_mean_based", "pid_made",
-                    "freq_fed", "fed_nga"]
+                    "freq_fed", "fed_nga", "fl_detector"]
         },
         "strict_mode": {
             "type": "string",
@@ -235,6 +235,16 @@ config_schema = {
             "exclusiveMaximum": 1.0
         },
 
+        # FLDetector
+        "fl_detector_history_size": {
+            "type": "integer",
+            "minimum": 1
+        },
+        "fl_detector_z_score_threshold": {
+            "type": "number",
+            "exclusiveMinimum": 0.0
+        },
+
         # Attack scheduling
         "attack_schedule": {
             "type": "array",
@@ -378,6 +388,17 @@ def _validate_dependent_params(strategy_config: dict) -> None:
             raise ValidationError(
                 "Missing parameter 'begin_removing_from_round' for freq_fed aggregation"
             )
+    elif aggregation_strategy_keyword == "fl_detector":
+        fl_detector_required = [
+            "fl_detector_history_size",
+            "fl_detector_z_score_threshold",
+            "begin_removing_from_round",
+        ]
+        for param in fl_detector_required:
+            if param not in strategy_config:
+                raise ValidationError(
+                    f"Missing parameter '{param}' for fl_detector aggregation"
+                )
 
     if aggregation_strategy_keyword in ("bulyan", "krum", "multi-krum-based", "multi-krum", "rfa", "trimmed_mean", "pid"):
         if "begin_removing_from_round" not in strategy_config:
