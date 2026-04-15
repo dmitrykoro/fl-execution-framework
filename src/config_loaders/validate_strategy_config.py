@@ -12,7 +12,7 @@ config_schema = {
             "enum": ["trust", "pid", "pid_scaled", "pid_standardized", "pid_standardized_score_based",
                     "multi-krum", "krum", "multi-krum-based", "trimmed_mean",
                     "rfa", "bulyan", "fools_gold", "pid_v5_stateless_mean_based", "pid_made",
-                    "freq_fed", "fed_nga"]
+                    "freq_fed", "fed_nga", "pid_v5_stateless_median_based"]
         },
         "strict_mode": {
             "type": "string",

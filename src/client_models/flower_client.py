@@ -354,6 +354,11 @@ class FlowerClient(fl.client.NumPyClient):
             f"[Client {self.client_id}] Training complete - Loss: {epoch_loss:.4f}, Accuracy: {epoch_acc:.4f}"
         )
 
+        if global_params is not None:
+            del global_params
+
+        import gc
+        gc.collect()
         if torch.cuda.is_available():
             torch.cuda.empty_cache()
 

@@ -33,9 +33,21 @@ class _GlobalMappingImageFolder(datasets.ImageFolder):
     """
 
     def find_classes(self, directory: str):
-        present = {d for d in os.listdir(directory) if os.path.isdir(os.path.join(directory, d))}
+        # PyTorch's supported image extensions
+        valid_extensions = ('.jpg', '.jpeg', '.png', '.ppm', '.bmp', '.pgm', '.tif', '.tiff', '.webp')
+        present = set()
+
+        # Only add the directory if it is a folder AND contains at least one valid image
+        for d in os.listdir(directory):
+            d_path = os.path.join(directory, d)
+            if os.path.isdir(d_path):
+                has_images = any(f.lower().endswith(valid_extensions) for f in os.listdir(d_path))
+                if has_images:
+                    present.add(d)
+
         classes = sorted(cls for cls in CIFAR100_CLASSES if cls in present)
         class_to_idx = {cls: _GLOBAL_CLASS_TO_IDX[cls] for cls in classes}
+        
         return classes, class_to_idx
 
 

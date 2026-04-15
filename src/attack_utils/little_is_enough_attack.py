@@ -3,6 +3,7 @@ import logging
 import os
 import math
 import numpy as np
+import gc
 
 from typing import Dict, List, Optional, Tuple, Union
 from flwr.server.strategy import Strategy
@@ -29,6 +30,11 @@ class LittleIsEnoughAttack(fl.server.strategy.FedAvg):
         super().__init__(*args, **kwargs)
         self.aggregation_strategy = aggregation_strategy
         self.strategy_history = strategy_history
+
+        self.attack_schedule = self.strategy_history.strategy_config.attack_schedule
+        self.save_attack_snapshots = getattr(self.strategy_history.strategy_config, 'save_attack_snapshots', False)
+        if isinstance(self.save_attack_snapshots, str):
+            self.save_attack_snapshots = self.save_attack_snapshots == "true"
 
         # Create a logger
         self.logger = logging.getLogger(f"pid_strategy_{id(self)}")
@@ -68,19 +74,39 @@ class LittleIsEnoughAttack(fl.server.strategy.FedAvg):
     def _compute_stats(self, malicious_updates) -> Tuple[List[np.ndarray], List[np.ndarray]]:
         """Compute mean and standard deviation from malicious updates."""
 
-        all_weights = [parameters_to_ndarrays(fit_res.parameters) for _, fit_res in malicious_updates]
-        # group same layers together
-        layers = list(zip(*all_weights))
-
-        mu = []
+        m = len(malicious_updates)
+        mu = None
+        sq_sum = None
+        # Calculate running sum and squared sum one client at a time
+        for _, fit_res in malicious_updates:
+            client_weights = parameters_to_ndarrays(fit_res.parameters)
+            
+            if mu is None:
+                # Initialize arrays on the first client
+                mu = [np.copy(w) for w in client_weights]
+                sq_sum = [np.square(w) for w in client_weights]
+            else:
+                # Add to running totals
+                for i, w in enumerate(client_weights):
+                    mu[i] += w
+                    sq_sum[i] += np.square(w)
+            
+            # Immediately delete client weights to free RAM
+            del client_weights
+        
+        # Finalize mean and standard deviation
         sigma = []
-        for layer in layers:
-            stacked = np.stack(layer)
-            mu_layer = np.mean(stacked, axis=0)
-            sigma_layer = np.std(stacked, axis=0)
-            mu.append(mu_layer)
+        for i in range(len(mu)):
+            mu[i] = mu[i] / m
+            
+            # Variance = E[X^2] - (E[X])^2
+            variance = (sq_sum[i] / m) - np.square(mu[i])
+            
+            # Clip to 0 to prevent negative values from floating point inaccuracies, then sqrt
+            sigma_layer = np.sqrt(np.maximum(variance, 0.0))
             sigma.append(sigma_layer)
-
+            
+        del sq_sum
         return mu, sigma
     
 
@@ -102,7 +128,7 @@ class LittleIsEnoughAttack(fl.server.strategy.FedAvg):
         new_fit_res = FitRes(
             parameters=new_params,
             num_examples=fit_res.num_examples,
-            metrics=fit_res.metrics,
+            metrics=fit_res.metrics.copy(),
             status=fit_res.status
         )
         
@@ -127,10 +153,13 @@ class LittleIsEnoughAttack(fl.server.strategy.FedAvg):
         """
         malicious = []
         benign = []
-        for client_proxy, fit_res in results:
+        # DRAIN the results list completely so original FitRes objects can be garbage collected
+        while results:
+            client_proxy, fit_res = results.pop(0)
             client_id = int(client_proxy.cid)
             client = self.strategy_history.get_client_by_id(client_id)
             client_current_attacks = client.get_current_attack_keywords(server_round)
+
             if "little_is_enough" in client_current_attacks:
                 malicious.append((client_proxy, fit_res))
             else:
@@ -146,13 +175,15 @@ class LittleIsEnoughAttack(fl.server.strategy.FedAvg):
                 self.logger.warning(
                     f"[Little Is Enough Attack] Number of malicious clients m must satisfy m >= 2. Continuing without attack."
                 )
-                return self.aggregation_strategy.aggregate_fit(server_round, results, failures)
+                # Note: Because drained `results`, need to put it back together if attack aborted
+                return self.aggregation_strategy.aggregate_fit(server_round, benign + malicious, failures)
 
             if s < 0:
                 self.logger.warning(
                     f"[Little Is Enough Attack] Number of malicious clients m must satisfy m <= Floor(n/2 + 1). Continuing without attack."
                 )
-                return self.aggregation_strategy.aggregate_fit(server_round, results, failures)
+                # Note: Because drained `results`, need to put it back together if attack aborted
+                return self.aggregation_strategy.aggregate_fit(server_round, benign + malicious, failures)
             
             # Set z_max value using standard normal table
             # if s = 0, clamp p to just under 1 to allow attack to continue
@@ -163,17 +194,8 @@ class LittleIsEnoughAttack(fl.server.strategy.FedAvg):
             # Compute per layer μ and σ from malicious updates
             mu, sigma = self._compute_stats(malicious)
 
-            # Create modified malicious updates
-            modified_malicious = []
-            for client, fit_res in malicious:
-                new_fit_res = self._replace_parameters(fit_res, mu, sigma, z_max)
-                modified_malicious.append((client, new_fit_res))
-
-            # Combine malicious and benign
-            new_results = benign + modified_malicious
-
             # Save little_is_enough visual snapshot for each malicious client
-            if self.strategy_history.strategy_config.attack_schedule:
+            if self.attack_schedule and self.save_attack_snapshots:
                 experiment_info = {
                     'total_clients': n,
                     'malicious_clients': m,
@@ -200,6 +222,18 @@ class LittleIsEnoughAttack(fl.server.strategy.FedAvg):
                         specific_attack_type="little_is_enough"
                     )
 
+            # Create modified malicious updates
+            modified_malicious = []
+            while malicious:
+                client, fit_res = malicious.pop(0)
+                new_fit_res = self._replace_parameters(fit_res, mu, sigma, z_max)
+                modified_malicious.append((client, new_fit_res))
+                del fit_res # Free the original byte string immediately!
+
+            # Combine malicious and benign
+            new_results = benign + modified_malicious
+
+        gc.collect()
         return self.aggregation_strategy.aggregate_fit(server_round, new_results, failures)
 
 
