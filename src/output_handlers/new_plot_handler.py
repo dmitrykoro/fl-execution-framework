@@ -17,7 +17,8 @@ bar_width = 0.2
 ATTACK_ABBREV = {
     "label_flipping": "lf",
     "gaussian_noise": "gn",
-    "token_replacement": "tr"
+    "token_replacement": "tr",
+    "gradient_scaling": "gs",
 }
 
 
@@ -108,6 +109,7 @@ def _add_attack_background_shading(
         "gaussian_noise": "#9999ff",  # Blue
         "token_replacement": "#99ff99", # Green
         "target_flipping":  "#e989fa",    # Pink
+        "gradient_scaling": "#ffcc66", # Orange
     }
 
     ATTACK_HATCHES = {
@@ -115,6 +117,7 @@ def _add_attack_background_shading(
         "gaussian_noise": "\\\\\\\\",  # Dense diagonal left
         "token_replacement": "xxxx",  # Dense crosses
         "target_flipping": "////",   # Dense diagonal right
+        "gradient_scaling": "....",    # Dots
     }
 
     # Track which attack periods we've already added to avoid duplicate labels

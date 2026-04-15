@@ -1,5 +1,5 @@
 [![codecov](https://codecov.io/github/dmitrykoro/fl-execution-framework/graph/badge.svg?token=HJFASRJ43T)](https://codecov.io/github/dmitrykoro/fl-execution-framework)
-# Knowledge Management Framework for Federated Learning
+# InteFL: Knowledge Management Framework for Federated Learning
 ### A framework for Federated Learning simulation configuration and execution
 
 ---
@@ -7,7 +7,8 @@
 ## General information
 
 This is the framework for the configuration and management of federated learning simulation strategies.
-Federated Learning setup is based on Flower. The framework provides functionality to configure simulation execution
+Federated Learning setup is based on Flower. The framework provides functionality to configure execution environment 
+parameters, such as adversarial attacks, and machine learning parameters, such as number of epochs, ML task, 
 and collect metrics in an uniformed way. It also allows to vary any number of simulation parameters and compare the
 effects of these parameters on the collected metrics, as well as plug-and-play integration of custom aggregation strategies.
 
@@ -32,6 +33,7 @@ Defines the aggregation strategy. Options:
   - `pid_standardized_score_based`: Same as pid_standardized, but threshold is calculated based on pid scores.
   - `pid_v5_stateless_mean_based`: Same as pid_standardized_score_based, but removal is stateless: all clients are reevaluated each round, and removal decisions apply only to the current round rather than being permanently maintained.
   - `pid_v5_stateless_median_based`: Same as pid_v5_stateless_mean_based, but threshold is calculated with median instead of mean.
+  - `pid_made`: PID-MADE (PID with Model-Adaptive Deviation Estimation). Uses a *lagged centroid* reference (geometric median during warmup, then the previous global model), a *discounted integral* with forgetting factor λ, and an *adaptive threshold* (fixed, Chebyshev, or Gaussian). Fully stateless: no client is permanently removed — every client is re-evaluated fresh each round.
   - `multi-krum`: Multi-Krum aggregation. Clients are removed from aggregation only in current round.
   - `krum`: Krum aggregation works like Multi-Krum, but uses only a single client. 
   - `multi-krum-based`: Multi-Krum-based aggregation where removed clients are excluded from aggregation permanently.
@@ -39,6 +41,7 @@ Defines the aggregation strategy. Options:
   - `trimmed_mean`: Trimmed-Mean aggregation strategy. Aggregates updates by removing a fixed fraction of the largest and smallest values for each parameter dimension before averaging. Robust against outliers and certain types of attacks.
   - `bulyan`: Bulyan aggregation strategy. Uses Multi-Krum as the first step of filtering and Trimmed-Mean as the second step to ensure robustness.
   - `fed_nga`: Fed-NGA (Federated Normalized Gradients Algorithm) aggregation strategy. Performs normalization of client gradients before performing global aggregation to improve robustness against Byzantine faults and data heterogeneity. Fed-NGA paper: https://arxiv.org/pdf/2408.09539
+  - `freq_fed`: FreqFed aggregation strategy. A frequency analysis-based approach that uses 2-D Discrete Cosine Transform (DCT) to extract low-frequency components of client weight updates and clusters them using HDBSCAN to identify and exclude malicious updates. FreqFed paper: https://www.ndss-symposium.org/ndss-paper/freqfed-a-frequency-analysis-based-approach-for-mitigating-poisoning-attacks-in-federated-learning/
 
 
 - **`strict_mode`**: ensures that Flower trains and aggregates all available clients at every round. When enabled (default), automatically sets `min_fit_clients`, `min_evaluate_clients`, and `min_available_clients` to equal `num_of_clients`. Options: `"true"`, `"false"`.
@@ -81,15 +84,19 @@ Defines the aggregation strategy. Options:
 - **`attack_schedule`**: array of attack configurations for round-based attacks. Each entry requires:
   - `start_round`: when the attack starts (1 to `num_of_rounds`).
   - `end_round`: when the attack ends (1 to `num_of_rounds`).
-  - `attack_type`: type of attack (`label_flipping` or `gaussian_noise`).
+  - `attack_type`: type of attack. Both categories are configured as `attack_schedule` entries and applied in-memory — no pre-poisoned dataset required:
+    - **Data poisoning** (applied to training data before local training): `label_flipping`, `gaussian_noise`, `target_flipping`.
+    - **Model poisoning** (applied to model weights after local training, before sending to server): `gradient_scaling`.
   - **Attack parameters:**
     - `label_flipping`: no additional parameters required.
     - `gaussian_noise`: `target_noise_snr` (dB, recommended) or `mean`/`std`, plus optional `attack_ratio` (0.0-1.0, defaults to 1.0).
     - `target_flipping`: `attack_ratio` (0.0-1.0, defaults to 0.1). Flips the target values of a percentage of the data points in a clients dataset. Based on Flip attack described in DOI: 10.1109/PRDC50213.2020.00019
+    - `gradient_scaling`: `scale_factor` (number > 0). The local weight update delta `(local - global)` is multiplied by this factor before being sent to the server. A value greater than 1 amplifies the update; a value between 0 and 1 dampens it. For example, `scale_factor: 10.0` makes the malicious client's update 10× larger than its honest counterpart.
   - **Malicious Clients Selection:**
     - `num_malicious_clients`: specify number of malicious clients. Specific clients will be selected randomly.
     - `proportion_malicious_clients`: specify proportion of malicious clients. Specific clients will be selected randomly.
-    - `specific_malicious_clients`: specify array of malicious client ids. 
+    - `specific_malicious_clients`: specify array of malicious client ids.
+  - **Note:** `preserve_dataset: true` is incompatible with data poisoning attacks (`label_flipping`, `gaussian_noise`) but is allowed alongside `gradient_scaling` since model poisoning does not modify the local dataset.
 
 - `save_attack_snapshots`: save attack snapshots for analysis (`true`/`false`).
 - `attack_snapshot_format`: format for snapshots (`pickle`, `visual`, or `pickle_and_visual`).
@@ -147,7 +154,20 @@ Defines the aggregation strategy. Options:
 **For `trimmed_mean` strategy**:
 - `trim_ratio`: fraction of extreme values to discard from both ends (lowest and highest) of each parameter dimension before averaging. Must be in the range 0–0.5.
 
+**For `pid_made` strategy**:
+- `Kp`, `Ki`, `Kd`: PID controller gains.
+- `begin_removing_from_round`: number of warmup rounds (`T_warmup`). During warmup the centroid reference is the geometric median of client weights; after warmup it switches to the lagged global model.
+- `lam`: forgetting factor λ ∈ (0, 1) applied to the per-client integral each round (`I[i] ← I[i]*λ + Δᵢ`). Lower values make the integral forget history faster.
+- `threshold_mode`: how the per-round threshold τₜ is derived from the score distribution. Options:
+  - `fixed`: τₜ = `tau` (constant). Requires `tau` parameter.
+  - `chebyshev`: τₜ = μ + √((1-α)/α)·σ — distribution-free bound. Requires `alpha` parameter.
+  - `gaussian`: τₜ = μ + Φ⁻¹(1-α)·σ — parametric bound. Requires `alpha` parameter.
+- `tau`: constant threshold score (required only when `threshold_mode` is `fixed`).
+- `alpha`: per-round false-positive rate α ∈ (0, 1) (required when `threshold_mode` is `chebyshev` or `gaussian`). Smaller α → higher threshold → fewer clients excluded.
 
+**For `freq_fed` strategy**:
+- `min_cluster_size`: HDBSCAN min_cluster_size (minimum number of updates to form a cluster).
+- `begin_removing_from_round`: warmup rounds before filtering is active.
 
 ---
 

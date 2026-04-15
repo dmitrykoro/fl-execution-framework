@@ -56,7 +56,9 @@ from src.simulation_strategies.multi_krum_strategy import MultiKrumStrategy
 from src.simulation_strategies.rfa_based_removal_strategy import RFABasedRemovalStrategy
 from src.simulation_strategies.bulyan_strategy import BulyanStrategy
 from src.simulation_strategies.pid_based_stateless_removal_strategy import PIDBasedStatelessRemovalStrategy
+from src.simulation_strategies.pid_made_strategy import PIDMADEStrategy
 from src.simulation_strategies.fed_nga_strategy import FedNGAStrategy
+from src.simulation_strategies.freq_fed_strategy import FreqFedStrategy
 
 from src.data_models.simulation_strategy_config import StrategyConfig
 from src.data_models.simulation_strategy_history import SimulationStrategyHistory
@@ -407,6 +409,20 @@ class FederatedSimulation:
                 use_lora=True if self.strategy_config.use_llm and self.strategy_config.llm_finetuning == "lora" else False,
                 **common_kwargs
             )
+        elif aggregation_strategy_keyword == "pid_made":
+            self._aggregation_strategy = PIDMADEStrategy(
+                kp=self.strategy_config.Kp,
+                ki=self.strategy_config.Ki,
+                kd=self.strategy_config.Kd,
+                lam=self.strategy_config.lam,
+                threshold_mode=self.strategy_config.threshold_mode,
+                tau=self.strategy_config.tau,
+                alpha=self.strategy_config.alpha,
+                network_model=self._network_model,
+                aggregation_strategy_keyword=aggregation_strategy_keyword,
+                use_lora=True if self.strategy_config.use_llm and self.strategy_config.llm_finetuning == "lora" else False,
+                **common_kwargs
+            )
         elif aggregation_strategy_keyword == "krum":
             self._aggregation_strategy = KrumBasedRemovalStrategy(
                 num_malicious_clients=self.strategy_config.num_of_malicious_clients,
@@ -448,6 +464,12 @@ class FederatedSimulation:
 
         elif aggregation_strategy_keyword == "fed_nga":
             self._aggregation_strategy = FedNGAStrategy(
+                **common_kwargs
+            )
+
+        elif aggregation_strategy_keyword == "freq_fed":
+            self._aggregation_strategy = FreqFedStrategy(
+                min_cluster_size=self.strategy_config.min_cluster_size or 5,
                 **common_kwargs
             )
 

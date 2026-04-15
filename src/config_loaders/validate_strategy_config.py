@@ -11,8 +11,9 @@ config_schema = {
             "type": "string",
             "enum": ["trust", "pid", "pid_scaled", "pid_standardized", "pid_standardized_score_based",
                     "multi-krum", "krum", "multi-krum-based", "trimmed_mean",
-                    "rfa", "bulyan", "fools_gold", "pid_v5_stateless_mean_based", 
-                    "pid_v5_stateless_median_based", "fed_nga"]
+                    "rfa", "bulyan", "fools_gold", "pid_made",  "freq_fed",
+                    "pid_v5_stateless_mean_based", "pid_v5_stateless_median_based", "fed_nga"]
+                    
         },
         "strict_mode": {
             "type": "string",
@@ -227,6 +228,32 @@ config_schema = {
             "type": "number"
         },
 
+        # FreqFed
+        "min_cluster_size": {
+            "type": "integer",
+            "minimum": 2
+        },
+
+        # PID-MADE
+        "lam": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "exclusiveMaximum": 1.0
+        },
+        "threshold_mode": {
+            "type": "string",
+            "enum": ["fixed", "chebyshev", "gaussian"]
+        },
+        "tau": {
+            "type": "number",
+            "exclusiveMinimum": 0.0
+        },
+        "alpha": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "exclusiveMaximum": 1.0
+        },
+
         # Attack scheduling
         "attack_schedule": {
             "type": "array",
@@ -237,7 +264,7 @@ config_schema = {
                     "end_round": {"type": "integer", "minimum": 1},
                     "attack_type": {
                         "type": "string",
-                        "enum": ["label_flipping", "gaussian_noise", "target_flipping"]
+                        "enum": ["label_flipping", "gaussian_noise", "target_flipping", "gradient_scaling"]
                     },
                     # old format entries for backward-compatibility - do not use
                     "selection_strategy": {"type": "string", "enum": ["specific", "random", "percentage"]},
@@ -250,7 +277,8 @@ config_schema = {
                     "proportion_malicious_clients": {"type": "number", "items": {"type": "integer"}},
                     "random_seed": {"type": "integer", "minimum": 0},
                     "target_noise_snr": {"type": "number"},
-                    "attack_ratio": {"type": "number", "minimum": 0.0, "maximum": 1.0}
+                    "attack_ratio": {"type": "number", "minimum": 0.0, "maximum": 1.0},
+                    "scale_factor": {"type": "number", "exclusiveMinimum": 0}
                 },
                 "required": ["start_round", "end_round", "attack_type"]
             }
@@ -307,6 +335,8 @@ config_schema = {
 def _validate_dependent_params(strategy_config: dict) -> None:
     """Validate that all params that require additional params are correct."""
 
+    # Required Parameters for Aggregation Strategies
+
     aggregation_strategy_keyword = strategy_config["aggregation_strategy_keyword"]
 
     if aggregation_strategy_keyword == "trust":
@@ -328,6 +358,28 @@ def _validate_dependent_params(strategy_config: dict) -> None:
                 raise ValidationError(
                     f"Missing parameter {param} for PID aggregation {aggregation_strategy_keyword}"
                 )
+    elif aggregation_strategy_keyword == "pid_made":
+        pid_made_required = ["Kp", "Ki", "Kd", "lam", "threshold_mode", "begin_removing_from_round"]
+        for param in pid_made_required:
+            if param not in strategy_config:
+                raise ValidationError(
+                    f"Missing parameter '{param}' for pid_made aggregation"
+                )
+        threshold_mode = strategy_config["threshold_mode"]
+        if threshold_mode == "fixed":
+            if "tau" not in strategy_config:
+                raise ValidationError(
+                    "pid_made with threshold_mode='fixed' requires 'tau' parameter"
+                )
+        elif threshold_mode in ("chebyshev", "gaussian"):
+            if "alpha" not in strategy_config:
+                raise ValidationError(
+                    f"pid_made with threshold_mode='{threshold_mode}' requires 'alpha' parameter"
+                )
+        else:
+            raise ValidationError(
+                f"pid_made: invalid threshold_mode '{threshold_mode}'. Must be 'fixed', 'chebyshev', or 'gaussian'"
+            )
     elif aggregation_strategy_keyword in ["multi-krum", "krum", "multi-krum-based"]:
         if "num_krum_selections" not in strategy_config:
             raise ValidationError(
@@ -343,6 +395,19 @@ def _validate_dependent_params(strategy_config: dict) -> None:
             raise ValidationError(
                 f"Missing parameter num_bulyan_benign_clients for aggregation: {aggregation_strategy_keyword}"
             )
+    elif aggregation_strategy_keyword == "freq_fed":
+        if "begin_removing_from_round" not in strategy_config:
+            raise ValidationError(
+                "Missing parameter 'begin_removing_from_round' for freq_fed aggregation"
+            )
+        
+    if aggregation_strategy_keyword in ("bulyan", "krum", "multi-krum-based", "multi-krum", "rfa", "trimmed_mean", "pid"):
+        if "begin_removing_from_round" not in strategy_config:
+            raise ValidationError(
+                f"Missing parameter begin_removing_from_round for aggregation {aggregation_strategy_keyword}"
+            )
+        
+    # Required Parameters for Datasets
         
     dataset_keyword = strategy_config["dataset_keyword"]
 
@@ -378,12 +443,7 @@ def _validate_dependent_params(strategy_config: dict) -> None:
                         f"Please use 'attack_schedule' instead of 'attack_type'."
             )
         
-    if aggregation_strategy_keyword in ("bulyan", "krum", "multi-krum-based", "multi-krum", "rfa", "trimmed_mean", "pid"):
-        if "begin_removing_from_round" not in strategy_config:
-            raise ValidationError(
-                f"Missing parameter begin_removing_from_round for aggregation {aggregation_strategy_keyword}"
-            )
-
+    
 
 def _populate_client_selection(config: dict) -> None:
     """
@@ -498,6 +558,16 @@ def _validate_attack_schedule(config: dict) -> None:
                     f"{entry_desc}: target_flipping attack requires 'attack_ratio' parameter"
                 )
 
+        elif attack_type == "gradient_scaling":
+            if "scale_factor" not in entry:
+                raise ValidationError(
+                    f"{entry_desc}: gradient_scaling attack requires 'scale_factor' parameter"
+                )
+            if entry["scale_factor"] <= 0:
+                raise ValidationError(
+                    f"{entry_desc}: 'scale_factor' must be > 0"
+                )
+
     # Check for overlapping rounds (attack stacking)
     for i, entry1 in enumerate(schedule):
         for j, entry2 in enumerate(schedule[i + 1:], start=i + 1):
@@ -529,8 +599,10 @@ def _validate_attack_schedule(config: dict) -> None:
                         f"Both attacks will be stacked and applied sequentially."
                     )
 
-    # Strict rejection: preserve_dataset incompatible with attack_schedule
-    if schedule and config.get("preserve_dataset") == "true":
+    # Strict rejection: preserve_dataset incompatible with data-poisoning attack_schedule
+    # (gradient_scaling is post-training and does not touch the dataset, so it is exempt)
+    data_poisoning_entries = [e for e in schedule if e.get("attack_type") != "gradient_scaling"]
+    if data_poisoning_entries and config.get("preserve_dataset") == "true":
         raise ValidationError(
             "CONFIG REJECTED: Cannot use attack_schedule with preserve_dataset=true\n"
             "\n"

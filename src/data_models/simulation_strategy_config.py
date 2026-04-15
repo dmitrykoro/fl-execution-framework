@@ -55,6 +55,15 @@ class StrategyConfig:
 
     trim_ratio: float = None
 
+    # PID-MADE parameters
+    lam: float = None            # forgetting factor λ ∈ (0, 1)
+    threshold_mode: str = None   # 'fixed' | 'chebyshev' | 'gaussian'
+    tau: float = None            # fixed threshold (threshold_mode == 'fixed')
+    alpha: float = None          # false-positive rate (threshold_mode in chebyshev/gaussian)
+
+    # FreqFed parameters
+    min_cluster_size: int = None  # HDBSCAN min_cluster_size (default 5)
+
     strict_mode: bool = None
 
     strategy_number: int = None
