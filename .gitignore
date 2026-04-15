@@ -38,3 +38,9 @@ dist
 .env
 .env.*
 /wandb/
+
+# IJCAI rebuttal (local only)
+ijcai26_rebuttal/
+ijcai26-authors-response.zip
+ijcai26_rebuttal.zip
+generate_rebuttal_figures.py
