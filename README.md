@@ -1,5 +1,5 @@
 [![codecov](https://codecov.io/github/dmitrykoro/fl-execution-framework/graph/badge.svg?token=HJFASRJ43T)](https://codecov.io/github/dmitrykoro/fl-execution-framework)
-# Knowledge Management Framework for Federated Learning
+# InteFL: Knowledge Management Framework for Federated Learning
 ### A framework for Federated Learning simulation configuration and execution
 
 ---
@@ -7,7 +7,8 @@
 ## General information
 
 This is the framework for the configuration and management of federated learning simulation strategies.
-Federated Learning setup is based on Flower. The framework provides functionality to configure simulation execution
+Federated Learning setup is based on Flower. The framework provides functionality to configure execution environment 
+parameters, such as adversarial attacks, and machine learning parameters, such as number of epochs, ML task, 
 and collect metrics in an uniformed way. It also allows to vary any number of simulation parameters and compare the
 effects of these parameters on the collected metrics, as well as plug-and-play integration of custom aggregation strategies.
 
@@ -40,6 +41,7 @@ Defines the aggregation strategy. Options:
   - `trimmed_mean`: Trimmed-Mean aggregation strategy. Aggregates updates by removing a fixed fraction of the largest and smallest values for each parameter dimension before averaging. Robust against outliers and certain types of attacks.
   - `bulyan`: Bulyan aggregation strategy. Uses Multi-Krum as the first step of filtering and Trimmed-Mean as the second step to ensure robustness.
   - `fed_nga`: Fed-NGA (Federated Normalized Gradients Algorithm) aggregation strategy. Performs normalization of client gradients before performing global aggregation to improve robustness against Byzantine faults and data heterogeneity. Fed-NGA paper: https://arxiv.org/pdf/2408.09539
+  - `freq_fed`: FreqFed aggregation strategy. A frequency analysis-based approach that uses 2-D Discrete Cosine Transform (DCT) to extract low-frequency components of client weight updates and clusters them using HDBSCAN to identify and exclude malicious updates. FreqFed paper: https://www.ndss-symposium.org/ndss-paper/freqfed-a-frequency-analysis-based-approach-for-mitigating-poisoning-attacks-in-federated-learning/
 
 
 - **`strict_mode`**: ensures that Flower trains and aggregates all available clients at every round. When enabled (default), automatically sets `min_fit_clients`, `min_evaluate_clients`, and `min_available_clients` to equal `num_of_clients`. Options: `"true"`, `"false"`.
@@ -87,11 +89,11 @@ Defines the aggregation strategy. Options:
     - `label_flipping`: no additional parameters required.
     - `gaussian_noise`: `target_noise_snr` (dB, recommended) or `mean`/`std`, plus optional `attack_ratio` (0.0-1.0, defaults to 1.0).
     - `gradient_scaling`: `scale_factor` (number > 0). The local weight update delta `(local - global)` is multiplied by this factor before being sent to the server. A value greater than 1 amplifies the update; a value between 0 and 1 dampens it. For example, `scale_factor: 10.0` makes the malicious client's update 10× larger than its honest counterpart.
+    - `little_is_enough`: applies peturbations to many parameters across a few corrupted clients to control parameter dstribution while bypassing outlier detection. Based on Preventing Convergence Attack descriped in https://doi.org/10.48550/arXiv.1902.06156
   - **Malicious Clients Selection:**
     - `num_malicious_clients`: specify number of malicious clients. Specific clients will be selected randomly.
     - `proportion_malicious_clients`: specify proportion of malicious clients. Specific clients will be selected randomly.
     - `specific_malicious_clients`: specify array of malicious client ids.
-  - **Note:** `preserve_dataset: true` is incompatible with data poisoning attacks (`label_flipping`, `gaussian_noise`) but is allowed alongside `gradient_scaling` since model poisoning does not modify the local dataset.
 
 - `save_attack_snapshots`: save attack snapshots for analysis (`true`/`false`).
 - `attack_snapshot_format`: format for snapshots (`pickle`, `visual`, or `pickle_and_visual`).
@@ -150,6 +152,10 @@ Defines the aggregation strategy. Options:
   - `gaussian`: τₜ = μ + Φ⁻¹(1-α)·σ — parametric bound. Requires `alpha` parameter.
 - `tau`: constant threshold score (required only when `threshold_mode` is `fixed`).
 - `alpha`: per-round false-positive rate α ∈ (0, 1) (required when `threshold_mode` is `chebyshev` or `gaussian`). Smaller α → higher threshold → fewer clients excluded.
+
+**For `freq_fed` strategy**:
+- `min_cluster_size`: HDBSCAN min_cluster_size (minimum number of updates to form a cluster).
+- `begin_removing_from_round`: warmup rounds before filtering is active.
 
 ---
 

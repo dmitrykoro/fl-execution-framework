@@ -57,11 +57,14 @@ from src.simulation_strategies.bulyan_strategy import BulyanStrategy
 from src.simulation_strategies.pid_based_stateless_removal_strategy import PIDBasedStatelessRemovalStrategy
 from src.simulation_strategies.pid_made_strategy import PIDMADEStrategy
 from src.simulation_strategies.fed_nga_strategy import FedNGAStrategy
+from src.simulation_strategies.freq_fed_strategy import FreqFedStrategy
 
 from src.data_models.simulation_strategy_config import StrategyConfig
 from src.data_models.simulation_strategy_history import SimulationStrategyHistory
 
 from src.dataset_handlers.dataset_handler import DatasetHandler
+
+from src.attack_utils.little_is_enough_attack import LittleIsEnoughAttack
 
 
 def weighted_average(metrics: List[Tuple[int, dict]]) -> dict:
@@ -458,8 +461,23 @@ class FederatedSimulation:
                 **common_kwargs
             )
 
+        elif aggregation_strategy_keyword == "freq_fed":
+            self._aggregation_strategy = FreqFedStrategy(
+                min_cluster_size=self.strategy_config.min_cluster_size or 5,
+                **common_kwargs
+            )
+
         else:
             raise NotImplementedError(f"The strategy {aggregation_strategy_keyword} not implemented!")
+        
+        use_median_control_attack = False
+        if self.strategy_config.attack_type is not None:
+            use_median_control_attack = LittleIsEnoughAttack.check_for_attack(self.strategy_config.attack_type)
+        elif self.strategy_config.attack_schedule is not None:
+            use_median_control_attack = LittleIsEnoughAttack.check_for_attack(self.strategy_config.attack_schedule)
+
+        if use_median_control_attack and self._aggregation_strategy is not None:
+            self._aggregation_strategy = LittleIsEnoughAttack(self._aggregation_strategy, **common_kwargs)
 
     def client_fn(self, cid: str) -> Client:
         """Create a Flower client."""

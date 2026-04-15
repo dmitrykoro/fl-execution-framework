@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Union
 
 from src.attack_utils.snapshot_image_viz import save_image_grid
-from src.attack_utils.snapshot_text_viz import save_text_samples
+from src.attack_utils.snapshot_text_viz import save_text_samples, save_extra_attack_info
 
 
 def save_attack_snapshots(
@@ -63,6 +63,7 @@ def save_attack_snapshots(
                 labels_sample=labels_sample.cpu().numpy(),
                 original_labels_sample=original_labels_sample.cpu().numpy() if original_labels_sample is not None else labels_sample.cpu().numpy(),
                 output_dir=output_dir,
+                model_type=model_type,
                 experiment_info=experiment_info,
                 strategy_number=strategy_number,
                 original_data_sample=original_data_sample.cpu().numpy(),
@@ -76,6 +77,7 @@ def save_attack_snapshots(
                 labels_sample=labels_sample.cpu().numpy(),
                 original_labels_sample=original_labels_sample.cpu().numpy() if original_labels_sample is not None else labels_sample.cpu().numpy(),
                 output_dir=output_dir,
+                model_type=model_type,
                 experiment_info=experiment_info,
                 strategy_number=strategy_number,
                 tokenizer=tokenizer,
@@ -169,10 +171,12 @@ def save_visual_snapshot(
         labels_sample: np.ndarray,
         original_labels_sample: np.ndarray,
         output_dir: str,
+        model_type: Optional[str] = None,
         experiment_info: Optional[Dict[str, Any]] = None,
         strategy_number: int = 0,
         tokenizer=None,
         original_data_sample: Optional[np.ndarray] = None,
+        specific_attack_type: Optional[str] = None,
 ) -> None:
     """Save visual snapshot of attack samples for inspection.
 
@@ -187,10 +191,12 @@ def save_visual_snapshot(
         labels_sample: Sample labels array
         original_labels_sample: Original labels array
         output_dir: Base output directory
+        model_type: Type of model being trained (optional)
         experiment_info: Additional experiment metadata (optional)
         strategy_number: Strategy index for multi-strategy runs (default: 0)
         tokenizer: HuggingFace tokenizer for text visualization (optional)
         original_data_sample: Original data before poisoning for comparison (optional)
+        specific_attack_type: Used for when an visual attack snapshot needs to be made outside of the normal pipeline (optional)
 
     Note:
         Automatically detects data type (images vs text) and uses appropriate
@@ -200,7 +206,7 @@ def save_visual_snapshot(
     snapshot_dir = _get_snapshot_dir(output_dir, client_id, round_num, strategy_number)
 
     try:
-        if len(data_sample.shape) == 4:
+        if model_type == "cnn":
             filename = f"{attack_type}_visual.png"
             save_image_grid(
                 data_sample,
@@ -210,7 +216,7 @@ def save_visual_snapshot(
                 attack_config,
                 original_images=original_data_sample,
             )
-        else:
+        elif model_type == "transformer":
             filename = f"{attack_type}_samples.txt"
             save_text_samples(
                 labels_sample,
@@ -221,6 +227,17 @@ def save_visual_snapshot(
                 input_ids_original=original_data_sample,
                 input_ids_poisoned=data_sample,
             )
+
+        if specific_attack_type == "little_is_enough" and experiment_info is not None:
+            filename = f"{specific_attack_type}_attack_info.txt"
+            save_extra_attack_info(
+                client_id=client_id,
+                round_num=round_num,
+                filepath=snapshot_dir / filename,
+                attack_type=specific_attack_type,
+                experiment_info=experiment_info,
+            )
+
 
         logging.debug(
             f"Saved {attack_type} visual snapshot: client {client_id}, round {round_num} -> {snapshot_dir}"

@@ -2,6 +2,7 @@ import logging
 import sqlalchemy
 import aiohttp
 import requests
+from pathlib import Path
 
 from src.experiment_database.persistence import fill_all_tables
 from src.experiment_database.session import get_db
@@ -27,6 +28,16 @@ class DatabaseHandler:
 
             if not self._ensure_token_valid():
                 raise Exception("Experiment server token is invalid or server not running.")
+
+    @staticmethod
+    def _build_local_dashboard_url(simulation_strategy: FederatedSimulation) -> str | None:
+        directory_handler = getattr(simulation_strategy, "directory_handler", None)
+        output_dir = getattr(directory_handler, "dirname", None) if directory_handler else None
+
+        if not output_dir:
+            return None
+
+        return (Path(output_dir).resolve() / "index.html").as_uri()
 
     def _ensure_token_valid(self) -> bool:
         """Try to fetch server status from /health with the provided token. Fail if token is invalid."""
@@ -76,6 +87,7 @@ class DatabaseHandler:
     async def _server_write_to_db(self, strategy: FederatedSimulation) -> None:
         """Send experiment results to the remote experiment server via HTTP POST."""
 
+        local_dashboard_url = self._build_local_dashboard_url(strategy)
         payload = {
             "strategy_history": strategy.strategy_history.to_dict(),
             "total_exec_time": strategy.get_time(),
@@ -85,6 +97,7 @@ class DatabaseHandler:
             "gpu_name": strategy.strategy_history.training_device_name,
             "gpu_ram": strategy.strategy_history.training_device_ram,
             "is_executed_on": strategy.strategy_history.training_device_type,
+            "local_dashboard_url": local_dashboard_url,
             "full_author_name": FULL_AUTHOR_NAME,
             "author_email": AUTHOR_EMAIL
         }
@@ -118,8 +131,16 @@ class DatabaseHandler:
             try:
                 strategy_history = strategy.strategy_history
                 total_exec_time = strategy.get_time()
+                local_dashboard_url = self._build_local_dashboard_url(strategy)
 
-                fill_all_tables(session, strategy_history, total_exec_time, FULL_AUTHOR_NAME, AUTHOR_EMAIL)
+                fill_all_tables(
+                    session,
+                    strategy_history,
+                    total_exec_time,
+                    FULL_AUTHOR_NAME,
+                    AUTHOR_EMAIL,
+                    local_dashboard_url=local_dashboard_url,
+                )
 
             except sqlalchemy.exc.OperationalError as e:
                 logging.error(

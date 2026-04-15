@@ -86,6 +86,51 @@ def _split_composite_attack_info(attack_type: str, attack_configs: list) -> list
     return attack_info
 
 
+def _build_visuals_list(attack_types:list[str], base_dir: Path) -> list:
+    """
+    Build list of visuals for HTML report.
+    
+    Args:
+        attack_type: List of attack types
+        base_dir: Path to base directory
+
+    Returns:
+        List of visuals
+    """
+    visuals = []
+    
+    for attack_type in attack_types:
+        if attack_type == "token_replacement":
+            visuals.append(
+                {
+                    "path": (base_dir / f"{attack_type}_samples.txt").as_posix(),
+                    "type": "text",
+                    "icon": "📝",
+                    "title": "View text samples",
+                }
+            )
+        elif attack_type == "little_is_enough":
+            visuals.append(
+                {
+                    "path": (base_dir / f"{attack_type}_attack_info.txt").as_posix(),
+                    "type": "text",
+                    "icon": "📑",
+                    "title": "View extra info",
+                }
+            )
+        else:            
+            visuals.append(
+                {
+                    "path": (base_dir / f"{attack_type}_visual.png").as_posix(),
+                    "type": "image",
+                    "icon": "🖼️",
+                    "title": "View visual",
+                }
+            )
+
+    return visuals
+
+
 def generate_summary_json(
     output_dir: str, run_config: Optional[dict] = None, strategy_number: int = 0
 ) -> None:
@@ -181,7 +226,9 @@ def generate_snapshot_index(
             client_id = metadata.get("client_id")
             round_num = metadata.get("round_num")
 
-            if isinstance(attack_config, list) and len(attack_config) > 1:
+            base_dir = Path(f"client_{client_id}") / f"round_{round_num}"
+
+            if isinstance(attack_config, list):
                 attack_info_list = _split_composite_attack_info(
                     attack_type, attack_config
                 )
@@ -191,6 +238,8 @@ def generate_snapshot_index(
                 for info in attack_info_list:
                     if info["params"]:
                         all_params.extend(info["params"])
+
+                visuals = _build_visuals_list(attack_types, base_dir)
 
                 snapshot_data.append(
                     {
@@ -203,33 +252,17 @@ def generate_snapshot_index(
                         "pickle_path": snapshot_path.relative_to(
                             snapshots_dir
                         ).as_posix(),
-                        "visual_path": (
-                            Path(f"client_{client_id}")
-                            / f"round_{round_num}"
-                            / f"{attack_type}_visual.png"
-                        ).as_posix(),
-                        "visual_type": "image",
-                        "metadata_path": (
-                            Path(f"client_{client_id}")
-                            / f"round_{round_num}"
-                            / f"{attack_type}_metadata.json"
-                        ).as_posix(),
+                        "visuals": visuals,
+                        "metadata_path": (base_dir / f"{attack_type}_metadata.json").as_posix(),
                     }
                 )
             else:
-                if isinstance(attack_config, list):
-                    attack_config = attack_config[0] if attack_config else {}
 
                 attack_parameters = _extract_attack_params_for_display(
                     attack_type, attack_config
                 )
 
-                if attack_type == "token_replacement":
-                    visual_filename = f"{attack_type}_samples.txt"
-                    visual_type = "text"
-                else:
-                    visual_filename = f"{attack_type}_visual.png"
-                    visual_type = "image"
+                visuals = _build_visuals_list([attack_type], base_dir)
 
                 snapshot_data.append(
                     {
@@ -244,17 +277,8 @@ def generate_snapshot_index(
                         "pickle_path": snapshot_path.relative_to(
                             snapshots_dir
                         ).as_posix(),
-                        "visual_path": (
-                            Path(f"client_{client_id}")
-                            / f"round_{round_num}"
-                            / visual_filename
-                        ).as_posix(),
-                        "visual_type": visual_type,
-                        "metadata_path": (
-                            Path(f"client_{client_id}")
-                            / f"round_{round_num}"
-                            / f"{attack_type}_metadata.json"
-                        ).as_posix(),
+                        "visuals": visuals,
+                        "metadata_path": (base_dir / f"{attack_type}_metadata.json").as_posix(),
                     }
                 )
 
@@ -428,152 +452,257 @@ def _generate_main_dashboard_html(
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>FL Simulation Results - {run_id}</title>
     <style>
+        :root {{
+            color-scheme: light;
+            font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+            --bg: #f4f4f5;
+            --panel: #ffffff;
+            --panel-muted: #fafafa;
+            --border: #e4e4e7;
+            --border-soft: #f1f5f9;
+            --text: #18181b;
+            --text-muted: #71717a;
+            --text-soft: #52525b;
+            --accent: #18181b;
+            --accent-hover: #27272a;
+        }}
         * {{ margin: 0; padding: 0; box-sizing: border-box; }}
         body {{
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-            background: #f5f5f5;
-            padding: 20px;
+            min-height: 100vh;
+            background: var(--bg);
+            color: var(--text);
+            padding: 24px;
             line-height: 1.6;
         }}
-        .container {{
+        a {{
+            color: inherit;
+        }}
+        .page {{
             max-width: 1200px;
             margin: 0 auto;
-            background: white;
-            border-radius: 8px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }}
+        .shell {{
+            background: var(--panel);
+            border: 1px solid var(--border);
+            border-radius: 24px;
+            box-shadow: 0 1px 2px rgba(24, 24, 27, 0.06);
             overflow: hidden;
         }}
         .header {{
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            padding: 30px;
+            padding: 32px;
+            background: linear-gradient(180deg, #ffffff 0%, #fafafa 100%);
+            border-bottom: 1px solid var(--border);
         }}
-        .header h1 {{ font-size: 28px; margin-bottom: 10px; }}
-        .header .meta {{ opacity: 0.9; font-size: 14px; }}
+        .eyebrow {{
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 12px;
+            border-radius: 999px;
+            background: var(--panel);
+            border: 1px solid var(--border);
+            color: var(--text-muted);
+            font-size: 11px;
+            font-weight: 600;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+        }}
+        .header h1 {{
+            margin-top: 14px;
+            font-size: 32px;
+            line-height: 1.1;
+            letter-spacing: -0.03em;
+        }}
+        .header .meta {{
+            margin-top: 10px;
+            font-size: 14px;
+            color: var(--text-muted);
+        }}
         .stats {{
-            display: flex;
-            gap: 20px;
-            padding: 20px 30px;
-            background: #f8f9fa;
-            border-bottom: 1px solid #dee2e6;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 16px;
+            padding: 24px 32px;
+            background: var(--panel-muted);
+            border-bottom: 1px solid var(--border);
             flex-wrap: wrap;
         }}
         .stat {{
-            flex: 1;
             min-width: 150px;
-            text-align: center;
-            padding: 15px;
-            background: white;
-            border-radius: 6px;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            padding: 18px;
+            background: var(--panel);
+            border: 1px solid var(--border);
+            border-radius: 20px;
         }}
-        .stat-value {{ font-size: 24px; font-weight: bold; color: #667eea; }}
-        .stat-label {{ font-size: 12px; color: #6c757d; text-transform: uppercase; letter-spacing: 0.5px; margin-top: 5px; }}
+        .stat-value {{
+            font-size: 28px;
+            font-weight: 600;
+            letter-spacing: -0.03em;
+        }}
+        .stat-label {{
+            font-size: 11px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            margin-top: 6px;
+        }}
         .section {{
-            padding: 30px;
-            border-bottom: 1px solid #dee2e6;
+            padding: 28px 32px 32px;
+            border-bottom: 1px solid var(--border);
         }}
         .section:last-child {{ border-bottom: none; }}
         .section-title {{
             font-size: 20px;
             font-weight: 600;
-            margin-bottom: 20px;
-            color: #495057;
+            margin-bottom: 18px;
+            color: var(--text);
             display: flex;
             align-items: center;
             gap: 10px;
+        }}
+        .section-subtitle {{
+            margin-top: -8px;
+            margin-bottom: 18px;
+            font-size: 13px;
+            color: var(--text-muted);
         }}
         .snapshot-grid {{
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-            gap: 15px;
+            gap: 16px;
         }}
         .snapshot-card {{
-            background: #f8f9fa;
+            background: var(--panel-muted);
             padding: 20px;
-            border-radius: 6px;
-            border: 1px solid #dee2e6;
-            transition: all 0.2s;
+            border-radius: 20px;
+            border: 1px solid var(--border);
+            transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
         }}
         .snapshot-card:hover {{
             transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-            border-color: #667eea;
+            box-shadow: 0 8px 20px rgba(24, 24, 27, 0.06);
+            border-color: #d4d4d8;
         }}
         .snapshot-card h3 {{
             font-size: 16px;
-            margin-bottom: 10px;
-            color: #495057;
+            margin-bottom: 8px;
+            color: var(--text);
         }}
         .snapshot-card .info {{
             font-size: 13px;
-            color: #6c757d;
+            color: var(--text-muted);
             margin-bottom: 15px;
         }}
         .snapshot-card a {{
-            display: inline-block;
-            padding: 8px 16px;
-            background: #667eea;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 10px 14px;
+            background: var(--accent);
             color: white;
             text-decoration: none;
-            border-radius: 4px;
-            font-size: 14px;
+            border-radius: 14px;
+            font-size: 13px;
             font-weight: 500;
-            transition: background 0.2s;
+            transition: background 0.2s ease, transform 0.2s ease;
         }}
         .snapshot-card a:hover {{
-            background: #5568d3;
+            background: var(--accent-hover);
+            transform: translateY(-1px);
         }}
         .file-list {{
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
-            gap: 10px;
+            gap: 12px;
         }}
         .file-item {{
-            padding: 10px 15px;
-            background: #f8f9fa;
-            border-radius: 4px;
+            padding: 12px 14px;
+            background: var(--panel-muted);
+            border-radius: 16px;
             font-size: 13px;
-            color: #495057;
-            border: 1px solid #dee2e6;
+            color: var(--text);
+            border: 1px solid var(--border);
             display: flex;
             justify-content: space-between;
             align-items: center;
-            transition: all 0.2s;
+            gap: 12px;
+            transition: background 0.2s ease, border-color 0.2s ease;
         }}
         .file-item:hover {{
-            background: #e9ecef;
-            border-color: #667eea;
+            background: #f4f4f5;
+            border-color: #d4d4d8;
+        }}
+        .file-label {{
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            min-width: 0;
+        }}
+        .file-name {{
+            min-width: 0;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
         }}
         .file-item a {{
-            color: #667eea;
+            color: var(--text);
             text-decoration: none;
             font-weight: 500;
+            padding: 8px 12px;
+            border-radius: 12px;
+            border: 1px solid var(--border);
+            background: var(--panel);
+            white-space: nowrap;
         }}
         .file-item a:hover {{
-            text-decoration: underline;
+            background: var(--panel-muted);
         }}
         .file-icon {{
             font-size: 16px;
-            margin-right: 8px;
         }}
         .category-section {{
             margin-bottom: 25px;
         }}
         .category-title {{
-            font-size: 16px;
+            font-size: 14px;
             font-weight: 600;
-            color: #495057;
+            color: var(--text-soft);
             margin-bottom: 12px;
             padding-bottom: 8px;
-            border-bottom: 2px solid #dee2e6;
+            border-bottom: 1px solid var(--border);
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+        }}
+        .empty-state {{
+            padding: 24px;
+            border: 1px dashed var(--border);
+            border-radius: 20px;
+            background: var(--panel-muted);
+            color: var(--text-muted);
+            font-size: 14px;
+        }}
+        @media (max-width: 900px) {{
+            body {{
+                padding: 16px;
+            }}
+            .header,
+            .stats,
+            .section {{
+                padding-left: 18px;
+                padding-right: 18px;
+            }}
+            .header h1 {{
+                font-size: 28px;
+            }}
         }}
     </style>
 </head>
 <body>
-    <div class="container">
+    <div class="page">
+        <div class="shell">
         <div class="header">
-            <h1>📊 FL Simulation Results</h1>
+            <div class="eyebrow">Experiment Export</div>
+            <h1>FL Simulation Results</h1>
             <div class="meta">
                 <strong>Run ID:</strong> {run_id} &nbsp;|&nbsp;
                 <strong>Generated:</strong> {timestamp}
@@ -604,7 +733,8 @@ def _generate_main_dashboard_html(
     if snapshot_info:
         html += """
         <div class="section">
-            <div class="section-title">🎯 Attack Snapshot Viewers</div>
+            <div class="section-title">Attack Snapshot Viewers</div>
+            <div class="section-subtitle">Open per-strategy drill-down pages that mirror the main research UI styling.</div>
             <div class="snapshot-grid">
 """
         for snap in snapshot_info:
@@ -622,13 +752,20 @@ def _generate_main_dashboard_html(
             </div>
         </div>
 """
+    else:
+        html += """
+        <div class="section">
+            <div class="section-title">Attack Snapshot Viewers</div>
+            <div class="empty-state">No attack snapshot directories were generated for this experiment.</div>
+        </div>
+"""
 
     # Plots Section
     total_plots = sum(len(plots) for plots in plot_categories.values())
     if total_plots > 0:
         html += """
         <div class="section">
-            <div class="section-title">📈 Visualization Plots</div>
+            <div class="section-title">Visualization Plots</div>
 """
         for category, plots in plot_categories.items():
             if plots:
@@ -640,7 +777,7 @@ def _generate_main_dashboard_html(
                 for plot in plots:
                     html += f"""
                     <div class="file-item">
-                        <span><span class="file-icon">📊</span>{plot}</span>
+                        <span class="file-label"><span class="file-icon">📊</span><span class="file-name">{plot}</span></span>
                         <a href="{plot}" target="_blank">View</a>
                     </div>
 """
@@ -651,19 +788,26 @@ def _generate_main_dashboard_html(
         html += """
         </div>
 """
+    else:
+        html += """
+        <div class="section">
+            <div class="section-title">Visualization Plots</div>
+            <div class="empty-state">No PDF plots were found in this output directory.</div>
+        </div>
+"""
 
     # Data Files Section
     if csv_files:
         html += """
         <div class="section">
-            <div class="section-title">📂 Data Exports (CSV)</div>
+            <div class="section-title">Data Exports (CSV)</div>
             <div class="file-list">
 """
         for csv_file in csv_files:
             filename = Path(csv_file).name
             html += f"""
                 <div class="file-item">
-                    <span><span class="file-icon">📄</span>{filename}</span>
+                    <span class="file-label"><span class="file-icon">📄</span><span class="file-name">{filename}</span></span>
                     <a href="{csv_file}" download>Download</a>
                 </div>
 """
@@ -676,14 +820,14 @@ def _generate_main_dashboard_html(
     if config_files:
         html += """
         <div class="section">
-            <div class="section-title">⚙️ Strategy Configurations</div>
+            <div class="section-title">Strategy Configurations</div>
             <div class="file-list">
 """
         for config_file in config_files:
             filename = Path(config_file).name
             html += f"""
                 <div class="file-item">
-                    <span><span class="file-icon">📋</span>{filename}</span>
+                    <span class="file-label"><span class="file-icon">📋</span><span class="file-name">{filename}</span></span>
                     <a href="{config_file}" target="_blank">View</a>
                 </div>
 """
@@ -693,6 +837,7 @@ def _generate_main_dashboard_html(
 """
 
     html += """
+        </div>
     </div>
 </body>
 </html>

@@ -5,139 +5,278 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Attack Snapshots - {{ run_id }}</title>
     <style>
+        :root {
+            color-scheme: light;
+            font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+            --bg: #f4f4f5;
+            --panel: #ffffff;
+            --panel-muted: #fafafa;
+            --border: #e4e4e7;
+            --border-soft: #f1f5f9;
+            --text: #18181b;
+            --text-muted: #71717a;
+            --text-soft: #52525b;
+            --accent: #18181b;
+            --accent-hover: #27272a;
+            --success-bg: #ecfdf5;
+            --success-text: #047857;
+            --warning-bg: #fffbeb;
+            --warning-text: #a16207;
+            --danger-bg: #fff1f2;
+            --danger-text: #be123c;
+            --info-bg: #eff6ff;
+            --info-text: #1d4ed8;
+        }
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-            background: #f5f5f5;
-            padding: 20px;
+            min-height: 100vh;
+            background: var(--bg);
+            color: var(--text);
             line-height: 1.6;
+            padding: 24px;
         }
-        .container {
+        a {
+            color: inherit;
+        }
+        .page {
             max-width: 1400px;
             margin: 0 auto;
-            background: white;
-            border-radius: 8px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        .shell {
+            border: 1px solid var(--border);
+            border-radius: 24px;
+            background: var(--panel);
+            box-shadow: 0 1px 2px rgba(24, 24, 27, 0.06);
             overflow: hidden;
         }
         .header {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            padding: 30px;
+            padding: 32px;
+            background: linear-gradient(180deg, #ffffff 0%, #fafafa 100%);
+            border-bottom: 1px solid var(--border);
         }
-        .header h1 { font-size: 28px; margin-bottom: 10px; }
-        .header .meta { opacity: 0.9; font-size: 14px; }
+        .eyebrow {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 12px;
+            border-radius: 999px;
+            background: var(--panel);
+            border: 1px solid var(--border);
+            color: var(--text-muted);
+            font-size: 11px;
+            font-weight: 600;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+        }
+        .header h1 {
+            margin-top: 14px;
+            font-size: 32px;
+            line-height: 1.1;
+            letter-spacing: -0.03em;
+        }
+        .header .meta {
+            margin-top: 10px;
+            font-size: 14px;
+            color: var(--text-muted);
+        }
         .stats {
-            display: flex;
-            gap: 20px;
-            padding: 20px 30px;
-            background: #f8f9fa;
-            border-bottom: 1px solid #dee2e6;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 16px;
+            padding: 24px 32px;
+            background: var(--panel-muted);
+            border-bottom: 1px solid var(--border);
         }
         .stat {
-            flex: 1;
-            text-align: center;
-            padding: 15px;
-            background: white;
-            border-radius: 6px;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            padding: 18px;
+            background: var(--panel);
+            border: 1px solid var(--border);
+            border-radius: 20px;
         }
-        .stat-value { font-size: 24px; font-weight: bold; color: #667eea; }
-        .stat-label { font-size: 12px; color: #6c757d; text-transform: uppercase; letter-spacing: 0.5px; }
+        .stat-value {
+            font-size: 28px;
+            font-weight: 600;
+            letter-spacing: -0.03em;
+        }
+        .stat-label {
+            margin-top: 6px;
+            font-size: 11px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+        }
         .controls {
-            padding: 20px 30px;
+            padding: 20px 32px;
             display: flex;
-            gap: 15px;
+            flex-wrap: wrap;
+            gap: 12px;
             align-items: center;
-            border-bottom: 1px solid #dee2e6;
+            border-bottom: 1px solid var(--border);
+            background: var(--panel);
         }
         .search-box {
             flex: 1;
-            padding: 10px 15px;
-            border: 1px solid #ced4da;
-            border-radius: 6px;
+            min-width: 220px;
+            padding: 11px 14px;
+            border: 1px solid var(--border);
+            border-radius: 14px;
             font-size: 14px;
+            color: var(--text);
+            background: var(--panel);
+            outline: none;
+        }
+        .search-box:focus,
+        .filter-group select:focus {
+            border-color: #d4d4d8;
+            box-shadow: 0 0 0 3px rgba(228, 228, 231, 0.9);
         }
         .filter-group {
             display: flex;
             gap: 10px;
             align-items: center;
+            padding: 10px 12px;
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            background: var(--panel-muted);
         }
-        .filter-group label { font-size: 14px; color: #495057; font-weight: 500; }
+        .filter-group label {
+            font-size: 12px;
+            color: var(--text-muted);
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+        }
         .filter-group select {
             padding: 8px 12px;
-            border: 1px solid #ced4da;
-            border-radius: 6px;
+            border: 1px solid var(--border);
+            border-radius: 12px;
             font-size: 14px;
-            background: white;
+            background: var(--panel);
+            color: var(--text);
+            outline: none;
         }
         .table-container {
+            padding: 24px 32px 32px;
+        }
+        .table-shell {
             overflow-x: auto;
-            padding: 30px;
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            background: var(--panel);
         }
         table {
             width: 100%;
             border-collapse: collapse;
         }
         thead {
-            background: #f8f9fa;
+            background: var(--panel-muted);
             position: sticky;
             top: 0;
         }
         th {
-            padding: 12px 15px;
+            padding: 14px 16px;
             text-align: left;
             font-weight: 600;
-            color: #495057;
-            font-size: 13px;
+            color: var(--text-soft);
+            font-size: 11px;
             text-transform: uppercase;
-            letter-spacing: 0.5px;
+            letter-spacing: 0.08em;
             cursor: pointer;
             user-select: none;
-            border-bottom: 2px solid #dee2e6;
+            border-bottom: 1px solid var(--border);
         }
-        th:hover { background: #e9ecef; }
+        th:hover { background: #f4f4f5; }
         th::after { content: " ⇅"; opacity: 0.3; }
         td {
-            padding: 12px 15px;
-            border-bottom: 1px solid #f1f3f5;
+            padding: 16px;
+            border-bottom: 1px solid var(--border-soft);
             font-size: 14px;
+            vertical-align: top;
         }
-        tr:hover { background: #f8f9fa; }
+        tbody tr:hover { background: #fafafa; }
+        tbody tr:last-child td { border-bottom: none; }
+        .table-number {
+            font-weight: 600;
+            color: var(--text);
+        }
+        .attack-list {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
         .attack-type {
             display: inline-block;
             padding: 4px 10px;
-            border-radius: 4px;
-            font-size: 12px;
+            border-radius: 999px;
+            font-size: 11px;
             font-weight: 600;
             text-transform: uppercase;
-            letter-spacing: 0.5px;
+            letter-spacing: 0.08em;
+            border: 1px solid transparent;
         }
-        .attack-type.label_flipping { background: #fff3cd; color: #856404; }
-        .attack-type.gaussian_noise { background: #d1ecf1; color: #0c5460; }
-        .attack-type.token_replacement { background: #d4edda; color: #155724; }
-        .params { color: #6c757d; font-size: 13px; }
+        .attack-type.label_flipping { background: var(--warning-bg); color: var(--warning-text); border-color: #fde68a; }
+        .attack-type.gaussian_noise { background: var(--info-bg); color: var(--info-text); border-color: #bfdbfe; }
+        .attack-type.token_replacement { background: var(--success-bg); color: var(--success-text); border-color: #a7f3d0; }
+        .attack-type.little_is_enough { background: #f1eed1; color: #ffc400; border-color: #e5e2c5}
+        .attack-type.unknown { background: #f4f4f5; color: #52525b; border-color: #e4e4e7; }
+        .params {
+            color: var(--text-muted);
+            font-size: 13px;
+            max-width: 420px;
+        }
         .files { text-align: center; }
         .files a {
             text-decoration: none;
-            font-size: 18px;
-            margin: 0 5px;
-            display: inline-block;
-            transition: transform 0.2s;
+            font-size: 16px;
+            margin: 0 4px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 34px;
+            height: 34px;
+            border-radius: 12px;
+            border: 1px solid var(--border);
+            background: var(--panel);
+            transition: background 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
         }
-        .files a:hover { transform: scale(1.2); }
+        .files a:hover {
+            background: var(--panel-muted);
+            border-color: #d4d4d8;
+            transform: translateY(-1px);
+        }
         .no-results {
             text-align: center;
             padding: 40px;
-            color: #6c757d;
-            font-size: 16px;
+            color: var(--text-muted);
+            font-size: 14px;
+            border: 1px dashed var(--border);
+            border-radius: 20px;
+            background: var(--panel-muted);
+            margin-top: 16px;
+        }
+        @media (max-width: 900px) {
+            body {
+                padding: 16px;
+            }
+            .header,
+            .stats,
+            .controls,
+            .table-container {
+                padding-left: 18px;
+                padding-right: 18px;
+            }
+            .header h1 {
+                font-size: 28px;
+            }
         }
     </style>
 </head>
 <body>
-    <div class="container">
+    <div class="page">
+    <div class="shell">
         <div class="header">
-            <h1>🎯 Attack Snapshots Viewer</h1>
+            <div class="eyebrow">Experiment Snapshot Browser</div>
+            <h1>Attack Snapshots</h1>
             <div class="meta">
                 <strong>Run ID:</strong> {{ run_id }} &nbsp;|&nbsp;
                 <strong>Clients:</strong> {{ total_clients }} &nbsp;|&nbsp;
@@ -182,6 +321,7 @@
         </div>
 
         <div class="table-container">
+            <div class="table-shell">
             <table id="snapshotTable">
                 <thead>
                     <tr>
@@ -196,32 +336,36 @@
                 <tbody id="tableBody">
                     {% for item in snapshot_data %}
                     <tr>
-                        <td>{{ item.client }}</td>
-                        <td>{{ item.round }}</td>
+                        <td class="table-number">{{ item.client }}</td>
+                        <td class="table-number">{{ item.round }}</td>
                         <td>
+                            <div class="attack-list">
                             {% for attack_type in item.attack_types %}
                             <span class="attack-type {{ attack_type }}">{{ attack_type }}</span>
                             {% endfor %}
+                            </div>
                         </td>
-                        <td>{{ item.samples }}</td>
+                        <td class="table-number">{{ item.samples }}</td>
                         <td class="params">{{ item.parameters }}</td>
                         <td class="files">
                             <a href="{{ item.pickle_path }}" title="Download pickle file">📦</a>
-                            {% if item.visual_type == "text" %}
-                            <a href="{{ item.visual_path }}" target="_blank" title="View text samples">📝</a>
-                            {% else %}
-                            <a href="{{ item.visual_path }}" target="_blank" title="View visual">🖼️</a>
-                            {% endif %}
+                            {% for visual in item.visuals %}
+                            <a href="{{ visual.path }} " target=" _blank" title="{{ visual.title }}">
+                                {{ visual.icon }}
+                            </a>
+                            {% endfor %}
                             <a href="{{ item.metadata_path }}" target="_blank" title="View metadata">📄</a>
                         </td>
                     </tr>
                     {% endfor %}
                 </tbody>
             </table>
+            </div>
             <div id="noResults" class="no-results" style="display: none;">
                 No snapshots match your filters.
             </div>
         </div>
+    </div>
     </div>
 
     <script>

@@ -11,7 +11,8 @@ config_schema = {
             "type": "string",
             "enum": ["trust", "pid", "pid_scaled", "pid_standardized", "pid_standardized_score_based",
                     "multi-krum", "krum", "multi-krum-based", "trimmed_mean",
-                    "rfa", "bulyan", "fools_gold", "pid_v5_stateless_mean_based", "pid_made", "fed_nga"]
+                    "rfa", "bulyan", "fools_gold", "pid_v5_stateless_mean_based", "pid_made",
+                    "freq_fed", "fed_nga", "pid_v5_stateless_median_based"]
         },
         "strict_mode": {
             "type": "string",
@@ -57,14 +58,15 @@ config_schema = {
         "num_of_clients": {
             "type": "integer"
         },
-        # Pre-training poisoning fields
+        # Pre-training poisoning fields (And all backwards compatible attacks)
         "num_of_malicious_clients": {
             "type": "integer",
             "minimum": 0
         },
         "attack_type": {
             "type": "string",
-            "enum": ["label_flipping", "gaussian_noise", "ner_label_flipping"]
+            "enum": ["label_flipping", "gaussian_noise", "ner_label_flipping",
+                     "gradient_scaling", "little_is_enough"]
         },
         "attack_ratio": {
             "type": "number",
@@ -73,6 +75,10 @@ config_schema = {
         },
         "target_noise_snr": {
             "type": "number"
+        },
+        "scale_factor": {           # for gradient scaling
+            "type": "number", 
+            "exclusiveMinimum": 0
         },
         # Visualization and dataset fields
         "show_plots": {
@@ -211,6 +217,12 @@ config_schema = {
             "type": "number"
         },
 
+        # FreqFed
+        "min_cluster_size": {
+            "type": "integer",
+            "minimum": 2
+        },
+
         # PID-MADE
         "lam": {
             "type": "number",
@@ -241,7 +253,8 @@ config_schema = {
                     "end_round": {"type": "integer", "minimum": 1},
                     "attack_type": {
                         "type": "string",
-                        "enum": ["label_flipping", "gaussian_noise", "gradient_scaling"]
+                        "enum": ["label_flipping", "gaussian_noise", "gradient_scaling",
+                                 "little_is_enough"]
                     },
                     # old format entries for backward-compatibility - do not use
                     "selection_strategy": {"type": "string", "enum": ["specific", "random", "percentage"]},
@@ -312,6 +325,8 @@ config_schema = {
 def _validate_dependent_params(strategy_config: dict) -> None:
     """Validate that all params that require additional params are correct."""
 
+    # Aggregation Strategy Parameters
+
     aggregation_strategy_keyword = strategy_config["aggregation_strategy_keyword"]
 
     if aggregation_strategy_keyword == "trust":
@@ -369,12 +384,38 @@ def _validate_dependent_params(strategy_config: dict) -> None:
             raise ValidationError(
                 f"Missing parameter num_bulyan_benign_clients for aggregation: {aggregation_strategy_keyword}"
             )
+    elif aggregation_strategy_keyword == "freq_fed":
+        if "begin_removing_from_round" not in strategy_config:
+            raise ValidationError(
+                "Missing parameter 'begin_removing_from_round' for freq_fed aggregation"
+            )
 
     if aggregation_strategy_keyword in ("bulyan", "krum", "multi-krum-based", "multi-krum", "rfa", "trimmed_mean", "pid"):
         if "begin_removing_from_round" not in strategy_config:
             raise ValidationError(
                 f"Missing parameter begin_removing_from_round for aggregation {aggregation_strategy_keyword}"
             )
+        
+    # Attack Parameters (for old attack_type backwards copatibility)
+
+    if "attack_type" in strategy_config:
+        attack_type = strategy_config["attack_type"]
+        if attack_type == "gaussian_noise":
+            if "target_noise_snr" not in strategy_config:
+                raise ValidationError(
+                    f"Missing parameter 'target_noise_snr' for attack '{attack_type}'"
+                )
+
+        elif attack_type == "gradient_scaling":
+            if "scale_factor" not in strategy_config:
+                raise ValidationError(
+                    f"Missing parameter 'scale_factor' for attack '{attack_type}'"
+                )
+            if strategy_config["scale_factor"] <= 0:
+                raise ValidationError(
+                    f"Parameter 'scale_factor' in attack '{attack_type}' must be > 0"
+                )
+
 
 
 def _populate_client_selection(config: dict) -> None:
@@ -526,8 +567,8 @@ def _validate_attack_schedule(config: dict) -> None:
                     )
 
     # Strict rejection: preserve_dataset incompatible with data-poisoning attack_schedule
-    # (gradient_scaling is post-training and does not touch the dataset, so it is exempt)
-    data_poisoning_entries = [e for e in schedule if e.get("attack_type") != "gradient_scaling"]
+    # (gradient_scaling and little_is_enough is post-training and does not touch the dataset, so it is exempt)
+    data_poisoning_entries = [e for e in schedule if e.get("attack_type") not in ["gradient_scaling", "little_is_enough"]]
     if data_poisoning_entries and config.get("preserve_dataset") == "true":
         raise ValidationError(
             "CONFIG REJECTED: Cannot use attack_schedule with preserve_dataset=true\n"
