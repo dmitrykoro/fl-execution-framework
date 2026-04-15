@@ -709,6 +709,11 @@ class FlowerClient(fl.client.NumPyClient):
             f"[Client {self.client_id}] Training complete - Loss: {epoch_loss:.4f}, Accuracy: {epoch_acc:.4f}"
         )
 
+        if global_params is not None:
+            del global_params
+
+        import gc
+        gc.collect()
         if torch.cuda.is_available():
             torch.cuda.empty_cache()
 
@@ -732,6 +737,19 @@ class FlowerClient(fl.client.NumPyClient):
                     local_params = apply_model_poisoning_attack(
                         local_params, global_params_ndarrays, metrics
                     )
+        # For backwards compatibility 'attack_type' param
+        if self.strategy_history and self.strategy_history.strategy_config.attack_type:
+            client = self.strategy_history.get_client_by_id(self.client_id)
+            current_attack_keywords = client.get_current_attack_keywords(current_round)
+            if "gradient_scaling" in current_attack_keywords:
+                attack_config = {
+                    "attack_type": "gradient_scaling",
+                    "scale_factor": self.strategy_history.strategy_config.scale_factor
+                }
+                local_params = apply_model_poisoning_attack(
+                    local_params, global_params_ndarrays, attack_config
+                )
+            
 
         return local_params, len(self.trainloader), {"loss": epoch_loss, "accuracy": epoch_acc, "eta_eff": eta_eff}
 

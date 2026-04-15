@@ -93,6 +93,68 @@ def _split_composite_attack_info(attack_type: str, attack_configs: list) -> list
     return attack_info
 
 
+def _build_visuals_list(attack_types:list[str], base_dir: Path) -> list:
+    """
+    Build list of visuals for HTML report.
+    
+    Args:
+        attack_type: List of attack types
+        base_dir: Path to base directory
+
+    Returns:
+        List of visuals
+    """
+    visuals = []
+    
+    for attack_type in attack_types:
+        if attack_type == "token_replacement":
+            visuals.append(
+                {
+                    "path": (base_dir / f"{attack_type}_samples.txt").as_posix(),
+                    "type": "text",
+                    "icon": "📝",
+                    "title": "View text samples",
+                }
+            )
+        elif attack_type == "little_is_enough":
+            visuals.append(
+                {
+                    "path": (base_dir / f"{attack_type}_attack_info.txt").as_posix(),
+                    "type": "text",
+                    "icon": "📑",
+                    "title": "View extra info",
+                }
+            )
+        elif attack_type == "target_flipping":
+                visuals.append(
+                    {
+                        "path": (base_dir / f"{attack_type}_samples.txt").as_posix(),
+                        "type": "text",
+                        "icon": "📝",
+                        "title": "View text samples",
+                    }
+                )
+                visuals.append(
+                    {
+                        "path": (base_dir / f"{attack_type}_scatter.png").as_posix(),
+                        "type": "image",
+                        "icon": "📊",
+                        "title": "View scatter plot",
+                    }
+                )
+        else:            
+            visuals.append(
+                {
+                    "path": (base_dir / f"{attack_type}_visual.png").as_posix(),
+                    "type": "image",
+                    "icon": "🖼️",
+                    "title": "View visual",
+                }
+            )
+
+    return visuals
+
+
 def generate_summary_json(
     output_dir: str, run_config: Optional[dict] = None, strategy_number: int = 0
 ) -> None:
@@ -190,9 +252,7 @@ def generate_snapshot_index(
 
             base_dir = Path(f"client_{client_id}") / f"round_{round_num}"
 
-            # TODO: If another attack is added for regression data, need to update the dictionary
-            #           that is added to snapshot_data
-            if isinstance(attack_config, list) and len(attack_config) > 1:
+            if isinstance(attack_config, list):
                 attack_info_list = _split_composite_attack_info(
                     attack_type, attack_config
                 )
@@ -203,14 +263,7 @@ def generate_snapshot_index(
                     if info["params"]:
                         all_params.extend(info["params"])
 
-                visuals = [
-                    {
-                        "path": (base_dir / f"{attack_type}_visual.png").as_posix(),
-                        "type": "image",
-                        "icon": "🖼️",
-                        "title": "View visual",
-                    }
-                ]
+                visuals = _build_visuals_list(attack_types, base_dir)
 
                 snapshot_data.append(
                     {
@@ -224,54 +277,16 @@ def generate_snapshot_index(
                             snapshots_dir
                         ).as_posix(),
                         "visuals": visuals,
-                        "metadata_path": (base_dir / f"{attack_type}_metadata.json")
+                        "metadata_path": (base_dir / f"{attack_type}_metadata.json").as_posix(),
                     }
                 )
             else:
-                if isinstance(attack_config, list):
-                    attack_config = attack_config[0] if attack_config else {}
 
                 attack_parameters = _extract_attack_params_for_display(
                     attack_type, attack_config
                 )
 
-                visuals = []
-
-                if attack_type == "token_replacement":
-                    visuals.append(
-                        {
-                            "path": (base_dir / f"{attack_type}_samples.txt").as_posix(),
-                            "type": "text",
-                            "icon": "📝",
-                            "title": "View text samples",
-                        }
-                    )
-                elif attack_type == "target_flipping":
-                    visuals.append(
-                        {
-                            "path": (base_dir / f"{attack_type}_samples.txt").as_posix(),
-                            "type": "text",
-                            "icon": "📝",
-                            "title": "View text samples",
-                        }
-                    )
-                    visuals.append(
-                        {
-                            "path": (base_dir / f"{attack_type}_scatter.png").as_posix(),
-                            "type": "image",
-                            "icon": "📊",
-                            "title": "View scatter plot",
-                        }
-                    )
-                else:
-                    visuals.append(
-                        {
-                            "path": (base_dir / f"{attack_type}_visual.png").as_posix(),
-                            "type": "image",
-                            "icon": "🖼️",
-                            "title": "View visual",
-                        }
-                    )
+                visuals = _build_visuals_list([attack_type], base_dir)
 
                 snapshot_data.append(
                     {

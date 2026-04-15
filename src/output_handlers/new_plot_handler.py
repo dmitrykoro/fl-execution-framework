@@ -110,6 +110,7 @@ def _add_attack_background_shading(
         "token_replacement": "#99ff99", # Green
         "target_flipping":  "#e989fa",    # Pink
         "gradient_scaling": "#ffcc66", # Orange
+        "little_is_enough": "#faff5b"  # Yellow
     }
 
     ATTACK_HATCHES = {
@@ -118,6 +119,7 @@ def _add_attack_background_shading(
         "token_replacement": "xxxx",  # Dense crosses
         "target_flipping": "////",   # Dense diagonal right
         "gradient_scaling": "....",    # Dots
+        "little_is_enough": "----",      # Dashes
     }
 
     # Track which attack periods we've already added to avoid duplicate labels

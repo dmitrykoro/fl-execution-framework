@@ -243,6 +243,10 @@ class DatasetHandler:
 
         self._assign_poisoned_client_ids(client_dirs_to_poison)
 
+        # Skip poisoning if attack_type is not a data poisoning attack
+        if attack_type in ["gradient_scaling", "little_is_enough"]:
+            return
+
         for client_dir in client_dirs_to_poison:
             if attack_type == "label_flipping":
                 self._flip_labels(client_dir)

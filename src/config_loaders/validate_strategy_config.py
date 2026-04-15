@@ -44,6 +44,9 @@ config_schema = {
                 "organamnist",
                 "organcmnist",
                 "organsmnist",
+                "cifar100_a01",
+                "cifar100_a05",
+                "cifar100_a20",
                 "air_quality_uci",
                 "smores",
             ]
@@ -58,14 +61,15 @@ config_schema = {
         "num_of_clients": {
             "type": "integer"
         },
-        # Pre-training poisoning fields
+        # Pre-training poisoning fields (And all backwards compatible attacks)
         "num_of_malicious_clients": {
             "type": "integer",
             "minimum": 0
         },
         "attack_type": {
             "type": "string",
-            "enum": ["label_flipping", "gaussian_noise", "ner_label_flipping", "target_flipping"]
+            "enum": ["label_flipping", "gaussian_noise", "ner_label_flipping", "target_flipping",
+                     "gradient_scaling", "little_is_enough",]
         },
         "attack_ratio": {
             "type": "number",
@@ -74,6 +78,10 @@ config_schema = {
         },
         "target_noise_snr": {
             "type": "number"
+        },
+        "scale_factor": {           # for gradient scaling
+            "type": "number", 
+            "exclusiveMinimum": 0
         },
         # Visualization and dataset fields
         "show_plots": {
@@ -264,7 +272,8 @@ config_schema = {
                     "end_round": {"type": "integer", "minimum": 1},
                     "attack_type": {
                         "type": "string",
-                        "enum": ["label_flipping", "gaussian_noise", "target_flipping", "gradient_scaling"]
+                        "enum": ["label_flipping", "gaussian_noise", "target_flipping", 
+                                 "gradient_scaling", "little_is_enough"]
                     },
                     # old format entries for backward-compatibility - do not use
                     "selection_strategy": {"type": "string", "enum": ["specific", "random", "percentage"]},
@@ -335,7 +344,7 @@ config_schema = {
 def _validate_dependent_params(strategy_config: dict) -> None:
     """Validate that all params that require additional params are correct."""
 
-    # Required Parameters for Aggregation Strategies
+    # Aggregation Strategy Parameters
 
     aggregation_strategy_keyword = strategy_config["aggregation_strategy_keyword"]
 
@@ -407,7 +416,28 @@ def _validate_dependent_params(strategy_config: dict) -> None:
                 f"Missing parameter begin_removing_from_round for aggregation {aggregation_strategy_keyword}"
             )
         
-    # Required Parameters for Datasets
+    
+    # Attack Parameters (for old attack_type backwards copatibility)
+
+    if "attack_type" in strategy_config:
+        attack_type = strategy_config["attack_type"]
+        if attack_type == "gaussian_noise":
+            if "target_noise_snr" not in strategy_config:
+                raise ValidationError(
+                    f"Missing parameter 'target_noise_snr' for attack '{attack_type}'"
+                )
+
+        elif attack_type == "gradient_scaling":
+            if "scale_factor" not in strategy_config:
+                raise ValidationError(
+                    f"Missing parameter 'scale_factor' for attack '{attack_type}'"
+                )
+            if strategy_config["scale_factor"] <= 0:
+                raise ValidationError(
+                    f"Parameter 'scale_factor' in attack '{attack_type}' must be > 0"
+                )
+
+    # Dataset Parameters
         
     dataset_keyword = strategy_config["dataset_keyword"]
 
@@ -600,8 +630,8 @@ def _validate_attack_schedule(config: dict) -> None:
                     )
 
     # Strict rejection: preserve_dataset incompatible with data-poisoning attack_schedule
-    # (gradient_scaling is post-training and does not touch the dataset, so it is exempt)
-    data_poisoning_entries = [e for e in schedule if e.get("attack_type") != "gradient_scaling"]
+    # (gradient_scaling and little_is_enough is post-training and does not touch the dataset, so it is exempt)
+    data_poisoning_entries = [e for e in schedule if e.get("attack_type") not in ["gradient_scaling", "little_is_enough"]]
     if data_poisoning_entries and config.get("preserve_dataset") == "true":
         raise ValidationError(
             "CONFIG REJECTED: Cannot use attack_schedule with preserve_dataset=true\n"

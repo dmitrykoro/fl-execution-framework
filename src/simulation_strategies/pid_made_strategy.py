@@ -153,18 +153,19 @@ class PIDMADEStrategy(fl.server.strategy.FedAvg):
         Spec:
             c ← MEAN(vectors)
             for _ in 1..max_iter:
-                dists   ← [max(||v - c||₂, tol) for v in vectors]
-                weights ← [1/d / sum(1/d) for d in dists]
-                c_new   ← sum(w * v for w, v in zip(weights, vectors))
+                dists   ← max(||mat - c||₂ axis=1, tol)   # vectorized over all clients
+                weights ← (1/dists) / sum(1/dists)
+                c_new   ← weighted average of mat rows  # np.average, single C-level op
                 if ||c_new - c||₂ < tol: break
                 c ← c_new
             return c
         """
-        c = np.mean(vectors, axis=0)
+        mat = np.array(vectors)            # (n, d)
+        c = np.mean(mat, axis=0)
         for _ in range(max_iter):
-            dists = np.array([max(float(np.linalg.norm(v - c)), tol) for v in vectors])
+            dists = np.maximum(np.linalg.norm(mat - c, axis=1), tol)  # (n,) vectorized
             weights = (1.0 / dists) / np.sum(1.0 / dists)
-            c_new = np.sum(w * v for w, v in zip(weights, vectors))
+            c_new = np.average(mat, axis=0, weights=weights)           # single C-level op
             if np.linalg.norm(c_new - c) < tol:
                 break
             c = c_new

@@ -19,10 +19,32 @@ def _display_image(ax, image: np.ndarray) -> None:
         ax: Matplotlib axes object
         image: Image array to display
     """
-    if image.shape[0] == 1:
-        ax.imshow(image[0], cmap="gray")
+    # 1. Force to float32 and neutralize any attack artifacts (NaNs/Infs)
+    vis_image = np.asarray(image, dtype=np.float32)
+    vis_image = np.nan_to_num(vis_image, nan=0.0, posinf=1.0, neginf=0.0)
+    # Safely normalize the float array to [0.0, 1.0] for Matplotlib
+    img_min = np.min(vis_image)
+    img_max = np.max(vis_image)
+    # Avoid division by zero if the image is a solid color
+    if img_max > img_min:
+        vis_image = (vis_image - img_min) / (img_max - img_min)
+    
+    # Hard clip to kill floating point epsilons
+    vis_image = np.clip(vis_image, 0.0, 1.0)
+
+    # 4. Dimension safety check: Handle both (C, H, W) and (H, W, C)
+    if vis_image.shape[0] in [1, 3]:
+        # Image is Channel-First (e.g., PyTorch default)
+        if vis_image.shape[0] == 1:
+            ax.imshow(vis_image[0], vmin=0.0, vmax=1.0, cmap="gray")
+        else:
+            ax.imshow(vis_image.transpose(1, 2, 0), vmin=0.0, vmax=1.0)
     else:
-        ax.imshow(image.transpose(1, 2, 0))
+        # Image is likely Channel-Last (e.g., TensorFlow default)
+        if len(vis_image.shape) == 3 and vis_image.shape[-1] == 1:
+            ax.imshow(vis_image[..., 0], vmin=0.0, vmax=1.0, cmap="gray")
+        else:
+            ax.imshow(vis_image, vmin=0.0, vmax=1.0)
 
 
 def _normalize_axes(axes, rows: int, cols: int):

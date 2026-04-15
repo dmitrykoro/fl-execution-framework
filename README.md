@@ -92,11 +92,11 @@ Defines the aggregation strategy. Options:
     - `gaussian_noise`: `target_noise_snr` (dB, recommended) or `mean`/`std`, plus optional `attack_ratio` (0.0-1.0, defaults to 1.0).
     - `target_flipping`: `attack_ratio` (0.0-1.0, defaults to 0.1). Flips the target values of a percentage of the data points in a clients dataset. Based on Flip attack described in DOI: 10.1109/PRDC50213.2020.00019
     - `gradient_scaling`: `scale_factor` (number > 0). The local weight update delta `(local - global)` is multiplied by this factor before being sent to the server. A value greater than 1 amplifies the update; a value between 0 and 1 dampens it. For example, `scale_factor: 10.0` makes the malicious client's update 10× larger than its honest counterpart.
+    - `little_is_enough`: applies peturbations to many parameters across a few corrupted clients to control parameter dstribution while bypassing outlier detection. Based on Preventing Convergence Attack descriped in https://doi.org/10.48550/arXiv.1902.06156
   - **Malicious Clients Selection:**
     - `num_malicious_clients`: specify number of malicious clients. Specific clients will be selected randomly.
     - `proportion_malicious_clients`: specify proportion of malicious clients. Specific clients will be selected randomly.
     - `specific_malicious_clients`: specify array of malicious client ids.
-  - **Note:** `preserve_dataset: true` is incompatible with data poisoning attacks (`label_flipping`, `gaussian_noise`) but is allowed alongside `gradient_scaling` since model poisoning does not modify the local dataset.
 
 - `save_attack_snapshots`: save attack snapshots for analysis (`true`/`false`).
 - `attack_snapshot_format`: format for snapshots (`pickle`, `visual`, or `pickle_and_visual`).

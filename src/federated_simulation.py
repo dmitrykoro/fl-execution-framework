@@ -14,6 +14,8 @@ from src.attack_utils.snapshot_html_reports import generate_snapshot_index, gene
 from src.dataset_loaders.image_dataset_loader import ImageDatasetLoader
 from src.dataset_loaders.image_transformers.its_image_transformer import its_image_transformer
 from src.dataset_loaders.image_transformers.femnist_image_transformer import femnist_image_transformer
+from src.dataset_loaders.image_transformers.cifar100_image_transformer import cifar100_image_transformer
+from src.dataset_loaders.cifar100_dataset_loader import Cifar100DatasetLoader
 from src.dataset_loaders.image_transformers.flair_image_transformer import flair_image_transformer
 from src.dataset_loaders.image_transformers.lung_photos_image_transformer import lung_cancer_image_transformer
 from src.dataset_loaders.medquad_dataset_loader import MedQuADDatasetLoader
@@ -41,6 +43,7 @@ from src.network_models.tissuemnist_network_definition import TissueMNISTNetwork
 from src.network_models.organamnist_network_definition import OrganAMNISTNetwork
 from src.network_models.organcmnist_network_definition import OrganCMNISTNetwork
 from src.network_models.organsmnist_network_definition import OrganSMNISTNetwork
+from src.network_models.cifar100_network_definition import Cifar100Network
 from src.network_models.bert_model_definition import load_model, load_model_with_lora
 from src.network_models.linear_regression_model_definition import LinearRegressionModel
 from src.network_models.lstm_model_definition import LSTMModel
@@ -64,6 +67,8 @@ from src.data_models.simulation_strategy_config import StrategyConfig
 from src.data_models.simulation_strategy_history import SimulationStrategyHistory
 
 from src.dataset_handlers.dataset_handler import DatasetHandler
+
+from src.attack_utils.little_is_enough_attack import LittleIsEnoughAttack
 
 
 def weighted_average(metrics: List[Tuple[int, dict]]) -> dict:
@@ -283,6 +288,13 @@ class FederatedSimulation:
             )
             self._network_model = OrganSMNISTNetwork()
 
+        elif dataset_keyword in ("cifar100_a01", "cifar100_a05", "cifar100_a20"):
+            dataset_loader = Cifar100DatasetLoader(
+                transformer=cifar100_image_transformer,
+                **common_kwargs
+            )
+            self._network_model = Cifar100Network()
+
         elif dataset_keyword == "lung_photos":
             dataset_loader = ImageDatasetLoader(
                 transformer=lung_cancer_image_transformer,
@@ -475,6 +487,15 @@ class FederatedSimulation:
 
         else:
             raise NotImplementedError(f"The strategy {aggregation_strategy_keyword} not implemented!")
+        
+        use_median_control_attack = False
+        if self.strategy_config.attack_type is not None:
+            use_median_control_attack = LittleIsEnoughAttack.check_for_attack(self.strategy_config.attack_type)
+        elif self.strategy_config.attack_schedule is not None:
+            use_median_control_attack = LittleIsEnoughAttack.check_for_attack(self.strategy_config.attack_schedule)
+
+        if use_median_control_attack and self._aggregation_strategy is not None:
+            self._aggregation_strategy = LittleIsEnoughAttack(self._aggregation_strategy, **common_kwargs)
 
     def client_fn(self, cid: str) -> Client:
         """Create a Flower client."""
