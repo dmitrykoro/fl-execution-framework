@@ -418,7 +418,10 @@ def generate_main_dashboard(output_dir: str) -> None:
 
     for plot in all_plots:
         name = plot.name
-        if any(x in name for x in ["accuracy", "loss", "average", "r2"]):
+        if any(x in name for x in ["accuracy", "loss", "average", 
+                                   "r2",    # For air_quality_uci dataset 
+                                   "mare"   # For smores dataset
+                                   ]):
             plot_categories["Performance Metrics"].append(name)
         elif any(x in name for x in ["removal", "precision", "recall", "f1", "fp", "fn"]):
             plot_categories["Attack Detection"].append(name)

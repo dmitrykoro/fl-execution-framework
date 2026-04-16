@@ -19,6 +19,8 @@ ATTACK_ABBREV = {
     "gaussian_noise": "gn",
     "token_replacement": "tr",
     "gradient_scaling": "gs",
+    "target_flipping": "tf",
+    "little_is_enough": "lie"
 }
 
 
