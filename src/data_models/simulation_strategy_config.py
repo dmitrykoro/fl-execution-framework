@@ -64,6 +64,10 @@ class StrategyConfig:
     # FreqFed parameters
     min_cluster_size: int = None  # HDBSCAN min_cluster_size (default 5)
 
+    # FLDetector parameters (KDD 2022)
+    fl_detector_history_size: int = None          # L-BFGS window N (paper default: 10)
+    fl_detector_z_score_threshold: float = None   # removal threshold in σ above mean
+
     strict_mode: bool = None
 
     strategy_number: int = None

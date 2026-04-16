@@ -42,6 +42,7 @@ Defines the aggregation strategy. Options:
   - `bulyan`: Bulyan aggregation strategy. Uses Multi-Krum as the first step of filtering and Trimmed-Mean as the second step to ensure robustness.
   - `fed_nga`: Fed-NGA (Federated Normalized Gradients Algorithm) aggregation strategy. Performs normalization of client gradients before performing global aggregation to improve robustness against Byzantine faults and data heterogeneity. Fed-NGA paper: https://arxiv.org/pdf/2408.09539
   - `freq_fed`: FreqFed aggregation strategy. A frequency analysis-based approach that uses 2-D Discrete Cosine Transform (DCT) to extract low-frequency components of client weight updates and clusters them using HDBSCAN to identify and exclude malicious updates. FreqFed paper: https://www.ndss-symposium.org/ndss-paper/freqfed-a-frequency-analysis-based-approach-for-mitigating-poisoning-attacks-in-federated-learning/
+  - `fl_detector`: FLDetector aggregation strategy. Detects malicious clients by predicting each client's expected model update using L-BFGS quasi-Newton approximation and accumulating per-client suspicious scores across rounds. Clients whose score exceeds a z-score threshold are excluded from FedAvg aggregation. FLDetector paper: https://dl.acm.org/doi/10.1145/3534678.3539231
 
 
 - **`strict_mode`**: ensures that Flower trains and aggregates all available clients at every round. When enabled (default), automatically sets `min_fit_clients`, `min_evaluate_clients`, and `min_available_clients` to equal `num_of_clients`. Options: `"true"`, `"false"`.
@@ -168,6 +169,11 @@ Defines the aggregation strategy. Options:
 **For `freq_fed` strategy**:
 - `min_cluster_size`: HDBSCAN min_cluster_size (minimum number of updates to form a cluster).
 - `begin_removing_from_round`: warmup rounds before filtering is active.
+
+**For `fl_detector` strategy**:
+- `fl_detector_history_size`: Number of L-BFGS curvature pairs `(s, y)` retained per client. Paper default: `10`. Higher values improve curvature approximation at the cost of O(n × N × d) memory. Recommended range: `5`–`20`.
+- `fl_detector_z_score_threshold`: Removal threshold in standard deviations above the per-round mean suspicious score. Lower values are more aggressive (higher false-positive risk). Recommended: `1.5`–`2.0` for experiments of 30 rounds or fewer (score distributions become clearly bimodal only around round 60 per the paper); `2.0`–`2.5` for 60+ rounds.
+- `begin_removing_from_round`: Warmup rounds before filtering is active. L-BFGS history still accumulates during warmup. Must be ≥ `1`. Recommended: `7`–`10`.
 
 ---
 

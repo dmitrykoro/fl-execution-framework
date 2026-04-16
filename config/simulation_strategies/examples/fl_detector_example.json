@@ -1,0 +1,60 @@
+{
+  "_comment": [
+    "FLDetector example configuration (KDD 2022).",
+    "",
+    "Key hyperparameters:",
+    "  fl_detector_history_size: L-BFGS window N. Paper default is 10.",
+    "    Higher values give better curvature approximation but use more memory",
+    "    (O(n * N * d) bytes total). Values of 5-20 are reasonable.",
+    "",
+    "  fl_detector_z_score_threshold: Removal threshold in standard deviations",
+    "    above the mean suspicious score. Lower = more aggressive removal.",
+    "    Recommended range: 1.5 - 2.5.",
+    "    NOTE: The paper reports that score distributions become clearly bimodal",
+    "    around round 60. At 30 rounds (as used in our CIFAR-100 experiments),",
+    "    a lower threshold (1.5-2.0) is recommended because full score separation",
+    "    has not yet occurred.",
+    "",
+    "  begin_removing_from_round: Warmup rounds. Must be >= 1 to allow L-BFGS",
+    "    history to accumulate before filtering starts. Recommended: 7-10."
+  ],
+  "shared_settings": {
+    "strict_mode": "true",
+    "dataset_keyword": "femnist_iid",
+    "use_llm": "false",
+    "model_type": "cnn",
+    "num_of_rounds": 40,
+    "num_of_clients": 50,
+    "min_fit_clients": 50,
+    "min_evaluate_clients": 50,
+    "min_available_clients": 50,
+    "training_device": "cpu",
+    "cpus_per_client": 1,
+    "gpus_per_client": 0.0,
+    "num_of_client_epochs": 1,
+    "batch_size": 32,
+    "training_subset_fraction": 0.9,
+    "preserve_dataset": "false",
+    "show_plots": "false",
+    "save_plots": "true",
+    "save_csv": "true",
+    "evaluate_metrics_aggregation_fn": "weighted_average",
+    "remove_clients": "true",
+    "begin_removing_from_round": 7,
+    "fl_detector_history_size": 10,
+    "fl_detector_z_score_threshold": 2.0,
+    "attack_schedule": [
+      {
+        "attack_type": "label_flipping",
+        "start_round": 1,
+        "end_round": 40,
+        "specific_malicious_clients": [0, 1, 2, 3, 4]
+      }
+    ]
+  },
+  "simulation_strategies": [
+    {
+      "aggregation_strategy_keyword": "fl_detector"
+    }
+  ]
+}
