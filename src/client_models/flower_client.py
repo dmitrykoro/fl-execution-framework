@@ -2,6 +2,7 @@ import logging
 import flwr as fl
 import numpy as np
 import torch
+import gc
 
 from collections import OrderedDict
 from torch.utils.data import TensorDataset, DataLoader
@@ -151,7 +152,7 @@ class FlowerClient(fl.client.NumPyClient):
                     optimizer.step()
 
                     # Metrics
-                    epoch_loss += loss
+                    epoch_loss += loss.item()
                     total += labels.size(0)
                     correct += (torch.max(outputs.data, 1)[1] == labels).sum().item()
 
@@ -501,6 +502,10 @@ class FlowerClient(fl.client.NumPyClient):
                     _, predicted = torch.max(outputs.data, 1)
                     total += labels.size(0)
                     correct += (predicted == labels).sum().item()
+
+                    # VRAM Optimization
+                    del outputs, images, labels
+
             loss /= len(testloader.dataset) if len(testloader.dataset) > 0 else 1
             accuracy = correct / total if total > 0 else 0.0
             return loss, accuracy
@@ -549,6 +554,9 @@ class FlowerClient(fl.client.NumPyClient):
                                 batch["doc_id"],  # python list
                                 batch["word_length"],  # python list
                             )
+
+                    # VRAM Optimization
+                    del outputs, batch_dev, model_inputs
 
             loss = total_loss / max(len(testloader), 1)
             accuracy = (correct / total) if total > 0 else 0.0
@@ -600,6 +608,9 @@ class FlowerClient(fl.client.NumPyClient):
                     # MSE loss for reporting
                     loss_sum += batch_ss_res
                     total += targets.size(0)
+
+                    # VRAM Optimization
+                    del outputs, features, targets
             
             # Normalize loss to per-sample MSE
             loss = loss_sum / total if total > 0 else 0.0
@@ -677,6 +688,9 @@ class FlowerClient(fl.client.NumPyClient):
                     ).item()
 
                     total += targets.numel()
+
+                    # VRAM Optimization
+                    del outputs, outputs_baseline, features, targets
             
             # Normalize loss to per-element SmoothL1Loss
             loss = smooth_l1_loss_sum / total if total > 0 else 0.0
@@ -708,14 +722,6 @@ class FlowerClient(fl.client.NumPyClient):
         logging.debug(
             f"[Client {self.client_id}] Training complete - Loss: {epoch_loss:.4f}, Accuracy: {epoch_acc:.4f}"
         )
-
-        if global_params is not None:
-            del global_params
-
-        import gc
-        gc.collect()
-        if torch.cuda.is_available():
-            torch.cuda.empty_cache()
 
         # for Flower summary purposes
         if self.model_type == "linear_regression":
@@ -749,13 +755,30 @@ class FlowerClient(fl.client.NumPyClient):
                 local_params = apply_model_poisoning_attack(
                     local_params, global_params_ndarrays, attack_config
                 )
-            
 
+        # ---------------------------------------------------------
+        # MEMORY CLEANUP PHASE (Strictly at the end)
+        # ---------------------------------------------------------
+        # 1. Delete all heavy variables no longer needed
+        if global_params is not None:
+            del global_params
+        del global_params_ndarrays
+        del parameters
+        
+        # 2. Sever any lingering gradient graphs attached to the model
+        self.net.zero_grad(set_to_none=True)
+        
+        # 3. Force system and GPU garbage collection
+        gc.collect()
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
+            
         return local_params, len(self.trainloader), {"loss": epoch_loss, "accuracy": epoch_acc, "eta_eff": eta_eff}
 
     def evaluate(self, parameters, config):
         self.set_parameters(self.net, parameters)
 
+        out = None
         if self.model_type == "transformer":
             out = self.test(self.net, self.valloader, config)
 
@@ -777,11 +800,7 @@ class FlowerClient(fl.client.NumPyClient):
             else:
                 loss, accuracy = out
                 metrics = {"accuracy": float(accuracy)}
-
-            if torch.cuda.is_available():
-                torch.cuda.empty_cache()
-
-            return float(loss), len(self.valloader), metrics
+            dataset_len = len(self.valloader)
         
         elif self.model_type == "linear_regression":
             out = self.test(self.net, self.valloader)
@@ -798,11 +817,7 @@ class FlowerClient(fl.client.NumPyClient):
             else:
                 loss, accuracy = out
                 metrics = {}
-                
-            if torch.cuda.is_available():
-                torch.cuda.empty_cache()
-            
-            return float(loss), len(self.valloader.dataset), metrics
+            dataset_len = len(self.valloader.dataset)
 
         elif self.model_type == "lstm":
             out = self.test(self.net, self.valloader)
@@ -822,16 +837,23 @@ class FlowerClient(fl.client.NumPyClient):
             else:
                 loss, accuracy = out
                 metrics = {}
-                
-            if torch.cuda.is_available():
-                torch.cuda.empty_cache()
-            
-            return float(loss), len(self.valloader.dataset), metrics
+            dataset_len = len(self.valloader.dataset)
 
         else:
             loss, accuracy = self.test(self.net, self.valloader)
+            metrics = {"accuracy": float(accuracy)}
+            dataset_len = len(self.valloader)
+        
+        # ---------------------------------------------------------
+        # MEMORY CLEANUP PHASE
+        # ---------------------------------------------------------
+        del parameters
+        if out is not None:
+            del out
+        self.net.zero_grad(set_to_none=True)
 
-            if torch.cuda.is_available():
-                torch.cuda.empty_cache()
+        gc.collect()
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
 
-            return float(loss), len(self.valloader), {"accuracy": float(accuracy)}
+        return float(loss), dataset_len, metrics
