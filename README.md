@@ -44,7 +44,7 @@ Defines the aggregation strategy. Options:
   - `freq_fed`: FreqFed aggregation strategy. A frequency analysis-based approach that uses 2-D Discrete Cosine Transform (DCT) to extract low-frequency components of client weight updates and clusters them using HDBSCAN to identify and exclude malicious updates. FreqFed paper: https://www.ndss-symposium.org/ndss-paper/freqfed-a-frequency-analysis-based-approach-for-mitigating-poisoning-attacks-in-federated-learning/
   - `fl_detector`: FLDetector aggregation strategy. Detects malicious clients by predicting each client's expected model update using L-BFGS quasi-Newton approximation and accumulating per-client suspicious scores across rounds. Clients whose score exceeds a z-score threshold are excluded from FedAvg aggregation. FLDetector paper: https://dl.acm.org/doi/10.1145/3534678.3539231
   - `fed_dmc`: FedDMC aggregation strategy. Detects malicious clients by first reducing the dimensionality of model updates using Principal COmponent Analysis (PCA), then separating benign and malicious updates via Binary Tree-Based Clustering with Noise (BTBCN). It maintains an exponentially weighted trust score for each client across rounds using Self-Ensemble Detection Correction (SEDC), excluding clients whose scores fall below a set threshold before performing aggregation. FedDMC paper: https://doi.org/10.1109/TDSC.2024.3372634
-
+  - `signguard`: SignGuard aggregation strategy. Detects malicious clients by applying two parallel mechanisms: a norm-based filter to remove gradients with anomalous magnitudes, and a sign-based filter that uses Mean-Shift clustering on gradient sign proportions to identify the honest majority. The updates in the trusted intersection are then aggregated using mean aggregation with norm clipping. SignGuard paper: https://doi.org/10.1109/ICDCS54860.2022.00120
 
 - **`strict_mode`**: ensures that Flower trains and aggregates all available clients at every round. When enabled (default), automatically sets `min_fit_clients`, `min_evaluate_clients`, and `min_available_clients` to equal `num_of_clients`. Options: `"true"`, `"false"`.
 
@@ -187,6 +187,13 @@ Defines the aggregation strategy. Options:
         falls strictly below this value are classified as malicious and 
         excluded from aggregation. (default: 0.5).
 - `begin_removing_from_round`: Warmup rounds before filtering is active. SEDC trust scores still are calculated during warmup.
+
+**For `signguard` strategy**:
+- `norm_lower_bound`: Loose lower threshold for the Norm-based Filter (default: 0.1)
+- `norm_upper_bound`: Strict upper threshold for the Norm-based Filter (default: 3.0)
+- `coordinate_subset_ratio`: Fraction of total gradient coordinates randomly sampled to calculate the sign statistics for the Sign-based Clustering (default: 0.1).
+- `bandwidth_quantile`: Quantile used to estimate the bandwidth for the Mean-Shift clustering algorithm and controls the window size for discovering clusters. In non-IID environments, a higher quantile (e.g., 0.6-0.7) prevents the algorithm from breaking honest benign clients into many small clusters (default: 0.3).
+- `begin_removing_from_round`: Warmup rounds before active filtering begins.
 
 ---
 

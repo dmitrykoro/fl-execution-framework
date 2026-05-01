@@ -13,7 +13,7 @@ config_schema = {
                     "multi-krum", "krum", "multi-krum-based", "trimmed_mean",
                     "rfa", "bulyan", "fools_gold", "pid_made",  "freq_fed", "fl_detector",
                     "pid_v5_stateless_mean_based", "pid_v5_stateless_median_based", "fed_nga",
-                    "fed_dmc"]
+                    "fed_dmc", "signguard"]
         },
         "strict_mode": {
             "type": "string",
@@ -271,7 +271,7 @@ config_schema = {
             "type": "number",
             "exclusiveMinimum": 0.0
         },
-
+      
         # FedDMC
         "ensemble_alpha": {
             "type": "number",
@@ -287,6 +287,26 @@ config_schema = {
             "minimum": 1
         },
         "removal_threshold": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "exclusiveMaximum": 1.0
+        },
+
+        # SignGuard
+        "norm_lower_bound": {
+            "type": "number",
+            "exclusiveMinimum": 0.0
+        },
+        "norm_upper_bound": {
+            "type": "number",
+            "exclusiveMinimum": 0.0
+        },
+        "coordinate_subset_ratio": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "maximum": 1.0
+        },
+        "bandwidth_quantile": {
             "type": "number",
             "exclusiveMinimum": 0.0,
             "exclusiveMaximum": 1.0
@@ -462,6 +482,25 @@ def _validate_dependent_params(strategy_config: dict) -> None:
                 raise ValidationError(
                     f"Missing parameter '{param}' for fed_dmc aggregation"
                 )
+    elif aggregation_strategy_keyword == "signguard":
+        signguard_required = [
+            "norm_lower_bound",
+            "norm_upper_bound",
+            "coordinate_subset_ratio",
+            "bandwidth_quantile",
+            "begin_removing_from_round",
+        ]
+        for param in signguard_required:
+            if param not in strategy_config:
+                raise ValidationError(
+                    f"Missing parameter '{param}' for signguard aggregation"
+                )
+        L = strategy_config["norm_lower_bound"]
+        R = strategy_config["norm_upper_bound"]
+        if L > R:
+            raise ValidationError(
+                f"Parameter 'norm_lower_bound' {L} must be <= 'norm_upper_bound' {R}"
+            )
 
     if aggregation_strategy_keyword in ("bulyan", "krum", "multi-krum-based", "multi-krum", "rfa", "trimmed_mean", "pid"):
         if "begin_removing_from_round" not in strategy_config:

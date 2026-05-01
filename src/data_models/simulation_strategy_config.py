@@ -73,6 +73,12 @@ class StrategyConfig:
     num_principal_components: int = None        # number of dimensions retained after PCA (default: 5)    
     # min_cluster_size is also used by FedDMC   # Noise threshold used in the BTBCN module (default: 3)
     removal_threshold: float = None             # Removal threshold for the SEDC trust score (default: 0.5)
+      
+    # SignGuard parameters
+    norm_lower_bound: float = None,         # Gradient norm lower bound (paper defuault: 0.1)
+    norm_upper_bound: float = None,         # Gradient norm upper bound (paper default: 3.0)
+    coordinate_subset_ratio: float = None,  # Random subset of gradient coordinates (paper default: 0.1)
+    bandwidth_quantile: float = None,        # Quantile of bandwidth (library default: 0.3)
 
     strict_mode: bool = None
 
