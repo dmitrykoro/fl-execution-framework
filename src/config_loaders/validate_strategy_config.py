@@ -12,7 +12,8 @@ config_schema = {
             "enum": ["trust", "pid", "pid_scaled", "pid_standardized", "pid_standardized_score_based",
                     "multi-krum", "krum", "multi-krum-based", "trimmed_mean",
                     "rfa", "bulyan", "fools_gold", "pid_made",  "freq_fed", "fl_detector",
-                    "pid_v5_stateless_mean_based", "pid_v5_stateless_median_based", "fed_nga"]
+                    "pid_v5_stateless_mean_based", "pid_v5_stateless_median_based", "fed_nga",
+                    "rfcl"]
         },
         "strict_mode": {
             "type": "string",
@@ -271,6 +272,20 @@ config_schema = {
             "exclusiveMinimum": 0.0
         },
 
+        # RFCL
+        "outlier_detection_sensitivity": {
+            "type": "number",
+            "minimum": 0.0
+        },
+        "num_similar_cluster_centers": {
+            "type": "integer",
+            "minimum": 1
+        },
+        "min_cluster_size": {
+            "type": "integer",
+            "minimum": 2
+        },
+
         # Attack scheduling
         "attack_schedule": {
             "type": "array",
@@ -428,6 +443,18 @@ def _validate_dependent_params(strategy_config: dict) -> None:
             if param not in strategy_config:
                 raise ValidationError(
                     f"Missing parameter '{param}' for fl_detector aggregation"
+                )
+    elif aggregation_strategy_keyword == "rfcl":
+        rfcl_required = [
+            "outlier_detection_sensitivity",
+            "num_similar_cluster_centers",
+            "min_cluster_size",
+            "begin_removing_from_round",
+        ]
+        for param in rfcl_required:
+            if param not in strategy_config:
+                raise ValidationError(
+                    f"Missing parameter '{param}' for rfcl aggregation"
                 )
 
     if aggregation_strategy_keyword in ("bulyan", "krum", "multi-krum-based", "multi-krum", "rfa", "trimmed_mean", "pid"):

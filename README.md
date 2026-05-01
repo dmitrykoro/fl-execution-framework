@@ -43,6 +43,7 @@ Defines the aggregation strategy. Options:
   - `fed_nga`: Fed-NGA (Federated Normalized Gradients Algorithm) aggregation strategy. Performs normalization of client gradients before performing global aggregation to improve robustness against Byzantine faults and data heterogeneity. Fed-NGA paper: https://arxiv.org/pdf/2408.09539
   - `freq_fed`: FreqFed aggregation strategy. A frequency analysis-based approach that uses 2-D Discrete Cosine Transform (DCT) to extract low-frequency components of client weight updates and clusters them using HDBSCAN to identify and exclude malicious updates. FreqFed paper: https://www.ndss-symposium.org/ndss-paper/freqfed-a-frequency-analysis-based-approach-for-mitigating-poisoning-attacks-in-federated-learning/
   - `fl_detector`: FLDetector aggregation strategy. Detects malicious clients by predicting each client's expected model update using L-BFGS quasi-Newton approximation and accumulating per-client suspicious scores across rounds. Clients whose score exceeds a z-score threshold are excluded from FedAvg aggregation. FLDetector paper: https://dl.acm.org/doi/10.1145/3534678.3539231
+  - `rfcl`: RFCL aggregation strategy. Designed for highly non-IID environments that clusters model updates using PCA and HDBSCAN, filters intra-cluster outliers via Modified Adaptive Federated Averaging (ModiAFA), and performs similarity analysis to aggregate only the most trusted clusters into the global model while using personalized model sharing to quarantine excluded clients. RFCL paper: https://doi.org/10.3233/FAIA230257
 
 
 - **`strict_mode`**: ensures that Flower trains and aggregates all available clients at every round. When enabled (default), automatically sets `min_fit_clients`, `min_evaluate_clients`, and `min_available_clients` to equal `num_of_clients`. Options: `"true"`, `"false"`.
@@ -174,6 +175,12 @@ Defines the aggregation strategy. Options:
 - `fl_detector_history_size`: Number of L-BFGS curvature pairs `(s, y)` retained per client. Paper default: `10`. Higher values improve curvature approximation at the cost of O(n × N × d) memory. Recommended range: `5`–`20`.
 - `fl_detector_z_score_threshold`: Removal threshold in standard deviations above the per-round mean suspicious score. Lower values are more aggressive (higher false-positive risk). Recommended: `1.5`–`2.0` for experiments of 30 rounds or fewer (score distributions become clearly bimodal only around round 60 per the paper); `2.0`–`2.5` for 60+ rounds.
 - `begin_removing_from_round`: Warmup rounds before filtering is active. L-BFGS history still accumulates during warmup. Must be ≥ `1`. Recommended: `7`–`10`.
+
+**For `rfcl` strategy**:
+- `outlier_detection_sensitivity`: Sensitivity parameter (`ξ`) used in the Modified Adaptive Federated Averaging (ModiAFA) module to control the threshold for intra-cluster cosine similarities outlier detection. Lower values make the outlier detection more aggressive. (Suggested Range: `1.0`-`3.0`; Default: `2.0`)
+- `num_similar_cluster_centers`: The maximum number of clusters (`K`) selected during the Similarity Analysis phase to form the trusted pool (`M_best`) for final global aggregation (Suggested Range: `1`-`5`; Default: `2`)
+- `min_cluster_size`: Parameter used in the HDBSCAN clustering module to Dictate the minimum number of clients required to form a valid cluster. (Suggested Range: `2`-`5`; Default: `2`)
+- `begin_removing_from_round`: warmup rounds before filtering is active.
 
 ---
 

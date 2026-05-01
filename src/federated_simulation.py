@@ -63,6 +63,7 @@ from src.simulation_strategies.pid_made_strategy import PIDMADEStrategy
 from src.simulation_strategies.fed_nga_strategy import FedNGAStrategy
 from src.simulation_strategies.freq_fed_strategy import FreqFedStrategy
 from src.simulation_strategies.fl_detector_strategy import FLDetectorStrategy
+from src.simulation_strategies.rfcl_strategy import RFCLStrategy
 
 from src.data_models.simulation_strategy_config import StrategyConfig
 from src.data_models.simulation_strategy_history import SimulationStrategyHistory
@@ -490,6 +491,14 @@ class FederatedSimulation:
             self._aggregation_strategy = FLDetectorStrategy(
                 history_size=self.strategy_config.fl_detector_history_size,
                 z_score_threshold=self.strategy_config.fl_detector_z_score_threshold,
+                **common_kwargs
+            )
+
+        elif aggregation_strategy_keyword == "rfcl":
+            self._aggregation_strategy = RFCLStrategy(
+                outlier_detection_sensitivity=self.strategy_config.outlier_detection_sensitivity or 2.0,
+                num_similar_cluster_centers=self.strategy_config.num_similar_cluster_centers or 2,
+                min_cluster_size=self.strategy_config.min_cluster_size or 2,
                 **common_kwargs
             )
 

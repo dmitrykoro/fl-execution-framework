@@ -172,8 +172,15 @@ class RoundsInfo:
                 )
 
             # recall: tp / (tp + fn)
-            recall = round_tp / (round_tp + round_fn)
-            self.removal_recall_history.append(recall)
+            try:
+                recall = round_tp / (round_tp + round_fn)
+                self.removal_recall_history.append(recall)
+            except ZeroDivisionError:
+                self.removal_recall_history.append(
+                    float("inf")
+                )
+        
+            
 
             # f1: 2 * precision * recall / (precision + recall)
             try:

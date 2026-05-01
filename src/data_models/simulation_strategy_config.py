@@ -68,6 +68,11 @@ class StrategyConfig:
     fl_detector_history_size: int = None          # L-BFGS window N (paper default: 10)
     fl_detector_z_score_threshold: float = None   # removal threshold in σ above mean
 
+    # RFCL parameters
+    outlier_detection_sensitivity: float = None   # ModiAFA outlier detection sensitivity (default: 2.0)
+    num_similar_cluster_centers: int = None,      # Similarity Analysis similar cluster selector (default: 2)
+    min_cluster_size: int = None,                 # HDBSCAN min_cluster_size (default: 2)
+
     strict_mode: bool = None
 
     strategy_number: int = None
