@@ -68,6 +68,12 @@ class StrategyConfig:
     fl_detector_history_size: int = None          # L-BFGS window N (paper default: 10)
     fl_detector_z_score_threshold: float = None   # removal threshold in σ above mean
 
+    # FedDMC parameters (TDSC 2024)
+    ensemble_alpha: float = None                # trust score weight for SEDC module (default: 0.5)
+    num_principal_components: int = None        # number of dimensions retained after PCA (default: 5)    
+    # min_cluster_size is also used by FedDMC   # Noise threshold used in the BTBCN module (default: 3)
+    removal_threshold: float = None             # Removal threshold for the SEDC trust score (default: 0.5)
+
     strict_mode: bool = None
 
     strategy_number: int = None
