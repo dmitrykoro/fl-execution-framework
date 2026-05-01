@@ -74,11 +74,16 @@ class StrategyConfig:
     # min_cluster_size is also used by FedDMC   # Noise threshold used in the BTBCN module (default: 3)
     removal_threshold: float = None             # Removal threshold for the SEDC trust score (default: 0.5)
       
-    # SignGuard parameters
+    # SignGuard parameters (ICDCS 2022)
     norm_lower_bound: float = None,         # Gradient norm lower bound (paper defuault: 0.1)
     norm_upper_bound: float = None,         # Gradient norm upper bound (paper default: 3.0)
     coordinate_subset_ratio: float = None,  # Random subset of gradient coordinates (paper default: 0.1)
     bandwidth_quantile: float = None,        # Quantile of bandwidth (library default: 0.3)
+      
+    # RFCL parameters (ECAI 2023)
+    outlier_detection_sensitivity: float = None   # ModiAFA outlier detection sensitivity (default: 2.0)
+    num_similar_cluster_centers: int = None,      # Similarity Analysis similar cluster selector (default: 2)
+    # min_cluster_size is also used by RFCL       # HDBSCAN min_cluster_size (default: 2)
 
     strict_mode: bool = None
 

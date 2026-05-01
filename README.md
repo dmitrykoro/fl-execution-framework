@@ -45,6 +45,7 @@ Defines the aggregation strategy. Options:
   - `fl_detector`: FLDetector aggregation strategy. Detects malicious clients by predicting each client's expected model update using L-BFGS quasi-Newton approximation and accumulating per-client suspicious scores across rounds. Clients whose score exceeds a z-score threshold are excluded from FedAvg aggregation. FLDetector paper: https://dl.acm.org/doi/10.1145/3534678.3539231
   - `fed_dmc`: FedDMC aggregation strategy. Detects malicious clients by first reducing the dimensionality of model updates using Principal COmponent Analysis (PCA), then separating benign and malicious updates via Binary Tree-Based Clustering with Noise (BTBCN). It maintains an exponentially weighted trust score for each client across rounds using Self-Ensemble Detection Correction (SEDC), excluding clients whose scores fall below a set threshold before performing aggregation. FedDMC paper: https://doi.org/10.1109/TDSC.2024.3372634
   - `signguard`: SignGuard aggregation strategy. Detects malicious clients by applying two parallel mechanisms: a norm-based filter to remove gradients with anomalous magnitudes, and a sign-based filter that uses Mean-Shift clustering on gradient sign proportions to identify the honest majority. The updates in the trusted intersection are then aggregated using mean aggregation with norm clipping. SignGuard paper: https://doi.org/10.1109/ICDCS54860.2022.00120
+  - `rfcl`: RFCL aggregation strategy. Designed for highly non-IID environments that clusters model updates using PCA and HDBSCAN, filters intra-cluster outliers via Modified Adaptive Federated Averaging (ModiAFA), and performs similarity analysis to aggregate only the most trusted clusters into the global model while using personalized model sharing to quarantine excluded clients. RFCL paper: https://doi.org/10.3233/FAIA230257
 
 - **`strict_mode`**: ensures that Flower trains and aggregates all available clients at every round. When enabled (default), automatically sets `min_fit_clients`, `min_evaluate_clients`, and `min_available_clients` to equal `num_of_clients`. Options: `"true"`, `"false"`.
 
@@ -194,6 +195,12 @@ Defines the aggregation strategy. Options:
 - `coordinate_subset_ratio`: Fraction of total gradient coordinates randomly sampled to calculate the sign statistics for the Sign-based Clustering (default: 0.1).
 - `bandwidth_quantile`: Quantile used to estimate the bandwidth for the Mean-Shift clustering algorithm and controls the window size for discovering clusters. In non-IID environments, a higher quantile (e.g., 0.6-0.7) prevents the algorithm from breaking honest benign clients into many small clusters (default: 0.3).
 - `begin_removing_from_round`: Warmup rounds before active filtering begins.
+
+**For `rfcl` strategy**:
+- `outlier_detection_sensitivity`: Sensitivity parameter (`ξ`) used in the Modified Adaptive Federated Averaging (ModiAFA) module to control the threshold for intra-cluster cosine similarities outlier detection. Lower values make the outlier detection more aggressive. (Suggested Range: `1.0`-`3.0`; Default: `2.0`)
+- `num_similar_cluster_centers`: The maximum number of clusters (`K`) selected during the Similarity Analysis phase to form the trusted pool (`M_best`) for final global aggregation (Suggested Range: `1`-`5`; Default: `2`)
+- `min_cluster_size`: Parameter used in the HDBSCAN clustering module to Dictate the minimum number of clients required to form a valid cluster. (Suggested Range: `2`-`5`; Default: `2`)
+- `begin_removing_from_round`: warmup rounds before filtering is active.
 
 ---
 

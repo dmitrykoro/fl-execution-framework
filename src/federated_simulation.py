@@ -65,6 +65,7 @@ from src.simulation_strategies.freq_fed_strategy import FreqFedStrategy
 from src.simulation_strategies.fl_detector_strategy import FLDetectorStrategy
 from src.simulation_strategies.fed_dmc_strategy import FedDMCStrategy
 from src.simulation_strategies.signguard_strategy import SignGuardStrategy
+from src.simulation_strategies.rfcl_strategy import RFCLStrategy
 
 from src.data_models.simulation_strategy_config import StrategyConfig
 from src.data_models.simulation_strategy_history import SimulationStrategyHistory
@@ -510,6 +511,14 @@ class FederatedSimulation:
                 norm_upper_bound=self.strategy_config.norm_upper_bound or 3.0,
                 coordinate_subset_ratio=self.strategy_config.coordinate_subset_ratio or 0.1,
                 bandwidth_quantile=self.strategy_config.bandwidth_quantile or 0.3,
+                **common_kwargs
+            )
+
+        elif aggregation_strategy_keyword == "rfcl":
+            self._aggregation_strategy = RFCLStrategy(
+                outlier_detection_sensitivity=self.strategy_config.outlier_detection_sensitivity or 2.0,
+                num_similar_cluster_centers=self.strategy_config.num_similar_cluster_centers or 2,
+                min_cluster_size=self.strategy_config.min_cluster_size or 2,
                 **common_kwargs
             )
 
