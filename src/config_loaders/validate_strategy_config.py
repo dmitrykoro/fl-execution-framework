@@ -11,8 +11,8 @@ config_schema = {
             "type": "string",
             "enum": ["trust", "pid", "pid_scaled", "pid_standardized", "pid_standardized_score_based",
                     "multi-krum", "krum", "multi-krum-based", "trimmed_mean",
-                    "rfa", "bulyan", "fools_gold", "pid_v5_stateless_mean_based", 
-                    "pid_v5_stateless_median_based", "fed_nga"]
+                    "rfa", "bulyan", "fools_gold", "pid_made",  "freq_fed", "fl_detector",
+                    "pid_v5_stateless_mean_based", "pid_v5_stateless_median_based", "fed_nga"]
         },
         "strict_mode": {
             "type": "string",
@@ -43,12 +43,16 @@ config_schema = {
                 "organamnist",
                 "organcmnist",
                 "organsmnist",
-                "air_quality_uci"
+                "cifar100_a01",
+                "cifar100_a05",
+                "cifar100_a20",
+                "air_quality_uci",
+                "smores",
             ]
         },
         "model_type": {
             "type": "string",
-            "enum": ["cnn", "transformer", "linear_regression", "mlp"]
+            "enum": ["cnn", "transformer", "linear_regression", "mlp", "lstm"]
         },
         "num_of_rounds": {
             "type": "integer"
@@ -56,14 +60,15 @@ config_schema = {
         "num_of_clients": {
             "type": "integer"
         },
-        # Pre-training poisoning fields
+        # Pre-training poisoning fields (And all backwards compatible attacks)
         "num_of_malicious_clients": {
             "type": "integer",
             "minimum": 0
         },
         "attack_type": {
             "type": "string",
-            "enum": ["label_flipping", "gaussian_noise", "ner_label_flipping", "target_flipping"]
+            "enum": ["label_flipping", "gaussian_noise", "ner_label_flipping", "target_flipping",
+                     "gradient_scaling", "little_is_enough",]
         },
         "attack_ratio": {
             "type": "number",
@@ -72,6 +77,10 @@ config_schema = {
         },
         "target_noise_snr": {
             "type": "number"
+        },
+        "scale_factor": {           # for gradient scaling
+            "type": "number", 
+            "exclusiveMinimum": 0
         },
         # Visualization and dataset fields
         "show_plots": {
@@ -165,10 +174,18 @@ config_schema = {
 
         # Dataset specific parameters
 
-        # AirQualityUCI
-        "target_gas": {
+        # Regression Tasks Dataset Parameters
+        "target_name": {
             "type": "string",
-            "enum": ["CO", "C6H6", "NOx", "NO2"]
+            "enum": [
+                        "CO", "C6H6", "NOx", "NO2", # AirQualityUCI
+                        "DO",                       # SMORES
+                    ]
+        },
+        
+        # SMORES
+        "sequence_len": {
+            "type": "integer"
         },
 
         # Strategy specific parameters
@@ -218,6 +235,42 @@ config_schema = {
             "type": "number"
         },
 
+        # FreqFed
+        "min_cluster_size": {
+            "type": "integer",
+            "minimum": 2
+        },
+
+        # PID-MADE
+        "lam": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "exclusiveMaximum": 1.0
+        },
+        "threshold_mode": {
+            "type": "string",
+            "enum": ["fixed", "chebyshev", "gaussian"]
+        },
+        "tau": {
+            "type": "number",
+            "exclusiveMinimum": 0.0
+        },
+        "alpha": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "exclusiveMaximum": 1.0
+        },
+
+        # FLDetector
+        "fl_detector_history_size": {
+            "type": "integer",
+            "minimum": 1
+        },
+        "fl_detector_z_score_threshold": {
+            "type": "number",
+            "exclusiveMinimum": 0.0
+        },
+
         # Attack scheduling
         "attack_schedule": {
             "type": "array",
@@ -228,7 +281,8 @@ config_schema = {
                     "end_round": {"type": "integer", "minimum": 1},
                     "attack_type": {
                         "type": "string",
-                        "enum": ["label_flipping", "gaussian_noise", "target_flipping"]
+                        "enum": ["label_flipping", "gaussian_noise", "target_flipping", 
+                                 "gradient_scaling", "little_is_enough"]
                     },
                     # old format entries for backward-compatibility - do not use
                     "selection_strategy": {"type": "string", "enum": ["specific", "random", "percentage"]},
@@ -241,7 +295,8 @@ config_schema = {
                     "proportion_malicious_clients": {"type": "number", "items": {"type": "integer"}},
                     "random_seed": {"type": "integer", "minimum": 0},
                     "target_noise_snr": {"type": "number"},
-                    "attack_ratio": {"type": "number", "minimum": 0.0, "maximum": 1.0}
+                    "attack_ratio": {"type": "number", "minimum": 0.0, "maximum": 1.0},
+                    "scale_factor": {"type": "number", "exclusiveMinimum": 0}
                 },
                 "required": ["start_round", "end_round", "attack_type"]
             }
@@ -298,6 +353,8 @@ config_schema = {
 def _validate_dependent_params(strategy_config: dict) -> None:
     """Validate that all params that require additional params are correct."""
 
+    # Aggregation Strategy Parameters
+
     aggregation_strategy_keyword = strategy_config["aggregation_strategy_keyword"]
 
     if aggregation_strategy_keyword == "trust":
@@ -319,6 +376,28 @@ def _validate_dependent_params(strategy_config: dict) -> None:
                 raise ValidationError(
                     f"Missing parameter {param} for PID aggregation {aggregation_strategy_keyword}"
                 )
+    elif aggregation_strategy_keyword == "pid_made":
+        pid_made_required = ["Kp", "Ki", "Kd", "lam", "threshold_mode", "begin_removing_from_round"]
+        for param in pid_made_required:
+            if param not in strategy_config:
+                raise ValidationError(
+                    f"Missing parameter '{param}' for pid_made aggregation"
+                )
+        threshold_mode = strategy_config["threshold_mode"]
+        if threshold_mode == "fixed":
+            if "tau" not in strategy_config:
+                raise ValidationError(
+                    "pid_made with threshold_mode='fixed' requires 'tau' parameter"
+                )
+        elif threshold_mode in ("chebyshev", "gaussian"):
+            if "alpha" not in strategy_config:
+                raise ValidationError(
+                    f"pid_made with threshold_mode='{threshold_mode}' requires 'alpha' parameter"
+                )
+        else:
+            raise ValidationError(
+                f"pid_made: invalid threshold_mode '{threshold_mode}'. Must be 'fixed', 'chebyshev', or 'gaussian'"
+            )
     elif aggregation_strategy_keyword in ["multi-krum", "krum", "multi-krum-based"]:
         if "num_krum_selections" not in strategy_config:
             raise ValidationError(
@@ -334,21 +413,87 @@ def _validate_dependent_params(strategy_config: dict) -> None:
             raise ValidationError(
                 f"Missing parameter num_bulyan_benign_clients for aggregation: {aggregation_strategy_keyword}"
             )
-        
-    dataset_keyword = strategy_config["dataset_keyword"]
-
-    if dataset_keyword == "air_quality_uci":
-        if "target_gas" not in strategy_config:
+    elif aggregation_strategy_keyword == "freq_fed":
+        if "begin_removing_from_round" not in strategy_config:
             raise ValidationError(
-                f"Missing parameter target_gas for UCI Air Quality dataset {dataset_keyword}"
+                "Missing parameter 'begin_removing_from_round' for freq_fed aggregation"
             )
-        
+    elif aggregation_strategy_keyword == "fl_detector":
+        fl_detector_required = [
+            "fl_detector_history_size",
+            "fl_detector_z_score_threshold",
+            "begin_removing_from_round",
+        ]
+        for param in fl_detector_required:
+            if param not in strategy_config:
+                raise ValidationError(
+                    f"Missing parameter '{param}' for fl_detector aggregation"
+                )
+
     if aggregation_strategy_keyword in ("bulyan", "krum", "multi-krum-based", "multi-krum", "rfa", "trimmed_mean", "pid"):
         if "begin_removing_from_round" not in strategy_config:
             raise ValidationError(
                 f"Missing parameter begin_removing_from_round for aggregation {aggregation_strategy_keyword}"
             )
+        
+    
+    # Attack Parameters (for old attack_type backwards copatibility)
 
+    if "attack_type" in strategy_config:
+        attack_type = strategy_config["attack_type"]
+        if attack_type == "gaussian_noise":
+            if "target_noise_snr" not in strategy_config:
+                raise ValidationError(
+                    f"Missing parameter 'target_noise_snr' for attack '{attack_type}'"
+                )
+
+        elif attack_type == "gradient_scaling":
+            if "scale_factor" not in strategy_config:
+                raise ValidationError(
+                    f"Missing parameter 'scale_factor' for attack '{attack_type}'"
+                )
+            if strategy_config["scale_factor"] <= 0:
+                raise ValidationError(
+                    f"Parameter 'scale_factor' in attack '{attack_type}' must be > 0"
+                )
+
+    # Dataset Parameters
+        
+    dataset_keyword = strategy_config["dataset_keyword"]
+
+    if dataset_keyword == "air_quality_uci":
+        if "target_name" not in strategy_config:
+            raise ValidationError(
+                f"Missing parameter target_name for UCI Air Quality dataset {dataset_keyword}"
+            )
+        elif ("target_name" in strategy_config
+              and strategy_config.get("target_name","") not in ["CO", "C6H6", "NOx", "NO2"]):
+            raise ValidationError(
+                f"For UCI Air Quality dataset {dataset_keyword}, target_name  must be one of ['CO', 'C6H6', 'NOx', 'NO2']"
+            ) 
+    elif dataset_keyword == "smores":
+        if "target_name" not in strategy_config:
+            raise ValidationError(
+                f"Missing parameter target_name for SMORES dataset {dataset_keyword}"
+            )
+        elif ("target" in strategy_config
+              and strategy_config.get("target_name","") not in ["DO"]):
+            raise ValidationError(
+                f"For SMORES dataset {dataset_keyword}, target_name must be one of ['DO']"
+            )
+
+        if "sequence_len" not in strategy_config:
+            raise ValidationError(
+                f"Missing parameter sequence_len for SMORES dataset {dataset_keyword}"
+            )
+        
+        if "attack_type" in strategy_config and strategy_config["attack_type"] == "target_flipping":
+            raise ValidationError(
+                f"Static Target Flipping is not supported for SMORES dataset {dataset_keyword}.\n"
+                        f"Please use 'attack_schedule' instead of 'attack_type'."
+            )
+        
+    
 
 def _populate_client_selection(config: dict) -> None:
     """
@@ -463,6 +608,16 @@ def _validate_attack_schedule(config: dict) -> None:
                     f"{entry_desc}: target_flipping attack requires 'attack_ratio' parameter"
                 )
 
+        elif attack_type == "gradient_scaling":
+            if "scale_factor" not in entry:
+                raise ValidationError(
+                    f"{entry_desc}: gradient_scaling attack requires 'scale_factor' parameter"
+                )
+            if entry["scale_factor"] <= 0:
+                raise ValidationError(
+                    f"{entry_desc}: 'scale_factor' must be > 0"
+                )
+
     # Check for overlapping rounds (attack stacking)
     for i, entry1 in enumerate(schedule):
         for j, entry2 in enumerate(schedule[i + 1:], start=i + 1):
@@ -494,8 +649,10 @@ def _validate_attack_schedule(config: dict) -> None:
                         f"Both attacks will be stacked and applied sequentially."
                     )
 
-    # Strict rejection: preserve_dataset incompatible with attack_schedule
-    if schedule and config.get("preserve_dataset") == "true":
+    # Strict rejection: preserve_dataset incompatible with data-poisoning attack_schedule
+    # (gradient_scaling and little_is_enough is post-training and does not touch the dataset, so it is exempt)
+    data_poisoning_entries = [e for e in schedule if e.get("attack_type") not in ["gradient_scaling", "little_is_enough"]]
+    if data_poisoning_entries and config.get("preserve_dataset") == "true":
         raise ValidationError(
             "CONFIG REJECTED: Cannot use attack_schedule with preserve_dataset=true\n"
             "\n"

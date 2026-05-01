@@ -10,10 +10,9 @@ from typing import Any, Dict, List, Optional, Union
 from torch.utils.data import TensorDataset
 
 from src.attack_utils.snapshot_image_viz import save_image_grid, save_scatter_plot
-from src.attack_utils.snapshot_text_viz import save_text_samples, save_regression_text_samples
+from src.attack_utils.snapshot_text_viz import save_text_samples, save_regression_text_samples, save_extra_attack_info
 
 
-#TODO: Generalize `target_gas` param for all regression tasks
 def save_attack_snapshots(
         attack_snapshot_format,
         model_type,
@@ -28,7 +27,7 @@ def save_attack_snapshots(
         data_sample,
         labels_sample,
         tokenizer=None,
-        target_gas="",
+        target_name="",
         original_data_sample=None,
         original_labels_sample=None,
         dataset=None
@@ -86,8 +85,7 @@ def save_attack_snapshots(
                 tokenizer=tokenizer,
                 original_data_sample=original_data_sample.cpu().numpy(),
             )
-        elif ((model_type == "linear_regression" or model_type == "mlp") 
-                and dataset is not None and target_gas != ""):
+        elif model_type in ["linear_regression", "mlp", "lstm"] and dataset is not None and target_name != "":
                 # Unnormalize features and targets for intuitive values in the snapshots
                 x_mean = dataset.x_mean
                 x_std = dataset.x_std
@@ -112,7 +110,7 @@ def save_attack_snapshots(
                     model_type=model_type,
                     experiment_info=experiment_info,
                     strategy_number=strategy_number,
-                    target_gas=target_gas,
+                    target_name=target_name,
                     original_data_sample=orig_features_real.cpu().numpy() if original_data_sample is not None else data_sample.cpu().numpy(),
                     dataset=dataset,
                 )
@@ -196,7 +194,6 @@ def save_attack_snapshot(
         logging.warning(f"Failed to save attack snapshot for client {client_id}: {e}")
 
 
-#TODO: Generalize `target_gas` param for all regression tasks
 def save_visual_snapshot(
         client_id: int,
         round_num: int,
@@ -205,13 +202,14 @@ def save_visual_snapshot(
         labels_sample: np.ndarray,
         original_labels_sample: np.ndarray,
         output_dir: str,
-        model_type: str,
+        model_type: Optional[str] = None,
         experiment_info: Optional[Dict[str, Any]] = None,
         strategy_number: int = 0,
         tokenizer=None,
-        target_gas: str = "",
+        target_name: str = "",
         original_data_sample: Optional[np.ndarray] = None,
-        dataset: Optional[TensorDataset] = None
+        dataset: Optional[TensorDataset] = None,
+        specific_attack_type: Optional[str] = None,
 ) -> None:
     """Save visual snapshot of attack samples for inspection.
 
@@ -226,14 +224,15 @@ def save_visual_snapshot(
         labels_sample: Sample labels array
         original_labels_sample: Original labels array
         output_dir: Base output directory
-        model_type: Type of model being trained
+        model_type: Type of model being trained (optional)
         max_samples: Maximum samples to include in snapshot (default: 5)
         experiment_info: Additional experiment metadata (optional)
         strategy_number: Strategy index for multi-strategy runs (default: 0)
         tokenizer: HuggingFace tokenizer for text visualization (optional)
-        target_gas: Target being predicted in regression task
+        target_name: Target being predicted in regression task
         original_data_sample: Original data before poisoning for comparison (optional)
         dataset: Regression task dataset (optional)
+        specific_attack_type: Used for when an visual attack snapshot needs to be made outside of the normal pipeline (optional)
 
     Note:
         Automatically detects data type (images vs text) and uses appropriate
@@ -264,7 +263,7 @@ def save_visual_snapshot(
                 input_ids_original=original_data_sample,
                 input_ids_poisoned=data_sample,
             )
-        elif model_type == "linear_regression" or model_type == "mlp":
+        elif model_type in ["linear_regression", "mlp", "lstm"]:
             # Unnormalize min and max target values for intuitive values in the snapshots
             if dataset:
                 min_target = (dataset.y_min * dataset.y_std + dataset.y_mean).item()
@@ -278,7 +277,7 @@ def save_visual_snapshot(
                 targets=labels_sample,
                 original_targets=original_labels_sample,
                 filepath=snapshot_dir / text_filename,
-                target_gas=target_gas,
+                target_name=target_name,
                 min_target=min_target, 
                 max_target=max_target,
                 attack_config=attack_config,
@@ -290,10 +289,20 @@ def save_visual_snapshot(
                 targets=labels_sample,
                 original_targets=original_labels_sample,
                 filepath=snapshot_dir / plot_filename,
-                target_gas=target_gas,
+                target_name=target_name,
                 min_target=min_target,
                 max_target=max_target,
                 attack_config=attack_config,
+            )
+
+        if specific_attack_type == "little_is_enough" and experiment_info is not None:
+            filename = f"{specific_attack_type}_attack_info.txt"
+            save_extra_attack_info(
+                client_id=client_id,
+                round_num=round_num,
+                filepath=snapshot_dir / filename,
+                attack_type=specific_attack_type,
+                experiment_info=experiment_info,
             )
 
         logging.debug(

@@ -37,12 +37,12 @@ class HostHardwareSpec(Base):
     __tablename__ = "host_hardware_spec"
 
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    cpu_name = Column(Text, nullable=False)
-    cpu_arch = Column(Text, nullable=False)
-    ram_amount = Column(Text, nullable=False)
+    cpu_name = Column(Text, nullable=True)
+    cpu_arch = Column(Text, nullable=True)
+    ram_amount = Column(Text, nullable=True)
     gpu_name = Column(Text, nullable=True)
     gpu_ram = Column(Text, nullable=True)
-    is_executed_on = Column(Text, nullable=False)
+    is_executed_on = Column(Text, nullable=True)
 
     experiment_events = relationship("ExperimentEvent", back_populates="hardware")
 
@@ -53,6 +53,7 @@ class ExperimentEvent(Base):
     id = Column(Integer, primary_key=True, autoincrement=True)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     wandb_url = Column(String(500), nullable=True)
+    local_dashboard_url = Column(String(1000), nullable=True)
     is_successful = Column(Boolean, default=True)
     error_message = Column(Text, nullable=True)
     total_exec_time = Column(Text, nullable=True)
@@ -86,6 +87,16 @@ class ExperimentAuthor(Base):
 
     experiment_events = relationship(
         "ExperimentEvent",
+        back_populates="author",
+        cascade="all, save-update",
+    )
+    configuration_sessions = relationship(
+        "ConfigurationSession",
+        back_populates="author",
+        cascade="all, save-update",
+    )
+    database_analysis_sessions = relationship(
+        "DatabaseAnalysisSession",
         back_populates="author",
         cascade="all, save-update",
     )
@@ -178,3 +189,66 @@ class AuthToken(Base):
     __table_args__ = (
         Index("ix_auth_token_expires_at", "expires_at"),
     )
+
+
+class ConfigurationSession(Base):
+    __tablename__ = "configuration_session"
+
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    experiment_author_id = Column(Integer, ForeignKey("experiment_author.id"), nullable=True)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
+    is_removed = Column(Boolean, default=False, nullable=False)
+
+    author = relationship("ExperimentAuthor", back_populates="configuration_sessions")
+    chat_messages = relationship(
+        "ConfigurationChatMessage",
+        back_populates="configuration_session",
+        cascade="all, delete-orphan",
+    )
+
+
+class ConfigurationChatMessage(Base):
+    __tablename__ = "configuration_chat_message"
+
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    configuration_session_id = Column(
+        String(36), ForeignKey("configuration_session.id", ondelete="CASCADE"), nullable=False
+    )
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
+    is_removed = Column(Boolean, default=False, nullable=False)
+    creator_role = Column(String(16), nullable=False)
+    payload = Column(Text, nullable=False)
+
+    configuration_session = relationship("ConfigurationSession", back_populates="chat_messages")
+
+
+class DatabaseAnalysisSession(Base):
+    __tablename__ = "database_analysis_session"
+
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    experiment_author_id = Column(Integer, ForeignKey("experiment_author.id"), nullable=True)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
+    is_removed = Column(Boolean, default=False, nullable=False)
+    payload = Column(Text, nullable=True)
+
+    author = relationship("ExperimentAuthor", back_populates="database_analysis_sessions")
+    chat_messages = relationship(
+        "DatabaseAnalysisChatMessage",
+        back_populates="database_analysis_session",
+        cascade="all, delete-orphan",
+    )
+
+
+class DatabaseAnalysisChatMessage(Base):
+    __tablename__ = "database_analysis_chat_message"
+
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    database_analysis_session_id = Column(
+        String(36), ForeignKey("database_analysis_session.id", ondelete="CASCADE"), nullable=False
+    )
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
+    is_removed = Column(Boolean, default=False, nullable=False)
+    creator_role = Column(String(16), nullable=False)
+    payload = Column(Text, nullable=False)
+
+    database_analysis_session = relationship("DatabaseAnalysisSession", back_populates="chat_messages")

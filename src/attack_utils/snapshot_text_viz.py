@@ -2,7 +2,7 @@
 Text visualization utilities for attack snapshots.
 """
 from pathlib import Path
-from typing import List, Optional, Union
+from typing import List, Optional, Union, Any, Dict, Optional
 
 import numpy as np
 import math
@@ -212,12 +212,11 @@ def save_text_samples(
                 f.write(f"Sample {i}: {label} (was {orig})\n")
 
 
-#TODO: Generalize `target_gas` param for all regression tasks
 def save_regression_text_samples(
     targets: np.ndarray,
     original_targets: np.ndarray,
     filepath: Path,
-    target_gas: str,
+    target_name: str,
     min_target: float,
     max_target: float,
     attack_config: Optional[Union[dict, List[dict]]] = None,
@@ -233,7 +232,7 @@ def save_regression_text_samples(
         targets: Poisoned targets array
         original_targets: Original targets before attack
         filepath: Output file path for the text visualization
-        target_gas: Value that the model is predicting
+        target_name: Value that the model is predicting
         min_target: Minimum target value
         max_target: Maximum target value
         attack_config: Attack configuration dict or list of dicts (optional)
@@ -251,8 +250,7 @@ def save_regression_text_samples(
         if attack_config:
             attack_type = _extract_attack_type(attack_config)
             f.write(f"Attack Type: {attack_type}\n")
-            #TODO: Generalize `target_gas` param for all regression tasks
-            f.write(f"Target Gas: {target_gas}\n")
+            f.write(f"Target: {target_name}\n")
 
             if (
                 original_features is not None
@@ -302,7 +300,10 @@ def save_regression_text_samples(
             ):
                 f.write(f"Features:\n")
                 for j, feature in enumerate(feature_names):
-                    f.write(f"\t{feature}: {original_features[i][j]:.4f}\n")
+                    if target_name == 'DO':
+                        f.write(f"\t{feature}: {original_features[i]}\n")
+                    else:
+                        f.write(f"\t{feature}: {original_features[i][j]:.4f}\n")
                 f.write("\n")
 
             f.write(f"Target:\n")
@@ -325,3 +326,41 @@ def save_regression_text_samples(
             f"SUMMARY: {samples_shown} samples modified, {samples_skipped} samples unchanged (skipped)\n"
         )
         f.write("=" * 80 + "\n")
+
+        
+def save_extra_attack_info(
+      client_id: int,
+      round_num: int,
+      filepath: Path,
+      attack_type: str,
+      experiment_info: Dict[str, Any],  
+):
+    """
+    Save extra information about an attack that isn't included in the parameters.
+
+    For example, the Little Is Enough attack has no parameters, but there are variables caluclated
+    during the attack that define how the attack works and should be saved for debugging purposes.
+
+    Args:
+        client_id: Client ID
+        round_num: Round number
+        filepath: Filepath to save to
+        attack_type: Type of attack
+        experiment_info: Additional information about the attack
+    """
+    with open(filepath, "w", encoding="utf-8") as f:
+        f.write("=" * 80 + "\n")
+        f.write("ADDITIONAL ATTACK INFORMATION\n")
+        f.write("=" * 80 + "\n\n")
+
+        f.write(f"Round {round_num}: Attack on Client {client_id}\n")
+
+        if attack_type == "little_is_enough":
+            f.write(f"\tAttack Type: Little Is Enough\n")
+            f.write(f"\tTotal Clients: {experiment_info['total_clients']}\n")
+            f.write(f"\tMalicious Clients: {experiment_info['malicious_clients']}\n")
+            f.write(f"\tBenign Clients: {experiment_info['benign_clients']}\n")
+            f.write(f"\tNumber of non-corrupt clients needed for a majority: {experiment_info['s']}\n")
+            f.write(f"\tProportional value of z_max: {experiment_info['p']}\n")
+            f.write(f"\tz_max: {experiment_info['z_max']}\n")
+        

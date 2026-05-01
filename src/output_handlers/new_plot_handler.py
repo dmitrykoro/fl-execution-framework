@@ -17,7 +17,10 @@ bar_width = 0.2
 ATTACK_ABBREV = {
     "label_flipping": "lf",
     "gaussian_noise": "gn",
-    "token_replacement": "tr"
+    "token_replacement": "tr",
+    "gradient_scaling": "gs",
+    "target_flipping": "tf",
+    "little_is_enough": "lie"
 }
 
 
@@ -57,24 +60,18 @@ def _get_client_attack_summary(client_id: int, attack_schedule: list) -> str:
 
 def _generate_single_string_strategy_label(strategy_config: StrategyConfig) -> str:
     """Generate single-string label for strategy (better to use as legend)"""
+    single_string = (
+        f"strategy: {strategy_config.aggregation_strategy_keyword}, " 
+        f"dataset: {strategy_config.dataset_keyword}, "
+    )
 
     if strategy_config.dataset_keyword == "air_quality_uci":
-        # TODO: Come back and generalize this
-        return(
-            f"strategy: {strategy_config.aggregation_strategy_keyword}, "
-            f"dataset: {strategy_config.dataset_keyword}, "
-            f"target: {strategy_config.target_gas}, "
-            f"remove: {strategy_config.remove_clients}, "
-            f"remove_from: {strategy_config.begin_removing_from_round if strategy_config.remove_clients else 'n/a'}, "
-            f"total clients: {strategy_config.num_of_clients}, "
-            f"bad_clients: {strategy_config.num_of_malicious_clients}, "
-            f"client_epochs: {strategy_config.num_of_client_epochs}, "
-            f"batch_size: {strategy_config.batch_size}"
-        )
+        single_string += f"target: {strategy_config.target_name}, "
+    if strategy_config.dataset_keyword == "smores":
+        single_string += f"target: {strategy_config.target_name}, "
+        single_string += f"sequence length: {strategy_config.sequence_len}, "
 
-    return (
-        f"strategy: {strategy_config.aggregation_strategy_keyword}, "
-        f"dataset: {strategy_config.dataset_keyword}, "
+    single_string += (
         f"remove: {strategy_config.remove_clients}, "
         f"remove_from: {strategy_config.begin_removing_from_round if strategy_config.remove_clients else 'n/a'}, "
         f"total clients: {strategy_config.num_of_clients}, "
@@ -82,6 +79,8 @@ def _generate_single_string_strategy_label(strategy_config: StrategyConfig) -> s
         f"client_epochs: {strategy_config.num_of_client_epochs}, "
         f"batch_size: {strategy_config.batch_size}"
     )
+
+    return single_string
 
 
 def _generate_multi_string_strategy_label(strategy_config: StrategyConfig) -> str:
@@ -112,6 +111,8 @@ def _add_attack_background_shading(
         "gaussian_noise": "#9999ff",  # Blue
         "token_replacement": "#99ff99", # Green
         "target_flipping":  "#e989fa",    # Pink
+        "gradient_scaling": "#ffcc66", # Orange
+        "little_is_enough": "#faff5b"  # Yellow
     }
 
     ATTACK_HATCHES = {
@@ -119,6 +120,8 @@ def _add_attack_background_shading(
         "gaussian_noise": "\\\\\\\\",  # Dense diagonal left
         "token_replacement": "xxxx",  # Dense crosses
         "target_flipping": "////",   # Dense diagonal right
+        "gradient_scaling": "....",    # Dots
+        "little_is_enough": "----",      # Dashes
     }
 
     # Track which attack periods we've already added to avoid duplicate labels
@@ -167,16 +170,6 @@ def show_plots_within_strategy(
         return
 
     plottable_metrics = list_of_client_histories[0].plottable_metrics.copy()
-
-    # remove metrics not needed depending on Classificaiton or Regression task
-    # TODO: Come back and fix this so that it is generalized for Classificaiton and Regression
-    if (simulation_strategy.strategy_config.model_type == "linear_regression"
-        or simulation_strategy.strategy_config.model_type == "mlp"):
-        if ("accuracy_history" in plottable_metrics):
-            plottable_metrics.remove("accuracy_history")
-    else:
-        if ("r2_history" in plottable_metrics):
-            plottable_metrics.remove("r2_history")
 
     for metric_name in plottable_metrics:
         plt.figure(figsize=plot_size)
@@ -283,17 +276,6 @@ def show_inter_strategy_plots(
         plt.figure(figsize=plot_size)
 
         for simulation_strategy in executed_simulation_strategies:
-            # Skip over metrics not needed depending on Classificaiton or Regression task
-            # TODO: Come back and fix this so that it is generalized for Classificaiton and Regression
-            if ((simulation_strategy.strategy_config.model_type == "linear_regression"
-                 or simulation_strategy.strategy_config.model_type == "mlp")
-                and metric_name == "average_accuracy_history"):
-                continue
-            elif (simulation_strategy.strategy_config.model_type != "linear_regression"
-                  and simulation_strategy.strategy_config.model_type != "mlp"
-                  and (metric_name == "average_r2_history")):
-                continue
-
             round_info = simulation_strategy.strategy_history.rounds_history
 
             metric_values = round_info.get_metric_by_name(metric_name)
@@ -323,6 +305,73 @@ def show_inter_strategy_plots(
             plt.show()
 
         plt.close()
+
+    # time series specific plots
+    time_series_plottable_metrics = executed_simulation_strategies[0].strategy_history.rounds_history.time_series_plottable_metrics
+    if len(time_series_plottable_metrics) > 0:
+        separated = [time_series_plottable_metrics[:2], time_series_plottable_metrics[2:]]
+        for simulation_strategy in executed_simulation_strategies:
+            for pair in separated:
+                plt.figure(figsize=plot_size)
+                for metric_name in pair:
+                    round_info = simulation_strategy.strategy_history.rounds_history
+
+                    metric_values = round_info.get_metric_by_name(metric_name)
+
+                    if metric_values:  # plot only if metrics were actually collected
+                        # Ensure rounds and metric_values have matching dimensions
+                        min_length = min(len(rounds), len(metric_values))
+                        plt.plot(
+                            rounds[:min_length],
+                            metric_values[:min_length],
+                            label=metric_name
+                        )
+                plt.xlabel('round #')
+                if "aggregated_loss_history" in pair:
+                    plt.ylabel('loss_history')
+                else:
+                    plt.ylabel('MARE_history')
+                plot_strategy_title = _generate_multi_string_strategy_label(simulation_strategy.strategy_config)
+                if "aggregated_loss_history" in pair:
+                    plt.title(
+                        f"Aggregated loss vs. Baseline Aggregated loss for strategy: "
+                        f"{simulation_strategy.strategy_config.aggregation_strategy_keyword}\n{plot_strategy_title}"
+                    )
+                else:
+                    plt.title(
+                    f"Aggregated MARE vs. Baseline Aggregated MARE for strategy: "
+                        f"{simulation_strategy.strategy_config.aggregation_strategy_keyword}\n{plot_strategy_title}"
+                    )
+
+                if "aggregated_loss_history" in pair:
+                    legend_title = 'loss curves'
+                else:
+                    legend_title = 'MARE curves'
+
+                plt.legend(
+                    title=legend_title, bbox_to_anchor=(1.05, 1),
+                    loc='upper left',
+                )
+                ax = plt.gca()
+                ax.xaxis.set_major_locator(MaxNLocator(integer=True, steps=[2, 5]))
+                plt.tight_layout()
+
+                if simulation_strategy.strategy_config.save_plots:
+                    if "aggregated_loss_history" in pair:
+                        plt.savefig(
+                            f"{directory_handler.new_plots_dirname}/"
+                            f"average_loss_baseline_comparison_{simulation_strategy.strategy_config.strategy_number}.pdf"
+                        )
+                    else:
+                        plt.savefig(
+                            f"{directory_handler.new_plots_dirname}/"
+                            f"average_mare_baseline_comparison_{simulation_strategy.strategy_config.strategy_number}.pdf"
+                        )
+
+                if simulation_strategy.strategy_config.show_plots:
+                    plt.show()
+
+                plt.close()
 
     # bar plots
     barable_metrics = executed_simulation_strategies[0].strategy_history.rounds_history.barable_metrics

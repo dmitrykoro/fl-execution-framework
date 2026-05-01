@@ -19,10 +19,32 @@ def _display_image(ax, image: np.ndarray) -> None:
         ax: Matplotlib axes object
         image: Image array to display
     """
-    if image.shape[0] == 1:
-        ax.imshow(image[0], cmap="gray")
+    # 1. Force to float32 and neutralize any attack artifacts (NaNs/Infs)
+    vis_image = np.asarray(image, dtype=np.float32)
+    vis_image = np.nan_to_num(vis_image, nan=0.0, posinf=1.0, neginf=0.0)
+    # Safely normalize the float array to [0.0, 1.0] for Matplotlib
+    img_min = np.min(vis_image)
+    img_max = np.max(vis_image)
+    # Avoid division by zero if the image is a solid color
+    if img_max > img_min:
+        vis_image = (vis_image - img_min) / (img_max - img_min)
+    
+    # Hard clip to kill floating point epsilons
+    vis_image = np.clip(vis_image, 0.0, 1.0)
+
+    # 4. Dimension safety check: Handle both (C, H, W) and (H, W, C)
+    if vis_image.shape[0] in [1, 3]:
+        # Image is Channel-First (e.g., PyTorch default)
+        if vis_image.shape[0] == 1:
+            ax.imshow(vis_image[0], vmin=0.0, vmax=1.0, cmap="gray")
+        else:
+            ax.imshow(vis_image.transpose(1, 2, 0), vmin=0.0, vmax=1.0)
     else:
-        ax.imshow(image.transpose(1, 2, 0))
+        # Image is likely Channel-Last (e.g., TensorFlow default)
+        if len(vis_image.shape) == 3 and vis_image.shape[-1] == 1:
+            ax.imshow(vis_image[..., 0], vmin=0.0, vmax=1.0, cmap="gray")
+        else:
+            ax.imshow(vis_image, vmin=0.0, vmax=1.0)
 
 
 def _normalize_axes(axes, rows: int, cols: int):
@@ -325,12 +347,11 @@ def save_image_grid(
     plt.close()
 
 
-#TODO: Generalize `target_gas` param for all regression tasks
 def save_scatter_plot(
     targets: np.ndarray,
     original_targets: np.ndarray,
     filepath: Path,
-    target_gas: str,
+    target_name: str,
     min_target: float,
     max_target: float,
     attack_config: Optional[Union[dict, List[dict]]] = None,
@@ -345,7 +366,7 @@ def save_scatter_plot(
         targets: Poisoned targets array
         original_targets: Original targets before attack
         filepath: Output file path for the scatter plot visualization
-        target_gas: Value that the model is predicting
+        target_name: Value that the model is predicting
         min_target: Minimum target value
         max_target: Maximum target value
         attack_config: Attack configuration dict or list of dicts (optional)
@@ -372,10 +393,10 @@ def save_scatter_plot(
             degree_of_poisoning = _extract_attack_param(
                     attack_config, "attack_ratio", default=0.1
                 )
-            legend_title = f"Data Samples and Attack\nTarget: {target_gas}\nDegree of Poisoing: {degree_of_poisoning}\nMin: {min_target:.4f}\nMax: {max_target:.4f}"
+            legend_title = f"Data Samples and Attack\nTarget: {target_name}\nDegree of Poisoing: {degree_of_poisoning}\nMin: {min_target:.4f}\nMax: {max_target:.4f}"
     else:
         plt_title = f"Regression Attack"
-        legend_title = f"Data Samples and Attack\nTarget: {target_gas}\nMin: {min_target:.4f}\nMax: {max_target:.4f}"
+        legend_title = f"Data Samples and Attack\nTarget: {target_name}\nMin: {min_target:.4f}\nMax: {max_target:.4f}"
     plt.title(plt_title)
 
     legend_items = []

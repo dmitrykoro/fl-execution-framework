@@ -14,6 +14,8 @@ from src.attack_utils.snapshot_html_reports import generate_snapshot_index, gene
 from src.dataset_loaders.image_dataset_loader import ImageDatasetLoader
 from src.dataset_loaders.image_transformers.its_image_transformer import its_image_transformer
 from src.dataset_loaders.image_transformers.femnist_image_transformer import femnist_image_transformer
+from src.dataset_loaders.image_transformers.cifar100_image_transformer import cifar100_image_transformer
+from src.dataset_loaders.cifar100_dataset_loader import Cifar100DatasetLoader
 from src.dataset_loaders.image_transformers.flair_image_transformer import flair_image_transformer
 from src.dataset_loaders.image_transformers.lung_photos_image_transformer import lung_cancer_image_transformer
 from src.dataset_loaders.medquad_dataset_loader import MedQuADDatasetLoader
@@ -22,6 +24,7 @@ from src.network_models.gpt2_model_definition import load_gpt2_ner_model, load_g
 from src.dataset_loaders.image_transformers.medmnist_2d_grayscale_image_transformer import medmnist_2d_grayscale_image_transformer
 from src.dataset_loaders.image_transformers.medmnist_2d_rgb_image_transformer import medmnist_2d_rgb_image_transformer
 from src.dataset_loaders.air_quality_uci_dataset_loader import AirQualityUCIDatasetLoader
+from src.dataset_loaders.smores_data_loader import SmoresDatasetLoader
 
 
 from src.network_models.its_network_definition import ITSNetwork
@@ -40,9 +43,11 @@ from src.network_models.tissuemnist_network_definition import TissueMNISTNetwork
 from src.network_models.organamnist_network_definition import OrganAMNISTNetwork
 from src.network_models.organcmnist_network_definition import OrganCMNISTNetwork
 from src.network_models.organsmnist_network_definition import OrganSMNISTNetwork
+from src.network_models.cifar100_network_definition import Cifar100Network
 from src.network_models.bert_model_definition import load_model, load_model_with_lora
 from src.network_models.linear_regression_model_definition import LinearRegressionModel
 from src.network_models.mlp_network_definition import MLPNetwork
+from src.network_models.lstm_model_definition import LSTMModel
 
 from src.client_models.flower_client import FlowerClient
 
@@ -55,12 +60,17 @@ from src.simulation_strategies.multi_krum_strategy import MultiKrumStrategy
 from src.simulation_strategies.rfa_based_removal_strategy import RFABasedRemovalStrategy
 from src.simulation_strategies.bulyan_strategy import BulyanStrategy
 from src.simulation_strategies.pid_based_stateless_removal_strategy import PIDBasedStatelessRemovalStrategy
+from src.simulation_strategies.pid_made_strategy import PIDMADEStrategy
 from src.simulation_strategies.fed_nga_strategy import FedNGAStrategy
+from src.simulation_strategies.freq_fed_strategy import FreqFedStrategy
+from src.simulation_strategies.fl_detector_strategy import FLDetectorStrategy
 
 from src.data_models.simulation_strategy_config import StrategyConfig
 from src.data_models.simulation_strategy_history import SimulationStrategyHistory
 
 from src.dataset_handlers.dataset_handler import DatasetHandler
+
+from src.attack_utils.little_is_enough_attack import LittleIsEnoughAttack
 
 
 def weighted_average(metrics: List[Tuple[int, dict]]) -> dict:
@@ -280,6 +290,13 @@ class FederatedSimulation:
             )
             self._network_model = OrganSMNISTNetwork()
 
+        elif dataset_keyword in ("cifar100_a01", "cifar100_a05", "cifar100_a20"):
+            dataset_loader = Cifar100DatasetLoader(
+                transformer=cifar100_image_transformer,
+                **common_kwargs
+            )
+            self._network_model = Cifar100Network()
+
         elif dataset_keyword == "lung_photos":
             dataset_loader = ImageDatasetLoader(
                 transformer=lung_cancer_image_transformer,
@@ -338,13 +355,20 @@ class FederatedSimulation:
 
         elif dataset_keyword == "air_quality_uci":
             dataset_loader = AirQualityUCIDatasetLoader(
-                target_gas=self.strategy_config.target_gas,
+                target_name=self.strategy_config.target_name,
                 **common_kwargs
             )
             if self.strategy_config.model_type == "mlp":
                 self._network_model = MLPNetwork()
             else:
                 self._network_model = LinearRegressionModel()
+
+        elif dataset_keyword == "smores":
+            dataset_loader = SmoresDatasetLoader(
+                sequence_len=self.strategy_config.sequence_len,
+                **common_kwargs
+            )
+            self._network_model = LSTMModel()
 
         else:
             logging.error(
@@ -402,6 +426,20 @@ class FederatedSimulation:
                 use_lora=True if self.strategy_config.use_llm and self.strategy_config.llm_finetuning == "lora" else False,
                 **common_kwargs
             )
+        elif aggregation_strategy_keyword == "pid_made":
+            self._aggregation_strategy = PIDMADEStrategy(
+                kp=self.strategy_config.Kp,
+                ki=self.strategy_config.Ki,
+                kd=self.strategy_config.Kd,
+                lam=self.strategy_config.lam,
+                threshold_mode=self.strategy_config.threshold_mode,
+                tau=self.strategy_config.tau,
+                alpha=self.strategy_config.alpha,
+                network_model=self._network_model,
+                aggregation_strategy_keyword=aggregation_strategy_keyword,
+                use_lora=True if self.strategy_config.use_llm and self.strategy_config.llm_finetuning == "lora" else False,
+                **common_kwargs
+            )
         elif aggregation_strategy_keyword == "krum":
             self._aggregation_strategy = KrumBasedRemovalStrategy(
                 num_malicious_clients=self.strategy_config.num_of_malicious_clients,
@@ -446,8 +484,30 @@ class FederatedSimulation:
                 **common_kwargs
             )
 
+        elif aggregation_strategy_keyword == "freq_fed":
+            self._aggregation_strategy = FreqFedStrategy(
+                min_cluster_size=self.strategy_config.min_cluster_size or 5,
+                **common_kwargs
+            )
+
+        elif aggregation_strategy_keyword == "fl_detector":
+            self._aggregation_strategy = FLDetectorStrategy(
+                history_size=self.strategy_config.fl_detector_history_size,
+                z_score_threshold=self.strategy_config.fl_detector_z_score_threshold,
+                **common_kwargs
+            )
+
         else:
             raise NotImplementedError(f"The strategy {aggregation_strategy_keyword} not implemented!")
+        
+        use_median_control_attack = False
+        if self.strategy_config.attack_type is not None:
+            use_median_control_attack = LittleIsEnoughAttack.check_for_attack(self.strategy_config.attack_type)
+        elif self.strategy_config.attack_schedule is not None:
+            use_median_control_attack = LittleIsEnoughAttack.check_for_attack(self.strategy_config.attack_schedule)
+
+        if use_median_control_attack and self._aggregation_strategy is not None:
+            self._aggregation_strategy = LittleIsEnoughAttack(self._aggregation_strategy, **common_kwargs)
 
     def client_fn(self, cid: str) -> Client:
         """Create a Flower client."""
@@ -487,7 +547,6 @@ class FederatedSimulation:
         if self.strategy_config.model_type == "transformer" and hasattr(self._dataset_loader, 'tokenizer'):
             tokenizer = self._dataset_loader.tokenizer
 
-        # TODO: Generalize `target_gas` to be used by all regression tasks
         return FlowerClient(
             client_id=int(cid),
             net=net,
@@ -506,7 +565,8 @@ class FederatedSimulation:
             experiment_info=experiment_info,
             strategy_number=self.strategy_config.strategy_number,
             tokenizer=tokenizer,
-            target_gas=self.strategy_config.target_gas,
+            target_name=self.strategy_config.target_name,
+            sequence_len=self.strategy_config.sequence_len,
             strategy_history=self.strategy_history
         ).to_client()
 

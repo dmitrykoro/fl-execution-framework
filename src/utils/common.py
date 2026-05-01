@@ -23,6 +23,7 @@ def obtain_env_var(var_key: str):
 
     var_value = full_env_config.get(var_key)
     if var_value not in (None, ""):
+        os.environ[var_key] = var_value
         return var_value
 
     var_value = input(f"Please enter {var_key}: ").strip()
@@ -30,6 +31,8 @@ def obtain_env_var(var_key: str):
 
     with private_path.open("a") as f:
         f.write(f"{var_key}={var_value}\n")
+
+    os.environ[var_key] = var_value
 
     return var_value
 

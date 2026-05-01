@@ -25,7 +25,10 @@ class StrategyConfig:
     gpus_per_client: float = None
 
     model_type: str = None
-    target_gas: str = None
+    # For regression task datasets (e.g air_quality_uci, smores)
+    target_name: str = None
+    # For smores dataset
+    sequence_len: int = None
 
     trust_threshold: float = None
     reputation_threshold: float = None
@@ -51,6 +54,19 @@ class StrategyConfig:
     num_krum_selections: int = None
 
     trim_ratio: float = None
+
+    # PID-MADE parameters
+    lam: float = None            # forgetting factor λ ∈ (0, 1)
+    threshold_mode: str = None   # 'fixed' | 'chebyshev' | 'gaussian'
+    tau: float = None            # fixed threshold (threshold_mode == 'fixed')
+    alpha: float = None          # false-positive rate (threshold_mode in chebyshev/gaussian)
+
+    # FreqFed parameters
+    min_cluster_size: int = None  # HDBSCAN min_cluster_size (default 5)
+
+    # FLDetector parameters (KDD 2022)
+    fl_detector_history_size: int = None          # L-BFGS window N (paper default: 10)
+    fl_detector_z_score_threshold: float = None   # removal threshold in σ above mean
 
     strict_mode: bool = None
 
