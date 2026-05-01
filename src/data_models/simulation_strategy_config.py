@@ -68,6 +68,12 @@ class StrategyConfig:
     fl_detector_history_size: int = None          # L-BFGS window N (paper default: 10)
     fl_detector_z_score_threshold: float = None   # removal threshold in σ above mean
 
+    # SignGuard parameters
+    norm_lower_bound: float = None,         # Gradient norm lower bound (paper defuault: 0.1)
+    norm_upper_bound: float = None,         # Gradient norm upper bound (paper default: 3.0)
+    coordinate_subset_ratio: float = None,  # Random subset of gradient coordinates (paper default: 0.1)
+    bandwidth_quantile: float = None,        # Quantile of bandwidth (library default: 0.3)
+
     strict_mode: bool = None
 
     strategy_number: int = None

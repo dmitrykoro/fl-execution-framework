@@ -63,6 +63,7 @@ from src.simulation_strategies.pid_made_strategy import PIDMADEStrategy
 from src.simulation_strategies.fed_nga_strategy import FedNGAStrategy
 from src.simulation_strategies.freq_fed_strategy import FreqFedStrategy
 from src.simulation_strategies.fl_detector_strategy import FLDetectorStrategy
+from src.simulation_strategies.signguard_strategy import SignGuardStrategy
 
 from src.data_models.simulation_strategy_config import StrategyConfig
 from src.data_models.simulation_strategy_history import SimulationStrategyHistory
@@ -490,6 +491,15 @@ class FederatedSimulation:
             self._aggregation_strategy = FLDetectorStrategy(
                 history_size=self.strategy_config.fl_detector_history_size,
                 z_score_threshold=self.strategy_config.fl_detector_z_score_threshold,
+                **common_kwargs
+            )
+
+        elif aggregation_strategy_keyword == "signguard":
+            self._aggregation_strategy = SignGuardStrategy(
+                norm_lower_bound=self.strategy_config.norm_lower_bound or 0.1,
+                norm_upper_bound=self.strategy_config.norm_upper_bound or 3.0,
+                coordinate_subset_ratio=self.strategy_config.coordinate_subset_ratio or 0.1,
+                bandwidth_quantile=self.strategy_config.bandwidth_quantile or 0.3,
                 **common_kwargs
             )
 
