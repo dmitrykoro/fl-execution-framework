@@ -80,7 +80,7 @@ Defines the aggregation strategy. Options:
 - `save_csv`: Save metrics as `.csv` files in `out/` directory (`true`/`false`).
 - `preserve_dataset`: save poisoned dataset for verification (`true`/`false`).
 - `training_subset_fraction`: fraction of each client's dataset for training (e.g., `0.9` for 90% training, 10% evaluation).
-- `model_type`: type of model being trained (e.g., `cnn`, `linear_regression`, `lstm`).
+- `model_type`: type of model being trained (e.g., `cnn`, `linear_regression`, `mlp`, `lstm`).
 
 - **`attack_schedule`**: array of attack configurations for round-based attacks. Each entry requires:
   - `start_round`: when the attack starts (1 to `num_of_rounds`).
