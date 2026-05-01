@@ -59,6 +59,8 @@ def partition(alpha: float, num_clients: int, out_base: str, seed: int):
             chunk = indices[start: start + n]
             start += n
             cls_name = class_names[cls_idx]
+            if len(chunk) == 0:
+                continue
             client_dir = out_dir / f"client_{c_id}" / cls_name
             client_dir.mkdir(parents=True, exist_ok=True)
             for img_idx in chunk:
