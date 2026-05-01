@@ -49,7 +49,7 @@ class RoundsInfo:
         self.time_series_plottable_metrics = []
         if self.simulation_strategy_config.model_type in ["cnn", "transformer"]:
             self.plottable_metrics += ["average_accuracy_history"]
-        elif self.simulation_strategy_config.model_type == "linear_regression":
+        elif self.simulation_strategy_config.model_type in ["linear_regression", "mlp"]:
             self.plottable_metrics += ["average_r2_history"]
         elif self.simulation_strategy_config.model_type == "lstm":
             self.plottable_metrics += ["average_mare_history"]
@@ -71,7 +71,7 @@ class RoundsInfo:
         ]
         if self.simulation_strategy_config.model_type in ["cnn", "transformer"]:
             self.savable_metrics += ["average_accuracy_history", "average_accuracy_std_history"]
-        elif self.simulation_strategy_config.model_type == "linear_regression":
+        elif self.simulation_strategy_config.model_type in ["linear_regression", "mlp"]:
             self.savable_metrics += ["average_r2_history"]
         elif self.simulation_strategy_config.model_type == "lstm":
             self.savable_metrics += ["average_loss_baseline_history", "average_mare_history", "average_mare_baseline_history"]
