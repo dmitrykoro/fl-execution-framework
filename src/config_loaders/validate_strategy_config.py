@@ -13,7 +13,7 @@ config_schema = {
                     "multi-krum", "krum", "multi-krum-based", "trimmed_mean",
                     "rfa", "bulyan", "fools_gold", "pid_made",  "freq_fed", "fl_detector",
                     "pid_v5_stateless_mean_based", "pid_v5_stateless_median_based", "fed_nga",
-                    "signguard"]
+                    "fed_dmc", "signguard"]
         },
         "strict_mode": {
             "type": "string",
@@ -271,6 +271,26 @@ config_schema = {
             "type": "number",
             "exclusiveMinimum": 0.0
         },
+      
+        # FedDMC
+        "ensemble_alpha": {
+            "type": "number",
+            "minimum": 0.0,
+            "exclusiveMaximum": 1.0
+        },
+        "num_principal_components": {
+            "type": "integer",
+            "minimum": 1
+        },
+        "min_cluster_size": {
+            "type": "integer",
+            "minimum": 1
+        },
+        "removal_threshold": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "exclusiveMaximum": 1.0
+        },
 
         # SignGuard
         "norm_lower_bound": {
@@ -449,6 +469,18 @@ def _validate_dependent_params(strategy_config: dict) -> None:
             if param not in strategy_config:
                 raise ValidationError(
                     f"Missing parameter '{param}' for fl_detector aggregation"
+                )
+    elif aggregation_strategy_keyword == "fed_dmc":
+        fed_dmc_required = [
+            "ensemble_alpha",
+            "num_principal_components",
+            "min_cluster_size",
+            "removal_threshold"
+        ]
+        for param in fed_dmc_required:
+            if param not in strategy_config:
+                raise ValidationError(
+                    f"Missing parameter '{param}' for fed_dmc aggregation"
                 )
     elif aggregation_strategy_keyword == "signguard":
         signguard_required = [
