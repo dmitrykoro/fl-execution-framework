@@ -15,7 +15,9 @@ from src.dataset_loaders.image_dataset_loader import ImageDatasetLoader
 from src.dataset_loaders.image_transformers.its_image_transformer import its_image_transformer
 from src.dataset_loaders.image_transformers.femnist_image_transformer import femnist_image_transformer
 from src.dataset_loaders.image_transformers.cifar100_image_transformer import cifar100_image_transformer
+from src.dataset_loaders.image_transformers.cifar10_image_transformer import cifar10_image_transformer
 from src.dataset_loaders.cifar100_dataset_loader import Cifar100DatasetLoader
+from src.dataset_loaders.cifar10_dataset_loader import Cifar10DatasetLoader
 from src.dataset_loaders.image_transformers.flair_image_transformer import flair_image_transformer
 from src.dataset_loaders.image_transformers.lung_photos_image_transformer import lung_cancer_image_transformer
 from src.dataset_loaders.medquad_dataset_loader import MedQuADDatasetLoader
@@ -44,6 +46,7 @@ from src.network_models.organamnist_network_definition import OrganAMNISTNetwork
 from src.network_models.organcmnist_network_definition import OrganCMNISTNetwork
 from src.network_models.organsmnist_network_definition import OrganSMNISTNetwork
 from src.network_models.cifar100_network_definition import Cifar100Network
+from src.network_models.cifar10_network_definition import Cifar10Network
 from src.network_models.bert_model_definition import load_model, load_model_with_lora
 from src.network_models.linear_regression_model_definition import LinearRegressionModel
 from src.network_models.mlp_network_definition import MLPNetwork
@@ -299,6 +302,13 @@ class FederatedSimulation:
                 **common_kwargs
             )
             self._network_model = Cifar100Network()
+
+        elif dataset_keyword in ("cifar10_a01", "cifar10_a05", "cifar10_a20"):
+            dataset_loader = Cifar10DatasetLoader(
+                transformer=cifar10_image_transformer,
+                **common_kwargs
+            )
+            self._network_model = Cifar10Network()
 
         elif dataset_keyword == "lung_photos":
             dataset_loader = ImageDatasetLoader(

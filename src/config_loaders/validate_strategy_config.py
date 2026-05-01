@@ -47,6 +47,9 @@ config_schema = {
                 "cifar100_a01",
                 "cifar100_a05",
                 "cifar100_a20",
+                "cifar10_a01",
+                "cifar10_a05",
+                "cifar10_a20",
                 "air_quality_uci",
                 "smores",
             ]

@@ -233,7 +233,6 @@ class FlowerClient(fl.client.NumPyClient):
             return float(epoch_loss), float(epoch_acc), 0.0
         
         elif self.model_type == "linear_regression" or self.model_type == "mlp":
-            #TODO: Consider changing to something more robust, L1Loss for MAE or HuberLoss
             criterion = torch.nn.MSELoss()
             optimizer = torch.optim.Adam(net.parameters())
             net.train()
@@ -343,7 +342,6 @@ class FlowerClient(fl.client.NumPyClient):
                     dataset=trainloader.dataset,
                 )            
 
-            #TODO: Right now returning MSE, maybe use RMSE for more interprebility or MAE
             return float(epoch_loss), float(epoch_r2), float(eta_eff)
 
         elif self.model_type == "lstm":  
