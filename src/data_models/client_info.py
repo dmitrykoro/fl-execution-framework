@@ -112,7 +112,7 @@ class ClientInfo:
         if self.model_type == "cnn" or self.model_type == "transformer":
             self.plottable_metrics += ["accuracy_history",]
             self.savable_metrics += ["accuracy_history", "aggregation_participation_history",]
-        elif self.model_type == "linear_regression":
+        elif self.model_type == "linear_regression" or self.model_type == "mlp":
             self.plottable_metrics += ["r2_history",]
             self.savable_metrics += ["r2_history", "aggregation_participation_history",]
         elif self.model_type == "lstm":

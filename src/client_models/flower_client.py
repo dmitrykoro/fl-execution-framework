@@ -232,7 +232,7 @@ class FlowerClient(fl.client.NumPyClient):
 
             return float(epoch_loss), float(epoch_acc), 0.0
         
-        elif self.model_type == "linear_regression":
+        elif self.model_type == "linear_regression" or self.model_type == "mlp":
             #TODO: Consider changing to something more robust, L1Loss for MAE or HuberLoss
             criterion = torch.nn.MSELoss()
             optimizer = torch.optim.Adam(net.parameters())
@@ -459,7 +459,7 @@ class FlowerClient(fl.client.NumPyClient):
             return float(epoch_loss), float(epoch_mare), float(eta_eff)
 
         else:
-            raise ValueError(f"Unsupported model type: {self.model_type}. Supported types are 'cnn', 'mlm' and 'linear_regression'.")
+            raise ValueError(f"Unsupported model type: {self.model_type}. Supported types are 'cnn', 'mlm', 'linear_regression', mlp.")
 
     def test(self, net, testloader, config=None):
         """Evaluate the network on the entire test set with optional dynamic poisoning."""
@@ -568,7 +568,7 @@ class FlowerClient(fl.client.NumPyClient):
                 # fall back to old two-tuple result for non-NER transformer tasks
                 return loss, accuracy
             
-        elif self.model_type == "linear_regression":
+        elif self.model_type == "linear_regression" or self.model_type == "mlp":
             criterion = torch.nn.MSELoss(reduction="sum") # sum to compute SS_res directly
             net.eval()
 
@@ -701,7 +701,7 @@ class FlowerClient(fl.client.NumPyClient):
             return loss, loss_baseline, mare, mare_baseline, total
 
         else:
-            raise ValueError(f"Unsupported model type: {self.model_type}. Supported types are 'cnn', 'mlm' and 'linear_regression'.")
+            raise ValueError(f"Unsupported model type: {self.model_type}. Supported types are 'cnn', 'mlm', 'linear_regression', and mlp.")
 
     def fit(self, parameters, config):
         logging.debug(f"[Client {self.client_id}] Starting fit() - Setting parameters and beginning training")
@@ -724,7 +724,7 @@ class FlowerClient(fl.client.NumPyClient):
         )
 
         # for Flower summary purposes
-        if self.model_type == "linear_regression":
+        if self.model_type == "linear_regression" or self.model_type == "mlp":
             metrics =  {"loss": epoch_loss, "r2": epoch_acc, "eta_eff": eta_eff}
         elif self.model_type == "lstm":
             metrics = {"loss": epoch_loss, "mare": epoch_acc, "eta_eff": eta_eff}
@@ -802,10 +802,10 @@ class FlowerClient(fl.client.NumPyClient):
                 metrics = {"accuracy": float(accuracy)}
             dataset_len = len(self.valloader)
         
-        elif self.model_type == "linear_regression":
+        elif self.model_type == "linear_regression" or self.model_type == "mlp":
             out = self.test(self.net, self.valloader)
 
-            # for linear_regression, test() returns (loss, ss_res, ss_tot, r2)
+            # for linear_regression and mlp, test() returns (loss, ss_res, ss_tot, r2)
             if isinstance(out, tuple) and len(out) == 4:
                 loss, ss_res, ss_tot, r2 = out
                 metrics = {
