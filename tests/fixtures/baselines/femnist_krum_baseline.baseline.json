@@ -1,7 +1,6 @@
 {
   "config": "femnist_krum_baseline.json",
   "recorded_at": "2026-04-28T03:47:02.007928",
-  "baseline_format_version": "1.0.0",
   "success": true,
   "num_clients": 10,
   "strategies": [

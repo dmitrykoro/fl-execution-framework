@@ -1,7 +1,6 @@
 {
   "config": "femnist_krum_vs_labelflip20.json",
   "recorded_at": "2026-04-28T03:48:04.742217",
-  "baseline_format_version": "1.0.0",
   "success": true,
   "num_clients": 10,
   "strategies": [

@@ -1,7 +1,6 @@
 {
   "config": "femnist_bulyan_vs_gaussnoise.json",
   "recorded_at": "2026-04-28T03:46:18.336455",
-  "baseline_format_version": "1.0.0",
   "success": true,
   "num_clients": 10,
   "strategies": [
