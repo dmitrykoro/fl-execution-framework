@@ -27,7 +27,7 @@ jobs:
 
     - name: Run smoke tests
       run: |
-        python -m shell_scripts.ci_smoke_test
+        python -m shell_scripts.smoke_test
 
     - name: Upload simulation artifacts for visual review
       uses: actions/upload-artifact@v7

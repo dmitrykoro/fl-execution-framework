@@ -6,7 +6,7 @@ to create lightweight baseline JSON files for CI validation.
 
 Usage:
   python record_baselines.py [config_name]
-If no config_name is provided, it will run all configs defined in ALL_CONFIGS.
+If no config_name is provided, it will run all configs in SMOKE_CONFIGS.
 """
 
 from __future__ import annotations
@@ -19,8 +19,8 @@ from pathlib import Path
 
 from rich.console import Console
 
-from shell_scripts.constants import BASELINE_FORMAT_VERSION, ALL_CONFIGS
-from shell_scripts.runner.executor import ExperimentExecutor
+from shell_scripts.constants import SMOKE_CONFIGS, SMOKE_CONFIGS_DIR
+from shell_scripts.executor import ExperimentExecutor
 
 project_root = Path(__file__).parent.parent
 console = Console()
@@ -39,7 +39,6 @@ def extract_baseline_from_output(output_dir: Path, config_name: str, duration: f
     baseline = {
         "config": config_name,
         "recorded_at": datetime.now().isoformat(),
-        "baseline_format_version": BASELINE_FORMAT_VERSION,
         "success": True,
         "num_clients": num_clients,
         "strategies": [],
@@ -86,7 +85,7 @@ def extract_baseline_from_output(output_dir: Path, config_name: str, duration: f
 
 
 def main():
-    configs = [sys.argv[1]] if len(sys.argv) > 1 else ALL_CONFIGS
+    configs = [sys.argv[1]] if len(sys.argv) > 1 else SMOKE_CONFIGS
     baselines_dir = project_root / "tests" / "fixtures" / "baselines"
     baselines_dir.mkdir(parents=True, exist_ok=True)
 
@@ -99,7 +98,7 @@ def main():
 
             num_clients = 10
             try:
-                with open(project_root / "config" / "simulation_strategies" / "cpu" / config_name) as f:
+                with open(SMOKE_CONFIGS_DIR / config_name) as f:
                     num_clients = json.load(f).get("shared_settings", {}).get("num_of_clients", 10)
             except (FileNotFoundError, json.JSONDecodeError, KeyError):
                 pass

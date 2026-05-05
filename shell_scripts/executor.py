@@ -1,7 +1,6 @@
 """Experiment execution logic."""
 
 import gc
-import json
 import os
 import subprocess
 import sys
@@ -35,7 +34,7 @@ class ExperimentResult:
 class ExperimentExecutor:
     """Executes experiments with timeout and cleanup."""
 
-    def __init__(self, project_root: Path, config_subdir: str = "cpu", timeout: int | None = 3600):
+    def __init__(self, project_root: Path, config_subdir: str = "smoke", timeout: int | None = 3600):
         self.project_root = Path(project_root)
         self.config_subdir = config_subdir
         self.timeout = timeout

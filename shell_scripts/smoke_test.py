@@ -1,10 +1,12 @@
 #!/usr/bin/env python3
 """Visual pipeline smoke test for the FL execution framework.
 
-Runs the mock simulation over 5 representative configs covering the distinct
-code paths in mock_simulation_runner. The CI workflow uploads the resulting
-`out/` tree as a downloadable artifact bundle that reviewers open and visually
-verify the plots look correct.
+Runs the mock simulation over every config in config/simulation_strategies/smoke/,
+covering the distinct code paths in mock_simulation_runner. To extend the CI
+smoke set, drop a JSON config into that directory and record its baseline with
+`python -m shell_scripts.record_baselines`. The CI workflow uploads the
+resulting `out/` tree as a downloadable artifact bundle that reviewers open and
+visually verify the plots look correct.
 """
 
 import sys
@@ -12,23 +14,16 @@ from pathlib import Path
 
 from rich.console import Console
 
+from shell_scripts.constants import SMOKE_CONFIGS, SMOKE_CONFIGS_DIR
 from shell_scripts.mock_simulation_runner import run_mock_simulation, verify_outputs
 
 project_root = Path(__file__).parent.parent
 console = Console()
 
-CONFIGS = [
-    "femnist_krum_baseline.json",
-    "femnist_krum_vs_labelflip20.json",
-    "femnist_bulyan_vs_gaussnoise.json",
-    "femnist_mkrum_multi_concurrent.json",
-    "femnist_pid_baseline.json",
-]
-
 
 def run(configs: list[str], config_dir: Path | None = None, baselines_dir: Path | None = None) -> int:
     if config_dir is None:
-        config_dir = project_root / "config" / "simulation_strategies" / "cpu"
+        config_dir = SMOKE_CONFIGS_DIR
     if baselines_dir is None:
         baselines_dir = project_root / "tests" / "fixtures" / "baselines"
 
@@ -70,7 +65,7 @@ def run(configs: list[str], config_dir: Path | None = None, baselines_dir: Path 
 
 
 def main():
-    configs = [sys.argv[1]] if len(sys.argv) > 1 else CONFIGS
+    configs = [sys.argv[1]] if len(sys.argv) > 1 else SMOKE_CONFIGS
     sys.exit(run(configs))
 
 
