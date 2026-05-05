@@ -1,32 +1,17 @@
 #!/usr/bin/env python3
-"""Visual pipeline smoke test for the FL execution framework.
-
-Runs the mock simulation over every config in config/simulation_strategies/smoke/,
-covering the distinct code paths in mock_simulation_runner. To extend the CI
-smoke set, drop a JSON config into that directory and record its baseline with
-`python -m shell_scripts.record_baselines`. The CI workflow uploads the
-resulting `out/` tree as a downloadable artifact bundle that reviewers open and
-visually verify the plots look correct.
-"""
+"""CI smoke test: replay every smoke config through the mock runner."""
 
 import sys
-from pathlib import Path
 
 from rich.console import Console
 
-from shell_scripts.constants import SMOKE_CONFIGS, SMOKE_CONFIGS_DIR
+from shell_scripts.constants import BASELINES_DIR, PROJECT_ROOT, SMOKE_CONFIGS, SMOKE_CONFIGS_DIR
 from shell_scripts.mock_simulation_runner import run_mock_simulation, verify_outputs
 
-project_root = Path(__file__).parent.parent
 console = Console()
 
 
-def run(configs: list[str], config_dir: Path | None = None, baselines_dir: Path | None = None) -> int:
-    if config_dir is None:
-        config_dir = SMOKE_CONFIGS_DIR
-    if baselines_dir is None:
-        baselines_dir = project_root / "tests" / "fixtures" / "baselines"
-
+def run(configs: list[str]) -> int:
     console.print(f"[cyan]Running {len(configs)} mock simulation(s)...[/cyan]\n")
 
     passed = 0
@@ -36,7 +21,7 @@ def run(configs: list[str], config_dir: Path | None = None, baselines_dir: Path 
         console.print(f"[{idx}/{len(configs)}] {config}...", end=" ")
 
         success, output_dir, errors = run_mock_simulation(
-            config, config_dir, baselines_dir, project_root / "out"
+            config, SMOKE_CONFIGS_DIR, BASELINES_DIR, PROJECT_ROOT / "out"
         )
 
         if not success or output_dir is None:

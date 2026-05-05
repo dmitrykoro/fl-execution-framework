@@ -1,11 +1,5 @@
 #!/usr/bin/env python3
-"""Mock simulation runner with real strategy execution for CI testing.
-
-Runs federated learning simulations using baseline data instead of actual
-training, while executing real strategy aggregation logic. Validates that
-the full output generation pipeline (plots, CSVs, snapshots, HTML) works
-correctly without the overhead of distributed execution.
-"""
+"""Mock simulation runner: real strategy aggregation, baseline-replayed metrics."""
 
 from __future__ import annotations
 
@@ -30,27 +24,19 @@ from src.data_models.simulation_strategy_history import SimulationStrategyHistor
 from src.output_handlers import new_plot_handler
 from src.output_handlers.directory_handler import DirectoryHandler
 
-project_root = Path(__file__).parent.parent
 console = Console()
 
 
 def load_baseline(config_name: str, baselines_dir: Path) -> dict | None:
-    """Load pre-recorded baseline data for a simulation config."""
-    baseline_name = config_name.replace(".json", ".baseline.json")
-    baseline_path = baselines_dir / baseline_name
-
-    if not baseline_path.exists():
+    baseline_path = baselines_dir / config_name.replace(".json", ".baseline.json")
+    try:
+        return json.loads(baseline_path.read_text())
+    except FileNotFoundError:
         return None
-
-    with open(baseline_path) as f:
-        return json.load(f)
 
 
 def load_config(config_name: str, config_dir: Path) -> dict:
-    """Load simulation configuration from JSON file."""
-    config_path = config_dir / config_name
-    with open(config_path) as f:
-        return json.load(f)
+    return json.loads((config_dir / config_name).read_text())
 
 
 def populate_history_from_baseline(
@@ -58,7 +44,6 @@ def populate_history_from_baseline(
     baseline_strategy: dict,
     num_clients: int,
 ) -> None:
-    """Populate strategy history from pre-recorded baseline data."""
     per_round = baseline_strategy.get("per_round", {})
     per_client = baseline_strategy.get("per_client", {})
     baseline_rounds = baseline_strategy.get("total_rounds", 10)
@@ -120,7 +105,6 @@ def generate_mock_attack_snapshots(
     max_samples: int = 5,
     save_format: str = "pickle",
 ) -> int:
-    """Generate mock attack snapshots for CI testing."""
     snapshots_generated = 0
 
     for attack in attack_schedule:
@@ -177,7 +161,6 @@ def run_mock_simulation(
     baselines_dir: Path,
     output_base: Path,
 ) -> tuple[bool, Path | None, list[str]]:
-    """Run mock simulation using baseline data."""
     errors = []
 
     baseline = load_baseline(config_name, baselines_dir)
@@ -291,7 +274,6 @@ def run_mock_simulation(
 
 
 def verify_outputs(output_dir: Path) -> tuple[bool, list[str], dict]:
-    """Verify expected output artifacts were created."""
     errors = []
     counts = {"plots": 0, "csvs": 0, "snapshots": 0, "html": False}
 
@@ -329,7 +311,6 @@ def verify_outputs(output_dir: Path) -> tuple[bool, list[str], dict]:
 
 
 def _validate_csv_file(csv_path: Path) -> list[str]:
-    """Validate CSV has header row and at least one data row."""
     errors = []
     try:
         with open(csv_path) as f:
@@ -354,7 +335,6 @@ def _validate_csv_file(csv_path: Path) -> list[str]:
 
 
 def _count_attack_snapshots(output_dir: Path) -> int:
-    """Count attack snapshot files across all strategy directories."""
     total = 0
     for snapshots_dir in output_dir.glob("attack_snapshots_*"):
         if snapshots_dir.is_dir():
