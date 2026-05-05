@@ -216,7 +216,28 @@ def accuracy_gap_bars(ax, baselines, lf_data, gs_data):
 
 # ── Main ──────────────────────────────────────────────────────────────────────
 
+def print_dir_path_summary():
+    """
+    Print summary of Global Constants for user to check when starting script
+    """
+    print("\n=== Review Globals ===\n")
+    print(f"ALPHAS: {ALPHAS}")
+    print(f"ATTACKS: {ATTACKS}")
+    print(f"STRATEGIES: {STRATEGY_LABELS}")
+
+    print("\n=== Review Data Source Directory Paths ===\n")
+
+    # Check RFA_CSV_DIRs paths
+    print("Current RFA source directory paths:")
+    for k, v in RFA_CSV_DIRS.items():
+        print(f"  {k}: {v}")
+
 def main():
+    print_dir_path_summary()
+    response = input("\nVerify globals and paths above.\nEnter 'y' if all paths are valid, or 'n' if you want to quit.\n > ")
+    if response.split()[0].lower() != "y":
+        return
+
     baselines = load_baselines()
     lf_data   = load_attack_data("label_flipping")
     gs_data   = load_attack_data("gradient_scaling")

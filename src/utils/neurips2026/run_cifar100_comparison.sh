@@ -4,8 +4,16 @@
 
 set -e
 
-PYTHON=/Users/ramanzatsarenko/fl-execution-framework-dev/venv/bin/python3
-STUDY_DIR=config/simulation_strategies/study/cifar100_comparison
+PYTHON=python3
+
+if [[ $# -lt 1 ]]; then
+  echo "Usage: $0 <study_dir>"
+  exit 1
+fi
+# e.g config/simulation_strategies/study/cifar100_comparison
+STUDY_DIR="$1"
+echo "Using study directory: $STUDY_DIR"
+
 LOG_DIR=logs/cifar100_comparison
 mkdir -p "$LOG_DIR"
 
@@ -17,6 +25,18 @@ CONFIGS=(
   "$STUDY_DIR/a05_gradient_scaling.json"
   "$STUDY_DIR/a20_gradient_scaling.json"
 )
+
+# Check Study Configs before starting
+echo "=== Review Study Configs ==="
+for cfg in "${CONFIGS[@]}"; do
+  echo "  $cfg"
+done
+echo
+read -p "Are these configs correct? (y/n) " confirm
+if [[ "$confirm" != "y" && "$confirm" != "Y" ]]; then
+  echo "Aborting. Please update the configs and rerun"
+  exit 1
+fi
 
 TOTAL=${#CONFIGS[@]}
 DONE=0

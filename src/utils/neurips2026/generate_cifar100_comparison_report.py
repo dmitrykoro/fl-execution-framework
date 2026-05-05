@@ -42,6 +42,8 @@ PID_RFA_DIRS = {
     "a05_gradient_scaling": "out/04-08-2026_22-57-02",
     "a20_gradient_scaling": "out/04-09-2026_03-33-36",
 }
+PID_METRICS_ID = "0"
+RFA_METRICS_ID = "4"
 
 # Comparison study dirs (Multi-Krum = strategy 0, FedNGA = strategy 1)
 # Multi-Krum for a20_gs pulled from partial run that completed all 30 rounds
@@ -54,6 +56,8 @@ COMPARISON_DIRS = {
     # a20_gradient_scaling: Multi-Krum from partial run, FedNGA from fednnga-only run
     "a20_gradient_scaling": None,
 }
+MULTIKRUM_METRICS_ID = "0"
+FEDNGA_METRICS_ID = "1"
 
 # a20_gradient_scaling: MK from the partial-run CSV that completed 30 rounds
 A20_GS_MK_CSV  = "out/04-09-2026_19-33-52/csv/round_metrics_0.csv"
@@ -66,6 +70,7 @@ BASELINE_DIRS = {
     "a05": "out/04-08-2026_17-53-42",
     "a20": "out/04-08-2026_18-08-55",
 }
+BASELINE_METRICS_ID = "0"
 
 
 # ── CSV loading ────────────────────────────────────────────────────────────────
@@ -91,6 +96,7 @@ def load_round_metrics(csv_path) -> list[tuple[int, float]]:
 def find_fednnga_only_dir() -> str | None:
     """Find the most recent single-strategy FedNGA run for a20_gradient_scaling."""
     import os, glob
+    from datetime import datetime
     # Look for out dirs after 04-09-2026_19-33 that contain only strategy 0 csv for FedNGA
     candidates = sorted(glob.glob("out/04-09-2026_19-*/csv/round_metrics_0.csv"))
     candidates += sorted(glob.glob("out/04-09-2026_2*/csv/round_metrics_0.csv"))
@@ -135,8 +141,8 @@ def load_all_data():
             # PID & RFA from original study
             pid_rfa_dir = PID_RFA_DIRS.get(key)
             if pid_rfa_dir:
-                entry["pid"] = load_round_metrics(f"{pid_rfa_dir}/csv/round_metrics_0.csv")
-                entry["rfa"] = load_round_metrics(f"{pid_rfa_dir}/csv/round_metrics_4.csv")
+                entry["pid"] = load_round_metrics(f"{pid_rfa_dir}/csv/round_metrics_{PID_METRICS_ID}.csv")
+                entry["rfa"] = load_round_metrics(f"{pid_rfa_dir}/csv/round_metrics_{RFA_METRICS_ID}.csv")
             else:
                 entry["pid"] = []
                 entry["rfa"] = []
@@ -147,8 +153,8 @@ def load_all_data():
                 entry["mk"]     = load_round_metrics(A20_GS_MK_CSV)
                 entry["fednga"] = load_round_metrics(A20_GS_FEDNNGA_CSV) if A20_GS_FEDNNGA_CSV else []
             elif cmp_dir:
-                entry["mk"]     = load_round_metrics(f"{cmp_dir}/csv/round_metrics_0.csv")
-                entry["fednga"] = load_round_metrics(f"{cmp_dir}/csv/round_metrics_1.csv")
+                entry["mk"]     = load_round_metrics(f"{cmp_dir}/csv/round_metrics_{MULTIKRUM_METRICS_ID}.csv")
+                entry["fednga"] = load_round_metrics(f"{cmp_dir}/csv/round_metrics_{FEDNGA_METRICS_ID}.csv")
             else:
                 entry["mk"]     = []
                 entry["fednga"] = []
@@ -296,7 +302,52 @@ def summary_table(ax, data):
 
 # ── Main ──────────────────────────────────────────────────────────────────────
 
+def print_dir_path_summary():
+    """
+    Print summary of Global Constants for user to check when starting script
+    """
+    print("\n=== Review Globals ===\n")
+    print(f"ALPHAS: {ALPHAS}")
+    print(f"ATTACKS: {ATTACKS}")
+    print(f"STRATEGIES: {STRATEGIES}")
+
+
+    print("\n=== Review Data Source Directory Paths ===\n")
+
+    # Check find_fednnga_only_dir paths
+    print(f"If you want to find the most recent single-strategy FedNGA run for a20_gradient_scaling,"
+          f" check that the hardcoded out directory paths in 'find_fednnga_only_dir' function are correct.\n")
+    
+    # Check PID_RFA_DIR paths
+    print("Current PID/RFA source directory paths:")
+    for k, v in PID_RFA_DIRS.items():
+        print(f"  {k}: {v}")
+    print(f"Current PID Metrics ID: {PID_METRICS_ID}")
+    print(f"Current RFA Metrics ID: {RFA_METRICS_ID}\n")
+
+    # Check Multi-Krum/FedNGA Comparrison paths
+    print("Current Multi-Krum/FedNGA Comparison source directory paths:")
+    for k, v in COMPARISON_DIRS.items():
+        print(f"  {k}: {v}")
+    print(f"Current Mult-Krum Metrics ID: {MULTIKRUM_METRICS_ID}")
+    print(f"Current FedNGA Metrics ID: {FEDNGA_METRICS_ID}\n")
+
+    # Check a20_gradient_scaling Multi-Krum path
+    print(f"Current a20_gradient_scaling Multi-Krum source directory path: {A20_GS_MK_CSV}\n")
+
+    # Check Baseline paths
+    print("Current Baseline source directory paths:")
+    for k, v in BASELINE_DIRS.items():
+        print(f"  {k}: {v}")
+    print(f"Current Baseline Metrics ID: {BASELINE_METRICS_ID}\n")
+
 def main():
+    print_dir_path_summary()
+    response = input("\nVerify globals and paths above. \nnter 'y' if all paths are valid, or 'n' if you want to quit.\n > ")
+    if response.split()[0].lower() != "y":
+        return
+
+    # Load data
     data = load_all_data()
 
     # Print data availability summary

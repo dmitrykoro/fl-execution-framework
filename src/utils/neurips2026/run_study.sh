@@ -2,7 +2,7 @@
 # Comprehensive experimental study: IID vs NIID robustness
 # Runs all 9 configs × 3 seeds sequentially, logging to /tmp/study_*.log
 
-PYTHON=/Users/ramanzatsarenko/fl-execution-framework-dev/venv/bin/python3
+PYTHON=python3
 export LOKY_MAX_CPU_COUNT=4
 export KMP_DUPLICATE_LIB_OK=TRUE
 
@@ -17,6 +17,18 @@ CONFIGS=(
     "config/simulation_strategies/study/niid_12c_gaussian_noise.json"
     "config/simulation_strategies/study/niid_12c_gradient_scaling.json"
 )
+
+# Check Study Configs before starting
+echo "=== Review Study Configs ==="
+for cfg in "${CONFIGS[@]}"; do
+  echo "  $cfg"
+done
+echo
+read -p "Are these configs correct? (y/n) " confirm
+if [[ "$confirm" != "y" && "$confirm" != "Y" ]]; then
+  echo "Aborting. Please update the configs and rerun"
+  exit 1
+fi
 
 SEEDS=3
 TOTAL=$(( ${#CONFIGS[@]} * SEEDS ))

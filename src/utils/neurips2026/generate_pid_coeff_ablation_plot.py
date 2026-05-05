@@ -32,6 +32,24 @@ def load(path):
     return rounds, acc, cumul_fp
 
 
+def print_dir_path_summary():
+    """
+    Print summary of Global Constants for user to check when starting script
+    """
+    print("\n=== Review Data Source Directory Paths ===\n")
+    
+    # Check PID_RFA_DIR paths
+    print("Current PID/RFA source directory paths:")
+    for el in CONFIGS:
+        print(f"  {el[0]}: {el[1]}")
+
+
+print_dir_path_summary()
+response = input("\nVerify paths above. \nEnter 'y' if all paths are valid, or 'n' if you want to quit.\n > ")
+if response.split()[0].lower() != "y":
+    exit()
+
+
 fig, (ax1, ax2) = plt.subplots(
     1, 2, figsize=(3.375, 2.1),
     gridspec_kw={"wspace": 0.42, "left": 0.11, "right": 0.97,

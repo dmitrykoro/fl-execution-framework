@@ -211,6 +211,24 @@ def score_sep_over_time(ax, attack):
 
 
 # ─── Main ────────────────────────────────────────────────────────────────────
+def print_dir_path_summary():
+    """
+    Print summary of Global Constants for user to check when starting script
+    """
+    print("\n=== Review Globals ===\n")
+    print(f"STRATEGIES: {STRATEGIES}")
+
+    print("\n=== Review Data Source Directory Paths ===\n")
+    
+    # Check DIR paths (originally just for α=0.1)
+    print("Current DIR source directory paths:")
+    for k, v in DIRS.items():
+        print(f"  {k}: {v}")
+
+print_dir_path_summary()
+response = input("\nVerify globals and paths above. \nEnter 'y' if all paths are valid, or 'n' if you want to quit.\n > ")
+if response.split()[0].lower() != "y":
+    exit()
 
 with PdfPages(OUT_PDF) as pdf:
 
