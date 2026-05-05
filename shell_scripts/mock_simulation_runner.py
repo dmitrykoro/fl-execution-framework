@@ -12,7 +12,6 @@ from __future__ import annotations
 import csv
 import json
 import logging
-import sys
 import traceback
 from pathlib import Path
 
@@ -30,7 +29,6 @@ from src.data_models.simulation_strategy_config import StrategyConfig
 from src.data_models.simulation_strategy_history import SimulationStrategyHistory
 from src.output_handlers import new_plot_handler
 from src.output_handlers.directory_handler import DirectoryHandler
-from shell_scripts.constants import ALL_CONFIGS
 
 project_root = Path(__file__).parent.parent
 console = Console()
@@ -366,48 +364,3 @@ def _count_attack_snapshots(output_dir: Path) -> int:
     return total
 
 
-def main():
-    configs = [sys.argv[1]] if len(sys.argv) > 1 else ALL_CONFIGS
-    
-    config_dir = project_root / "config" / "simulation_strategies" / "cpu"
-    baselines_dir = project_root / "tests" / "fixtures" / "baselines"
-    output_base = project_root / "out"
-
-    console.print(f"[cyan]Running {len(configs)} mock simulation(s)...[/cyan]\n")
-
-    passed = 0
-    failed = 0
-
-    for idx, config_name in enumerate(configs, start=1):
-        console.print(f"[{idx}/{len(configs)}] {config_name}...", end=" ")
-
-        success, output_dir, errors = run_mock_simulation(
-            config_name, config_dir, baselines_dir, output_base
-        )
-
-        if success:
-            if output_dir:
-                verify_ok, verify_errors, counts = verify_outputs(output_dir)
-                if verify_ok:
-                    console.print(f"[green]OK[/green] [dim]({counts['plots']} plots, {counts['csvs']} CSVs, {counts['snapshots']} snapshots)[/dim]")
-                    passed += 1
-                else:
-                    console.print(f"[red]VERIFY FAILED: {verify_errors[0]}[/red]")
-                    failed += 1
-            else:
-                console.print("[green]OK[/green]")
-                passed += 1
-        else:
-            console.print(f"[red]FAILED: {errors[0] if errors else 'Unknown error'}[/red]")
-            failed += 1
-
-    console.print(f"\n[bold]Summary: {passed} passed, {failed} failed[/bold]")
-    sys.exit(0 if failed == 0 else 1)
-
-
-if __name__ == "__main__":
-    try:
-        main()
-    except KeyboardInterrupt:
-        console.print("\n[yellow]Interrupted[/yellow]")
-        sys.exit(130)
