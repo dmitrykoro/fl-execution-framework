@@ -217,6 +217,8 @@
         .attack-type.label_flipping { background: var(--warning-bg); color: var(--warning-text); border-color: #fde68a; }
         .attack-type.gaussian_noise { background: var(--info-bg); color: var(--info-text); border-color: #bfdbfe; }
         .attack-type.token_replacement { background: var(--success-bg); color: var(--success-text); border-color: #a7f3d0; }
+        .attack-type.target_flipping { background: #e5c4c4; color: #541117; border-color: #fecdd3}
+        .attack-type.little_is_enough { background: #f1eed1; color: #ffc400; border-color: #e5e2c5}
         .attack-type.unknown { background: #f4f4f5; color: #52525b; border-color: #e4e4e7; }
         .params {
             color: var(--text-muted);
@@ -348,11 +350,11 @@
                         <td class="params">{{ item.parameters }}</td>
                         <td class="files">
                             <a href="{{ item.pickle_path }}" title="Download pickle file">📦</a>
-                            {% if item.visual_type == "text" %}
-                            <a href="{{ item.visual_path }}" target="_blank" title="View text samples">📝</a>
-                            {% else %}
-                            <a href="{{ item.visual_path }}" target="_blank" title="View visual">🖼️</a>
-                            {% endif %}
+                            {% for visual in item.visuals %}
+                            <a href="{{ visual.path }} " target=" _blank" title="{{ visual.title }}">
+                                {{ visual.icon }}
+                            </a>
+                            {% endfor %}
                             <a href="{{ item.metadata_path }}" target="_blank" title="View metadata">📄</a>
                         </td>
                     </tr>

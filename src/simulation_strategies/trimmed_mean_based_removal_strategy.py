@@ -15,6 +15,7 @@ from flwr.server.strategy.fedavg import FedAvg
 
 from src.data_models.simulation_strategy_history import SimulationStrategyHistory
 from src.utils.medmentions_strategy_helper import aggregate_strict_medmentions_metrics
+from src.utils.strategy_evaluation_metrics_helper import store_evaluation_metrics
 
 
 
@@ -39,7 +40,7 @@ class TrimmedMeanBasedRemovalStrategy(FedAvg):
 
         self.strategy_history = strategy_history
 
-         # Create a logger
+        # Create a logger
         self.logger = logging.getLogger(f"trimmed_mean_removal_{id(self)}")
         self.logger.setLevel(logging.INFO)  # Set the logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL)
 
@@ -205,12 +206,12 @@ class TrimmedMeanBasedRemovalStrategy(FedAvg):
 
         for client_result in results:
             cid = client_result[0].cid
-            accuracy_matrix = client_result[1].metrics
-
-            self.strategy_history.insert_single_client_history_entry(
-                client_id=int(cid),
+            metrics = client_result[1].metrics
+            store_evaluation_metrics(
+                clinet_id=int(cid),
                 current_round=self.current_round,
-                accuracy=accuracy_matrix['accuracy']
+                metrics=metrics, 
+                strategy_history=self.strategy_history
             )
 
         if not results:
@@ -228,7 +229,10 @@ class TrimmedMeanBasedRemovalStrategy(FedAvg):
                 loss=evaluate_res.loss
             )
 
-            aggregate_value.append((evaluate_res.num_examples, evaluate_res.loss))
+            if self.strategy_history.strategy_config.model_type == "lstm":
+                aggregate_value.append((evaluate_res.metrics['num_elements'], evaluate_res.loss))
+            else:
+                aggregate_value.append((evaluate_res.num_examples, evaluate_res.loss))
             number_of_clients_in_loss_calc += 1
 
         loss_aggregated = weighted_loss_avg(aggregate_value)

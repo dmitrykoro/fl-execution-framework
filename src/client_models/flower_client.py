@@ -2,9 +2,10 @@ import logging
 import flwr as fl
 import numpy as np
 import torch
+import gc
 
 from collections import OrderedDict
-
+from torch.utils.data import TensorDataset, DataLoader
 from src.network_models.bert_model_definition import get_peft_model_state_dict, set_peft_model_state_dict
 from src.dataset_handlers.dataset_handler import apply_poisoning_attack
 from src.attack_utils.poisoning import (
@@ -36,6 +37,8 @@ class FlowerClient(fl.client.NumPyClient):
             experiment_info=None,
             strategy_number=0,
             tokenizer=None,
+            target_name="",
+            sequence_len=12,
             strategy_history=None,
     ):
         self.client_id = client_id
@@ -55,6 +58,8 @@ class FlowerClient(fl.client.NumPyClient):
         self.experiment_info = experiment_info
         self.strategy_number = strategy_number
         self.tokenizer = tokenizer
+        self.target_name=target_name
+        self.sequence_len=sequence_len
         self.strategy_history=strategy_history
 
     def _to_device_only_tensors(self, batch):
@@ -107,7 +112,7 @@ class FlowerClient(fl.client.NumPyClient):
                     if current_round_attack_configs and epoch == 0 and batch_idx == 0:
                             original_images = images.clone()
                             original_labels = labels.clone()
-                    for attack_type, attack_config in zip(attack_keywords_list, current_round_attack_configs):
+                    for attack_type, attack_config in zip(attack_keywords_list, current_round_attack_configs):                        
 
                         images, labels = apply_poisoning_attack(
                             data=images,
@@ -129,7 +134,6 @@ class FlowerClient(fl.client.NumPyClient):
                             client_id=self.client_id,
                             output_dir=self.output_dir,
                             max_samples=self.snapshot_max_samples,
-                            save_format=self.attack_snapshot_format,
                             experiment_info=self.experiment_info,
                             strategy_number=self.strategy_number,
                             current_round=current_round,
@@ -148,7 +152,7 @@ class FlowerClient(fl.client.NumPyClient):
                     optimizer.step()
 
                     # Metrics
-                    epoch_loss += loss
+                    epoch_loss += loss.item()
                     total += labels.size(0)
                     correct += (torch.max(outputs.data, 1)[1] == labels).sum().item()
 
@@ -227,9 +231,233 @@ class FlowerClient(fl.client.NumPyClient):
                     print(f"Epoch {epoch + 1}: train loss {epoch_loss}, accuracy {epoch_acc}")
 
             return float(epoch_loss), float(epoch_acc), 0.0
+        
+        elif self.model_type == "linear_regression" or self.model_type == "mlp":
+            criterion = torch.nn.MSELoss()
+            optimizer = torch.optim.Adam(net.parameters())
+            net.train()
+
+            # Collect snapshot data
+            snapshot_features = []
+            snapshot_targets = []
+            snapshot_original_features = []
+            snapshot_original_targets = []
+
+            collected = 0
+
+            for epoch in range(epochs):
+                total, epoch_loss = 0, 0.0
+                # For R^2 calcualtion
+                ss_res, sum_y, sum_y_sq = 0.0, 0.0, 0.0
+
+                # For denormalization
+                y_mean = trainloader.dataset.y_mean.to(self.training_device)
+                y_std = trainloader.dataset.y_std.to(self.training_device)
+
+                for batch_idx, (features, targets) in enumerate(trainloader):
+                    if current_round_attack_configs and epoch == 0  and collected < self.snapshot_max_samples:
+                        original_features = features.clone()
+                        original_targets = targets.clone()
+                    # Apply all attacks sequentially
+                    for attack_type, attack_config in zip(attack_keywords_list, current_round_attack_configs):
+                        features, targets = apply_poisoning_attack(
+                            data=features,
+                            labels=targets,
+                            attack_type=attack_type,
+                            attack_config=attack_config,
+                            dataset = trainloader.dataset,
+                        )
+
+                    # Collect snapshot data (only first epoch)
+                    if current_round_attack_configs and epoch == 0 and collected < self.snapshot_max_samples:
+                        remaining = self.snapshot_max_samples - collected
+                        take = min(remaining, features.size(0))
+
+                        snapshot_features.append(features[:take].clone())
+                        snapshot_targets.append(targets[:take].clone())
+                        snapshot_original_features.append(original_features[:take].clone())
+                        snapshot_original_targets.append(original_targets[:take].clone())
+
+                        collected += take
+
+                    features = features.to(self.training_device)
+                    targets = targets.to(self.training_device).float()
+                    optimizer.zero_grad()
+                    outputs = net(features)
+
+                    # Ensure targets is the same shape as outputs
+                    if outputs.shape != targets.shape:
+                        targets = targets.view_as(outputs)
+
+                    loss=criterion(outputs, targets)
+                    loss.backward()
+                    optimizer.step()
+
+                    # Metrics
+                    epoch_loss += loss.item() * features.size(0)
+
+                    # denormalize for metrics
+                    outputs_real = outputs * y_std + y_mean
+                    targets_real = targets * y_std + y_mean
+                    
+                    ss_res += torch.sum((targets_real-outputs_real)**2).item()
+                    sum_y += torch.sum(targets_real).item()
+                    sum_y_sq += torch.sum(targets_real**2).item()
+
+                    total += features.size(0)
+
+                    # Free intermediate tensors
+                    del outputs, loss
+                
+                epoch_loss /= total if total > 0 else 1
+                y_mean = sum_y / total
+                ss_tot = sum_y_sq - total * (y_mean**2)
+                epoch_r2 = 1-(ss_res/ss_tot) if ss_tot > 0 else 0.0
+                if verbose:
+                    print(f"Epoch {epoch + 1}: train MSE {epoch_loss}")
+
+                # calculate local client learning rate
+                optimizer_lr = optimizer.param_groups[0]["lr"]
+                num_steps = epochs * len(trainloader)
+                eta_eff = optimizer_lr * num_steps
+
+            # Save snapshot of attack
+            if snapshot_features:
+                attack_snapshot_handler.save_attack_snapshots(
+                    attack_snapshot_format=self.attack_snapshot_format,
+                    model_type=self.model_type,
+                    save_attack_snapshots=self.save_attack_snapshots,
+                    client_id=self.client_id,
+                    output_dir=self.output_dir,
+                    max_samples=self.snapshot_max_samples,
+                    experiment_info=self.experiment_info,
+                    strategy_number=self.strategy_number,
+                    current_round=current_round,
+                    attack_configs=current_round_attack_configs,
+                    data_sample=torch.cat(snapshot_features),
+                    labels_sample=torch.cat(snapshot_targets),
+                    target_name=self.target_name,
+                    original_data_sample=torch.cat(snapshot_original_features),
+                    original_labels_sample=torch.cat(snapshot_original_targets),
+                    dataset=trainloader.dataset,
+                )            
+
+            return float(epoch_loss), float(epoch_r2), float(eta_eff)
+
+        elif self.model_type == "lstm":  
+            criterion = torch.nn.SmoothL1Loss(reduction="sum")
+            optimizer = torch.optim.Adam(net.parameters())
+            net.train()
+
+            # Collect snapshot data
+            snapshot_features = []
+            snapshot_targets = []
+            snapshot_original_features = []
+            snapshot_original_targets = []
+
+            collected = 0
+
+            for epoch in range(epochs):
+                total, epoch_loss = 0, 0.0
+                # For MARE calculation
+                eps = 1e-8
+                abs_rel_error_sum = 0.0
+
+                # For denormalization
+                y_mean = trainloader.dataset.y_mean.to(self.training_device)
+                y_std = trainloader.dataset.y_std.to(self.training_device)
+
+                for batch_idx, (features, targets) in enumerate(trainloader):
+                    if current_round_attack_configs and epoch == 0  and collected < self.snapshot_max_samples:
+                        original_features = features.clone()
+                        original_targets = targets.clone()
+                    # Apply all attacks sequentially
+                    for attack_type, attack_config in zip(attack_keywords_list, current_round_attack_configs):
+                        features, targets = apply_poisoning_attack(
+                            data=features,
+                            labels=targets,
+                            attack_type=attack_type,
+                            attack_config=attack_config,
+                            dataset = trainloader.dataset,
+                        )
+
+                    # Collect snapshot data (only first epoch)
+                    if current_round_attack_configs and epoch == 0 and collected < self.snapshot_max_samples:
+                        remaining = self.snapshot_max_samples - collected
+                        take = min(remaining, features.size(0))
+
+                        snapshot_features.append(features[:take].clone())
+                        snapshot_targets.append(targets[:take].clone())
+                        snapshot_original_features.append(original_features[:take].clone())
+                        snapshot_original_targets.append(original_targets[:take].clone())
+
+                        collected += take
+
+                    features = features.to(self.training_device)
+                    targets = targets.to(self.training_device).float()
+                    optimizer.zero_grad()
+                    outputs = net(features)
+
+                    # Ensure targets is the same shape as outputs
+                    if outputs.shape != targets.shape:
+                        targets = targets.view_as(outputs)
+
+                    loss=criterion(outputs, targets)
+                    loss.backward()
+                    optimizer.step()
+
+                    # Metrics
+                    epoch_loss += loss.item()
+
+                    # denormalize for metrics
+                    outputs_real = outputs * y_std + y_mean
+                    targets_real = targets * y_std + y_mean
+                    
+                    abs_rel_error_sum += torch.sum(
+                        torch.abs(targets_real - outputs_real) / (torch.abs(targets_real) + eps)
+                    ).item()
+
+                    total += targets.numel()
+
+                    # Free intermediate tensors
+                    del outputs, loss
+                
+                # Normalize loss to per-element SmoothL1Loss
+                epoch_loss /= total if total > 0 else 1
+                epoch_mare = abs_rel_error_sum / total if total > 0 else 0.0
+                if verbose:
+                    print(f"Epoch {epoch + 1}: train SmoothL1Loss {epoch_loss}")
+
+                # calculate local client learning rate
+                optimizer_lr = optimizer.param_groups[0]["lr"]
+                num_steps = epochs * len(trainloader)
+                eta_eff = optimizer_lr * num_steps
+
+            # Save snapshot of attack
+            if snapshot_features:
+                attack_snapshot_handler.save_attack_snapshots(
+                    attack_snapshot_format=self.attack_snapshot_format,
+                    model_type=self.model_type,
+                    save_attack_snapshots=self.save_attack_snapshots,
+                    client_id=self.client_id,
+                    output_dir=self.output_dir,
+                    max_samples=self.snapshot_max_samples,
+                    experiment_info=self.experiment_info,
+                    strategy_number=self.strategy_number,
+                    current_round=current_round,
+                    attack_configs=current_round_attack_configs,
+                    data_sample=torch.cat(snapshot_features),
+                    labels_sample=torch.cat(snapshot_targets),
+                    target_name=self.target_name,
+                    original_data_sample=torch.cat(snapshot_original_features),
+                    original_labels_sample=torch.cat(snapshot_original_targets),
+                    dataset=trainloader.dataset,
+                )            
+
+            return float(epoch_loss), float(epoch_mare), float(eta_eff)
 
         else:
-            raise ValueError(f"Unsupported model type: {self.model_type}. Supported types are 'cnn' and 'mlm'.")
+            raise ValueError(f"Unsupported model type: {self.model_type}. Supported types are 'cnn', 'mlm', 'linear_regression', mlp.")
 
     def test(self, net, testloader, config=None):
         """Evaluate the network on the entire test set with optional dynamic poisoning."""
@@ -272,6 +500,10 @@ class FlowerClient(fl.client.NumPyClient):
                     _, predicted = torch.max(outputs.data, 1)
                     total += labels.size(0)
                     correct += (predicted == labels).sum().item()
+
+                    # VRAM Optimization
+                    del outputs, images, labels
+
             loss /= len(testloader.dataset) if len(testloader.dataset) > 0 else 1
             accuracy = correct / total if total > 0 else 0.0
             return loss, accuracy
@@ -321,6 +553,9 @@ class FlowerClient(fl.client.NumPyClient):
                                 batch["word_length"],  # python list
                             )
 
+                    # VRAM Optimization
+                    del outputs, batch_dev, model_inputs
+
             loss = total_loss / max(len(testloader), 1)
             accuracy = (correct / total) if total > 0 else 0.0
 
@@ -330,9 +565,141 @@ class FlowerClient(fl.client.NumPyClient):
             else:
                 # fall back to old two-tuple result for non-NER transformer tasks
                 return loss, accuracy
+            
+        elif self.model_type == "linear_regression" or self.model_type == "mlp":
+            criterion = torch.nn.MSELoss(reduction="sum") # sum to compute SS_res directly
+            net.eval()
+
+            total, loss_sum, ss_res, ss_tot, y_true_sum, y_true_sq_sum = 0, 0.0, 0.0, 0.0, 0.0, 0.0
+
+            # For denormalization
+            y_mean = testloader.dataset.y_mean.to(self.training_device)
+            y_std = testloader.dataset.y_std.to(self.training_device)
+
+            with torch.no_grad():
+                for features, targets in testloader:
+                    # Apply all attacks sequentially
+                    for attack_type, attack_config in zip(attack_keywords_list, current_round_attack_configs):
+                        features, targets = apply_poisoning_attack(
+                            data=features,
+                            labels=targets,
+                            attack_type=attack_type,
+                            attack_config=attack_config,
+                            dataset=testloader.dataset,
+                        )
+
+                    features, targets = features.to(self.training_device), targets.to(self.training_device)
+                    outputs = net(features)
+
+                    # denormalize for metrics
+                    outputs_real = outputs * y_std + y_mean
+                    targets_real = targets * y_std + y_mean
+
+                    # Sum squared errors
+                    batch_ss_res = torch.sum((targets_real-outputs_real)**2).item()
+                    ss_res += batch_ss_res
+
+                    # For SS_tot: sum of squares around mean
+                    y_true_sum += torch.sum(targets_real).item()
+                    y_true_sq_sum += torch.sum(targets_real**2).item()
+
+                    # MSE loss for reporting
+                    loss_sum += batch_ss_res
+                    total += targets.size(0)
+
+                    # VRAM Optimization
+                    del outputs, features, targets
+            
+            # Normalize loss to per-sample MSE
+            loss = loss_sum / total if total > 0 else 0.0
+
+            # Compute total sum of squares
+            mean_y = y_true_sum / total if total > 0 else 0.0
+            ss_tot = y_true_sq_sum - total * (mean_y**2)
+            r2 = 1-(ss_res/ss_tot) if ss_tot != 0 else 0.0
+
+            return loss, ss_res, ss_tot, r2
+        
+        elif self.model_type == "lstm":
+            criterion = torch.nn.SmoothL1Loss(reduction="sum")
+            net.eval()
+
+            #total, loss_sum, ss_res, ss_tot, y_true_sum, y_true_sq_sum = 0, 0.0, 0.0, 0.0, 0.0, 0.0
+            total, smooth_l1_loss_sum, smooth_l1_loss_baseline_sum = 0, 0.0, 0.0
+            eps = 1e-8
+            abs_rel_error_sum, abs_rel_error_baseline_sum = 0.0, 0.0
+
+            # For denormalization
+            y_mean = testloader.dataset.y_mean.to(self.training_device)
+            y_std = testloader.dataset.y_std.to(self.training_device)
+            x_mean = testloader.dataset.x_mean.to(self.training_device)
+            x_std = testloader.dataset.x_std.to(self.training_device)
+
+            def _rolling_average_model(batch_sequences, window_size):
+                """
+                Simple moving avg model that serves as a baseline
+
+                Note: uses last window
+                """
+                test_seqs = batch_sequences[:, -window_size:, :]    # (batch, window_size, 1)
+                preds = test_seqs.mean(dim=1)                       # (batch, 1)
+                return preds 
+
+            with torch.no_grad():
+                for features, targets in testloader:
+                    # create baseline outputs using moving average before poisoning
+                    features, targets = features.to(self.training_device), targets.to(self.training_device)
+                    features_real = features * x_std + x_mean
+                    targets_real = targets * y_std + y_mean
+
+                    outputs_baseline = _rolling_average_model(features_real, self.sequence_len)
+                    outputs_baseline = outputs_baseline.to(self.training_device)
+                    outputs_baseline = outputs_baseline.view_as(targets_real)   # Ensure baseline_outputs is the same shape as targets
+
+                    smooth_l1_loss_baseline_sum += criterion(outputs_baseline, targets_real).item()
+                    abs_rel_error_baseline_sum += torch.sum(
+                        torch.abs(targets_real - outputs_baseline) / torch.abs(targets_real + eps)
+                    ).item()    
+
+                    # Apply all attacks sequentially
+                    for attack_type, attack_config in zip(attack_keywords_list, current_round_attack_configs):
+                        features, targets = apply_poisoning_attack(
+                            data=features,
+                            labels=targets,
+                            attack_type=attack_type,
+                            attack_config=attack_config,
+                            dataset=testloader.dataset,
+                        )
+
+                    outputs = net(features)
+
+                    # denormalize for metrics
+                    outputs_real = outputs * y_std + y_mean
+                    targets_real = targets * y_std + y_mean
+
+                    # SmoothL1Loss for reporting
+                    smooth_l1_loss_sum += criterion(outputs_real, targets_real).item()
+
+                    # Sum absolute relative errors for MARE
+                    abs_rel_error_sum += torch.sum(
+                        torch.abs(targets_real - outputs_real) / (torch.abs(targets_real) + eps)
+                    ).item()
+
+                    total += targets.numel()
+
+                    # VRAM Optimization
+                    del outputs, outputs_baseline, features, targets
+            
+            # Normalize loss to per-element SmoothL1Loss
+            loss = smooth_l1_loss_sum / total if total > 0 else 0.0
+            loss_baseline = smooth_l1_loss_baseline_sum / total if total > 0 else 0.0
+            mare = abs_rel_error_sum / total if total > 0 else 0.0
+            mare_baseline = abs_rel_error_baseline_sum / total if total > 0 else 0.0
+
+            return loss, loss_baseline, mare, mare_baseline, total
 
         else:
-            raise ValueError(f"Unsupported model type: {self.model_type}. Supported types are 'cnn' and 'mlm'.")
+            raise ValueError(f"Unsupported model type: {self.model_type}. Supported types are 'cnn', 'mlm', 'linear_regression', and mlp.")
 
     def fit(self, parameters, config):
         logging.debug(f"[Client {self.client_id}] Starting fit() - Setting parameters and beginning training")
@@ -354,8 +721,13 @@ class FlowerClient(fl.client.NumPyClient):
             f"[Client {self.client_id}] Training complete - Loss: {epoch_loss:.4f}, Accuracy: {epoch_acc:.4f}"
         )
 
-        if torch.cuda.is_available():
-            torch.cuda.empty_cache()
+        # for Flower summary purposes
+        if self.model_type == "linear_regression" or self.model_type == "mlp":
+            metrics =  {"loss": epoch_loss, "r2": epoch_acc, "eta_eff": eta_eff}
+        elif self.model_type == "lstm":
+            metrics = {"loss": epoch_loss, "mare": epoch_acc, "eta_eff": eta_eff}
+        else:
+            metrics =  {"loss": epoch_loss, "accuracy": epoch_acc, "eta_eff": eta_eff}
 
         local_params = self.get_parameters(self.net)
 
@@ -367,14 +739,44 @@ class FlowerClient(fl.client.NumPyClient):
             for attack_config in attack_configs:
                 if is_model_poisoning_attack(attack_config.get("attack_type")):
                     local_params = apply_model_poisoning_attack(
-                        local_params, global_params_ndarrays, attack_config
+                        local_params, global_params_ndarrays, metrics
                     )
+        # For backwards compatibility 'attack_type' param
+        if self.strategy_history and self.strategy_history.strategy_config.attack_type:
+            client = self.strategy_history.get_client_by_id(self.client_id)
+            current_attack_keywords = client.get_current_attack_keywords(current_round)
+            if "gradient_scaling" in current_attack_keywords:
+                attack_config = {
+                    "attack_type": "gradient_scaling",
+                    "scale_factor": self.strategy_history.strategy_config.scale_factor
+                }
+                local_params = apply_model_poisoning_attack(
+                    local_params, global_params_ndarrays, attack_config
+                )
 
+        # ---------------------------------------------------------
+        # MEMORY CLEANUP PHASE (Strictly at the end)
+        # ---------------------------------------------------------
+        # 1. Delete all heavy variables no longer needed
+        if global_params is not None:
+            del global_params
+        del global_params_ndarrays
+        del parameters
+        
+        # 2. Sever any lingering gradient graphs attached to the model
+        self.net.zero_grad(set_to_none=True)
+        
+        # 3. Force system and GPU garbage collection
+        gc.collect()
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
+            
         return local_params, len(self.trainloader), {"loss": epoch_loss, "accuracy": epoch_acc, "eta_eff": eta_eff}
 
     def evaluate(self, parameters, config):
         self.set_parameters(self.net, parameters)
 
+        out = None
         if self.model_type == "transformer":
             out = self.test(self.net, self.valloader, config)
 
@@ -396,16 +798,60 @@ class FlowerClient(fl.client.NumPyClient):
             else:
                 loss, accuracy = out
                 metrics = {"accuracy": float(accuracy)}
+            dataset_len = len(self.valloader)
+        
+        elif self.model_type == "linear_regression" or self.model_type == "mlp":
+            out = self.test(self.net, self.valloader)
 
-            if torch.cuda.is_available():
-                torch.cuda.empty_cache()
+            # for linear_regression and mlp, test() returns (loss, ss_res, ss_tot, r2)
+            if isinstance(out, tuple) and len(out) == 4:
+                loss, ss_res, ss_tot, r2 = out
+                metrics = {
+                    "ss_res": float(ss_res),
+                    "ss_tot": float(ss_tot),
+                    "r2": float(r2)
+                }
+            # should never get to else
+            else:
+                loss, accuracy = out
+                metrics = {}
+            dataset_len = len(self.valloader.dataset)
 
-            return float(loss), len(self.valloader), metrics
+        elif self.model_type == "lstm":
+            out = self.test(self.net, self.valloader)
+
+            # for lstm, test() returns (loss, loss_baseline, mare, mare_baseline)
+            if isinstance(out, tuple) and len(out) == 5:
+                loss, loss_baseline, mare, mare_baseline, num_elements = out
+                metrics = {
+                    "loss": float(loss),
+                    "loss_baseline": float(loss_baseline),
+                    "mare": float(mare),
+                    "mare_baseline": float(mare_baseline),
+                    "num_elements": int(num_elements)
+
+                }
+            # should never get to else
+            else:
+                loss, accuracy = out
+                metrics = {}
+            dataset_len = len(self.valloader.dataset)
 
         else:
             loss, accuracy = self.test(self.net, self.valloader)
+            metrics = {"accuracy": float(accuracy)}
+            dataset_len = len(self.valloader)
+        
+        # ---------------------------------------------------------
+        # MEMORY CLEANUP PHASE
+        # ---------------------------------------------------------
+        del parameters
+        if out is not None:
+            del out
+        self.net.zero_grad(set_to_none=True)
 
-            if torch.cuda.is_available():
-                torch.cuda.empty_cache()
+        gc.collect()
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
 
-            return float(loss), len(self.valloader), {"accuracy": float(accuracy)}
+        return float(loss), dataset_len, metrics

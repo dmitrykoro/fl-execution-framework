@@ -2,9 +2,10 @@
 Text visualization utilities for attack snapshots.
 """
 from pathlib import Path
-from typing import List, Optional, Union
+from typing import List, Optional, Union, Any, Dict, Optional
 
 import numpy as np
+import math
 
 
 def _extract_attack_param(
@@ -209,3 +210,157 @@ def save_text_samples(
             f.write("=" * 40 + "\n")
             for i, (label, orig) in enumerate(zip(labels, original_labels)):
                 f.write(f"Sample {i}: {label} (was {orig})\n")
+
+
+def save_regression_text_samples(
+    targets: np.ndarray,
+    original_targets: np.ndarray,
+    filepath: Path,
+    target_name: str,
+    min_target: float,
+    max_target: float,
+    attack_config: Optional[Union[dict, List[dict]]] = None,
+    original_features: Optional[np.ndarray] = None,
+    feature_names: Optional[List[str]] = None,
+):
+    """
+    Save text attack samples to a visualization file.
+
+    Creates a text file showing original vs poisoned feature and target values.
+
+    Args:
+        targets: Poisoned targets array
+        original_targets: Original targets before attack
+        filepath: Output file path for the text visualization
+        target_name: Value that the model is predicting
+        min_target: Minimum target value
+        max_target: Maximum target value
+        attack_config: Attack configuration dict or list of dicts (optional)
+        original_features: Original features for comparison (optional)
+        feature_names: Names of the columns for the features in a regression task dataset (optional)
+
+    Note:
+        Skips sample where target was not attacked to reduce file size.
+    """
+    with open(filepath, "w", encoding="utf-8") as f:
+        f.write("=" * 80 + "\n")
+        f.write("REGRESSION ATTACK VISUALIZATION\n")
+        f.write("=" * 80 + "\n\n")
+
+        if attack_config:
+            attack_type = _extract_attack_type(attack_config)
+            f.write(f"Attack Type: {attack_type}\n")
+            f.write(f"Target: {target_name}\n")
+
+            if (
+                original_features is not None
+                and feature_names is not None
+            ):
+                f.write(f"Features:")
+                for i, feature in enumerate(feature_names):
+                    if i == 0:
+                        f.write(f" {feature}")
+                    else:
+                        f.write(f", {feature}")
+                f.write(f"\n")
+
+            if attack_type == "target_flipping":
+                degree_of_poisoning = _extract_attack_param(
+                    attack_config, "attack_ratio", default=0.1
+                )
+                substitute_fraction = 0.25
+                if degree_of_poisoning > substitute_fraction:
+                    substitute_fraction = degree_of_poisoning
+                
+                f.write(f"Substitute Fraction: {substitute_fraction}\n")
+                f.write(f"Degree of Poisoning: {degree_of_poisoning}\n")
+                f.write(f"Sample Dataset Size: {len(targets)}\n")
+                f.write(f"Estimated Poison Samples: {math.ceil(len(targets) * degree_of_poisoning)}\n")
+                f.write(f"Min Target: {min_target:.4f}\n")
+                f.write(f"Max Target: {max_target:.4f}\n")
+
+            f.write("\n" + "=" * 80 + "\n\n")
+        
+        samples_shown = 0
+        samples_skipped = 0
+
+        for i in range(len(targets)):
+            original_target = original_targets[i][0]
+            poisoned_target = targets[i][0]
+
+            if original_target == poisoned_target:
+                samples_skipped += 1
+                continue
+
+            f.write(f"--- Sample {i} ---\n\n")
+
+            if (
+                original_features is not None
+                and feature_names is not None
+            ):
+                f.write(f"Features:\n")
+                for j, feature in enumerate(feature_names):
+                    if target_name == 'DO':
+                        f.write(f"\t{feature}: {original_features[i]}\n")
+                    else:
+                        f.write(f"\t{feature}: {original_features[i][j]:.4f}\n")
+                f.write("\n")
+
+            f.write(f"Target:\n")
+            f.write(f"\tOriginal: {original_target:.4f}\n")
+            f.write(f"\tPoisoned: {poisoned_target:.4f}\n")
+
+            change = poisoned_target - original_target
+            if change > 0.0:
+                f.write(f"\tChange: +{abs(change):.4f}\n")
+                f.write(f"\tDirection: MIN -> MAX\n")
+            else:
+                f.write(f"\tChange: -{abs(change):.4f}\n")
+                f.write(f"\tDirection: MAX -> MIN\n")
+
+            samples_shown += 1
+            f.write("\n")
+        
+        f.write("=" * 80 + "\n")
+        f.write(
+            f"SUMMARY: {samples_shown} samples modified, {samples_skipped} samples unchanged (skipped)\n"
+        )
+        f.write("=" * 80 + "\n")
+
+        
+def save_extra_attack_info(
+      client_id: int,
+      round_num: int,
+      filepath: Path,
+      attack_type: str,
+      experiment_info: Dict[str, Any],  
+):
+    """
+    Save extra information about an attack that isn't included in the parameters.
+
+    For example, the Little Is Enough attack has no parameters, but there are variables caluclated
+    during the attack that define how the attack works and should be saved for debugging purposes.
+
+    Args:
+        client_id: Client ID
+        round_num: Round number
+        filepath: Filepath to save to
+        attack_type: Type of attack
+        experiment_info: Additional information about the attack
+    """
+    with open(filepath, "w", encoding="utf-8") as f:
+        f.write("=" * 80 + "\n")
+        f.write("ADDITIONAL ATTACK INFORMATION\n")
+        f.write("=" * 80 + "\n\n")
+
+        f.write(f"Round {round_num}: Attack on Client {client_id}\n")
+
+        if attack_type == "little_is_enough":
+            f.write(f"\tAttack Type: Little Is Enough\n")
+            f.write(f"\tTotal Clients: {experiment_info['total_clients']}\n")
+            f.write(f"\tMalicious Clients: {experiment_info['malicious_clients']}\n")
+            f.write(f"\tBenign Clients: {experiment_info['benign_clients']}\n")
+            f.write(f"\tNumber of non-corrupt clients needed for a majority: {experiment_info['s']}\n")
+            f.write(f"\tProportional value of z_max: {experiment_info['p']}\n")
+            f.write(f"\tz_max: {experiment_info['z_max']}\n")
+        
