@@ -135,7 +135,7 @@ Defines the aggregation strategy. Options:
 
 **For `smores` dataset**
 - `target_name`: predicting next dissolved oxygen concentration in the sequence (DO)
-- `sequence_len`: amount of time series data to provide to model for its forcasting
+- `sequence_len`: amount of time series data to provide to model for its forcasting (default: 12)
 
 #### Strategy-specific parameters
 
@@ -206,7 +206,7 @@ Defines the aggregation strategy. Options:
 
 ## How to Run
 
-1. **Python Environment**: Python 3.10.14 is used in the framework. Before attempting to run the code, make sure the Python 3.10.14 is
+1. **Python Environment**: Python 3.11.9 is used in the framework. Before attempting to run the code, make sure the Python 3.11.9 is
    installed in the system.
 2. **Configuration**: place configurations in `config/simulation_strategies/`.
 3. **Specify Configuration**: update `src/simulation_runner.py` with the desired configuration file.
@@ -229,6 +229,19 @@ Defines the aggregation strategy. Options:
 - **Round-Level Metrics**:
   - `Average loss`: Across participating clients.
   - `Average accuracy`: Across participating clients.
+
+- **`air_quality_uci` Specific Metrics**
+  - `R^2`: How well a client's data is being modeled.
+  - `Average R^2`: Across participating clients.
+
+- **`smores` Specific Metrics**
+  - `MARE`: How accurrate was the continuous prediction?
+  - `Loss baseline`: Loss if predictions made from averaging selection window.
+  - `Mare baseline`: MARE if predictions made from averaging selection window.
+  - `Average MARE`: Across participating clients.
+  - `Average Loss baseline`: Across participating clients.
+  - `Average MARE baseline`: Across participating clients.
+
 
 ---
 

@@ -537,10 +537,14 @@ def _validate_dependent_params(strategy_config: dict) -> None:
                 f"Missing parameter begin_removing_from_round for aggregation {aggregation_strategy_keyword}"
             )
         
-    
     # Attack Parameters (for old attack_type backwards copatibility)
 
     if "attack_type" in strategy_config:
+        if "num_of_malicious_clients" not in strategy_config:
+            raise ValidationError(
+                f"Missing parameter 'num_of_malicious_clients' for old attack mechanism with `attack_type`"
+            )
+
         attack_type = strategy_config["attack_type"]
         if attack_type == "gaussian_noise":
             if "target_noise_snr" not in strategy_config:
@@ -594,6 +598,32 @@ def _validate_dependent_params(strategy_config: dict) -> None:
                         f"Please use 'attack_schedule' instead of 'attack_type'."
             )
         
+    # Model-Dataset Association Validation
+
+    model_type = strategy_config["model_type"]
+
+    if model_type == "transformer":
+        if dataset_keyword not in ("medquad", "medmentions"):
+            raise ValidationError(
+                f"Model type '{model_type}' is not supported for dataset '{dataset_keyword}'"
+            )
+    elif model_type in ["linear_regression", "mlp"]:
+        if dataset_keyword not in ("air_quality_uci"):
+            raise ValidationError(
+                f"Model type '{model_type}' is not supported for dataset '{dataset_keyword}'"
+            )
+    elif model_type == "lstm":
+        if dataset_keyword not in ("smores"):
+            raise ValidationError(
+                f"Model type '{model_type}' is not supported for dataset '{dataset_keyword}'"
+            )
+    # Must be cnn model
+    else:
+        # Has to be one of the image datasets
+        if dataset_keyword in ("medquad", "medmentions", "air_quality_uci", "smores"):
+            raise ValidationError(
+                f"Model type '{model_type}' is not supported for dataset '{dataset_keyword}'"
+            )
     
 
 def _populate_client_selection(config: dict) -> None:
@@ -672,6 +702,27 @@ def _validate_attack_schedule(config: dict) -> None:
     - Preserve_dataset set to false
     """
     schedule = config.get("attack_schedule", [])
+
+    # Strict rejection: prevent use of both old attack_type and attack_schedule in the same config.
+    # Old version of attack via attack_type is prioritized in framework logic,
+    # resulting in attack_schedule and all associated dynamic attack features being ignored.
+    # Stop it here before any unintended execution occurs.
+    if "attack_type" in config and len(schedule) > 0:
+        raise ValidationError(
+            "\n\nCONFIG REJECTED: Cannot use old `attack_type` parameter with `attack_schedule`.\n"
+            "\n"
+            "Reason:\n"
+            "  - Framework chooses to use old attacking mechanism via `attack_type` in order to maintain backwards compatibility.\n"
+            "  - `attack_schedule` and all associated dynamic attack features are ignored.\n"
+            "\n"
+            "Fix:\n"
+            "  Please only use `attack_schedule` for attack mechanisms.\n"
+            "  Only use `attack_type` within `attack_schedule` for determining type of attack.\n"
+            "  (If you must perform static attacks, make sure to only include `attack_type` and `num_of_malicious_clients` in your config and not `attack_schedule`)\n"
+            "\n"
+            "Config is the single source of truth - it must reflect intended execution."
+        )
+
 
     for idx, entry in enumerate(schedule):
         entry_desc = f"attack_schedule entry {idx}"
