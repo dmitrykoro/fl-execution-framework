@@ -28,7 +28,6 @@ class FlowerClient(fl.client.NumPyClient):
             num_of_client_epochs,
             model_type="cnn",
             use_lora=False,
-            num_malicious_clients=0,
             attacks_schedule=None,
             save_attack_snapshots=False,
             attack_snapshot_format="pickle_and_visual",
@@ -49,7 +48,6 @@ class FlowerClient(fl.client.NumPyClient):
         self.model_type = model_type
         self.num_of_client_epochs = num_of_client_epochs
         self.use_lora = use_lora
-        self.num_malicious_clients = num_malicious_clients
         self.attacks_schedule = attacks_schedule
         self.save_attack_snapshots = save_attack_snapshots
         self.attack_snapshot_format = attack_snapshot_format
@@ -193,7 +191,10 @@ class FlowerClient(fl.client.NumPyClient):
                     loss = outputs.loss
 
                     # Apply FedProx only if global_params are provided
-                    if global_params is not None and self.client_id >= self.num_malicious_clients:
+                    malicious_client_ids = []
+                    if self.strategy_history:
+                        malicious_client_ids = self.strategy_history.get_malicious_client_ids()
+                    if global_params is not None and self.client_id not in malicious_client_ids:
                         local_params = [torch.tensor(p, device=self.training_device) for p in
                                         self.get_parameters(config=None)]
                         prox_term = sum(torch.norm(lp - gp) ** 2 for lp, gp in zip(local_params, global_params))
@@ -708,7 +709,10 @@ class FlowerClient(fl.client.NumPyClient):
 
         # Capture global LoRA parameters for FedProx
         global_params = None
-        if self.model_type == "transformer" and self.use_lora and self.client_id >= self.num_malicious_clients:
+        malicious_client_ids = []
+        if self.strategy_history:
+            malicious_client_ids = self.strategy_history.get_malicious_client_ids()
+        if self.model_type == "transformer" and self.use_lora and self.client_id not in malicious_client_ids:
             global_params = [torch.tensor(p, device=self.training_device) for p in self.get_parameters(config=None)]
 
         logging.debug(

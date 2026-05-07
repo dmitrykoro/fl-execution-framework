@@ -57,6 +57,15 @@ def _get_client_attack_summary(client_id: int, attack_schedule: list) -> str:
 
     return ""
 
+def _extract_num_malicious_clients(strategy_config: StrategyConfig) -> int:
+    if strategy_config.num_of_malicious_clients:
+        return strategy_config.num_of_malicious_clients
+    else:
+        total_malicious_clients = 0
+        for entry in strategy_config.attack_schedule:
+            if entry["malicious_client_ids"]:
+                total_malicious_clients += len(entry["malicious_client_ids"])
+        return total_malicious_clients
 
 def _generate_single_string_strategy_label(strategy_config: StrategyConfig) -> str:
     """Generate single-string label for strategy (better to use as legend)"""
@@ -71,11 +80,12 @@ def _generate_single_string_strategy_label(strategy_config: StrategyConfig) -> s
         single_string += f"target: {strategy_config.target_name}, "
         single_string += f"sequence length: {strategy_config.sequence_len}, "
 
+    num_malicious_clients = _extract_num_malicious_clients(strategy_config)
     single_string += (
         f"remove: {strategy_config.remove_clients}, "
         f"remove_from: {strategy_config.begin_removing_from_round if strategy_config.remove_clients else 'n/a'}, "
         f"total clients: {strategy_config.num_of_clients}, "
-        f"bad_clients: {strategy_config.num_of_malicious_clients}, "
+        f"bad_clients: {num_malicious_clients}, "
         f"client_epochs: {strategy_config.num_of_client_epochs}, "
         f"batch_size: {strategy_config.batch_size}"
     )

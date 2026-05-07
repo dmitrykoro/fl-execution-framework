@@ -455,19 +455,17 @@ class FederatedSimulation:
             )
         elif aggregation_strategy_keyword == "krum":
             self._aggregation_strategy = KrumBasedRemovalStrategy(
-                num_malicious_clients=self.strategy_config.num_of_malicious_clients,
+                num_malicious_clients=self.strategy_history.total_malicious_clients,
                 num_krum_selections=self.strategy_config.num_krum_selections,
                 **common_kwargs
             )
         elif aggregation_strategy_keyword == "multi-krum-based":
             self._aggregation_strategy = MultiKrumBasedRemovalStrategy(
-                num_of_malicious_clients=self.strategy_config.num_of_malicious_clients,
                 num_krum_selections=self.strategy_config.num_krum_selections,
                 **common_kwargs
             )
         elif aggregation_strategy_keyword == "multi-krum":
             self._aggregation_strategy = MultiKrumStrategy(
-                num_of_malicious_clients=self.strategy_config.num_of_malicious_clients,
                 num_krum_selections=self.strategy_config.num_krum_selections,
                 **common_kwargs
             )
@@ -595,7 +593,6 @@ class FederatedSimulation:
             num_of_client_epochs=self.strategy_config.num_of_client_epochs,
             model_type=self.strategy_config.model_type,
             use_lora=use_lora,
-            num_malicious_clients=self.strategy_config.num_of_malicious_clients,
             attacks_schedule=attacks_schedule,
             save_attack_snapshots=save_attack_snapshots,
             attack_snapshot_format=attack_snapshot_format,
