@@ -322,7 +322,7 @@ class FederatedSimulation:
                 model_name=self.strategy_config.llm_model,
                 chunk_size=self.strategy_config.llm_chunk_size,
                 mlm_probability=self.strategy_config.mlm_probability,
-                num_poisoned_clients=self.strategy_config.num_of_malicious_clients,
+                num_poisoned_clients=self.strategy_config.num_of_malicious_clients if self.strategy_config.attack_type else 0,
                 attack_schedule=self.strategy_config.attack_schedule,
                 **common_kwargs
             )

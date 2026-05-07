@@ -60,12 +60,14 @@ def _get_client_attack_summary(client_id: int, attack_schedule: list) -> str:
 def _extract_num_malicious_clients(strategy_config: StrategyConfig) -> int:
     if strategy_config.num_of_malicious_clients:
         return strategy_config.num_of_malicious_clients
-    else:
+    elif strategy_config.attack_schedule:
         total_malicious_clients = 0
         for entry in strategy_config.attack_schedule:
             if entry["malicious_client_ids"]:
                 total_malicious_clients += len(entry["malicious_client_ids"])
         return total_malicious_clients
+    # If there are no attacks
+    return 0
 
 def _generate_single_string_strategy_label(strategy_config: StrategyConfig) -> str:
     """Generate single-string label for strategy (better to use as legend)"""
