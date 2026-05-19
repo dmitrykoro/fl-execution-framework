@@ -76,7 +76,6 @@ Defines the aggregation strategy. Options:
 
 - `num_of_rounds`: total aggregation rounds.
 - `num_of_clients`: number of clients (limited to available dataset clients).
-- `num_of_malicious_clients`: number of malicious clients (malicious throughout simulation).
 - `show_plots`: show plots during runtime (`true`/`false`).
 - `save_plots`: save plots to `out/` directory (`true`/`false`).
 - `save_csv`: Save metrics as `.csv` files in `out/` directory (`true`/`false`).
@@ -135,7 +134,7 @@ Defines the aggregation strategy. Options:
 
 **For `smores` dataset**
 - `target_name`: predicting next dissolved oxygen concentration in the sequence (DO)
-- `sequence_len`: amount of time series data to provide to model for its forcasting
+- `sequence_len`: amount of time series data to provide to model for its forcasting (default: 12)
 
 #### Strategy-specific parameters
 
@@ -206,7 +205,7 @@ Defines the aggregation strategy. Options:
 
 ## How to Run
 
-1. **Python Environment**: Python 3.10.14 is used in the framework. Before attempting to run the code, make sure the Python 3.10.14 is
+1. **Python Environment**: Python 3.11.9 is used in the framework. Before attempting to run the code, make sure the Python 3.11.9 is
    installed in the system.
 2. **Configuration**: place configurations in `config/simulation_strategies/`.
 3. **Specify Configuration**: update `src/simulation_runner.py` with the desired configuration file.
@@ -229,6 +228,19 @@ Defines the aggregation strategy. Options:
 - **Round-Level Metrics**:
   - `Average loss`: Across participating clients.
   - `Average accuracy`: Across participating clients.
+
+- **`air_quality_uci` Specific Metrics**
+  - `R^2`: How well a client's data is being modeled.
+  - `Average R^2`: Across participating clients.
+
+- **`smores` Specific Metrics**
+  - `MARE`: How accurrate was the continuous prediction?
+  - `Loss baseline`: Loss if predictions made from averaging selection window.
+  - `Mare baseline`: MARE if predictions made from averaging selection window.
+  - `Average MARE`: Across participating clients.
+  - `Average Loss baseline`: Across participating clients.
+  - `Average MARE baseline`: Across participating clients.
+
 
 ---
 
@@ -302,7 +314,7 @@ local client epochs.
 ---
 
 2. We want to see how the `trust`-based mitigation works when we have the different number of malicious clients,
-   and determine if it has any effects on the resulting loss or accuracy. Similarly, `num_of_malicious_clients` is now
+   and determine if it has any effects on the resulting loss or accuracy. Similarly, `num_malicious_clients` in `attack_schedule` is now
    a variable between strategies:
 
 ```json
@@ -315,13 +327,34 @@ local client epochs.
   },
   "simulation_strategies": [
     {
-      "num_of_malicious_clients": 2
+      "attack_schedule": [
+        {
+            "start_round": 1,
+            "end_round": 30,
+            "attack_type": "label_flipping",
+            "num_malicious_clients": 2
+        }
+      ]
     },
     {
-      "num_of_malicious_clients": 4
+      "attack_schedule": [
+        {
+            "start_round": 1,
+            "end_round": 30,
+            "attack_type": "label_flipping",
+            "num_malicious_clients": 4
+        }
+      ]
     },
     {
-      "num_of_malicious_clients": 6
+      "attack_schedule": [
+        {
+            "start_round": 1,
+            "end_round": 30,
+            "attack_type": "label_flipping",
+            "num_malicious_clients": 6
+        }
+      ]
     }
   ]
 }
@@ -335,7 +368,14 @@ local client epochs.
 {
   "shared_settings": {
     "num_of_clients": 20,
-    "num_of_malicious_clients": 2,
+    "attack_schedule": [
+      {
+          "start_round": 1,
+          "end_round": 30,
+          "attack_type": "label_flipping",
+          "num_malicious_clients": 2
+      }
+    ]
     
     // all other settings according to specification
   },
@@ -364,7 +404,14 @@ Since the strategy-specific parameters are not altered between strategies, they 
 {
   "shared_settings": {
     "num_of_clients": 20,
-    "num_of_malicious_clients": 2,
+    "attack_schedule": [
+      {
+          "start_round": 1,
+          "end_round": 30,
+          "attack_type": "label_flipping",
+          "num_malicious_clients": 2
+      }
+    ],
     // the following parameters are specific for trust strategy
     "trust_threshold": 0.15,
     "beta_value": 0.75,

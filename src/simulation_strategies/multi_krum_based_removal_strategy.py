@@ -27,7 +27,6 @@ class MultiKrumBasedRemovalStrategy(Krum):
     def __init__(
             self,
             remove_clients: bool,
-            num_of_malicious_clients: int,
             num_krum_selections: int,
             begin_removing_from_round: int,
             strategy_history: SimulationStrategyHistory,
@@ -41,7 +40,6 @@ class MultiKrumBasedRemovalStrategy(Krum):
         self.client_scores = {}
         self.removed_client_ids = set()
         self.remove_clients = remove_clients
-        self.num_of_malicious_clients = num_of_malicious_clients
         self.num_krum_selections = num_krum_selections
         self.begin_removing_from_round = begin_removing_from_round
         self.current_round = 0
