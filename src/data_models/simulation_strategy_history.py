@@ -167,7 +167,7 @@ class SimulationStrategyHistory:
             - removal_threshold_history: exclusion threshold at each round
 
         Derivative data calculated here (per round):
-            - average_accuracy_history: average accuracy of non-removed benign clients
+            - average_accuracy_history: average accuracy of benign (non-attacking) clients
         """
         for round_num in range(self.strategy_config.num_of_rounds):
             round_tp_count = 0
@@ -202,10 +202,11 @@ class SimulationStrategyHistory:
                     if client_is_malicious and client_was_aggregated:
                         round_fn_count += 1
 
-                if client_was_aggregated:
-                    num_aggregated_clients += 1
+                client_is_attacking_this_round = bool(client_is_malicious)
+                if not client_is_attacking_this_round:
                     accuracy = client_info.accuracy_history[round_num]
                     if accuracy is not None:
+                        num_aggregated_clients += 1
                         sum_aggregated_accuracies += accuracy
                         round_client_accuracies.append(accuracy)
 
