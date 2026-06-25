@@ -183,6 +183,7 @@ class PIDBasedRemovalStrategy(fl.server.strategy.FedAvg):
         aggregated_parameters, aggregated_metrics = super().aggregate_fit(server_round, aggregate_clients, failures)
 
         # clustering
+        time_start_calc = time.time_ns()
         clustering_param_data = []
         for client_proxy, fit_res in results:
             client_params = fl.common.parameters_to_ndarrays(fit_res.parameters)
@@ -200,7 +201,6 @@ class PIDBasedRemovalStrategy(fl.server.strategy.FedAvg):
 
         normalized_distances = distances
 
-        time_start_calc = time.time_ns()
         pids = self.calculate_all_pid_scores(results, normalized_distances)
         time_end_calc = time.time_ns()
 
