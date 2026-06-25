@@ -43,6 +43,7 @@ Defines the aggregation strategy. Options:
   - `fed_nga`: Fed-NGA (Federated Normalized Gradients Algorithm) aggregation strategy. Performs normalization of client gradients before performing global aggregation to improve robustness against Byzantine faults and data heterogeneity. Fed-NGA paper: https://arxiv.org/pdf/2408.09539
   - `freq_fed`: FreqFed aggregation strategy. A frequency analysis-based approach that uses 2-D Discrete Cosine Transform (DCT) to extract low-frequency components of client weight updates and clusters them using HDBSCAN to identify and exclude malicious updates. FreqFed paper: https://www.ndss-symposium.org/ndss-paper/freqfed-a-frequency-analysis-based-approach-for-mitigating-poisoning-attacks-in-federated-learning/
   - `fl_detector`: FLDetector aggregation strategy. Detects malicious clients by predicting each client's expected model update using L-BFGS quasi-Newton approximation and accumulating per-client suspicious scores across rounds. Clients whose score exceeds a z-score threshold are excluded from FedAvg aggregation. FLDetector paper: https://dl.acm.org/doi/10.1145/3534678.3539231
+  - `lqr_fed`: LQR-Fed aggregation strategy. Replaces binary client removal with continuous per-client aggregation weights derived by solving a small Quadratic Program (QP) each round. The QP minimises a cost that penalises assigning weight to clients with high deviation from the global model (Q term) while penalising deviation from uniform weights (R term — control effort). No client is permanently excluded; the weight assignment adapts each round based on the current distance landscape.
 
 
 - **`strict_mode`**: ensures that Flower trains and aggregates all available clients at every round. When enabled (default), automatically sets `min_fit_clients`, `min_evaluate_clients`, and `min_available_clients` to equal `num_of_clients`. Options: `"true"`, `"false"`.
@@ -162,6 +163,11 @@ Defines the aggregation strategy. Options:
 - `fl_detector_history_size`: Number of L-BFGS curvature pairs `(s, y)` retained per client. Paper default: `10`. Higher values improve curvature approximation at the cost of O(n × N × d) memory. Recommended range: `5`–`20`.
 - `fl_detector_z_score_threshold`: Removal threshold in standard deviations above the per-round mean suspicious score. Lower values are more aggressive (higher false-positive risk). Recommended: `1.5`–`2.0` for experiments of 30 rounds or fewer (score distributions become clearly bimodal only around round 60 per the paper); `2.0`–`2.5` for 60+ rounds.
 - `begin_removing_from_round`: Warmup rounds before filtering is active. L-BFGS history still accumulates during warmup. Must be ≥ `1`. Recommended: `7`–`10`.
+
+**For `lqr_fed` strategy**:
+- `lqr_q`: State cost — penalty on assigning aggregation weight to clients with high distance from the reference model. Higher values more aggressively downweight suspicious clients. Start with `1.0` and tune upward if attacks are not suppressed.
+- `lqr_r`: Control cost — penalty on deviating from uniform (equal) weights. Higher values keep the weight distribution closer to standard FedAvg. The ratio `q/r` is the key tuning lever: `q/r >> 1` → strong outlier suppression; `q/r << 1` → near-FedAvg.
+- `begin_removing_from_round`: Warmup rounds before the lagged global model is used as the reference centroid. During warmup the arithmetic mean of client weight vectors is used instead. Recommended: `5`–`10`.
 
 ---
 

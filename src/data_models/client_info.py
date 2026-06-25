@@ -23,6 +23,7 @@ class ClientInfo:
     loss_history: List[Union[float, None]] = None
     accuracy_history: List[Union[float, None]] = None
     aggregation_participation_history: List[Union[int, None]] = None
+    lqr_weight_history: List[Union[float, None]] = None
 
     plottable_metrics = [
         "removal_criterion_history",
@@ -37,6 +38,7 @@ class ClientInfo:
         "loss_history",
         "accuracy_history",
         "aggregation_participation_history",
+        "lqr_weight_history",
     ]
 
     def __post_init__(self):
@@ -84,6 +86,7 @@ class ClientInfo:
         self.loss_history = _init_list()
         self.accuracy_history = _init_list()
         self.aggregation_participation_history = _init_list(value=1)
+        self.lqr_weight_history = _init_list()
 
         _create_attack_plan(self._attack_schedule, self._legacy_attack_type)
 
@@ -131,7 +134,8 @@ class ClientInfo:
             absolute_distance: Optional[float] = None,
             loss: Optional[float] = None,
             accuracy: Optional[float] = None,
-            aggregation_participation: Optional[int] = None
+            aggregation_participation: Optional[int] = None,
+            lqr_weight: Optional[float] = None,
     ) -> None:
         """
         Add client metrics history entry for a new round.
@@ -142,6 +146,7 @@ class ClientInfo:
         :param removal_criterion: calculated score based on which the removal was or was not performed
         :param absolute_distance: to the centroid of all models
         :param aggregation_participation: 1 if client was aggregated, 0 if was not
+        :param lqr_weight: QP-derived aggregation weight assigned by LQR-Fed (0-1)
         """
 
         if removal_criterion is not None:
@@ -154,6 +159,8 @@ class ClientInfo:
             self.accuracy_history[current_round - 1] = self._to_python_number(accuracy)
         if aggregation_participation is not None:
             self.aggregation_participation_history[current_round - 1] = aggregation_participation
+        if lqr_weight is not None:
+            self.lqr_weight_history[current_round - 1] = self._to_python_number(lqr_weight)
 
     def get_metric_by_name(self, metric: str) -> List:
         """Get single plottable or savable metric values by name"""
@@ -172,6 +179,7 @@ class ClientInfo:
             "loss_history": self.loss_history,
             "accuracy_history": self.accuracy_history,
             "aggregation_participation_history": self.aggregation_participation_history,
+            "lqr_weight_history": self.lqr_weight_history,
         }
 
     @classmethod

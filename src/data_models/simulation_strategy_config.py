@@ -62,6 +62,10 @@ class StrategyConfig:
     fl_detector_history_size: int = None          # L-BFGS window N (paper default: 10)
     fl_detector_z_score_threshold: float = None   # removal threshold in σ above mean
 
+    # LQR-Fed parameters
+    lqr_q: float = None   # state cost: penalty on weighting high-distance clients
+    lqr_r: float = None   # control cost: penalty on deviating from uniform weights
+
     strict_mode: bool = None
 
     strategy_number: int = None

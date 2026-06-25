@@ -104,6 +104,7 @@ class SimulationStrategyHistory:
         loss: float = None,
         accuracy: float = None,
         aggregation_participation: int = None,
+        lqr_weight: float = None,
     ) -> None:
         """Insert a history entry for a single client.
 
@@ -117,6 +118,7 @@ class SimulationStrategyHistory:
             self._to_python_number(loss),
             self._to_python_number(accuracy),
             aggregation_participation,
+            self._to_python_number(lqr_weight),
         )
 
     def insert_round_history_entry(
@@ -181,6 +183,14 @@ class SimulationStrategyHistory:
                 client_was_aggregated = (
                     client_info.aggregation_participation_history[round_num] == 1
                 )
+
+                # TP - defense correctly detected malicious client
+                # FP - defense incorrectly flags benign client as malicious
+                # TN - defense correctly accepts benign client update
+                # FN - defense fails to detect update sent by malicious client
+
+                # attack_type IS NULL AND NOT client_is_aggregated AS false_positives,
+                # attack_type IS NOT NULL AND client_is_aggregated AS false_negatives,
 
                 if self.strategy_config.remove_clients:
                     if not client_is_malicious and client_was_aggregated:

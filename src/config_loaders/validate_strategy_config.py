@@ -12,7 +12,7 @@ config_schema = {
             "enum": ["trust", "pid", "pid_scaled", "pid_standardized", "pid_standardized_score_based",
                     "multi-krum", "krum", "multi-krum-based", "trimmed_mean",
                     "rfa", "bulyan", "fools_gold", "pid_v5_stateless_mean_based", "pid_made",
-                    "freq_fed", "fed_nga", "fl_detector"]
+                    "freq_fed", "fed_nga", "fl_detector", "lqr_fed"]
         },
         "strict_mode": {
             "type": "string",
@@ -245,6 +245,16 @@ config_schema = {
             "exclusiveMinimum": 0.0
         },
 
+        # LQR-Fed
+        "lqr_q": {
+            "type": "number",
+            "exclusiveMinimum": 0.0
+        },
+        "lqr_r": {
+            "type": "number",
+            "exclusiveMinimum": 0.0
+        },
+
         # Attack scheduling
         "attack_schedule": {
             "type": "array",
@@ -398,6 +408,12 @@ def _validate_dependent_params(strategy_config: dict) -> None:
             if param not in strategy_config:
                 raise ValidationError(
                     f"Missing parameter '{param}' for fl_detector aggregation"
+                )
+    elif aggregation_strategy_keyword == "lqr_fed":
+        for param in ["lqr_q", "lqr_r", "begin_removing_from_round"]:
+            if param not in strategy_config:
+                raise ValidationError(
+                    f"Missing parameter '{param}' for lqr_fed aggregation"
                 )
 
     if aggregation_strategy_keyword in ("bulyan", "krum", "multi-krum-based", "multi-krum", "rfa", "trimmed_mean", "pid"):
