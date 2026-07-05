@@ -57,6 +57,7 @@ from src.simulation_strategies.fed_nga_strategy import FedNGAStrategy
 from src.simulation_strategies.freq_fed_strategy import FreqFedStrategy
 from src.simulation_strategies.fl_detector_strategy import FLDetectorStrategy
 from src.simulation_strategies.lqr_fed_strategy import LQRFedStrategy
+from src.simulation_strategies.fedavg_strategy import FedAvgStrategy
 
 from src.data_models.simulation_strategy_config import StrategyConfig
 from src.data_models.simulation_strategy_history import SimulationStrategyHistory
@@ -365,7 +366,12 @@ class FederatedSimulation:
             output_dirname=self.directory_handler.dirname
         )
 
-        if aggregation_strategy_keyword == "trust":
+        if aggregation_strategy_keyword == "fedavg":
+            self._aggregation_strategy = FedAvgStrategy(
+                **common_kwargs
+            )
+
+        elif aggregation_strategy_keyword == "trust":
             self._aggregation_strategy = TrustBasedRemovalStrategy(
                 beta_value=self.strategy_config.beta_value,
                 trust_threshold=self.strategy_config.trust_threshold,

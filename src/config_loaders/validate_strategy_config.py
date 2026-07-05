@@ -9,7 +9,7 @@ config_schema = {
         # Common parameters
         "aggregation_strategy_keyword": {
             "type": "string",
-            "enum": ["trust", "pid", "pid_scaled", "pid_standardized", "pid_standardized_score_based",
+            "enum": ["fedavg", "trust", "pid", "pid_scaled", "pid_standardized", "pid_standardized_score_based",
                     "multi-krum", "krum", "multi-krum-based", "trimmed_mean",
                     "rfa", "bulyan", "fools_gold", "pid_v5_stateless_mean_based", "pid_made",
                     "freq_fed", "fed_nga", "fl_detector", "lqr_fed"]
@@ -338,7 +338,12 @@ def _validate_dependent_params(strategy_config: dict) -> None:
 
     aggregation_strategy_keyword = strategy_config["aggregation_strategy_keyword"]
 
-    if aggregation_strategy_keyword == "trust":
+    if aggregation_strategy_keyword == "fedavg":
+        if strategy_config.get("remove_clients") == "true":
+            logging.warning("fedavg: remove_clients forced to false (FedAvg has no removal mechanism)")
+            strategy_config["remove_clients"] = "false"
+
+    elif aggregation_strategy_keyword == "trust":
         trust_specific_parameters = [
             "begin_removing_from_round", "trust_threshold", "beta_value", "num_of_clusters"
         ]
