@@ -33,15 +33,29 @@ class RoundsInfo:
     document_recall_history: List[float] = field(default_factory=list)
     document_f1_history: List[float] = field(default_factory=list)
 
-    plottable_metrics = []
-    barable_metrics = []
-    savable_metrics = []
+    # Aggregate metrics for Regression task datasets (e.g. air_quality_uci)
+    average_r2_history: List[float] = field(default_factory=list) # Aggregated R^2 Value across all clients
+
+    # Aggregate metrics for Time-series forcasting datases (e.g. smores)
+    average_loss_baseline_history: List[float] = field(default_factory=list)
+    average_mare_history: List[float] = field(default_factory=list)
+    average_mare_baseline_history: List[float] = field(default_factory=list)
 
     def __post_init__(self):
         self.plottable_metrics = [
             "score_calculation_time_nanos_history",
             "aggregated_loss_history",
-            "average_accuracy_history",
+        ]
+        self.time_series_plottable_metrics = []
+        if self.simulation_strategy_config.model_type in ["cnn", "transformer"]:
+            self.plottable_metrics += ["average_accuracy_history"]
+        elif self.simulation_strategy_config.model_type in ["linear_regression", "mlp"]:
+            self.plottable_metrics += ["average_r2_history"]
+        elif self.simulation_strategy_config.model_type == "lstm":
+            self.plottable_metrics += ["average_mare_history"]
+            self.time_series_plottable_metrics += ["aggregated_loss_history", "average_loss_baseline_history", "average_mare_history", "average_mare_baseline_history"]
+
+        self.plottable_metrics += [
             "removal_accuracy_history",
             "removal_precision_history",
             "removal_recall_history",
@@ -56,12 +70,15 @@ class RoundsInfo:
             "score_calculation_time_nanos_history",
             "removal_threshold_history",
             "aggregated_loss_history",
-            "average_accuracy_history",
-            "average_accuracy_std_history",
         ]
+        if self.simulation_strategy_config.model_type in ["cnn", "transformer"]:
+            self.savable_metrics += ["average_accuracy_history", "average_accuracy_std_history"]
+        elif self.simulation_strategy_config.model_type in ["linear_regression", "mlp"]:
+            self.savable_metrics += ["average_r2_history"]
+        elif self.simulation_strategy_config.model_type == "lstm":
+            self.savable_metrics += ["average_loss_baseline_history", "average_mare_history", "average_mare_baseline_history"]
 
         self.statsable_metrics = [
-            "average_accuracy_history",
             "tp_history",
             "tn_history",
             "fp_history",
@@ -71,6 +88,8 @@ class RoundsInfo:
             "removal_recall_history",
             "removal_f1_history",
         ]
+        if self.simulation_strategy_config.model_type in ["cnn", "transformer"]:
+            self.statsable_metrics = ["average_accuracy_history",] + self.statsable_metrics
         
         if self.simulation_strategy_config.dataset_keyword == "medmentions":
             self.savable_metrics += [
@@ -87,7 +106,6 @@ class RoundsInfo:
         if self.simulation_strategy_config.remove_clients:
             self.savable_metrics += self.statsable_metrics
 
-
     @staticmethod
     def _to_python_number(value: Any) -> Any:
         """
@@ -96,8 +114,7 @@ class RoundsInfo:
         """
         if isinstance(value, np.generic):
             return value.item()
-        return value    
-
+        return value 
 
     def add_history_entry(
             self,
@@ -157,8 +174,15 @@ class RoundsInfo:
                 )
 
             # recall: tp / (tp + fn)
-            recall = round_tp / (round_tp + round_fn)
-            self.removal_recall_history.append(recall)
+            try:
+                recall = round_tp / (round_tp + round_fn)
+                self.removal_recall_history.append(recall)
+            except ZeroDivisionError:
+                self.removal_recall_history.append(
+                    float("inf")
+                )
+        
+            
 
             # f1: 2 * precision * recall / (precision + recall)
             try:
@@ -210,6 +234,10 @@ class RoundsInfo:
             "aggregated_loss_history": self._sanitize_numeric_value(self.aggregated_loss_history),
             "average_accuracy_history": self._sanitize_numeric_value(self.average_accuracy_history),
             "average_accuracy_std_history": self._sanitize_numeric_value(self.average_accuracy_std_history),
+            "average_r2_history": self._sanitize_numeric_value(self.average_r2_history),
+            "average_loss_baseline_history": self._sanitize_numeric_value(self.average_loss_baseline_history),
+            "average_mare_history": self._sanitize_numeric_value(self.average_mare_history),
+            "average_mare_baseline_history": self._sanitize_numeric_value(self.average_mare_baseline_history),
             "tp_history": self._sanitize_numeric_value(self.tp_history),
             "tn_history": self._sanitize_numeric_value(self.tn_history),
             "fp_history": self._sanitize_numeric_value(self.fp_history),

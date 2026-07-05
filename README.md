@@ -45,7 +45,9 @@ Defines the aggregation strategy. Options:
   - `fl_detector`: FLDetector aggregation strategy. Detects malicious clients by predicting each client's expected model update using L-BFGS quasi-Newton approximation and accumulating per-client suspicious scores across rounds. Clients whose score exceeds a z-score threshold are excluded from FedAvg aggregation. FLDetector paper: https://dl.acm.org/doi/10.1145/3534678.3539231
   - `lqr_fed`: LQR-Fed aggregation strategy. Replaces binary client removal with continuous per-client aggregation weights derived by solving a small Quadratic Program (QP) each round. The QP minimises a cost that penalises assigning weight to clients with high deviation from the global model (Q term) while penalising deviation from uniform weights (R term — control effort). No client is permanently excluded; the weight assignment adapts each round based on the current distance landscape.
   - `fedavg`: Vanilla Federated Averaging (FedAvg) with no Byzantine-robust mechanism. Serves as an undefended baseline. Records the flattening-and-mean computation time as `score_calculation_time` so overhead can be compared against other strategies. `remove_clients` is always forced to `false` regardless of config.
-
+  - `fed_dmc`: FedDMC aggregation strategy. Detects malicious clients by first reducing the dimensionality of model updates using Principal COmponent Analysis (PCA), then separating benign and malicious updates via Binary Tree-Based Clustering with Noise (BTBCN). It maintains an exponentially weighted trust score for each client across rounds using Self-Ensemble Detection Correction (SEDC), excluding clients whose scores fall below a set threshold before performing aggregation. FedDMC paper: https://doi.org/10.1109/TDSC.2024.3372634
+  - `signguard`: SignGuard aggregation strategy. Detects malicious clients by applying two parallel mechanisms: a norm-based filter to remove gradients with anomalous magnitudes, and a sign-based filter that uses Mean-Shift clustering on gradient sign proportions to identify the honest majority. The updates in the trusted intersection are then aggregated using mean aggregation with norm clipping. SignGuard paper: https://doi.org/10.1109/ICDCS54860.2022.00120
+  - `rfcl`: RFCL aggregation strategy. Designed for highly non-IID environments that clusters model updates using PCA and HDBSCAN, filters intra-cluster outliers via Modified Adaptive Federated Averaging (ModiAFA), and performs similarity analysis to aggregate only the most trusted clusters into the global model while using personalized model sharing to quarantine excluded clients. RFCL paper: https://doi.org/10.3233/FAIA230257
 
 - **`strict_mode`**: ensures that Flower trains and aggregates all available clients at every round. When enabled (default), automatically sets `min_fit_clients`, `min_evaluate_clients`, and `min_available_clients` to equal `num_of_clients`. Options: `"true"`, `"false"`.
 
@@ -71,32 +73,34 @@ Defines the aggregation strategy. Options:
   - `organcmnist`: coronal view CT scans of abdominal organs, 11 classes, 40 clients.
   - `organsmnist`: sagittal view CT scans of abdominal organs, 11 classes, 40 clients.
   - `medmentions`: PubMed extracts with NER labels, 10 clients (can manually generate more clients using the script in `src/utils/make_medmentions.py`)
+  - `air_quality_uci`: Hourly responses averages of a gas multisensor device along with gas concentrations references from a certified analyzer, 12 clients, 4 targets for gas concentration prediction. Source: https://doi.org/10.24432/C59K5F
+  - `smores`: Smarter Microbial Observatories for Realtime Experiments datasets for disolved oxygen concentration forcasting introduced at https://github.com/rzv09/smores_proj by Raman Zatsarenko
 
 - `num_of_rounds`: total aggregation rounds.
 - `num_of_clients`: number of clients (limited to available dataset clients).
-- `num_of_malicious_clients`: number of malicious clients (malicious throughout simulation).
 - `show_plots`: show plots during runtime (`true`/`false`).
 - `save_plots`: save plots to `out/` directory (`true`/`false`).
 - `save_csv`: Save metrics as `.csv` files in `out/` directory (`true`/`false`).
 - `preserve_dataset`: save poisoned dataset for verification (`true`/`false`).
 - `training_subset_fraction`: fraction of each client's dataset for training (e.g., `0.9` for 90% training, 10% evaluation).
-- `model_type`: type of model being trained (e.g., `cnn`).
+- `model_type`: type of model being trained (e.g., `cnn`, `linear_regression`, `mlp`, `lstm`).
 
 - **`attack_schedule`**: array of attack configurations for round-based attacks. Each entry requires:
   - `start_round`: when the attack starts (1 to `num_of_rounds`).
   - `end_round`: when the attack ends (1 to `num_of_rounds`).
   - `attack_type`: type of attack. Both categories are configured as `attack_schedule` entries and applied in-memory — no pre-poisoned dataset required:
-    - **Data poisoning** (applied to training data before local training): `label_flipping`, `gaussian_noise`.
+    - **Data poisoning** (applied to training data before local training): `label_flipping`, `gaussian_noise`, `target_flipping`.
     - **Model poisoning** (applied to model weights after local training, before sending to server): `gradient_scaling`.
   - **Attack parameters:**
     - `label_flipping`: no additional parameters required.
     - `gaussian_noise`: `target_noise_snr` (dB, recommended) or `mean`/`std`, plus optional `attack_ratio` (0.0-1.0, defaults to 1.0).
+    - `target_flipping`: `attack_ratio` (0.0-1.0, defaults to 0.1). Flips the target values of a percentage of the data points in a clients dataset. Based on Flip attack described in DOI: 10.1109/PRDC50213.2020.00019
     - `gradient_scaling`: `scale_factor` (number > 0). The local weight update delta `(local - global)` is multiplied by this factor before being sent to the server. A value greater than 1 amplifies the update; a value between 0 and 1 dampens it. For example, `scale_factor: 10.0` makes the malicious client's update 10× larger than its honest counterpart.
+    - `little_is_enough`: applies peturbations to many parameters across a few corrupted clients to control parameter dstribution while bypassing outlier detection. Based on Preventing Convergence Attack descriped in https://doi.org/10.48550/arXiv.1902.06156
   - **Malicious Clients Selection:**
     - `num_malicious_clients`: specify number of malicious clients. Specific clients will be selected randomly.
     - `proportion_malicious_clients`: specify proportion of malicious clients. Specific clients will be selected randomly.
     - `specific_malicious_clients`: specify array of malicious client ids.
-  - **Note:** `preserve_dataset: true` is incompatible with data poisoning attacks (`label_flipping`, `gaussian_noise`) but is allowed alongside `gradient_scaling` since model poisoning does not modify the local dataset.
 
 - `save_attack_snapshots`: save attack snapshots for analysis (`true`/`false`).
 - `attack_snapshot_format`: format for snapshots (`pickle`, `visual`, or `pickle_and_visual`).
@@ -124,6 +128,15 @@ Defines the aggregation strategy. Options:
     - `lora_alpha`: scaling factor for lora updates
     - `lora_dropout`: dropout rate applied during training
     - `lora_target_modules`: list of model layers where lora should be applied
+
+#### Dataset-specific parameters
+
+**For `air_quality_uci` dataset**:
+- `target_name`: gas concentration to predict (CO, C6H6, NOx, or NO2)
+
+**For `smores` dataset**
+- `target_name`: predicting next dissolved oxygen concentration in the sequence (DO)
+- `sequence_len`: amount of time series data to provide to model for its forcasting (default: 12)
 
 #### Strategy-specific parameters
 
@@ -170,11 +183,31 @@ Defines the aggregation strategy. Options:
 - `lqr_r`: Control cost — penalty on deviating from uniform (equal) weights. Higher values keep the weight distribution closer to standard FedAvg. The ratio `q/r` is the key tuning lever: `q/r >> 1` → strong outlier suppression; `q/r << 1` → near-FedAvg.
 - `begin_removing_from_round`: Warmup rounds before the lagged global model is used as the reference centroid. During warmup the arithmetic mean of client weight vectors is used instead. Recommended: `5`–`10`.
 
+**For `fed_dmc` strategy**:
+- `ensemble_alpha`: Controls the weight given to a client's historical trust score versus the current round's detection result in the Self-Ensemble Detection Correction (SEDC) module. Range is [0, 1). (default: 0.5).
+- `num_principal_components`: Number of dimensions retained after applying PCA to the flattened model updates. (default: 5).
+- `min_cluster_size`: Noise threshold used in the BTBCN module. (default: 3).
+- `removal_threshold`: Removal threshold for the SEDC trust score. Clients whose trust score falls strictly below this value are classified as malicious and excluded from aggregation. (default: 0.5).
+- `begin_removing_from_round`: Warmup rounds before filtering is active. SEDC trust scores still are calculated during warmup.
+
+**For `signguard` strategy**:
+- `norm_lower_bound`: Loose lower threshold for the Norm-based Filter (default: 0.1)
+- `norm_upper_bound`: Strict upper threshold for the Norm-based Filter (default: 3.0)
+- `coordinate_subset_ratio`: Fraction of total gradient coordinates randomly sampled to calculate the sign statistics for the Sign-based Clustering (default: 0.1).
+- `bandwidth_quantile`: Quantile used to estimate the bandwidth for the Mean-Shift clustering algorithm and controls the window size for discovering clusters. In non-IID environments, a higher quantile (e.g., 0.6-0.7) prevents the algorithm from breaking honest benign clients into many small clusters (default: 0.3).
+- `begin_removing_from_round`: Warmup rounds before active filtering begins.
+
+**For `rfcl` strategy**:
+- `outlier_detection_sensitivity`: Sensitivity parameter (`ξ`) used in the Modified Adaptive Federated Averaging (ModiAFA) module to control the threshold for intra-cluster cosine similarities outlier detection. Lower values make the outlier detection more aggressive. (Suggested Range: `1.0`-`3.0`; Default: `2.0`)
+- `num_similar_cluster_centers`: The maximum number of clusters (`K`) selected during the Similarity Analysis phase to form the trusted pool (`M_best`) for final global aggregation (Suggested Range: `1`-`5`; Default: `2`)
+- `min_cluster_size`: Parameter used in the HDBSCAN clustering module to dictate the minimum number of clients required to form a valid cluster. (Suggested Range: `2`-`5`; Default: `2`)
+- `begin_removing_from_round`: warmup rounds before filtering is active.
+
 ---
 
 ## How to Run
 
-1. **Python Environment**: Python 3.10.14 is used in the framework. Before attempting to run the code, make sure the Python 3.10.14 is
+1. **Python Environment**: Python 3.11.9 is used in the framework. Before attempting to run the code, make sure the Python 3.11.9 is
    installed in the system.
 2. **Configuration**: place configurations in `config/simulation_strategies/`.
 3. **Specify Configuration**: update `src/simulation_runner.py` with the desired configuration file.
@@ -197,6 +230,19 @@ Defines the aggregation strategy. Options:
 - **Round-Level Metrics**:
   - `Average loss`: Across participating clients.
   - `Average accuracy`: Across participating clients.
+
+- **`air_quality_uci` Specific Metrics**
+  - `R^2`: How well a client's data is being modeled.
+  - `Average R^2`: Across participating clients.
+
+- **`smores` Specific Metrics**
+  - `MARE`: How accurrate was the continuous prediction?
+  - `Loss baseline`: Loss if predictions made from averaging selection window.
+  - `Mare baseline`: MARE if predictions made from averaging selection window.
+  - `Average MARE`: Across participating clients.
+  - `Average Loss baseline`: Across participating clients.
+  - `Average MARE baseline`: Across participating clients.
+
 
 ---
 
@@ -270,7 +316,7 @@ local client epochs.
 ---
 
 2. We want to see how the `trust`-based mitigation works when we have the different number of malicious clients,
-   and determine if it has any effects on the resulting loss or accuracy. Similarly, `num_of_malicious_clients` is now
+   and determine if it has any effects on the resulting loss or accuracy. Similarly, `num_malicious_clients` in `attack_schedule` is now
    a variable between strategies:
 
 ```json
@@ -283,13 +329,34 @@ local client epochs.
   },
   "simulation_strategies": [
     {
-      "num_of_malicious_clients": 2
+      "attack_schedule": [
+        {
+            "start_round": 1,
+            "end_round": 30,
+            "attack_type": "label_flipping",
+            "num_malicious_clients": 2
+        }
+      ]
     },
     {
-      "num_of_malicious_clients": 4
+      "attack_schedule": [
+        {
+            "start_round": 1,
+            "end_round": 30,
+            "attack_type": "label_flipping",
+            "num_malicious_clients": 4
+        }
+      ]
     },
     {
-      "num_of_malicious_clients": 6
+      "attack_schedule": [
+        {
+            "start_round": 1,
+            "end_round": 30,
+            "attack_type": "label_flipping",
+            "num_malicious_clients": 6
+        }
+      ]
     }
   ]
 }
@@ -303,7 +370,14 @@ local client epochs.
 {
   "shared_settings": {
     "num_of_clients": 20,
-    "num_of_malicious_clients": 2,
+    "attack_schedule": [
+      {
+          "start_round": 1,
+          "end_round": 30,
+          "attack_type": "label_flipping",
+          "num_malicious_clients": 2
+      }
+    ]
     
     // all other settings according to specification
   },
@@ -332,7 +406,14 @@ Since the strategy-specific parameters are not altered between strategies, they 
 {
   "shared_settings": {
     "num_of_clients": 20,
-    "num_of_malicious_clients": 2,
+    "attack_schedule": [
+      {
+          "start_round": 1,
+          "end_round": 30,
+          "attack_type": "label_flipping",
+          "num_malicious_clients": 2
+      }
+    ],
     // the following parameters are specific for trust strategy
     "trust_threshold": 0.15,
     "beta_value": 0.75,
@@ -364,4 +445,26 @@ and compare how they affect the simulation outcome.
 
 One limitation is that as of now it is impossible to vary the number of aggregation rounds, so the parameter
 `num_of_rounds` must always be in the `shared_settings` section. 
+
+---
+## Citation
+Researchers who employ InteFL in their work are kindly asked to reference our peer-reviewed article published in IEEE Intelligent Systems:
+
+```bibtex
+@ARTICLE{11366920,
+  author={Korobeinikov, Dmitrii and Zatsarenko, Raman and Chuprov, Sergei and Barea, Arnaldo and Reznik, Leon},
+  journal={IEEE Intelligent Systems}, 
+  title={InteFL Framework: Optimizing Federated Learning with Metacognition for Application Design and Deployment}, 
+  year={2026},
+  volume={},
+  number={},
+  pages={1-10},
+  keywords={Artificial intelligence;Monitoring;Benchmark testing;Metacognition;Adaptation models;Training;Intelligent systems;Hardware;Federated learning;Data models},
+  doi={10.1109/MIS.2026.3658072}}
+```
+
+
+
+
+
 

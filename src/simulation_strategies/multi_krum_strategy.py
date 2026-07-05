@@ -19,6 +19,7 @@ from src.output_handlers.directory_handler import DirectoryHandler
 
 from src.data_models.simulation_strategy_history import SimulationStrategyHistory
 from src.utils.medmentions_strategy_helper import aggregate_strict_medmentions_metrics
+from src.utils.strategy_evaluation_metrics_helper import store_evaluation_metrics
 
 
 
@@ -26,7 +27,6 @@ class MultiKrumStrategy(fl.server.strategy.FedAvg):
     def __init__(
             self,
             remove_clients: bool,
-            num_of_malicious_clients: int,
             num_krum_selections: int,
             begin_removing_from_round: int,
             strategy_history: SimulationStrategyHistory,
@@ -40,7 +40,6 @@ class MultiKrumStrategy(fl.server.strategy.FedAvg):
         self.client_scores = {}
         self.removed_client_ids = set() 
         self.remove_clients = remove_clients
-        self.num_of_malicious_clients = num_of_malicious_clients
         self.num_krum_selections = num_krum_selections
         self.begin_removing_from_round = begin_removing_from_round
         self.current_round = 0
@@ -255,13 +254,13 @@ class MultiKrumStrategy(fl.server.strategy.FedAvg):
 
         for client_result in results:
             cid = client_result[0].cid
-            accuracy_matrix = client_result[1].metrics
-            accuracy_matrix['cid'] = cid
-
-            self.strategy_history.insert_single_client_history_entry(
-                client_id=int(cid),
+            metrics = client_result[1].metrics
+            metrics['cid'] = cid
+            store_evaluation_metrics(
+                clinet_id=int(cid),
                 current_round=self.current_round,
-                accuracy=accuracy_matrix['accuracy']
+                metrics=metrics, 
+                strategy_history=self.strategy_history
             )
 
         if not results:
@@ -278,7 +277,10 @@ class MultiKrumStrategy(fl.server.strategy.FedAvg):
             )
 
             if client_metadata.cid not in self.removed_client_ids:
-                aggregate_value.append((evaluate_res.num_examples, evaluate_res.loss))
+                if self.strategy_history.strategy_config.model_type == "lstm":
+                    aggregate_value.append((evaluate_res.metrics['num_elements'], evaluate_res.loss))
+                else:
+                    aggregate_value.append((evaluate_res.num_examples, evaluate_res.loss))
                 number_of_clients_in_loss_calc += 1
 
         loss_aggregated = weighted_loss_avg(aggregate_value)

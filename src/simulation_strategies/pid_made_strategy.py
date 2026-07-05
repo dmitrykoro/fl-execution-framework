@@ -42,6 +42,7 @@ from scipy.stats import norm as scipy_norm
 
 from src.data_models.simulation_strategy_history import SimulationStrategyHistory
 from src.utils.medmentions_strategy_helper import aggregate_strict_medmentions_metrics
+from src.utils.strategy_evaluation_metrics_helper import store_evaluation_metrics
 
 
 class PIDMADEStrategy(fl.server.strategy.FedAvg):
@@ -153,18 +154,19 @@ class PIDMADEStrategy(fl.server.strategy.FedAvg):
         Spec:
             c ← MEAN(vectors)
             for _ in 1..max_iter:
-                dists   ← [max(||v - c||₂, tol) for v in vectors]
-                weights ← [1/d / sum(1/d) for d in dists]
-                c_new   ← sum(w * v for w, v in zip(weights, vectors))
+                dists   ← max(||mat - c||₂ axis=1, tol)   # vectorized over all clients
+                weights ← (1/dists) / sum(1/dists)
+                c_new   ← weighted average of mat rows  # np.average, single C-level op
                 if ||c_new - c||₂ < tol: break
                 c ← c_new
             return c
         """
-        c = np.mean(vectors, axis=0)
+        mat = np.array(vectors)            # (n, d)
+        c = np.mean(mat, axis=0)
         for _ in range(max_iter):
-            dists = np.array([max(float(np.linalg.norm(v - c)), tol) for v in vectors])
+            dists = np.maximum(np.linalg.norm(mat - c, axis=1), tol)  # (n,) vectorized
             weights = (1.0 / dists) / np.sum(1.0 / dists)
-            c_new = np.sum(w * v for w, v in zip(weights, vectors))
+            c_new = np.average(mat, axis=0, weights=weights)           # single C-level op
             if np.linalg.norm(c_new - c) < tol:
                 break
             c = c_new
@@ -352,12 +354,13 @@ class PIDMADEStrategy(fl.server.strategy.FedAvg):
 
         for client_result in results:
             cid = client_result[0].cid
-            accuracy_matrix = client_result[1].metrics
-            accuracy_matrix['cid'] = cid
-            self.strategy_history.insert_single_client_history_entry(
-                client_id=int(cid),
+            metrics = client_result[1].metrics
+            metrics['cid'] = cid
+            store_evaluation_metrics(
+                clinet_id=int(cid),
                 current_round=self.current_round,
-                accuracy=accuracy_matrix['accuracy'],
+                metrics=metrics, 
+                strategy_history=self.strategy_history
             )
 
         if not results:
@@ -373,7 +376,10 @@ class PIDMADEStrategy(fl.server.strategy.FedAvg):
                 loss=evaluate_res.loss,
             )
             if client_metadata.cid not in self.removed_client_ids:
-                aggregate_value.append((evaluate_res.num_examples, evaluate_res.loss))
+                if self.strategy_history.strategy_config.model_type == "lstm":
+                    aggregate_value.append((evaluate_res.metrics['num_elements'], evaluate_res.loss))
+                else:
+                    aggregate_value.append((evaluate_res.num_examples, evaluate_res.loss))
                 number_of_clients_in_loss_calc += 1
 
         loss_aggregated = weighted_loss_avg(aggregate_value)

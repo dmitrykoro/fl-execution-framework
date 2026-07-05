@@ -96,6 +96,7 @@ from flwr.server.strategy.aggregate import weighted_loss_avg
 
 from src.data_models.simulation_strategy_history import SimulationStrategyHistory
 from src.utils.medmentions_strategy_helper import aggregate_strict_medmentions_metrics
+from src.utils.strategy_evaluation_metrics_helper import store_evaluation_metrics
 
 
 class FLDetectorStrategy(fl.server.strategy.FedAvg):
@@ -459,10 +460,11 @@ class FLDetectorStrategy(fl.server.strategy.FedAvg):
         for client_result in results:
             cid = client_result[0].cid
             metrics = client_result[1].metrics
-            self.strategy_history.insert_single_client_history_entry(
-                client_id=int(cid),
+            store_evaluation_metrics(
+                clinet_id=int(cid),
                 current_round=self.current_round,
-                accuracy=float(metrics.get('accuracy', 0.0)),
+                metrics=metrics, 
+                strategy_history=self.strategy_history
             )
 
         if not results:
@@ -478,7 +480,10 @@ class FLDetectorStrategy(fl.server.strategy.FedAvg):
                 loss=evaluate_res.loss,
             )
             if client_metadata.cid not in self.removed_client_ids:
-                aggregate_value.append((evaluate_res.num_examples, evaluate_res.loss))
+                if self.strategy_history.strategy_config.model_type == "lstm":
+                    aggregate_value.append((evaluate_res.metrics['num_elements'], evaluate_res.loss))
+                else:
+                    aggregate_value.append((evaluate_res.num_examples, evaluate_res.loss))
                 num_aggregated += 1
 
         loss_aggregated = weighted_loss_avg(aggregate_value)

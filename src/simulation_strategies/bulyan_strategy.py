@@ -23,6 +23,7 @@ from flwr.server.strategy.aggregate import weighted_loss_avg
 from src.output_handlers.directory_handler import DirectoryHandler
 from src.data_models.simulation_strategy_history import SimulationStrategyHistory
 from src.utils.medmentions_strategy_helper import aggregate_strict_medmentions_metrics
+from src.utils.strategy_evaluation_metrics_helper import store_evaluation_metrics
 
 
 class BulyanStrategy(fl.server.strategy.FedAvg):
@@ -238,12 +239,13 @@ class BulyanStrategy(fl.server.strategy.FedAvg):
 
         for cp, ev in results:
             cid = cp.cid
-            acc_metrics = dict(ev.metrics)
-            acc_metrics["cid"] = cid
-            self.strategy_history.insert_single_client_history_entry(
-                client_id=int(cid),
+            metrics = dict(ev.metrics)
+            metrics["cid"] = cid
+            store_evaluation_metrics(
+                clinet_id=int(cid),
                 current_round=self.current_round,
-                accuracy=acc_metrics.get("accuracy"),
+                metrics=metrics, 
+                strategy_history=self.strategy_history
             )
 
         if not results:
@@ -255,7 +257,10 @@ class BulyanStrategy(fl.server.strategy.FedAvg):
                 client_id=int(cp.cid), current_round=self.current_round, loss=ev.loss
             )
             if cp.cid not in self.removed_client_ids:
-                aggregate_value.append((ev.num_examples, ev.loss))
+                if self.strategy_history.strategy_config.model_type == "lstm":
+                    aggregate_value.append((ev.metrics['num_elements'], ev.loss))
+                else:
+                    aggregate_value.append((ev.num_examples, ev.loss))
                 num_clients_loss += 1
 
         loss_aggregated = weighted_loss_avg(aggregate_value)
