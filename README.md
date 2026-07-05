@@ -182,6 +182,7 @@ Defines the aggregation strategy. Options:
 - `lqr_q`: State cost — penalty on assigning aggregation weight to clients with high distance from the reference model. Higher values more aggressively downweight suspicious clients. Start with `1.0` and tune upward if attacks are not suppressed.
 - `lqr_r`: Control cost — penalty on deviating from uniform (equal) weights. Higher values keep the weight distribution closer to standard FedAvg. The ratio `q/r` is the key tuning lever: `q/r >> 1` → strong outlier suppression; `q/r << 1` → near-FedAvg.
 - `begin_removing_from_round`: Warmup rounds before the lagged global model is used as the reference centroid. During warmup the arithmetic mean of client weight vectors is used instead. Recommended: `5`–`10`.
+- `normalize_distances` *(optional, default `false`)*: When `true`, each client's L2 distance is divided by the round-wise mean distance before solving the QP. This makes the effective `q/r` sensitivity invariant to the absolute drift scale — useful when comparing across different numbers of local epochs or IID/non-IID settings without re-tuning `lqr_q`/`lqr_r`. With `false` (default), the raw distances are used and `q/r` may need adjustment if the training configuration changes.
 
 **For `fed_dmc` strategy**:
 - `ensemble_alpha`: Controls the weight given to a client's historical trust score versus the current round's detection result in the Self-Ensemble Detection Correction (SEDC) module. Range is [0, 1). (default: 0.5).

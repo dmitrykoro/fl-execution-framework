@@ -69,8 +69,9 @@ class StrategyConfig:
     fl_detector_z_score_threshold: float = None   # removal threshold in σ above mean
 
     # LQR-Fed parameters
-    lqr_q: float = None   # state cost: penalty on weighting high-distance clients
-    lqr_r: float = None   # control cost: penalty on deviating from uniform weights
+    lqr_q: float = None             # state cost: penalty on weighting high-distance clients
+    lqr_r: float = None             # control cost: penalty on deviating from uniform weights
+    normalize_distances: bool = None  # divide distances by round-wise mean before QP
 
     # FedDMC parameters (TDSC 2024)
     ensemble_alpha: float = None                # trust score weight for SEDC module (default: 0.5)

@@ -545,6 +545,7 @@ class FederatedSimulation:
             self._aggregation_strategy = LQRFedStrategy(
                 lqr_q=self.strategy_config.lqr_q,
                 lqr_r=self.strategy_config.lqr_r,
+                normalize_distances=bool(self.strategy_config.normalize_distances),
                 **common_kwargs
             )
 

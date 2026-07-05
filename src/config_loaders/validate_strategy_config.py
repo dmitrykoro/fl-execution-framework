@@ -338,6 +338,10 @@ config_schema = {
             "type": "number",
             "exclusiveMinimum": 0.0
         },
+        "normalize_distances": {
+            "type": "string",
+            "enum": ["true", "false"]
+        },
 
         # Attack scheduling
         "attack_schedule": {
