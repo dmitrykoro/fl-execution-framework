@@ -42,13 +42,13 @@ class RoundsInfo:
             "score_calculation_time_nanos_history",
             "aggregated_loss_history",
             "average_accuracy_history",
-        ]
-
-        self.barable_metrics = [
             "removal_accuracy_history",
             "removal_precision_history",
             "removal_recall_history",
             "removal_f1_history",
+        ]
+
+        self.barable_metrics = [
             "total_fp_and_fn_history",
         ]
 
