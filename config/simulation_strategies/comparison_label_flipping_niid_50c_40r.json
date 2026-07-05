@@ -1,0 +1,50 @@
+{
+  "shared_settings": {
+    "strict_mode": "true",
+    "dataset_keyword": "femnist_niid",
+    "use_llm": "false",
+    "model_type": "cnn",
+    "num_of_rounds": 40,
+    "num_of_clients": 12,
+    "min_fit_clients": 12,
+    "min_evaluate_clients": 12,
+    "min_available_clients": 12,
+    "training_device": "cpu",
+    "cpus_per_client": 1,
+    "gpus_per_client": 0.0,
+    "num_of_client_epochs": 1,
+    "batch_size": 32,
+    "training_subset_fraction": 0.9,
+    "preserve_dataset": "false",
+    "show_plots": "false",
+    "save_plots": "true",
+    "save_csv": "true",
+    "evaluate_metrics_aggregation_fn": "weighted_average",
+    "remove_clients": "true",
+    "begin_removing_from_round": 7,
+    "Kp": 1.0,
+    "Ki": 0.5,
+    "Kd": 0.1,
+    "num_std_dev": 2.33,
+    "attack_schedule": [
+      {
+        "attack_type": "label_flipping",
+        "start_round": 1,
+        "end_round": 40,
+        "specific_malicious_clients": [0, 1]
+      }
+    ]
+  },
+  "simulation_strategies": [
+    { "aggregation_strategy_keyword": "pid" },
+    { "aggregation_strategy_keyword": "pid_standardized_score_based" },
+    { "aggregation_strategy_keyword": "pid_v5_stateless_mean_based" },
+    {
+      "aggregation_strategy_keyword": "pid_made",
+      "lam": 0.9,
+      "threshold_mode": "gaussian",
+      "alpha": 0.0099
+    },
+    { "aggregation_strategy_keyword": "rfa" }
+  ]
+}

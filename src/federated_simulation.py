@@ -14,6 +14,10 @@ from src.attack_utils.snapshot_html_reports import generate_snapshot_index, gene
 from src.dataset_loaders.image_dataset_loader import ImageDatasetLoader
 from src.dataset_loaders.image_transformers.its_image_transformer import its_image_transformer
 from src.dataset_loaders.image_transformers.femnist_image_transformer import femnist_image_transformer
+from src.dataset_loaders.image_transformers.cifar100_image_transformer import cifar100_image_transformer
+from src.dataset_loaders.image_transformers.cifar10_image_transformer import cifar10_image_transformer
+from src.dataset_loaders.cifar100_dataset_loader import Cifar100DatasetLoader
+from src.dataset_loaders.cifar10_dataset_loader import Cifar10DatasetLoader
 from src.dataset_loaders.image_transformers.flair_image_transformer import flair_image_transformer
 from src.dataset_loaders.image_transformers.lung_photos_image_transformer import lung_cancer_image_transformer
 from src.dataset_loaders.medquad_dataset_loader import MedQuADDatasetLoader
@@ -21,6 +25,8 @@ from src.dataset_loaders.medmentions_dataset_loader import MedMentionsNERDataset
 from src.network_models.gpt2_model_definition import load_gpt2_ner_model, load_gpt2_ner_with_lora
 from src.dataset_loaders.image_transformers.medmnist_2d_grayscale_image_transformer import medmnist_2d_grayscale_image_transformer
 from src.dataset_loaders.image_transformers.medmnist_2d_rgb_image_transformer import medmnist_2d_rgb_image_transformer
+from src.dataset_loaders.air_quality_uci_dataset_loader import AirQualityUCIDatasetLoader
+from src.dataset_loaders.smores_data_loader import SmoresDatasetLoader
 
 
 from src.network_models.its_network_definition import ITSNetwork
@@ -39,7 +45,12 @@ from src.network_models.tissuemnist_network_definition import TissueMNISTNetwork
 from src.network_models.organamnist_network_definition import OrganAMNISTNetwork
 from src.network_models.organcmnist_network_definition import OrganCMNISTNetwork
 from src.network_models.organsmnist_network_definition import OrganSMNISTNetwork
+from src.network_models.cifar100_network_definition import Cifar100Network
+from src.network_models.cifar10_network_definition import Cifar10Network
 from src.network_models.bert_model_definition import load_model, load_model_with_lora
+from src.network_models.linear_regression_model_definition import LinearRegressionModel
+from src.network_models.mlp_network_definition import MLPNetwork
+from src.network_models.lstm_model_definition import LSTMModel
 
 from src.client_models.flower_client import FlowerClient
 
@@ -56,11 +67,16 @@ from src.simulation_strategies.pid_made_strategy import PIDMADEStrategy
 from src.simulation_strategies.fed_nga_strategy import FedNGAStrategy
 from src.simulation_strategies.freq_fed_strategy import FreqFedStrategy
 from src.simulation_strategies.fl_detector_strategy import FLDetectorStrategy
+from src.simulation_strategies.fed_dmc_strategy import FedDMCStrategy
+from src.simulation_strategies.signguard_strategy import SignGuardStrategy
+from src.simulation_strategies.rfcl_strategy import RFCLStrategy
 
 from src.data_models.simulation_strategy_config import StrategyConfig
 from src.data_models.simulation_strategy_history import SimulationStrategyHistory
 
 from src.dataset_handlers.dataset_handler import DatasetHandler
+
+from src.attack_utils.little_is_enough_attack import LittleIsEnoughAttack
 
 
 def weighted_average(metrics: List[Tuple[int, dict]]) -> dict:
@@ -280,6 +296,20 @@ class FederatedSimulation:
             )
             self._network_model = OrganSMNISTNetwork()
 
+        elif dataset_keyword in ("cifar100_a01", "cifar100_a05", "cifar100_a20"):
+            dataset_loader = Cifar100DatasetLoader(
+                transformer=cifar100_image_transformer,
+                **common_kwargs
+            )
+            self._network_model = Cifar100Network()
+
+        elif dataset_keyword in ("cifar10_a01", "cifar10_a05", "cifar10_a20"):
+            dataset_loader = Cifar10DatasetLoader(
+                transformer=cifar10_image_transformer,
+                **common_kwargs
+            )
+            self._network_model = Cifar10Network()
+
         elif dataset_keyword == "lung_photos":
             dataset_loader = ImageDatasetLoader(
                 transformer=lung_cancer_image_transformer,
@@ -292,7 +322,7 @@ class FederatedSimulation:
                 model_name=self.strategy_config.llm_model,
                 chunk_size=self.strategy_config.llm_chunk_size,
                 mlm_probability=self.strategy_config.mlm_probability,
-                num_poisoned_clients=self.strategy_config.num_of_malicious_clients,
+                num_poisoned_clients=self.strategy_config.num_of_malicious_clients if self.strategy_config.attack_type else 0,
                 attack_schedule=self.strategy_config.attack_schedule,
                 **common_kwargs
             )
@@ -335,6 +365,23 @@ class FederatedSimulation:
                     id2label=id2label,
                     label2id=label2id,
                 )
+
+        elif dataset_keyword == "air_quality_uci":
+            dataset_loader = AirQualityUCIDatasetLoader(
+                target_name=self.strategy_config.target_name,
+                **common_kwargs
+            )
+            if self.strategy_config.model_type == "mlp":
+                self._network_model = MLPNetwork()
+            else:
+                self._network_model = LinearRegressionModel()
+
+        elif dataset_keyword == "smores":
+            dataset_loader = SmoresDatasetLoader(
+                sequence_len=self.strategy_config.sequence_len,
+                **common_kwargs
+            )
+            self._network_model = LSTMModel()
 
         else:
             logging.error(
@@ -408,19 +455,17 @@ class FederatedSimulation:
             )
         elif aggregation_strategy_keyword == "krum":
             self._aggregation_strategy = KrumBasedRemovalStrategy(
-                num_malicious_clients=self.strategy_config.num_of_malicious_clients,
+                num_malicious_clients=self.strategy_history.total_malicious_clients,
                 num_krum_selections=self.strategy_config.num_krum_selections,
                 **common_kwargs
             )
         elif aggregation_strategy_keyword == "multi-krum-based":
             self._aggregation_strategy = MultiKrumBasedRemovalStrategy(
-                num_of_malicious_clients=self.strategy_config.num_of_malicious_clients,
                 num_krum_selections=self.strategy_config.num_krum_selections,
                 **common_kwargs
             )
         elif aggregation_strategy_keyword == "multi-krum":
             self._aggregation_strategy = MultiKrumStrategy(
-                num_of_malicious_clients=self.strategy_config.num_of_malicious_clients,
                 num_krum_selections=self.strategy_config.num_krum_selections,
                 **common_kwargs
             )
@@ -462,9 +507,44 @@ class FederatedSimulation:
                 z_score_threshold=self.strategy_config.fl_detector_z_score_threshold,
                 **common_kwargs
             )
+            
+        elif aggregation_strategy_keyword == "fed_dmc":
+            self._aggregation_strategy = FedDMCStrategy(
+                ensemble_alpha = self.strategy_config.ensemble_alpha or 0.5,
+                num_principal_components = self.strategy_config.num_principal_components or 5,
+                min_cluster_size = self.strategy_config.min_cluster_size or 3,
+                threshold = self.strategy_config.removal_threshold or 0.5,
+                **common_kwargs
+            )
+
+        elif aggregation_strategy_keyword == "signguard":
+            self._aggregation_strategy = SignGuardStrategy(
+                norm_lower_bound=self.strategy_config.norm_lower_bound or 0.1,
+                norm_upper_bound=self.strategy_config.norm_upper_bound or 3.0,
+                coordinate_subset_ratio=self.strategy_config.coordinate_subset_ratio or 0.1,
+                bandwidth_quantile=self.strategy_config.bandwidth_quantile or 0.3,
+                **common_kwargs
+            )
+
+        elif aggregation_strategy_keyword == "rfcl":
+            self._aggregation_strategy = RFCLStrategy(
+                outlier_detection_sensitivity=self.strategy_config.outlier_detection_sensitivity or 2.0,
+                num_similar_cluster_centers=self.strategy_config.num_similar_cluster_centers or 2,
+                min_cluster_size=self.strategy_config.min_cluster_size or 2,
+                **common_kwargs
+            )
 
         else:
             raise NotImplementedError(f"The strategy {aggregation_strategy_keyword} not implemented!")
+        
+        use_median_control_attack = False
+        if self.strategy_config.attack_type is not None:
+            use_median_control_attack = LittleIsEnoughAttack.check_for_attack(self.strategy_config.attack_type)
+        elif self.strategy_config.attack_schedule is not None:
+            use_median_control_attack = LittleIsEnoughAttack.check_for_attack(self.strategy_config.attack_schedule)
+
+        if use_median_control_attack and self._aggregation_strategy is not None:
+            self._aggregation_strategy = LittleIsEnoughAttack(self._aggregation_strategy, **common_kwargs)
 
     def client_fn(self, cid: str) -> Client:
         """Create a Flower client."""
@@ -513,7 +593,6 @@ class FederatedSimulation:
             num_of_client_epochs=self.strategy_config.num_of_client_epochs,
             model_type=self.strategy_config.model_type,
             use_lora=use_lora,
-            num_malicious_clients=self.strategy_config.num_of_malicious_clients,
             attacks_schedule=attacks_schedule,
             save_attack_snapshots=save_attack_snapshots,
             attack_snapshot_format=attack_snapshot_format,
@@ -522,6 +601,8 @@ class FederatedSimulation:
             experiment_info=experiment_info,
             strategy_number=self.strategy_config.strategy_number,
             tokenizer=tokenizer,
+            target_name=self.strategy_config.target_name,
+            sequence_len=self.strategy_config.sequence_len,
             strategy_history=self.strategy_history
         ).to_client()
 
