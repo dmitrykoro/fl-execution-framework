@@ -41,10 +41,15 @@ from flwr.common import (
 )
 from flwr.server.client_proxy import ClientProxy
 from flwr.server.strategy.aggregate import weighted_loss_avg
-from scipy.optimize import minimize
 
 from src.data_models.simulation_strategy_history import SimulationStrategyHistory
 from src.utils.medmentions_strategy_helper import aggregate_strict_medmentions_metrics
+from src.simulation_strategies.lqr_fed_scoring import (
+    flatten_weights,
+    compute_distances,
+    solve_lqr_qp,
+    weighted_aggregate,
+)
 
 
 class LQRFedStrategy(fl.server.strategy.FedAvg):
@@ -67,6 +72,14 @@ class LQRFedStrategy(fl.server.strategy.FedAvg):
         Framework-level flag. LQR-Fed never hard-excludes clients, but when
         True the aggregation_participation is logged as 0 for any client
         whose QP weight rounds to 0 (i.e. below 1e-6).
+    normalize_distances : bool
+        When False (default, keyword ``lqr_fed``): raw L2 distances are fed
+        to the QP, so q/r must be tuned per training regime.
+        When True (keyword ``lqr_fed_norm_dist``): distances are divided by
+        their round-wise mean before solving the QP.  This makes the
+        effective q/r sensitivity invariant to local epoch count and data
+        heterogeneity — a client twice as far as average always gets the
+        same suppression regardless of absolute drift scale.
     strategy_history : SimulationStrategyHistory
         Shared history object for metric recording.
     """
@@ -79,6 +92,7 @@ class LQRFedStrategy(fl.server.strategy.FedAvg):
         remove_clients: bool,
         strategy_history: SimulationStrategyHistory,
         output_dirname: str,
+        normalize_distances: bool = False,
         *args,
         **kwargs,
     ):
@@ -88,6 +102,7 @@ class LQRFedStrategy(fl.server.strategy.FedAvg):
         self.lqr_r = lqr_r
         self.t_warmup = begin_removing_from_round
         self.remove_clients = remove_clients
+        self.normalize_distances = normalize_distances
         self.strategy_history = strategy_history
 
         self.current_round: int = 0
@@ -99,69 +114,6 @@ class LQRFedStrategy(fl.server.strategy.FedAvg):
         self.logger.addHandler(logging.FileHandler(f"{output_dirname}/output.log"))
         self.logger.addHandler(logging.StreamHandler())
         self.logger.propagate = False
-
-    # ------------------------------------------------------------------
-    # Internal helpers
-    # ------------------------------------------------------------------
-
-    @staticmethod
-    def _flatten(weights: List[np.ndarray]) -> np.ndarray:
-        return np.concatenate([w.flatten().astype(np.float64) for w in weights])
-
-    def _solve_qp(self, distances: np.ndarray) -> np.ndarray:
-        """
-        Solve the LQR-inspired QP for per-client aggregation weights.
-
-        Objective: Σᵢ [ q·dᵢ²·wᵢ + r·(wᵢ − 1/N)² ]
-
-        The strictly convex QP is solved with scipy SLSQP.  The problem is
-        always feasible (uniform weights satisfy all constraints), so
-        convergence is reliable.
-        """
-        N = len(distances)
-        q, r = self.lqr_q, self.lqr_r
-        d_sq = distances ** 2
-        uniform = 1.0 / N
-
-        def objective(w: np.ndarray) -> float:
-            return float(np.sum(q * d_sq * w) + r * np.sum((w - uniform) ** 2))
-
-        def gradient(w: np.ndarray) -> np.ndarray:
-            return q * d_sq + 2.0 * r * (w - uniform)
-
-        result = minimize(
-            objective,
-            x0=np.full(N, uniform),
-            jac=gradient,
-            method="SLSQP",
-            bounds=[(0.0, 1.0)] * N,
-            constraints={"type": "eq", "fun": lambda w: np.sum(w) - 1.0},
-            options={"ftol": 1e-9, "maxiter": 1000},
-        )
-
-        weights = np.clip(result.x, 0.0, 1.0)
-        # Re-normalise to correct any floating-point drift from clipping
-        total = weights.sum()
-        if total > 0:
-            weights /= total
-        else:
-            weights = np.full(N, uniform)
-
-        return weights
-
-    @staticmethod
-    def _weighted_aggregate(
-        weight_lists: List[List[np.ndarray]],
-        qp_weights: np.ndarray,
-    ) -> List[np.ndarray]:
-        """Layer-wise weighted average using QP weights."""
-        num_layers = len(weight_lists[0])
-        aggregated = []
-        for layer_idx in range(num_layers):
-            stacked = np.stack([wl[layer_idx] for wl in weight_lists], axis=0)
-            layer = np.tensordot(qp_weights, stacked, axes=(0, 0))
-            aggregated.append(layer)
-        return aggregated
 
     # ------------------------------------------------------------------
     # Flower hooks
@@ -203,7 +155,7 @@ class LQRFedStrategy(fl.server.strategy.FedAvg):
             wl = parameters_to_ndarrays(fit_res.parameters)
             client_ids.append(client_proxy.cid)
             weight_lists.append(wl)
-            flat_weights.append(self._flatten(wl))
+            flat_weights.append(flatten_weights(wl))
 
         # ── Reference centroid ────────────────────────────────────────────
         in_warmup = self.t_warmup is not None and self.current_round <= self.t_warmup
@@ -211,16 +163,14 @@ class LQRFedStrategy(fl.server.strategy.FedAvg):
             ref = np.mean(flat_weights, axis=0)
             ref_label = "arithmetic_mean"
         else:
-            ref = self._flatten(self.current_global_weights)
+            ref = flatten_weights(self.current_global_weights)
             ref_label = "lagged_global"
 
-        # ── L2 distances ─────────────────────────────────────────────────
-        distances = np.array([
-            float(np.linalg.norm(fw - ref)) for fw in flat_weights
-        ])
+        # ── L2 distances (optionally mean-normalised) ─────────────────────
+        distances = compute_distances(flat_weights, ref, normalize=self.normalize_distances)
 
         # ── Solve QP ─────────────────────────────────────────────────────
-        qp_weights = self._solve_qp(distances)
+        qp_weights = solve_lqr_qp(distances, self.lqr_q, self.lqr_r)
 
         time_end = time.time_ns()
 
@@ -254,13 +204,14 @@ class LQRFedStrategy(fl.server.strategy.FedAvg):
                 f"d={d_i:.4f} | w={w_i:.4f} | ref={ref_label}"
             )
 
+        norm_tag = " norm_dist=True" if self.normalize_distances else ""
         self.logger.info(
             f"Round {server_round}: QP weights={np.round(qp_weights, 4).tolist()} "
-            f"(sum={qp_weights.sum():.6f}, ref={ref_label})"
+            f"(sum={qp_weights.sum():.6f}, ref={ref_label}{norm_tag})"
         )
 
         # ── Weighted aggregate ────────────────────────────────────────────
-        aggregated = self._weighted_aggregate(weight_lists, qp_weights)
+        aggregated = weighted_aggregate(weight_lists, qp_weights)
         return ndarrays_to_parameters(aggregated), {}
 
     def aggregate_evaluate(

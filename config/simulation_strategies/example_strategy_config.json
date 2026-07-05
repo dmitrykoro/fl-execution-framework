@@ -30,7 +30,7 @@
   ],
   "shared_settings": {
     "strict_mode": "true",
-    "dataset_keyword": "femnist_iid",
+    "dataset_keyword": "femnist_niid",
     "use_llm": "false",
     "model_type": "cnn",
     "num_of_rounds": 30,
@@ -41,7 +41,7 @@
     "training_device": "cpu",
     "cpus_per_client": 1,
     "gpus_per_client": 0.0,
-    "num_of_client_epochs": 1,
+    "num_of_client_epochs": 2,
     "batch_size": 32,
     "training_subset_fraction": 0.9,
     "preserve_dataset": "false",
@@ -51,7 +51,7 @@
     "evaluate_metrics_aggregation_fn": "weighted_average",
     "begin_removing_from_round": 5,
     "lqr_q": 1.0,
-    "lqr_r": 0.1,
+    "lqr_r": 1.7,
     "Kp": 1,
     "Ki": 0.5,
     "Kd": 0.05,
@@ -67,7 +67,7 @@
   },
   "simulation_strategies": [
     {
-      "aggregation_strategy_keyword": "pid",
+      "aggregation_strategy_keyword": "fedavg",
       "remove_clients": "false"
     },
     {
