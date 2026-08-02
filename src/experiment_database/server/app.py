@@ -690,8 +690,12 @@ async def homepage(request: web.Request) -> web.Response:
                 cfg = last_exp.executed_config  # relationship
                 last_dataset = cfg.dataset_keyword if cfg else None
                 author = last_exp.author
-                full_author_name = author.full_author_name
-                last_author = f"{full_author_name[:3]}*** ***{full_author_name[-3:]}"
+
+                if not author:  # a person did not fill out name and email when running the framework
+                    last_author = "Anonymous"
+                else:
+                    full_author_name = author.full_author_name
+                    last_author = f"{full_author_name[:3]}*** ***{full_author_name[-3:]}"
 
                 dt = last_exp.created_at
                 if dt.tzinfo is None:
