@@ -277,7 +277,13 @@ class PIDBasedRemovalStrategy(fl.server.strategy.FedAvg):
 
             else:
                 # remove clients with PID higher than threshold.
+                # Guard against a not-yet-initialised threshold: under the
+                # Little-Is-Enough wrapper configure_fit can be reached before
+                # aggregate_fit has computed the first threshold, leaving it
+                # None. No threshold means no basis for removal this round.
                 for client_id, pid in client_pids.items():
+                    if self.current_threshold is None:
+                        continue
                     if pid > self.current_threshold and client_id not in self.removed_client_ids:
                         self.logger.info(f"Removing client with PID greater than Threshold: {client_id}")
                         # add this client to the removed_clients list
