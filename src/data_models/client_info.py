@@ -258,6 +258,7 @@ class ClientInfo:
         return {
             "model_type": self.model_type,
             "client_id": self.client_id,
+            "model_type": self.model_type,
             "num_of_rounds": self.num_of_rounds,
             "is_malicious": self.is_malicious,
             "attack_plan_keywords": self.attack_plan_keywords,

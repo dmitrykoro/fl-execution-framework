@@ -164,7 +164,9 @@ def persist_round_metrics(
             session.flush()
             metric_info_map[metric_name] = mi
 
-        values = getattr(rounds_info, metric_name)
+        values = getattr(rounds_info, metric_name, None)
+        if values is None:
+            continue
 
         for round_number, value in enumerate(values, start=1):
             session.add(
@@ -198,7 +200,9 @@ def persist_client_round_metrics(
                 session.flush()
                 metric_info_map[metric_name] = mi
 
-            values = getattr(client, metric_name)
+            values = getattr(client, metric_name, None)
+            if values is None:
+                continue
 
             for round_number, value in enumerate(values, start=1):
                 session.add(

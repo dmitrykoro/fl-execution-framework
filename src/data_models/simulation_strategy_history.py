@@ -204,7 +204,9 @@ class SimulationStrategyHistory:
             round_client_accuracies = []
 
             for client_info in self.get_all_clients():
-                client_is_malicious = client_info.get_current_attack_keywords(round_num)
+                # round_num is a 0-based loop index; get_current_attack_keywords
+                # takes a 1-based round, as every other call site passes.
+                client_is_malicious = client_info.get_current_attack_keywords(round_num + 1)
                 client_was_aggregated = (
                     client_info.aggregation_participation_history[round_num] == 1
                 )
