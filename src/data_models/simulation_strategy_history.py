@@ -209,14 +209,6 @@ class SimulationStrategyHistory:
                     client_info.aggregation_participation_history[round_num] == 1
                 )
 
-                # TP - defense correctly detected malicious client
-                # FP - defense incorrectly flags benign client as malicious
-                # TN - defense correctly accepts benign client update
-                # FN - defense fails to detect update sent by malicious client
-
-                # attack_type IS NULL AND NOT client_is_aggregated AS false_positives,
-                # attack_type IS NOT NULL AND client_is_aggregated AS false_negatives,
-
                 if self.strategy_config.remove_clients:
                     if not client_is_malicious and client_was_aggregated:
                         round_tp_count += 1
@@ -307,7 +299,8 @@ class SimulationStrategyHistory:
         obj.malicious_clients_ids = set(data["malicious_clients_ids"])
         obj.rounds_history = RoundsInfo.from_dict(data["rounds_history"], strategy_config)
         obj._clients_dict = {
-            c["client_id"]: ClientInfo.from_dict(c) for c in data["clients"]
+            c["client_id"]: ClientInfo.from_dict(c, model_type=strategy_config.model_type)
+            for c in data["clients"]
         }
         obj.training_device_type = data.get("training_device_type", "cpu")
         obj.training_device_name = data.get("training_device_name", "cpu")

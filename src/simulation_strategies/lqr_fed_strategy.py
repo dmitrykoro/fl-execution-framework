@@ -44,6 +44,7 @@ from flwr.server.strategy.aggregate import weighted_loss_avg
 
 from src.data_models.simulation_strategy_history import SimulationStrategyHistory
 from src.utils.medmentions_strategy_helper import aggregate_strict_medmentions_metrics
+from src.utils.strategy_evaluation_metrics_helper import store_evaluation_metrics
 from src.simulation_strategies.lqr_fed_scoring import (
     flatten_weights,
     compute_distances,
@@ -228,10 +229,14 @@ class LQRFedStrategy(fl.server.strategy.FedAvg):
             cid = client_result[0].cid
             metrics = client_result[1].metrics
             metrics["cid"] = cid
-            self.strategy_history.insert_single_client_history_entry(
-                client_id=int(cid),
+            # Dispatch on which keys the payload carries: flower_client.evaluate
+            # returns accuracy for classification, {ss_res, ss_tot, r2} for
+            # regression and {loss_baseline, mare, ...} for time-series models.
+            store_evaluation_metrics(
+                clinet_id=int(cid),
                 current_round=self.current_round,
-                accuracy=metrics["accuracy"],
+                metrics=metrics,
+                strategy_history=self.strategy_history,
             )
 
         if not results:

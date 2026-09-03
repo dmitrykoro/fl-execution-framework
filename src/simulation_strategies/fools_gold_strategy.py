@@ -57,6 +57,7 @@ class FoolsGoldStrategy(fl.server.strategy.FedAvg):
             *,
             fg: Optional[FoolsGoldConfig] = None,
             strategy_history: Optional[SimulationStrategyHistory] = None,
+            output_dirname: Optional[str] = None,
             remove_clients: bool = False,  # kept for compatibility with your framework
             begin_removing_from_round: Optional[int] = None,  # kept for compatibility
             **kwargs,
@@ -83,7 +84,7 @@ class FoolsGoldStrategy(fl.server.strategy.FedAvg):
         self.logger = logging.getLogger(f"foolsgold_strategy_{id(self)}")
         self.logger.setLevel(logging.INFO)
 
-        out_dir = DirectoryHandler.dirname
+        out_dir = output_dirname or DirectoryHandler.dirname
         os.makedirs(out_dir, exist_ok=True)
         file_handler = logging.FileHandler(f"{out_dir}/output.log")
         console_handler = logging.StreamHandler()

@@ -62,6 +62,7 @@ from src.simulation_strategies.trimmed_mean_based_removal_strategy import Trimme
 from src.simulation_strategies.multi_krum_strategy import MultiKrumStrategy
 from src.simulation_strategies.rfa_based_removal_strategy import RFABasedRemovalStrategy
 from src.simulation_strategies.bulyan_strategy import BulyanStrategy
+from src.simulation_strategies.fools_gold_strategy import FoolsGoldStrategy
 from src.simulation_strategies.pid_based_stateless_removal_strategy import PIDBasedStatelessRemovalStrategy
 from src.simulation_strategies.pid_made_strategy import PIDMADEStrategy
 from src.simulation_strategies.fed_nga_strategy import FedNGAStrategy

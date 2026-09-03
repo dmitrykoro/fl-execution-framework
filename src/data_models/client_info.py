@@ -99,6 +99,19 @@ class ClientInfo:
         for round_num in range(self.num_of_rounds):
             self.rounds.append(round_num + 1)
         
+        self._init_metric_lists()
+
+    def _init_metric_lists(self) -> None:
+        """
+        Build the per-instance plottable/savable metric name lists for this
+        client's model type.
+
+        The base lists are rebuilt from literals on every call, so the later
+        `+=` extends a list private to this instance. Keep it that way: hoisting
+        them to class attributes would make every client append its model
+        metrics to one shared list. Called from __post_init__ and from
+        from_dict, which bypasses __post_init__.
+        """
         self.plottable_metrics = [
             "removal_criterion_history",
             "absolute_distance_history",
@@ -243,6 +256,7 @@ class ClientInfo:
 
     def to_dict(self) -> dict:
         return {
+            "model_type": self.model_type,
             "client_id": self.client_id,
             "num_of_rounds": self.num_of_rounds,
             "is_malicious": self.is_malicious,
@@ -264,9 +278,36 @@ class ClientInfo:
         }
 
     @classmethod
-    def from_dict(cls, data: dict) -> "ClientInfo":
+    def from_dict(cls, data: dict, model_type: Optional[str] = None) -> "ClientInfo":
+        """
+        Rebuild a ClientInfo from a serialized payload.
+
+        Bypasses __post_init__ (the payload already holds the populated
+        histories), so the metric name lists have to be re-derived explicitly:
+        without that, consumers such as the database persistence layer see no
+        savable_metrics at all and silently store nothing.
+
+        :param data: payload produced by to_dict()
+        :param model_type: fallback for payloads written before model_type was
+            serialized, normally taken from the strategy config
+        """
         obj = cls.__new__(cls)
         for key, value in data.items():
             setattr(obj, key, value)
+
+        obj.model_type = data.get("model_type") or model_type
         obj.rounds = list(range(1, obj.num_of_rounds + 1))
+
+        obj._init_metric_lists()
+
+        # A payload may predate some of these metrics, leaving the attribute at
+        # the dataclass default of None. Keep only what this payload carries so
+        # callers can iterate the histories without a None check per metric.
+        obj.plottable_metrics = [
+            metric for metric in obj.plottable_metrics if getattr(obj, metric, None) is not None
+        ]
+        obj.savable_metrics = [
+            metric for metric in obj.savable_metrics if getattr(obj, metric, None) is not None
+        ]
+
         return obj
