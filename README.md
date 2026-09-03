@@ -42,6 +42,8 @@ Defines the aggregation strategy. Options:
   - `fed_nga`: Fed-NGA (Federated Normalized Gradients Algorithm) aggregation strategy. Performs normalization of client gradients before performing global aggregation to improve robustness against Byzantine faults and data heterogeneity. Fed-NGA paper: https://arxiv.org/pdf/2408.09539
   - `freq_fed`: FreqFed aggregation strategy. A frequency analysis-based approach that uses 2-D Discrete Cosine Transform (DCT) to extract low-frequency components of client weight updates and clusters them using HDBSCAN to identify and exclude malicious updates. FreqFed paper: https://www.ndss-symposium.org/ndss-paper/freqfed-a-frequency-analysis-based-approach-for-mitigating-poisoning-attacks-in-federated-learning/
   - `fl_detector`: FLDetector aggregation strategy. Detects malicious clients by predicting each client's expected model update using L-BFGS quasi-Newton approximation and accumulating per-client suspicious scores across rounds. Clients whose score exceeds a z-score threshold are excluded from FedAvg aggregation. FLDetector paper: https://dl.acm.org/doi/10.1145/3534678.3539231
+  - `lqr_fed`: LQR-Fed aggregation strategy. Replaces binary client removal with continuous per-client aggregation weights derived by solving a small Quadratic Program (QP) each round. The QP minimises a cost that penalises assigning weight to clients with high deviation from the global model (Q term) while penalising deviation from uniform weights (R term — control effort). No client is permanently excluded; the weight assignment adapts each round based on the current distance landscape.
+  - `fedavg`: Vanilla Federated Averaging (FedAvg) with no Byzantine-robust mechanism. Serves as an undefended baseline. Records the flattening-and-mean computation time as `score_calculation_time` so overhead can be compared against other strategies. `remove_clients` is always forced to `false` regardless of config.
   - `fed_dmc`: FedDMC aggregation strategy. Detects malicious clients by first reducing the dimensionality of model updates using Principal COmponent Analysis (PCA), then separating benign and malicious updates via Binary Tree-Based Clustering with Noise (BTBCN). It maintains an exponentially weighted trust score for each client across rounds using Self-Ensemble Detection Correction (SEDC), excluding clients whose scores fall below a set threshold before performing aggregation. FedDMC paper: https://doi.org/10.1109/TDSC.2024.3372634
   - `signguard`: SignGuard aggregation strategy. Detects malicious clients by applying two parallel mechanisms: a norm-based filter to remove gradients with anomalous magnitudes, and a sign-based filter that uses Mean-Shift clustering on gradient sign proportions to identify the honest majority. The updates in the trusted intersection are then aggregated using mean aggregation with norm clipping. SignGuard paper: https://doi.org/10.1109/ICDCS54860.2022.00120
   - `rfcl`: RFCL aggregation strategy. Designed for highly non-IID environments that clusters model updates using PCA and HDBSCAN, filters intra-cluster outliers via Modified Adaptive Federated Averaging (ModiAFA), and performs similarity analysis to aggregate only the most trusted clusters into the global model while using personalized model sharing to quarantine excluded clients. RFCL paper: https://doi.org/10.3233/FAIA230257
@@ -175,16 +177,17 @@ Defines the aggregation strategy. Options:
 - `fl_detector_z_score_threshold`: Removal threshold in standard deviations above the per-round mean suspicious score. Lower values are more aggressive (higher false-positive risk). Recommended: `1.5`–`2.0` for experiments of 30 rounds or fewer (score distributions become clearly bimodal only around round 60 per the paper); `2.0`–`2.5` for 60+ rounds.
 - `begin_removing_from_round`: Warmup rounds before filtering is active. L-BFGS history still accumulates during warmup. Must be ≥ `1`. Recommended: `7`–`10`.
 
+**For `lqr_fed` strategy**:
+- `lqr_q`: State cost — penalty on assigning aggregation weight to clients with high distance from the reference model. Higher values more aggressively downweight suspicious clients. Start with `1.0` and tune upward if attacks are not suppressed.
+- `lqr_r`: Control cost — penalty on deviating from uniform (equal) weights. Higher values keep the weight distribution closer to standard FedAvg. The ratio `q/r` is the key tuning lever: `q/r >> 1` → strong outlier suppression; `q/r << 1` → near-FedAvg.
+- `begin_removing_from_round`: Warmup rounds before the lagged global model is used as the reference centroid. During warmup the arithmetic mean of client weight vectors is used instead. Recommended: `5`–`10`.
+- `normalize_distances` *(optional, default `false`)*: When `true`, each client's L2 distance is divided by the round-wise mean distance before solving the QP. This makes the effective `q/r` sensitivity invariant to the absolute drift scale — useful when comparing across different numbers of local epochs or IID/non-IID settings without re-tuning `lqr_q`/`lqr_r`. With `false` (default), the raw distances are used and `q/r` may need adjustment if the training configuration changes.
+
 **For `fed_dmc` strategy**:
-- `ensemble_alpha`: Controls the weight given to a client's historical trust score versus 
-        the current round's detection result in the Self-Ensemble Detection 
-        Correction (SEDC) module. Range is [0, 1). (default: 0.5).
-- `num_principal_components`: Number of dimensions retained after applying PCA to the flattened 
-        model updates. (default: 5).
+- `ensemble_alpha`: Controls the weight given to a client's historical trust score versus the current round's detection result in the Self-Ensemble Detection Correction (SEDC) module. Range is [0, 1). (default: 0.5).
+- `num_principal_components`: Number of dimensions retained after applying PCA to the flattened model updates. (default: 5).
 - `min_cluster_size`: Noise threshold used in the BTBCN module. (default: 3).
-- `removal_threshold`: Removal threshold for the SEDC trust score. Clients whose trust score 
-        falls strictly below this value are classified as malicious and 
-        excluded from aggregation. (default: 0.5).
+- `removal_threshold`: Removal threshold for the SEDC trust score. Clients whose trust score falls strictly below this value are classified as malicious and excluded from aggregation. (default: 0.5).
 - `begin_removing_from_round`: Warmup rounds before filtering is active. SEDC trust scores still are calculated during warmup.
 
 **For `signguard` strategy**:
@@ -197,7 +200,7 @@ Defines the aggregation strategy. Options:
 **For `rfcl` strategy**:
 - `outlier_detection_sensitivity`: Sensitivity parameter (`ξ`) used in the Modified Adaptive Federated Averaging (ModiAFA) module to control the threshold for intra-cluster cosine similarities outlier detection. Lower values make the outlier detection more aggressive. (Suggested Range: `1.0`-`3.0`; Default: `2.0`)
 - `num_similar_cluster_centers`: The maximum number of clusters (`K`) selected during the Similarity Analysis phase to form the trusted pool (`M_best`) for final global aggregation (Suggested Range: `1`-`5`; Default: `2`)
-- `min_cluster_size`: Parameter used in the HDBSCAN clustering module to Dictate the minimum number of clients required to form a valid cluster. (Suggested Range: `2`-`5`; Default: `2`)
+- `min_cluster_size`: Parameter used in the HDBSCAN clustering module to dictate the minimum number of clients required to form a valid cluster. (Suggested Range: `2`-`5`; Default: `2`)
 - `begin_removing_from_round`: warmup rounds before filtering is active.
 
 ---
@@ -442,4 +445,26 @@ and compare how they affect the simulation outcome.
 
 One limitation is that as of now it is impossible to vary the number of aggregation rounds, so the parameter
 `num_of_rounds` must always be in the `shared_settings` section. 
+
+---
+## Citation
+Researchers who employ InteFL in their work are kindly asked to reference our peer-reviewed article published in IEEE Intelligent Systems:
+
+```bibtex
+@ARTICLE{11366920,
+  author={Korobeinikov, Dmitrii and Zatsarenko, Raman and Chuprov, Sergei and Barea, Arnaldo and Reznik, Leon},
+  journal={IEEE Intelligent Systems}, 
+  title={InteFL Framework: Optimizing Federated Learning with Metacognition for Application Design and Deployment}, 
+  year={2026},
+  volume={},
+  number={},
+  pages={1-10},
+  keywords={Artificial intelligence;Monitoring;Benchmark testing;Metacognition;Adaptation models;Training;Intelligent systems;Hardware;Federated learning;Data models},
+  doi={10.1109/MIS.2026.3658072}}
+```
+
+
+
+
+
 

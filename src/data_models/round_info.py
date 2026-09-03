@@ -55,12 +55,14 @@ class RoundsInfo:
             self.plottable_metrics += ["average_mare_history"]
             self.time_series_plottable_metrics += ["aggregated_loss_history", "average_loss_baseline_history", "average_mare_history", "average_mare_baseline_history"]
 
-
-        self.barable_metrics = [
+        self.plottable_metrics += [
             "removal_accuracy_history",
             "removal_precision_history",
             "removal_recall_history",
             "removal_f1_history",
+        ]
+
+        self.barable_metrics = [
             "total_fp_and_fn_history",
         ]
 

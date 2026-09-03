@@ -134,6 +134,7 @@ class PIDBasedStatelessRemovalStrategy(fl.server.strategy.FedAvg):
             return super().aggregate_fit(server_round, results, failures)
 
         # clustering
+        time_start_calc = time.time_ns()
         clustering_param_data = []
         for client_proxy, fit_res in results:
             client_params = fl.common.parameters_to_ndarrays(fit_res.parameters)
@@ -151,7 +152,6 @@ class PIDBasedStatelessRemovalStrategy(fl.server.strategy.FedAvg):
 
         normalized_distances = distances
 
-        time_start_calc = time.time_ns()
         pids = self.calculate_all_pid_scores(results, normalized_distances)
         time_end_calc = time.time_ns()
 
@@ -275,7 +275,13 @@ class PIDBasedStatelessRemovalStrategy(fl.server.strategy.FedAvg):
 
             else:
                 # remove clients with PID higher than threshold.
+                # Guard against a not-yet-initialised threshold: under the
+                # Little-Is-Enough wrapper configure_fit can be reached before
+                # aggregate_fit has computed the first threshold, leaving it
+                # None. No threshold means no basis for removal this round.
                 for client_id, pid in client_pids.items():
+                    if self.current_threshold is None:
+                        continue
                     if pid > self.current_threshold and client_id not in self.removed_client_ids:
                         self.logger.info(f"Removing client with PID greater than Threshold: {client_id}")
                         # add this client to the removed_clients list

@@ -62,11 +62,14 @@ from src.simulation_strategies.trimmed_mean_based_removal_strategy import Trimme
 from src.simulation_strategies.multi_krum_strategy import MultiKrumStrategy
 from src.simulation_strategies.rfa_based_removal_strategy import RFABasedRemovalStrategy
 from src.simulation_strategies.bulyan_strategy import BulyanStrategy
+from src.simulation_strategies.fools_gold_strategy import FoolsGoldStrategy
 from src.simulation_strategies.pid_based_stateless_removal_strategy import PIDBasedStatelessRemovalStrategy
 from src.simulation_strategies.pid_made_strategy import PIDMADEStrategy
 from src.simulation_strategies.fed_nga_strategy import FedNGAStrategy
 from src.simulation_strategies.freq_fed_strategy import FreqFedStrategy
 from src.simulation_strategies.fl_detector_strategy import FLDetectorStrategy
+from src.simulation_strategies.lqr_fed_strategy import LQRFedStrategy
+from src.simulation_strategies.fedavg_strategy import FedAvgStrategy
 from src.simulation_strategies.fed_dmc_strategy import FedDMCStrategy
 from src.simulation_strategies.signguard_strategy import SignGuardStrategy
 from src.simulation_strategies.rfcl_strategy import RFCLStrategy
@@ -411,7 +414,12 @@ class FederatedSimulation:
             output_dirname=self.directory_handler.dirname
         )
 
-        if aggregation_strategy_keyword == "trust":
+        if aggregation_strategy_keyword == "fedavg":
+            self._aggregation_strategy = FedAvgStrategy(
+                **common_kwargs
+            )
+
+        elif aggregation_strategy_keyword == "trust":
             self._aggregation_strategy = TrustBasedRemovalStrategy(
                 beta_value=self.strategy_config.beta_value,
                 trust_threshold=self.strategy_config.trust_threshold,
@@ -531,6 +539,14 @@ class FederatedSimulation:
                 outlier_detection_sensitivity=self.strategy_config.outlier_detection_sensitivity or 2.0,
                 num_similar_cluster_centers=self.strategy_config.num_similar_cluster_centers or 2,
                 min_cluster_size=self.strategy_config.min_cluster_size or 2,
+                **common_kwargs
+            )
+
+        elif aggregation_strategy_keyword == "lqr_fed":
+            self._aggregation_strategy = LQRFedStrategy(
+                lqr_q=self.strategy_config.lqr_q,
+                lqr_r=self.strategy_config.lqr_r,
+                normalize_distances=bool(self.strategy_config.normalize_distances),
                 **common_kwargs
             )
 

@@ -145,8 +145,6 @@ class LittleIsEnoughAttack(fl.server.strategy.FedAvg):
         # Handle empty results
         if not results:
             return self.aggregation_strategy.aggregate_fit(server_round, results, failures)
-        
-        new_results = results
 
         """
         Perform little is enough attack first
@@ -164,6 +162,11 @@ class LittleIsEnoughAttack(fl.server.strategy.FedAvg):
                 malicious.append((client_proxy, fit_res))
             else:
                 benign.append((client_proxy, fit_res))
+
+        # Default when no LIE-active client this round (e.g. clean warmup rounds):
+        # forward every client unmodified. `results` was drained above, so it can
+        # no longer be used directly — reconstruct from benign + malicious.
+        new_results = benign + malicious
 
         if malicious:
             # Set the number of requred workers for a majorty

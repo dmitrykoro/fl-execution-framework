@@ -9,11 +9,11 @@ config_schema = {
         # Common parameters
         "aggregation_strategy_keyword": {
             "type": "string",
-            "enum": ["trust", "pid", "pid_scaled", "pid_standardized", "pid_standardized_score_based",
+            "enum": ["fedavg", "trust", "pid", "pid_scaled", "pid_standardized", "pid_standardized_score_based",
                     "multi-krum", "krum", "multi-krum-based", "trimmed_mean",
-                    "rfa", "bulyan", "fools_gold", "pid_made",  "freq_fed", "fl_detector",
+                    "rfa", "bulyan", "fools_gold", "pid_made", "freq_fed", "fl_detector",
                     "pid_v5_stateless_mean_based", "pid_v5_stateless_median_based", "fed_nga",
-                    "fed_dmc", "signguard", "rfcl"]
+                    "fed_dmc", "signguard", "rfcl", "lqr_fed"]
         },
         "strict_mode": {
             "type": "string",
@@ -329,6 +329,20 @@ config_schema = {
             "minimum": 2
         },
 
+        # LQR-Fed
+        "lqr_q": {
+            "type": "number",
+            "exclusiveMinimum": 0.0
+        },
+        "lqr_r": {
+            "type": "number",
+            "exclusiveMinimum": 0.0
+        },
+        "normalize_distances": {
+            "type": "string",
+            "enum": ["true", "false"]
+        },
+
         # Attack scheduling
         "attack_schedule": {
             "type": "array",
@@ -415,7 +429,12 @@ def _validate_dependent_params(strategy_config: dict) -> None:
 
     aggregation_strategy_keyword = strategy_config["aggregation_strategy_keyword"]
 
-    if aggregation_strategy_keyword == "trust":
+    if aggregation_strategy_keyword == "fedavg":
+        if strategy_config.get("remove_clients") == "true":
+            logging.warning("fedavg: remove_clients forced to false (FedAvg has no removal mechanism)")
+            strategy_config["remove_clients"] = "false"
+
+    elif aggregation_strategy_keyword == "trust":
         trust_specific_parameters = [
             "begin_removing_from_round", "trust_threshold", "beta_value", "num_of_clusters"
         ]
@@ -486,6 +505,12 @@ def _validate_dependent_params(strategy_config: dict) -> None:
             if param not in strategy_config:
                 raise ValidationError(
                     f"Missing parameter '{param}' for fl_detector aggregation"
+                )
+    elif aggregation_strategy_keyword == "lqr_fed":
+        for param in ["lqr_q", "lqr_r", "begin_removing_from_round"]:
+            if param not in strategy_config:
+                raise ValidationError(
+                    f"Missing parameter '{param}' for lqr_fed aggregation"
                 )
     elif aggregation_strategy_keyword == "fed_dmc":
         fed_dmc_required = [

@@ -161,7 +161,11 @@ class MultiKrumStrategy(fl.server.strategy.FedAvg):
             clustering_param_data.append(param_tensor)
             
         # perform clustering
-        X = np.array(clustering_param_data)
+        # Coerce each client vector to a flat float64 row so np.array yields a
+        # 2D matrix. Mixed dtypes (e.g. float32 benign updates vs float64
+        # Little-Is-Enough replacements) can otherwise make np.array build a
+        # 1D object array that KMeans rejects.
+        X = np.stack([np.asarray(t, dtype=np.float64).ravel() for t in clustering_param_data])
         kmeans = KMeans(n_clusters=1, init='k-means++').fit(X)
         distances = kmeans.transform(X)
 

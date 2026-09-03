@@ -291,8 +291,14 @@ def show_inter_strategy_plots(
             round_info = simulation_strategy.strategy_history.rounds_history
 
             metric_values = round_info.get_metric_by_name(metric_name)
+            # Replace any non-numeric entries (e.g. "Impossible to calculate")
+            # with None so matplotlib renders them as gaps instead of crashing.
+            metric_values = [
+                v if isinstance(v, (int, float)) else None
+                for v in metric_values
+            ]
 
-            if metric_values:  # plot only if metrics were actually collected
+            if any(v is not None for v in metric_values):
                 # Ensure rounds and metric_values have matching dimensions
                 min_length = min(len(rounds), len(metric_values))
                 plt.plot(
@@ -304,6 +310,13 @@ def show_inter_strategy_plots(
         plt.ylabel(metric_name)
         plt.title(f'{metric_name} across strategies')
         ax = plt.gca()
+        if metric_name in (
+            "removal_accuracy_history",
+            "removal_precision_history",
+            "removal_recall_history",
+            "removal_f1_history",
+        ):
+            ax.set_ylim(0, 1.1)
         # Only show legend if there are labeled artists
         if any(ax.get_legend_handles_labels()):
             plt.legend(title='strategies', loc='upper center', bbox_to_anchor=(0.5, -0.1))

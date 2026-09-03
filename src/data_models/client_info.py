@@ -24,6 +24,7 @@ class ClientInfo:
     loss_history: List[Union[float, None]] = None
     accuracy_history: List[Union[float, None]] = None
     aggregation_participation_history: List[Union[int, None]] = None
+    lqr_weight_history: List[Union[float, None]] = None
 
     # Client metrics for Regression task datasets (e.g. air_quality_uci)
     ss_res_history: List[Union[float, None]] = None # Residual sum of squares used to calculate global R^2
@@ -35,7 +36,7 @@ class ClientInfo:
     mare_history: List[Union[float, None]] = None          # Mean absolute relative error
     mare_baseline_history: List[Union[float, None]] = None # Mean absolute relative error of the baseline calculated from moving average
     num_elements_history: List[Union[int, None]] = None    # Number of elements in the dataset
-    
+
 
     def __post_init__(self):
         def _init_list(value=None):
@@ -89,6 +90,7 @@ class ClientInfo:
         self.mare_baseline_history = _init_list()
         self.num_elements_history = _init_list()
         self.aggregation_participation_history = _init_list(value=1)
+        self.lqr_weight_history = _init_list()
 
         _create_attack_plan(self._attack_schedule, self._legacy_attack_type)
 
@@ -97,13 +99,19 @@ class ClientInfo:
         for round_num in range(self.num_of_rounds):
             self.rounds.append(round_num + 1)
         
-        self._assign_metric_names()
+        self._init_metric_lists()
 
-    def _assign_metric_names(self) -> None:
+    def _init_metric_lists(self) -> None:
         """
-        Derive the plottable and savable metric names from model_type.
-        """
+        Build the per-instance plottable/savable metric name lists for this
+        client's model type.
 
+        The base lists are rebuilt from literals on every call, so the later
+        `+=` extends a list private to this instance. Keep it that way: hoisting
+        them to class attributes would make every client append its model
+        metrics to one shared list. Called from __post_init__ and from
+        from_dict, which bypasses __post_init__.
+        """
         self.plottable_metrics = [
             "removal_criterion_history",
             "absolute_distance_history",
@@ -118,7 +126,7 @@ class ClientInfo:
 
         if self.model_type == "cnn" or self.model_type == "transformer":
             self.plottable_metrics += ["accuracy_history",]
-            self.savable_metrics += ["accuracy_history", "aggregation_participation_history",]
+            self.savable_metrics += ["accuracy_history", "aggregation_participation_history", "lqr_weight_history"]
         elif self.model_type == "linear_regression" or self.model_type == "mlp":
             self.plottable_metrics += ["r2_history",]
             self.savable_metrics += ["r2_history", "aggregation_participation_history",]
@@ -192,7 +200,8 @@ class ClientInfo:
             mare: Optional[float] = None,
             mare_baseline: Optional[float] = None,
             num_elements: Optional[int] = None,
-            aggregation_participation: Optional[int] = None
+            aggregation_participation: Optional[int] = None,
+            lqr_weight: Optional[float] = None,
     ) -> None:
         """
         Add client metrics history entry for a new round.
@@ -210,6 +219,7 @@ class ClientInfo:
         :param removal_criterion: calculated score based on which the removal was or was not performed
         :param absolute_distance: to the centroid of all models
         :param aggregation_participation: 1 if client was aggregated, 0 if was not
+        :param lqr_weight: QP-derived aggregation weight assigned by LQR-Fed (0-1)
         """
 
         if removal_criterion is not None:
@@ -236,6 +246,8 @@ class ClientInfo:
             self.num_elements_history[current_round - 1] = num_elements
         if aggregation_participation is not None:
             self.aggregation_participation_history[current_round - 1] = aggregation_participation
+        if lqr_weight is not None:
+            self.lqr_weight_history[current_round - 1] = self._to_python_number(lqr_weight)
 
     def get_metric_by_name(self, metric: str) -> List:
         """Get single plottable or savable metric values by name"""
@@ -244,6 +256,7 @@ class ClientInfo:
 
     def to_dict(self) -> dict:
         return {
+            "model_type": self.model_type,
             "client_id": self.client_id,
             "model_type": self.model_type,
             "num_of_rounds": self.num_of_rounds,
@@ -262,15 +275,40 @@ class ClientInfo:
             "mare_baseline_history": self.mare_baseline_history,
             "num_elements_history": self.num_elements_history,
             "aggregation_participation_history": self.aggregation_participation_history,
+            "lqr_weight_history": self.lqr_weight_history,
         }
 
     @classmethod
-    def from_dict(cls, data: dict, strategy_config=None) -> "ClientInfo":
+    def from_dict(cls, data: dict, model_type: Optional[str] = None) -> "ClientInfo":
+        """
+        Rebuild a ClientInfo from a serialized payload.
+
+        Bypasses __post_init__ (the payload already holds the populated
+        histories), so the metric name lists have to be re-derived explicitly:
+        without that, consumers such as the database persistence layer see no
+        savable_metrics at all and silently store nothing.
+
+        :param data: payload produced by to_dict()
+        :param model_type: fallback for payloads written before model_type was
+            serialized, normally taken from the strategy config
+        """
         obj = cls.__new__(cls)
         for key, value in data.items():
             setattr(obj, key, value)
+
+        obj.model_type = data.get("model_type") or model_type
         obj.rounds = list(range(1, obj.num_of_rounds + 1))
-        if getattr(obj, "model_type", None) is None:
-            obj.model_type = getattr(strategy_config, "model_type", None)
-        obj._assign_metric_names()
+
+        obj._init_metric_lists()
+
+        # A payload may predate some of these metrics, leaving the attribute at
+        # the dataclass default of None. Keep only what this payload carries so
+        # callers can iterate the histories without a None check per metric.
+        obj.plottable_metrics = [
+            metric for metric in obj.plottable_metrics if getattr(obj, metric, None) is not None
+        ]
+        obj.savable_metrics = [
+            metric for metric in obj.savable_metrics if getattr(obj, metric, None) is not None
+        ]
+
         return obj

@@ -97,21 +97,22 @@ class SimulationStrategyHistory:
         return value
 
     def insert_single_client_history_entry(
-            self,
-            client_id: int,
-            current_round: int,
-            removal_criterion: float = None,
-            absolute_distance: float = None,
-            loss: float = None,
-            accuracy: float = None,
-            ss_res: float = None,
-            ss_tot: float = None,
-            r2: float = None,
-            loss_baseline: float = None,
-            mare: float = None,
-            mare_baseline: float = None,
-            num_elements: int = None,
-            aggregation_participation: int = None
+        self,
+        client_id: int,
+        current_round: int,
+        removal_criterion: float = None,
+        absolute_distance: float = None,
+        loss: float = None,
+        accuracy: float = None,
+        ss_res: float = None,
+        ss_tot: float = None,
+        r2: float = None,
+        loss_baseline: float = None,
+        mare: float = None,
+        mare_baseline: float = None,
+        num_elements: int = None,
+        aggregation_participation: int = None,
+        lqr_weight: float = None,
     ) -> None:
         """Insert a history entry for a single client.
 
@@ -131,7 +132,8 @@ class SimulationStrategyHistory:
             self._to_python_number(mare),
             self._to_python_number(mare_baseline),
             self._to_python_number(num_elements),
-            aggregation_participation
+            aggregation_participation,
+            self._to_python_number(lqr_weight),
         )
 
     def insert_round_history_entry(
@@ -180,8 +182,8 @@ class SimulationStrategyHistory:
             - removal_threshold_history: exclusion threshold at each round
 
         Derivative data calculated here (per round):
-            - average_accuracy_history: average accuracy of non-removed benign clients
-            - average_r2_history: average R2 of non-removed benign clients (only for regression task datasets (e.g. air_quality_uci))
+            - average_accuracy_history: average accuracy of benign (non-attacking) clients
+            - average_r2_history: average R2 of benign (non-attacking) clients (only for regression task datasets)
         """
         for round_num in range(self.strategy_config.num_of_rounds):
             round_tp_count = 0
@@ -219,11 +221,11 @@ class SimulationStrategyHistory:
                     if client_is_malicious and client_was_aggregated:
                         round_fn_count += 1
 
-                # sum of accuracies and R^2 of aggregated clients
-                if client_was_aggregated:
-                    num_aggregated_clients += 1
+                client_is_attacking_this_round = bool(client_is_malicious)
+                if not client_is_attacking_this_round:
                     accuracy = client_info.accuracy_history[round_num]
                     if accuracy is not None:
+                        num_aggregated_clients += 1
                         sum_aggregated_accuracies += accuracy
                         round_client_accuracies.append(accuracy)
 
@@ -299,7 +301,8 @@ class SimulationStrategyHistory:
         obj.malicious_clients_ids = set(data["malicious_clients_ids"])
         obj.rounds_history = RoundsInfo.from_dict(data["rounds_history"], strategy_config)
         obj._clients_dict = {
-            c["client_id"]: ClientInfo.from_dict(c, strategy_config) for c in data["clients"]
+            c["client_id"]: ClientInfo.from_dict(c, model_type=strategy_config.model_type)
+            for c in data["clients"]
         }
         obj.training_device_type = data.get("training_device_type", "cpu")
         obj.training_device_name = data.get("training_device_name", "cpu")
