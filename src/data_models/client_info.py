@@ -38,18 +38,6 @@ class ClientInfo:
     num_elements_history: List[Union[int, None]] = None    # Number of elements in the dataset
 
 
-    plottable_metrics = [
-        "removal_criterion_history",
-        "absolute_distance_history",
-        "loss_history",
-    ]
-
-    savable_metrics = [
-        "removal_criterion_history",
-        "absolute_distance_history",
-        "loss_history",
-    ]
-
     def __post_init__(self):
         def _init_list(value=None):
             return [value] * self.num_of_rounds
@@ -110,6 +98,18 @@ class ClientInfo:
 
         for round_num in range(self.num_of_rounds):
             self.rounds.append(round_num + 1)
+        
+        self.plottable_metrics = [
+            "removal_criterion_history",
+            "absolute_distance_history",
+            "loss_history",
+        ]
+
+        self.savable_metrics = [
+            "removal_criterion_history",
+            "absolute_distance_history",
+            "loss_history",
+        ]
 
         if self.model_type == "cnn" or self.model_type == "transformer":
             self.plottable_metrics += ["accuracy_history",]
@@ -244,7 +244,6 @@ class ClientInfo:
     def to_dict(self) -> dict:
         return {
             "client_id": self.client_id,
-            "model_type": self.model_type,
             "num_of_rounds": self.num_of_rounds,
             "is_malicious": self.is_malicious,
             "attack_plan_keywords": self.attack_plan_keywords,
