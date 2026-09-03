@@ -798,7 +798,7 @@ app.router.add_get("/", homepage)
 
 
 if __name__ == "__main__":
-    port = int(obtain_env_var("EXPERIMENT_SERVER_PORT"))
+    port = int(obtain_env_var("EXPERIMENT_SERVER_PORT", default="8080") or "8080")
     logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
     logging.info(f"Starting experiment server on port {port}")
     web.run_app(app, port=port)

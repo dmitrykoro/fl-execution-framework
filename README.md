@@ -216,6 +216,25 @@ Defines the aggregation strategy. Options:
   - On Windows: install dependencies from `requirements.txt` and execute manually.
 5. **Output**: plots and `.csv` files (if enabled) saved in `out/` directory.
 
+### Where results are stored
+
+By default the framework stores every experiment in a local SQLite database
+(`out/experiments.db`) alongside the CSVs and plots in `out/`. No account, token or
+network access is needed, and the whole framework runs offline.
+
+Members of the research group additionally upload their results to the group's
+experiment server. To connect, put the token issued to you in `.env.private`:
+
+```sh
+echo "EXPERIMENT_SERVER_TOKEN=<your token>" >> .env.private
+```
+
+You will also be prompted for it the first time you run a simulation or start the
+frontend API server from a terminal, and the answer is saved to `.env.private` for you.
+Without a token the framework runs in local mode: results are stored locally and the
+UI features that query the group's database show a "not available in local mode"
+message instead of failing.
+
 ---
 
 ## Description of Collected Metrics

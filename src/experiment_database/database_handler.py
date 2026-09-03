@@ -1,33 +1,98 @@
 import logging
+import shutil
+import subprocess
 import sqlalchemy
 import aiohttp
 import requests
 from pathlib import Path
 
 from src.experiment_database.persistence import fill_all_tables
-from src.experiment_database.session import get_db
+from src.experiment_database.remote_access import (
+    RemoteServerUnavailable,
+    initialize_remote_access,
+    remote_credentials,
+)
+from src.experiment_database.session import get_db, local_db_path, resolve_db_mode, set_db_mode
 from src.federated_simulation import FederatedSimulation
 from src.utils.common import obtain_env_var, run_async_from_sync
 
+DEFAULT_AUTHOR_NAME = "Anonymous"
+DEFAULT_AUTHOR_EMAIL = "anonymous@localhost"
 
-EXPERIMENT_DB_MODE = obtain_env_var("EXPERIMENT_DB_MODE")
-FULL_AUTHOR_NAME = obtain_env_var("FULL_AUTHOR_NAME")
-AUTHOR_EMAIL = obtain_env_var("AUTHOR_EMAIL")
+
+def _git_config_value(key: str) -> str | None:
+    """Read a value from the local git configuration, if git is available."""
+
+    if shutil.which("git") is None:
+        return None
+
+    try:
+        result = subprocess.run(
+            ["git", "config", "--get", key],
+            capture_output=True,
+            text=True,
+            timeout=5,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return None
+
+    value = result.stdout.strip()
+
+    return value or None
 
 
 class DatabaseHandler:
 
     def __init__(self):
-        if EXPERIMENT_DB_MODE in ("direct", "neon"):
-            pass
+        self.db_mode = resolve_db_mode()
 
-        elif EXPERIMENT_DB_MODE == "server":
-            self.EXPERIMENT_SERVER_URL = obtain_env_var("EXPERIMENT_SERVER_URL")
-            # self.EXPERIMENT_SERVER_PORT = obtain_env_var("EXPERIMENT_SERVER_PORT")
-            self.EXPERIMENT_SERVER_TOKEN = obtain_env_var("EXPERIMENT_SERVER_TOKEN")
+        self.full_author_name = obtain_env_var(
+            "FULL_AUTHOR_NAME",
+            default=_git_config_value("user.name") or DEFAULT_AUTHOR_NAME,
+        )
+        self.author_email = obtain_env_var(
+            "AUTHOR_EMAIL",
+            default=_git_config_value("user.email") or DEFAULT_AUTHOR_EMAIL,
+        )
 
-            if not self._ensure_token_valid():
-                raise Exception("Experiment server token is invalid or server not running.")
+        if self.db_mode == "server":
+            # Prompts for anything missing when a terminal is available, so a new group
+            # member is asked for their token on the first run and never silently
+            # uploads nothing.
+            initialize_remote_access()
+
+            try:
+                self.EXPERIMENT_SERVER_URL, self.EXPERIMENT_SERVER_TOKEN = remote_credentials()
+
+            except RemoteServerUnavailable:
+                self._fall_back_to_local_database(
+                    "no experiment server URL and token were provided"
+                )
+
+            else:
+                if not self._ensure_token_valid():
+                    self._fall_back_to_local_database(
+                        "the experiment server is unreachable or rejected the token"
+                    )
+
+    def _fall_back_to_local_database(self, reason: str) -> None:
+        """
+        Switch to the local SQLite database instead of failing the run.
+
+        Uploading to the research group's experiment server needs credentials that
+        are only handed out inside the group. Without them the simulation still runs
+        and its results are still persisted, just locally.
+        """
+
+        self.db_mode = "local"
+        set_db_mode("local")
+
+        logging.warning(
+            f"Experiment results will be stored locally because {reason}. "
+            f"Database file: {local_db_path().resolve()}. "
+            "Set EXPERIMENT_SERVER_URL and EXPERIMENT_SERVER_TOKEN in .env.private "
+            "to upload results to the experiment server instead."
+        )
 
     @staticmethod
     def _build_local_dashboard_url(simulation_strategy: FederatedSimulation) -> str | None:
@@ -78,10 +143,10 @@ class DatabaseHandler:
     def update_database(self, simulation_strategy: FederatedSimulation) -> None:
         """Update database with experiment results"""
 
-        if EXPERIMENT_DB_MODE in ("direct", "neon"):
+        if self.db_mode in ("local", "direct", "neon"):
             self._direct_write_to_db(simulation_strategy)
 
-        elif EXPERIMENT_DB_MODE == "server":
+        elif self.db_mode == "server":
             run_async_from_sync(self._server_write_to_db(simulation_strategy))
 
     async def _server_write_to_db(self, strategy: FederatedSimulation) -> None:
@@ -98,8 +163,8 @@ class DatabaseHandler:
             "gpu_ram": strategy.strategy_history.training_device_ram,
             "is_executed_on": strategy.strategy_history.training_device_type,
             "local_dashboard_url": local_dashboard_url,
-            "full_author_name": FULL_AUTHOR_NAME,
-            "author_email": AUTHOR_EMAIL
+            "full_author_name": self.full_author_name,
+            "author_email": self.author_email
         }
 
         try:
@@ -137,10 +202,15 @@ class DatabaseHandler:
                     session,
                     strategy_history,
                     total_exec_time,
-                    FULL_AUTHOR_NAME,
-                    AUTHOR_EMAIL,
+                    self.full_author_name,
+                    self.author_email,
                     local_dashboard_url=local_dashboard_url,
                 )
+
+                if self.db_mode == "local":
+                    logging.info(
+                        f"Experiment results stored in {local_db_path().resolve()}"
+                    )
 
             except sqlalchemy.exc.OperationalError as e:
                 logging.error(
@@ -157,6 +227,15 @@ class DatabaseHandler:
                         session.commit()
                     except Exception:
                         pass
+
+                # A failed local write must not discard a finished simulation: the CSVs
+                # and plots in out/ are already on disk.
+                if self.db_mode == "local":
+                    logging.error(
+                        f"Failed to store experiment results in the local database: {e}"
+                    )
+                    return
+
                 raise
 
             finally:
