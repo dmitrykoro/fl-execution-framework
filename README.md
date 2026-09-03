@@ -216,6 +216,22 @@ Defines the aggregation strategy. Options:
   - On Windows: install dependencies from `requirements.txt` and execute manually.
 5. **Output**: plots and `.csv` files (if enabled) saved in `out/` directory.
 
+### Running with the web UI
+
+Instead of editing configuration files by hand, you can drive the framework from a
+browser. Run:
+
+```sh
+sh run_with_ui.sh
+```
+
+then open <http://localhost:5173>. The script sets up the virtual environment, installs the
+frontend dependencies on first run, starts the API server and the UI, and stops both when
+you press Ctrl+C. Set `UI_PORT` to use a different port. Node.js 18 or newer is required.
+
+From the UI you can compose and validate configurations, launch simulations and follow
+their logs live, browse previous experiments, and use the AI assistant.
+
 ### Where results are stored
 
 By default the framework stores every experiment in a local SQLite database

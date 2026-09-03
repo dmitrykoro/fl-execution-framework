@@ -24,7 +24,17 @@ sh run_simulation.sh config/simulation_strategies/my_config.json
 python -m src.simulation_runner config/simulation_strategies/my_config.json
 ```
 
-### Start the frontend API server (aiohttp)
+### Run the web UI
+```sh
+sh run_with_ui.sh          # API server + React frontend, then open http://localhost:5173
+UI_PORT=5200 sh run_with_ui.sh
+```
+Starts `src.frontend_api.aiohttp_server` on port 8000 (fixed: `frontend/vite.config.ts`
+proxies `/api` there, logs to `logs/ui_backend.log`) and the Vite dev server on `UI_PORT`.
+Credentials are resolved in the foreground first so the token prompt reaches the terminal;
+both processes are children of the script and stop together on Ctrl+C.
+
+### Start the frontend API server alone (aiohttp)
 ```sh
 python -m src.frontend_api.aiohttp_server
 ```
