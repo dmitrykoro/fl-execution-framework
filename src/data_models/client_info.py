@@ -97,6 +97,13 @@ class ClientInfo:
         for round_num in range(self.num_of_rounds):
             self.rounds.append(round_num + 1)
         
+        self._assign_metric_names()
+
+    def _assign_metric_names(self) -> None:
+        """
+        Derive the plottable and savable metric names from model_type.
+        """
+
         self.plottable_metrics = [
             "removal_criterion_history",
             "absolute_distance_history",
@@ -238,6 +245,7 @@ class ClientInfo:
     def to_dict(self) -> dict:
         return {
             "client_id": self.client_id,
+            "model_type": self.model_type,
             "num_of_rounds": self.num_of_rounds,
             "is_malicious": self.is_malicious,
             "attack_plan_keywords": self.attack_plan_keywords,
@@ -257,9 +265,12 @@ class ClientInfo:
         }
 
     @classmethod
-    def from_dict(cls, data: dict) -> "ClientInfo":
+    def from_dict(cls, data: dict, strategy_config=None) -> "ClientInfo":
         obj = cls.__new__(cls)
         for key, value in data.items():
             setattr(obj, key, value)
         obj.rounds = list(range(1, obj.num_of_rounds + 1))
+        if getattr(obj, "model_type", None) is None:
+            obj.model_type = getattr(strategy_config, "model_type", None)
+        obj._assign_metric_names()
         return obj

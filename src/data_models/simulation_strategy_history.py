@@ -299,7 +299,7 @@ class SimulationStrategyHistory:
         obj.malicious_clients_ids = set(data["malicious_clients_ids"])
         obj.rounds_history = RoundsInfo.from_dict(data["rounds_history"], strategy_config)
         obj._clients_dict = {
-            c["client_id"]: ClientInfo.from_dict(c) for c in data["clients"]
+            c["client_id"]: ClientInfo.from_dict(c, strategy_config) for c in data["clients"]
         }
         obj.training_device_type = data.get("training_device_type", "cpu")
         obj.training_device_name = data.get("training_device_name", "cpu")
