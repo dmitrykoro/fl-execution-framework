@@ -516,6 +516,12 @@ async function apiJson<T>(path: string, init?: RequestInit): Promise<T> {
     return (await res.json()) as T;
 }
 
+type ServerStatus = {
+    remote_available: boolean;
+    db_mode: string | null;
+    message: string | null;
+};
+
 function isUnknownAnalysisSessionError(error: unknown) {
     const message = error instanceof Error ? error.message : String(error ?? "");
     return message.includes("API 404") && message.includes("Unknown analysis session");
@@ -692,6 +698,25 @@ function ShellCard({title, subtitle, right, children, className}: any) {
                 {right ? right : null}
             </div>
             {children}
+        </div>
+    );
+}
+
+function LocalModeNotice({message, className}: { message?: string | null; className?: string }) {
+    return (
+        <div
+            className={cx(
+                "rounded-xl border border-dashed border-amber-300 bg-amber-50 p-4 text-sm text-amber-900",
+                className
+            )}
+        >
+            <div className="font-semibold">Not available in local mode</div>
+            <div className="mt-1 text-amber-800">
+                {message ??
+                    "This feature needs the research group's experiment server, which this checkout is not connected to. " +
+                    "Experiments are being stored in a local database instead. Set EXPERIMENT_SERVER_URL and " +
+                    "EXPERIMENT_SERVER_TOKEN in .env.private to enable it."}
+            </div>
         </div>
     );
 }
@@ -1153,6 +1178,12 @@ export default function App() {
         return window.localStorage.getItem(UI_ACTIVE_TAB_KEY) || "Run";
     });
 
+    // Whether this checkout is connected to the group's experiment server. Until the
+    // status is known, assume it is: that keeps the normal case free of a flash of
+    // "unavailable" on first paint.
+    const [serverStatus, setServerStatus] = useState<ServerStatus>({remote_available: true, db_mode: null, message: null});
+    const remoteAvailable = serverStatus.remote_available;
+
     // LOGS (global): UI events + current run output
     const [uiLogs, setUiLogs] = useState<string[]>(["[ui] Ready."]);
     const [runLogs, setRunLogs] = useState<string[]>([]);
@@ -1246,6 +1277,8 @@ export default function App() {
     }, [experiments, selectedExpId]);
 
     const refreshExperiments = async (pageOverride = experimentsPage) => {
+        if (!remoteAvailable) return;
+
         setExperimentsLoading(true);
         try {
             const params = new URLSearchParams({
@@ -1423,11 +1456,36 @@ export default function App() {
     };
 
     useEffect(() => {
+        let cancelled = false;
+
+        void (async () => {
+            try {
+                const status = await apiJson<ServerStatus>("/api/server_status");
+                if (cancelled) return;
+
+                setServerStatus(status);
+
+                if (!status.remote_available) {
+                    appendUiLog("[ui] local mode: the experiment server is not configured, database features are disabled");
+                }
+            } catch (e: any) {
+                appendUiLog(`[ui] server status fetch error: ${e?.message || e}`);
+            }
+        })();
+
+        return () => {
+            cancelled = true;
+        };
+    }, []);
+
+    useEffect(() => {
         if (activeTab !== "Run") return;
         void refreshAgentSessions(agentSessionId);
     }, [activeTab]);
 
     const refreshAnalysisSessions = async (preferredSessionId?: string | null) => {
+        if (!remoteAvailable) return;
+
         try {
             const data = await apiJson<{ items?: AnalysisSessionListItem[] }>("/api/analyze_db/sessions");
             const items = data.items ?? [];
@@ -1485,9 +1543,9 @@ export default function App() {
     };
 
     useEffect(() => {
-        if (activeTab !== "Analyze") return;
+        if (activeTab !== "Analyze" || !remoteAvailable) return;
         void refreshAnalysisSessions(analysisSessionId);
-    }, [activeTab]);
+    }, [activeTab, remoteAvailable]);
 
     useEffect(() => {
         window.localStorage.setItem(ANALYSIS_SQL_VISIBILITY_KEY, String(showAnalysisSql));
@@ -2192,9 +2250,9 @@ export default function App() {
                                         onClick={() => refreshExperiments(experimentsPage)}
                                         className={cx(
                                             "rounded-xl border border-zinc-200 bg-white px-3 py-1.5 text-xs font-medium",
-                                            experimentsLoading ? "opacity-60 cursor-not-allowed" : "hover:bg-zinc-50"
+                                            experimentsLoading || !remoteAvailable ? "opacity-60 cursor-not-allowed" : "hover:bg-zinc-50"
                                         )}
-                                        disabled={experimentsLoading}
+                                        disabled={experimentsLoading || !remoteAvailable}
                                     >
                                         {experimentsLoading ? "Refreshing…" : "Refresh"}
                                     </button>
@@ -2202,7 +2260,9 @@ export default function App() {
                             >
                                 <div className="flex h-full flex-col px-4 py-3">
                                     <div className="space-y-2">
-                                        {experiments.length === 0 ? (
+                                        {!remoteAvailable ? (
+                                            <LocalModeNotice message={serverStatus.message}/>
+                                        ) : experiments.length === 0 ? (
                                             <div
                                                 className="rounded-xl border border-dashed border-zinc-300 bg-zinc-50 p-4 text-sm text-zinc-600">
                                                 No experiments returned yet.
@@ -2398,7 +2458,20 @@ export default function App() {
                 )}
 
                 {/* ANALYZE */}
-                {activeTab === "Analyze" && (
+                {activeTab === "Analyze" && !remoteAvailable && (
+                    <div className="mt-6">
+                        <ShellCard
+                            title="AI-assisted statistical analysis"
+                            subtitle="Queries the research group's experiment database"
+                        >
+                            <div className="px-4 py-4">
+                                <LocalModeNotice message={serverStatus.message}/>
+                            </div>
+                        </ShellCard>
+                    </div>
+                )}
+
+                {activeTab === "Analyze" && remoteAvailable && (
                     <div className="mt-6 grid h-[calc(100vh-26rem)] min-h-[33rem] grid-cols-1 items-stretch gap-4 overflow-hidden lg:grid-cols-[minmax(0,1fr)_minmax(0,2fr)]">
                         <ChatPanel
                             cardClassName="h-full min-h-0"

@@ -4,21 +4,41 @@ from sqlalchemy import engine_from_config
 from sqlalchemy import pool
 from alembic import context
 
+from src.experiment_database.session import local_db_path, resolve_db_mode
 from src.utils.common import obtain_env_var
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
 config = context.config
 
-db_host = obtain_env_var("EXPERIMENT_DB_HOST")
-db_port = obtain_env_var("EXPERIMENT_DB_PORT")
-db_name = obtain_env_var("EXPERIMENT_DB_NAME")
-db_user = obtain_env_var("EXPERIMENT_DB_USER")
-db_password = obtain_env_var("EXPERIMENT_DB_PASSWORD")
+db_mode = resolve_db_mode()
 
-db_type = obtain_env_var("EXPERIMENT_DB_TYPE")
+# The local SQLite database is a stand-alone target: migrations run against the
+# file instead of the research group's PostgreSQL server.
+is_sqlite = db_mode == "local"
 
-if db_type == "postgres":
+if is_sqlite:
+    config.set_main_option("sqlalchemy.url", f"sqlite:///{local_db_path()}")
+
+else:
+    db_host = obtain_env_var("EXPERIMENT_DB_HOST")
+    db_port = obtain_env_var("EXPERIMENT_DB_PORT")
+    db_name = obtain_env_var("EXPERIMENT_DB_NAME")
+    db_user = obtain_env_var("EXPERIMENT_DB_USER")
+    db_password = obtain_env_var("EXPERIMENT_DB_PASSWORD")
+
+    db_type = obtain_env_var("EXPERIMENT_DB_TYPE", default="postgres")
+
+    if db_type != "postgres":
+        raise NotImplementedError(f"Migrations for database '{db_type}' are not implemented.")
+
+    if not all((db_host, db_port, db_name, db_user, db_password)):
+        raise RuntimeError(
+            f"EXPERIMENT_DB_MODE='{db_mode}' needs EXPERIMENT_DB_HOST, EXPERIMENT_DB_PORT, "
+            "EXPERIMENT_DB_NAME, EXPERIMENT_DB_USER and EXPERIMENT_DB_PASSWORD to run migrations. "
+            "Set EXPERIMENT_DB_MODE='local' to migrate the local SQLite database instead."
+        )
+
     database_url = (
         f"postgresql+psycopg2://{db_user}:{db_password}@{db_host}:{db_port}/{db_name}"
     )
@@ -66,6 +86,7 @@ def run_migrations_offline() -> None:
         target_metadata=target_metadata,
         literal_binds=True,
         dialect_opts={"paramstyle": "named"},
+        render_as_batch=is_sqlite,
     )
 
     with context.begin_transaction():
@@ -87,7 +108,9 @@ def run_migrations_online() -> None:
 
     with connectable.connect() as connection:
         context.configure(
-            connection=connection, target_metadata=target_metadata
+            connection=connection,
+            target_metadata=target_metadata,
+            render_as_batch=is_sqlite,
         )
 
         with context.begin_transaction():

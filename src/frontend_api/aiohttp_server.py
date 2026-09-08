@@ -13,7 +13,13 @@ from src.frontend_api.log_manager import tail_lines, log_path
 from src.frontend_api.agentic_configuration_manager import AgenticConfigurationManager
 from src.frontend_api.db_analysis_manager import DatabaseAnalysisManager
 from src.config_loaders.config_loader import merge_and_validate_usecase_configs
-from src.utils.common import obtain_env_var
+from src.experiment_database.remote_access import (
+    RemoteServerUnavailable,
+    initialize_remote_access,
+    remote_auth_headers,
+    remote_credentials,
+    remote_status,
+)
 
 # keep process handles in memory (optional; for status)
 SIMULATION_PROCESSES: Dict[str, Any] = {}
@@ -25,11 +31,42 @@ ARTIFACTS_ROOT = PROJECT_ROOT / "out"
 
 
 def _auth_headers() -> dict:
-    """Common auth headers for experiment server requests."""
-    return {
-        "Authorization": f"Bearer {obtain_env_var('EXPERIMENT_SERVER_TOKEN')}",
-        "Accept": "application/json",
-    }
+    """
+    Common auth headers for experiment server requests.
+
+    Raises:
+        RemoteServerUnavailable: If this checkout has no experiment server credentials.
+    """
+    return remote_auth_headers()
+
+
+@web.middleware
+async def local_mode_middleware(request: web.Request, handler):
+    """
+    Turn "no experiment server credentials" into a clear 503 for the frontend.
+
+    Features that read the group's database are simply unavailable in local mode;
+    surfacing that as an explicit message beats an authorization error.
+    """
+
+    try:
+        return await handler(request)
+
+    except RemoteServerUnavailable as e:
+        logging.info(f"{request.path} is unavailable in local mode")
+        return web.json_response(
+            {
+                "success": False,
+                "remote_available": False,
+                "message": str(e),
+            },
+            status=503,
+        )
+
+
+async def server_status(_: web.Request) -> web.Response:
+    """Report whether database-backed features are available in this checkout."""
+    return web.json_response(remote_status())
 
 
 def _optional_session_id(value: Any) -> str | None:
@@ -130,7 +167,7 @@ async def get_experiments(request: web.Request) -> web.Response:
     and return them to the frontend.
     """
 
-    experiment_server_url = obtain_env_var("EXPERIMENT_SERVER_URL")
+    experiment_server_url, _ = remote_credentials()
     page = request.query.get("page")
     page_size = request.query.get("page_size")
     params = {}
@@ -313,7 +350,18 @@ async def agent_analyze_results(request: web.Request) -> web.Response:
     return web.json_response(AGENT_MANAGER._snapshot(session), status=202)
 
 
+def _require_remote_server() -> None:
+    """
+    Guard handlers that are meaningless without the group's database.
+
+    Raises:
+        RemoteServerUnavailable: If this checkout has no experiment server credentials.
+    """
+    remote_credentials()
+
+
 async def analyze_db_start(request: web.Request) -> web.Response:
+    _require_remote_server()
     payload = await request.json()
     question = str(payload.get("question", "")).strip()
     session_id = _optional_session_id(payload.get("session_id"))
@@ -325,11 +373,13 @@ async def analyze_db_start(request: web.Request) -> web.Response:
 
 
 async def analyze_db_sessions(request: web.Request) -> web.Response:
+    _require_remote_server()
     items = await DB_ANALYSIS_MANAGER.list_sessions()
     return web.json_response({"items": items})
 
 
 async def analyze_db_get_session(request: web.Request) -> web.Response:
+    _require_remote_server()
     session_id = _optional_session_id(request.query.get("session_id"))
     if not session_id:
         return web.json_response({"error": "session_id is required"}, status=400)
@@ -343,6 +393,7 @@ async def analyze_db_get_session(request: web.Request) -> web.Response:
 
 
 async def analyze_db_poll(request: web.Request) -> web.Response:
+    _require_remote_server()
     session_id = str(request.query.get("session_id", "")).strip()
     if not session_id:
         return web.json_response({"error": "session_id is required"}, status=400)
@@ -361,9 +412,15 @@ async def analyze_db_poll(request: web.Request) -> web.Response:
 
 
 def create_app() -> web.Application:
-    app = web.Application()
+    # Resolve the experiment server credentials now, while a terminal is still available
+    # to ask for them. Request handlers must never prompt, and simulation subprocesses
+    # spawned later inherit the resolved values through os.environ.
+    initialize_remote_access()
+
+    app = web.Application(middlewares=[local_mode_middleware])
 
     app.router.add_get("/api/health", health)
+    app.router.add_get("/api/server_status", server_status)
     app.router.add_post("/api/validate_json_config", validate_json_config)
     app.router.add_post("/api/start_simulation_runner", start_simulation_runner)
     app.router.add_get("/api/get_experiments", get_experiments)

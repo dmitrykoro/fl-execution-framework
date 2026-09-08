@@ -11,6 +11,11 @@ from pathlib import Path
 from typing import Any
 
 from src.ai_agent_wrapper import AIAgent
+from src.experiment_database.remote_access import (
+    is_remote_available,
+    remote_auth_headers,
+    remote_credentials,
+)
 from src.utils.common import load_json_as_str, obtain_env_var
 
 
@@ -52,14 +57,11 @@ class AgenticConfigurationManager:
         return agent.ai_vendor_api
 
     def _auth_headers(self) -> dict[str, str]:
-        return {
-            "Authorization": f"Bearer {obtain_env_var('EXPERIMENT_SERVER_TOKEN')}",
-            "Accept": "application/json",
-            "Content-Type": "application/json",
-        }
+        return {**remote_auth_headers(), "Content-Type": "application/json"}
 
     def _db_base_url(self) -> str:
-        return str(obtain_env_var("EXPERIMENT_SERVER_URL")).rstrip("/")
+        url, _ = remote_credentials()
+        return url.rstrip("/")
 
     def _bump(self, session: AgentSession) -> None:
         session.version += 1
@@ -93,6 +95,9 @@ class AgenticConfigurationManager:
         return "idle"
 
     async def list_sessions(self) -> list[dict[str, Any]]:
+        if not is_remote_available():
+            return []
+
         data = await self._db_request(
             "GET",
             "/configuration_sessions",
@@ -175,6 +180,13 @@ class AgenticConfigurationManager:
         existing = self.sessions.get(session_id)
         if existing is not None and existing.pending:
             return existing
+
+        if not is_remote_available():
+            # In local mode sessions are only ever held in memory.
+            if existing is not None:
+                return existing
+
+            raise RuntimeError(f"Remote DB request failed (404): unknown session {session_id}")
 
         remote = await self._db_request("GET", f"/configuration_sessions/{session_id}")
         session = existing
@@ -351,6 +363,9 @@ class AgenticConfigurationManager:
             self._bump(session)
 
     async def _create_remote_session(self, session_id: str) -> None:
+        if not is_remote_available():
+            return
+
         await self._db_request(
             "POST",
             "/configuration_sessions",
@@ -362,6 +377,9 @@ class AgenticConfigurationManager:
         )
 
     async def _append_remote_message(self, session_id: str, role: str, payload: str) -> None:
+        if not is_remote_available():
+            return
+
         await self._db_request(
             "POST",
             f"/configuration_sessions/{session_id}/messages",

@@ -35,7 +35,7 @@ CLIENT_COL_RE = re.compile(r"^client_(\d+)_(.+)$")
 
 db_mode = obtain_env_var("EXPERIMENT_DB_MODE")
 if db_mode == "server":
-    BASE_URL = obtain_env_var("EXPERIMENT_SERVER_URL")
+    BASE_URL = obtain_env_var("EXPERIMENT_SERVER_URL", default=BASE_URL) or BASE_URL
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------

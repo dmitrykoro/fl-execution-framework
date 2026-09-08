@@ -12,6 +12,7 @@ from pathlib import Path
 from typing import Any
 
 from src.ai_agent_wrapper import AIAgent
+from src.experiment_database.remote_access import remote_auth_headers, remote_credentials
 from src.utils.common import obtain_env_var
 
 SCHEMA_CONTEXT = Path("src/experiment_database/models.py").read_text(encoding="utf-8")
@@ -48,14 +49,11 @@ class DatabaseAnalysisManager:
         return str(obtain_env_var("AUTHOR_EMAIL"))
 
     def _auth_headers(self) -> dict[str, str]:
-        return {
-            "Authorization": f"Bearer {obtain_env_var('EXPERIMENT_SERVER_TOKEN')}",
-            "Accept": "application/json",
-            "Content-Type": "application/json",
-        }
+        return {**remote_auth_headers(), "Content-Type": "application/json"}
 
     def _db_base_url(self) -> str:
-        return str(obtain_env_var("EXPERIMENT_SERVER_URL")).rstrip("/")
+        url, _ = remote_credentials()
+        return url.rstrip("/")
 
     def _bump(self, session: AnalysisSession) -> None:
         session.version += 1

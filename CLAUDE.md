@@ -24,7 +24,17 @@ sh run_simulation.sh config/simulation_strategies/my_config.json
 python -m src.simulation_runner config/simulation_strategies/my_config.json
 ```
 
-### Start the frontend API server (aiohttp)
+### Run the web UI
+```sh
+sh run_with_ui.sh          # API server + React frontend, then open http://localhost:5173
+UI_PORT=5200 sh run_with_ui.sh
+```
+Starts `src.frontend_api.aiohttp_server` on port 8000 (fixed: `frontend/vite.config.ts`
+proxies `/api` there, logs to `logs/ui_backend.log`) and the Vite dev server on `UI_PORT`.
+Credentials are resolved in the foreground first so the token prompt reaches the terminal;
+both processes are children of the script and stop together on Ctrl+C.
+
+### Start the frontend API server alone (aiohttp)
 ```sh
 python -m src.frontend_api.aiohttp_server
 ```
@@ -48,7 +58,7 @@ Coverage config is in `.coveragerc`; HTML report goes to `tests/logs/htmlcov/`.
 ### Database migrations (Alembic)
 ```sh
 source venv/bin/activate
-alembic upgrade head              # apply all migrations
+alembic upgrade heads             # apply all migrations (history has multiple heads)
 alembic revision --autogenerate -m "description"  # create new migration
 ```
 
@@ -118,20 +128,40 @@ Attacks are applied inside `src/client_models/flower_client.py::FlowerClient`. T
 
 ### Experiment database (`src/experiment_database/`)
 
-Backed by SQLAlchemy + PostgreSQL. Supports three modes (set via `EXPERIMENT_DB_MODE` env var):
+Backed by SQLAlchemy. Supports four modes (set via `EXPERIMENT_DB_MODE` env var):
+- `local` — SQLite file on this machine (`EXPERIMENT_DB_LOCAL_PATH`, default `out/experiments.db`). Needs no credentials; this is the default when nothing is configured.
 - `direct` — connect using `EXPERIMENT_DB_*` env vars.
 - `server` — POST to a remote experiment server (URL from `EXPERIMENT_SERVER_URL`, token from `EXPERIMENT_SERVER_TOKEN`).
 - `neon` — Neon cloud DBMS.
 
-Schema is managed by Alembic (`alembic/versions/`). Models are in `src/experiment_database/models.py`; persistence logic in `src/experiment_database/persistence.py`.
+`server` mode **falls back to `local`** when no URL/token is configured or the server
+rejects the token, so a checkout without research-group credentials still runs and still
+persists its results. `DatabaseHandler._fall_back_to_local_database()` calls
+`session.set_db_mode("local")` so the whole process switches, not just the handler.
+
+The PostgreSQL schema is managed by Alembic (`alembic/versions/`). A local SQLite database
+is instead created from the models on first use and stamped at the current Alembic heads.
+Models are in `src/experiment_database/models.py`; persistence logic in
+`src/experiment_database/persistence.py`; engine/session wiring in `src/experiment_database/session.py`,
+where engines are built lazily so importing the module never opens a connection.
 
 ### Frontend API (`src/frontend_api/`)
 
 An `aiohttp` server that exposes HTTP endpoints consumed by the React frontend (`frontend/`). Key modules:
-- `execution_manager.py` — spawns `run_simulation.sh` as a subprocess, writes per-run config JSON to `config/simulation_strategies/ui_generated/`.
+- `execution_manager.py` — spawns `run_simulation.sh` as a subprocess, writes per-run config JSON to `config/simulation_strategies/ui_generated/`. It passes no `env=`, so the child inherits the credentials the server resolved at startup.
 - `agentic_configuration_manager.py` — handles AI-assisted config generation.
 - `db_analysis_manager.py` — proxies database queries for the dashboard.
 - `log_manager.py` — tails simulation log files for the UI's live log view.
+
+`create_app()` calls `initialize_remote_access()` before serving, so the experiment server
+token is prompted for once on a terminal instead of inside a request handler (which would
+block the event loop). Features that need the group's database are gated by
+`_require_remote_server()` and the `local_mode_middleware`, which turns
+`RemoteServerUnavailable` into a `503` carrying `LOCAL_MODE_MESSAGE`. `GET /api/server_status`
+reports `{remote_available, db_mode, message}`; `App.tsx` reads it once on mount and renders
+`LocalModeNotice` in the experiments and analysis panels instead of calling those endpoints.
+The AI config agent keeps working in local mode — only its cross-device session history,
+which lives in the group's database, is skipped.
 
 ### AI config agent (`src/ai_agent/`)
 
@@ -154,10 +184,16 @@ Copy `.env.public` and create `.env.private` with secrets. Required vars:
 
 | Variable | Purpose |
 |---|---|
-| `EXPERIMENT_DB_MODE` | `direct`, `server`, or `neon` |
+| `EXPERIMENT_DB_MODE` | `local`, `direct`, `server`, or `neon` |
+| `EXPERIMENT_DB_LOCAL_PATH` | SQLite file for `local` mode (default `out/experiments.db`) |
 | `EXPERIMENT_SERVER_URL` | URL of the remote experiment server |
 | `EXPERIMENT_SERVER_TOKEN` | Auth token for the experiment server |
-| `FULL_AUTHOR_NAME` / `AUTHOR_EMAIL` | Experiment metadata |
+| `FULL_AUTHOR_NAME` / `AUTHOR_EMAIL` | Experiment metadata; default to `git config user.name` / `user.email` |
 | `OPENAI_API_KEY` | Required for AI config agent |
+| `INTEFL_NON_INTERACTIVE` | Set to `1` to never prompt for missing config, even on a terminal |
+
+`obtain_env_var()` (`src/utils/common.py`) prompts for missing values only on an interactive
+terminal and persists answers to `.env.private`. Headless runs fall back to defaults rather
+than blocking on stdin, so simulations spawned as subprocesses cannot hang.
 
 HuggingFace model cache is redirected to `./cache/huggingface` to avoid rate limits.

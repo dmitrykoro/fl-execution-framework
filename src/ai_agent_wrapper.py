@@ -98,6 +98,13 @@ class AIAgent:
 
         if vendor_keyword == "chatgpt":
             api_key = obtain_env_var("OPENAI_TOKEN")
+
+            if not api_key:
+                raise RuntimeError(
+                    "The AI configuration agent needs an OpenAI API key. "
+                    "Set OPENAI_TOKEN in .env.private to use it."
+                )
+
             return ChatgptAIVendor(agent_config, api_key=api_key)
 
         else:
